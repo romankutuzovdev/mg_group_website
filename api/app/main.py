@@ -14,6 +14,7 @@ from app.routers import (
     cabinet,
     content,
     health,
+    lot_image,
     lots,
     pricing,
     purchased_cars,
@@ -69,8 +70,9 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix=prefix)
     app.include_router(cabinet.router, prefix=prefix)
     app.include_router(purchased_cars.router, prefix=prefix)
-    # Dynamic lot HTML (before StaticFiles — Next export has no /auctions/* pages)
+    # Dynamic lot HTML + image proxy (before StaticFiles)
     app.include_router(auction_pages.router)
+    app.include_router(lot_image.router)
 
     # Website (Next static export) — same origin as API on Windows (e.g. http://IP/)
     web_root = Path(settings.web_root).expanduser() if settings.web_root.strip() else None
