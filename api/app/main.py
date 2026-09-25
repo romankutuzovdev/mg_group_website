@@ -9,6 +9,7 @@ from app import __version__
 from app.config import get_settings
 from app.data.store import lot_store
 from app.routers import (
+    auction_pages,
     auth,
     cabinet,
     content,
@@ -68,6 +69,8 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix=prefix)
     app.include_router(cabinet.router, prefix=prefix)
     app.include_router(purchased_cars.router, prefix=prefix)
+    # Dynamic lot HTML (before StaticFiles — Next export has no /auctions/* pages)
+    app.include_router(auction_pages.router)
 
     # Website (Next static export) — same origin as API on Windows (e.g. http://IP/)
     web_root = Path(settings.web_root).expanduser() if settings.web_root.strip() else None
