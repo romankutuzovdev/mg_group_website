@@ -1,4 +1,4 @@
-import { fetchAllLots, fetchFeaturedLots, fetchLotBySlug, fetchLotSlugs } from "@/lib/api/client";
+import { fetchAllLots, fetchFeaturedLots, fetchLotBySlug } from "@/lib/api/client";
 import { isApiEnabled } from "@/lib/api/config";
 import { isAuctionEnded } from "@/lib/auctions/filter-lots";
 import { enrichLotSpecs } from "@/lib/auctions/lot-specs";
@@ -27,23 +27,58 @@ export function serializeLot<T>(value: T): T {
 }
 
 /**
- * Live catalog from API only (no generated-lots.json).
+ * Read `.cache/catalog-lots.json` written by `catalog:sync`.
+ * Uses dynamic require so the client webpack bundle never resolves `fs`/`path`.
+ */
+function readCatalogLotsCache(): AuctionLot[] | null {
+  if (typeof window !== "undefined") return null;
+  try {
+    // eslint-disable-next-line no-new-func
+    const req = new Function("return require")() as NodeRequire;
+    const fs = req("fs") as typeof import("fs");
+    const path = req("path") as typeof import("path");
+    const file = path.join(process.cwd(), ".cache", "catalog-lots.json");
+    if (!fs.existsSync(file)) return null;
+    const raw = JSON.parse(fs.readFileSync(file, "utf8")) as { lots?: AuctionLot[] };
+    if (!Array.isArray(raw?.lots) || raw.lots.length === 0) return null;
+    return raw.lots;
+  } catch {
+    return null;
+  }
+}
+
+function finalizeCatalog(lots: AuctionLot[]): AuctionLot[] {
+  return serializeLot(lots.map(normalizeLot).filter(withRealPhoto).filter(stillOnAuction));
+}
+
+/** One in-flight / resolved catalog per Node process (SSG worker). */
+let catalogMemo: Promise<AuctionLot[]> | null = null;
+
+/**
+ * Live catalog: prefer `.cache/catalog-lots.json` from `catalog:sync`, else API.
  * Filters: real photo + auction not ended.
  */
 export async function loadCatalogLots(): Promise<AuctionLot[]> {
-  if (!isApiEnabled()) {
-    console.warn("[auctions] NEXT_PUBLIC_API_URL is empty — catalog will be empty");
-    return [];
+  if (!catalogMemo) {
+    catalogMemo = (async () => {
+      const cached = readCatalogLotsCache();
+      if (cached) {
+        return finalizeCatalog(cached);
+      }
+      if (!isApiEnabled()) {
+        console.warn("[auctions] NEXT_PUBLIC_API_URL is empty — catalog will be empty");
+        return [];
+      }
+      try {
+        const lots = await fetchAllLots(100);
+        return finalizeCatalog(lots);
+      } catch (err) {
+        console.warn("[auctions] API catalog unavailable:", err);
+        return [];
+      }
+    })();
   }
-  try {
-    const lots = await fetchAllLots(100);
-    return serializeLot(
-      lots.map(normalizeLot).filter(withRealPhoto).filter(stillOnAuction),
-    );
-  } catch (err) {
-    console.warn("[auctions] API catalog unavailable:", err);
-    return [];
-  }
+  return catalogMemo;
 }
 
 /** @deprecated Sync helper — always empty without local JSON. Prefer loadCatalogLots(). */
@@ -92,6 +127,9 @@ export function getLotBySlug(_slug: string): AuctionLot | undefined {
 }
 
 export async function loadLotBySlug(slug: string): Promise<AuctionLot | undefined> {
+  const fromCache = (await loadCatalogLots()).find((l) => l.slug === slug);
+  if (fromCache) return fromCache;
+
   if (!isApiEnabled()) return undefined;
   try {
     const lot = await fetchLotBySlug(slug);
@@ -116,5 +154,5 @@ export async function loadAllSlugs(): Promise<string[]> {
 }
 
 export function hasGeneratedCatalog(): boolean {
-  return isApiEnabled();
+  return isApiEnabled() || Boolean(readCatalogLotsCache()?.length);
 }

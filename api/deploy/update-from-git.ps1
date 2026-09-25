@@ -67,15 +67,37 @@ $uploadsDir = Join-Path $dataDir "uploads"
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 New-Item -ItemType Directory -Force -Path $uploadsDir | Out-Null
 
-Write-Host "==> ensure Chrome CDP (headless) for scrapers"
-$chromeBat = Join-Path $apiDir "scripts\start-chrome-cdp.bat"
-# Prefer Python autostart after service restart; also kick bat if present
-if (Test-Path $chromeBat) {
+Write-Host "==> ensure Chrome CDP service (survives AnyDesk disconnect)"
+$chromeInstall = Join-Path $apiDir "deploy\install-chrome-cdp-service.ps1"
+$chromeSvc = Get-Service -Name "mg-chrome-cdp" -ErrorAction SilentlyContinue
+if ($chromeSvc) {
   try {
-    $env:MG_CHROME_HEADLESS = "1"
-    Start-Process -FilePath $chromeBat -WindowStyle Hidden | Out-Null
+    if ($chromeSvc.Status -ne "Running") {
+      Start-Service -Name "mg-chrome-cdp"
+      Write-Host "  started mg-chrome-cdp"
+    } else {
+      Write-Host "  mg-chrome-cdp already running"
+    }
   } catch {
-    Write-Host "  Chrome bat start skipped: $_" -ForegroundColor Yellow
+    Write-Host "  mg-chrome-cdp start failed: $_" -ForegroundColor Yellow
+  }
+} elseif (Test-Path $chromeInstall) {
+  Write-Host "  installing mg-chrome-cdp service..."
+  try {
+    powershell -ExecutionPolicy Bypass -File $chromeInstall -AppDir $AppDir
+  } catch {
+    Write-Host "  install failed: $_" -ForegroundColor Yellow
+    Write-Host "  Run manually as Admin: $chromeInstall"
+  }
+} else {
+  $chromeBat = Join-Path $apiDir "scripts\start-chrome-cdp.bat"
+  if (Test-Path $chromeBat) {
+    try {
+      $env:MG_CHROME_HEADLESS = "1"
+      Start-Process -FilePath $chromeBat -WindowStyle Hidden | Out-Null
+    } catch {
+      Write-Host "  Chrome bat start skipped: $_" -ForegroundColor Yellow
+    }
   }
 }
 

@@ -283,9 +283,14 @@ export default function LotDetailPage({ dictionary, lot }: Props) {
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
+  const { getAuctionSsgLimit } = await import("@/lib/auctions/seo-inventory");
+  const limit = getAuctionSsgLimit();
+  if (limit <= 0) {
+    return { paths: [], fallback: false };
+  }
   const { auctionSlugs } = await buildSeoInventory();
   return {
-    paths: auctionSlugs.map((slug) => ({ params: { slug } })),
+    paths: auctionSlugs.slice(0, limit).map((slug) => ({ params: { slug } })),
     fallback: false,
   };
 };

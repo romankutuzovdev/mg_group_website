@@ -5,10 +5,20 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.config import Settings, get_settings
-from app.models.cabinet import AuthResponse, DealCreate, DealUpdate, StageUpdate, TelegramAuthPayload
+from app.models.cabinet import (
+    AuthResponse,
+    DealCreate,
+    DealUpdate,
+    StageUpdate,
+    TelegramAuthPayload,
+    TelegramWebAppAuthPayload,
+)
 from app.services.auth_deps import create_access_token
 from app.services.cabinet_store import cabinet_store
-from app.services.telegram_auth import verify_telegram_login
+from app.services.telegram_auth import (
+    verify_telegram_login,
+    verify_telegram_webapp_init_data,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -129,6 +139,26 @@ def auth_telegram(
 ) -> AuthResponse:
     verified = verify_telegram_login(
         payload.model_dump(),
+        bot_token=settings.telegram_bot_token,
+        max_age_seconds=settings.telegram_auth_max_age_seconds,
+    )
+    user = cabinet_store.upsert_user_from_telegram(verified)
+    token = create_access_token(
+        telegram_id=user.telegram_id,
+        user_id=user.id,
+        settings=settings,
+    )
+    return AuthResponse(access_token=token, user=user)
+
+
+@router.post("/telegram/webapp", response_model=AuthResponse)
+def auth_telegram_webapp(
+    payload: TelegramWebAppAuthPayload,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AuthResponse:
+    """Silent login for Telegram Mini App via `WebApp.initData`."""
+    verified = verify_telegram_webapp_init_data(
+        payload.init_data,
         bot_token=settings.telegram_bot_token,
         max_age_seconds=settings.telegram_auth_max_age_seconds,
     )

@@ -172,6 +172,21 @@ export async function loginWithTelegram(
   return data;
 }
 
+/** Silent login for Telegram Mini App (`Telegram.WebApp.initData`). */
+export async function loginWithTelegramWebApp(
+  initData: string,
+): Promise<{ access_token: string; user: CabinetUser }> {
+  const data = await cabinetFetch<{ access_token: string; user: CabinetUser }>(
+    "/api/v1/auth/telegram/webapp",
+    {
+      method: "POST",
+      body: JSON.stringify({ init_data: initData }),
+    },
+  );
+  setCabinetToken(data.access_token);
+  return data;
+}
+
 export async function loginDev(
   role: "manager" | "client" = "manager",
 ): Promise<{ access_token: string; user: CabinetUser }> {

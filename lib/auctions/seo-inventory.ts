@@ -1,6 +1,7 @@
 /**
- * SEO inventory from live auction lots (API).
- * Only region/make/model paths that have active lots with photos get SSG + sitemap.
+ * SEO inventory from live auction lots (API / build cache).
+ * Make/model paths with live stock → Next SSG.
+ * Auction lot URLs → sitemap + Cloudflare Function (not Next SSG by default).
  */
 import { loadCatalogLots } from "@/lib/auctions/repository";
 import type { AuctionLot } from "@/lib/auctions/types";
@@ -12,8 +13,23 @@ import {
 } from "@/lib/catalog";
 import { lotMakeSlug, lotMatchesModel } from "@/lib/catalog/match-lots";
 
-/** Soft cap so daily Cloudflare builds stay reasonable while indexing fresh stock. */
-export const SEO_AUCTION_SLUG_LIMIT = 2000;
+function envInt(name: string, fallback: number): number {
+  const n = Number(process.env[name]);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
+}
+
+/**
+ * How many `/auctions/[slug]` pages Next statically exports.
+ * Default 0 — lot HTML is served by Cloudflare Pages Function (fast builds).
+ */
+export function getAuctionSsgLimit(): number {
+  return envInt("SEO_AUCTION_SSG_LIMIT", 0);
+}
+
+/** Cap for auction URLs in sitemap (Function still serves any live slug). */
+export function getAuctionSitemapLimit(): number {
+  return envInt("SEO_AUCTION_SITEMAP_LIMIT", 5000);
+}
 
 export type SeoMakePath = { region: CatalogRegionSlug; make: string };
 export type SeoModelPath = { region: CatalogRegionSlug; make: string; model: string };
@@ -22,6 +38,7 @@ export type SeoInventory = {
   lots: AuctionLot[];
   makePaths: SeoMakePath[];
   modelPaths: SeoModelPath[];
+  /** Slugs for sitemap / edge SEO (not necessarily SSG). */
   auctionSlugs: string[];
 };
 
@@ -34,7 +51,16 @@ function lotModelSlug(lot: AuctionLot, makeSlug: string): string | null {
   return null;
 }
 
+let inventoryMemo: Promise<SeoInventory> | null = null;
+
 export async function buildSeoInventory(): Promise<SeoInventory> {
+  if (!inventoryMemo) {
+    inventoryMemo = buildSeoInventoryUncached();
+  }
+  return inventoryMemo;
+}
+
+async function buildSeoInventoryUncached(): Promise<SeoInventory> {
   const lots = await loadCatalogLots();
 
   const makeKeys = new Set<string>();
@@ -71,20 +97,20 @@ export async function buildSeoInventory(): Promise<SeoInventory> {
         a.model.localeCompare(b.model),
     );
 
-  // Prefer soonest auctions for indexing budget
   const ranked = [...lots].sort((a, b) => {
     const ta = Date.parse(a.auctionDate || "") || Number.MAX_SAFE_INTEGER;
     const tb = Date.parse(b.auctionDate || "") || Number.MAX_SAFE_INTEGER;
     return ta - tb;
   });
 
+  const sitemapLimit = getAuctionSitemapLimit();
   const seen = new Set<string>();
   const auctionSlugs: string[] = [];
   for (const lot of ranked) {
     if (!lot.slug || seen.has(lot.slug)) continue;
     seen.add(lot.slug);
     auctionSlugs.push(lot.slug);
-    if (auctionSlugs.length >= SEO_AUCTION_SLUG_LIMIT) break;
+    if (auctionSlugs.length >= sitemapLimit) break;
   }
 
   return { lots, makePaths, modelPaths, auctionSlugs };

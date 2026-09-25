@@ -192,12 +192,16 @@ def _launch_chrome(port: int, *, headless: bool) -> None:
         "stderr": subprocess.DEVNULL,
     }
     if os.name == "nt":
-        kwargs["creationflags"] = (
-            getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-            | getattr(subprocess, "DETACHED_PROCESS", 0)
-            | getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        )
+        # Detach from interactive desktop so Chrome survives AnyDesk / RDP logout.
+        flags = 0
+        flags |= getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        flags |= getattr(subprocess, "DETACHED_PROCESS", 0)
+        flags |= getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        flags |= getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0x01000000)
+        kwargs["creationflags"] = flags
         kwargs["close_fds"] = True
+        # Avoid inheriting the console of the parent service / session
+        kwargs["stdin"] = subprocess.DEVNULL
     else:
         kwargs["start_new_session"] = True
 

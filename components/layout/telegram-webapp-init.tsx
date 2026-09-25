@@ -1,23 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
+import {
+  ensureTelegramWebAppAuth,
+  isTelegramWebAppEnv,
+} from "@/lib/telegram-webapp-auth";
 
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: {
-        ready: () => void;
-        expand: () => void;
-        enableClosingConfirmation?: () => void;
-        setHeaderColor?: (color: string) => void;
-        setBackgroundColor?: (color: string) => void;
-        themeParams?: Record<string, string>;
-      };
-    };
-  }
-}
-
-/** Подключает Telegram WebApp API и помечает html классом tg-miniapp. */
+/** Подключает Telegram WebApp API, помечает html классом tg-miniapp и тихо логинит. */
 export function TelegramWebAppInit() {
   useEffect(() => {
     const mark = () => {
@@ -27,23 +16,33 @@ export function TelegramWebAppInit() {
       try {
         wa.ready();
         wa.expand();
-        wa.setHeaderColor?.("#ffffff");
-        wa.setBackgroundColor?.("#f2f2f2");
+        if (wa.isVersionAtLeast?.("6.1")) {
+          wa.setHeaderColor?.("#ffffff");
+          wa.setBackgroundColor?.("#f2f2f2");
+        }
       } catch {
         /* ignore */
       }
     };
 
-    if (window.Telegram?.WebApp) {
-      mark();
-      return;
-    }
+    const boot = async () => {
+      if (window.Telegram?.WebApp) {
+        mark();
+      } else if (isTelegramWebAppEnv()) {
+        const script = document.createElement("script");
+        script.src = "https://telegram.org/js/telegram-web-app.js";
+        script.async = true;
+        script.onload = mark;
+        document.head.appendChild(script);
+      }
 
-    const script = document.createElement("script");
-    script.src = "https://telegram.org/js/telegram-web-app.js";
-    script.async = true;
-    script.onload = mark;
-    document.head.appendChild(script);
+      // Silent JWT login for Mini App — no Login Widget click required
+      if (isTelegramWebAppEnv() || window.Telegram?.WebApp?.initData) {
+        await ensureTelegramWebAppAuth();
+      }
+    };
+
+    void boot();
   }, []);
 
   return null;

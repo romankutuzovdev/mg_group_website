@@ -24,7 +24,8 @@ const catalog = JSON.parse(
 const CITIES = ["minsk", "grodno", "brest", "vitebsk", "gomel", "mogilev"];
 const REGIONS = Object.keys(catalog.regions);
 const AUCTION_GRACE_MS = 3 * 60 * 60 * 1000;
-const AUCTION_SLUG_LIMIT = 2000;
+const AUCTION_SLUG_LIMIT = Number(process.env.SEO_AUCTION_SITEMAP_LIMIT || 5000);
+const LOTS_CACHE_PATH = path.join(ROOT, ".cache", "catalog-lots.json");
 
 function hasRealLotPhoto(url) {
   const trimmed = (url || "").trim();
@@ -73,6 +74,17 @@ function lotMakeSlug(rawMake, makes) {
   return makes[slug] ? slug : null;
 }
 
+function readLotsCache() {
+  try {
+    if (!fs.existsSync(LOTS_CACHE_PATH)) return null;
+    const raw = JSON.parse(fs.readFileSync(LOTS_CACHE_PATH, "utf8"));
+    if (!Array.isArray(raw?.lots) || !raw.lots.length) return null;
+    return raw.lots;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchLotsFromApi() {
   const all = [];
   let page = 1;
@@ -90,6 +102,17 @@ async function fetchLotsFromApi() {
     page += 1;
   }
   return all;
+}
+
+async function loadLotsForSitemap() {
+  const cached = readLotsCache();
+  if (cached) {
+    console.log(`sitemap: loaded ${cached.length} lots from .cache/catalog-lots.json`);
+    return cached;
+  }
+  const lots = await fetchLotsFromApi();
+  console.log(`sitemap: loaded ${lots.length} lots from ${API_BASE}`);
+  return lots;
 }
 
 const entries = [
@@ -121,8 +144,7 @@ for (const city of CITIES) {
 
 let lots = [];
 try {
-  lots = await fetchLotsFromApi();
-  console.log(`sitemap: loaded ${lots.length} lots from ${API_BASE}`);
+  lots = await loadLotsForSitemap();
 } catch (err) {
   console.warn("sitemap: API unavailable, auction URLs skipped:", err.message || err);
 }

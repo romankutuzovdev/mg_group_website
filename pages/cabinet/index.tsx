@@ -32,6 +32,7 @@ import {
   loginWithTelegram,
   setCabinetToken,
 } from "@/lib/api/cabinet";
+import { ensureTelegramWebAppAuth, isTelegramWebAppEnv } from "@/lib/telegram-webapp-auth";
 import { hydrateFavorites, resetFavoritesCache, subscribeFavorites } from "@/lib/favorites-cache";
 
 declare global {
@@ -93,6 +94,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   const [error, setError] = useState<string | null>(null);
   const [botUsername, setBotUsername] = useState("");
   const [authEnabled, setAuthEnabled] = useState(false);
+  const [webAppAuth, setWebAppAuth] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
 
   // Deep-link: /cabinet/?tab=calc opens the calculator tab after login
@@ -138,6 +140,14 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
       const cfg = await fetchTelegramAuthConfig();
       setBotUsername(cfg.bot_username);
       setAuthEnabled(cfg.enabled);
+
+      // Mini App: silent login via initData (no Telegram Login Widget)
+      if (!getCabinetToken()) {
+        const ok = await ensureTelegramWebAppAuth();
+        if (ok) setWebAppAuth(true);
+      } else if (isTelegramWebAppEnv()) {
+        setWebAppAuth(true);
+      }
 
       const token = getCabinetToken();
       if (!token) {
@@ -191,7 +201,9 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   }, [loadDeals, loadFavorites]);
 
   useEffect(() => {
-    if (user || !authEnabled || !botUsername || !widgetRef.current) return;
+    // In Mini App we never show the Login Widget — auth is silent
+    if (user || webAppAuth || !authEnabled || !botUsername || !widgetRef.current) return;
+    if (isTelegramWebAppEnv()) return;
     widgetRef.current.innerHTML = "";
     const script = document.createElement("script");
     script.src = "https://telegram.org/js/telegram-widget.js?22";
@@ -202,7 +214,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     script.setAttribute("data-onauth", "onTelegramAuth(user)");
     script.setAttribute("data-request-access", "write");
     widgetRef.current.appendChild(script);
-  }, [user, authEnabled, botUsername, loading]);
+  }, [user, webAppAuth, authEnabled, botUsername, loading]);
 
   const openDeal = async (id: number) => {
     setLoading(true);
@@ -242,9 +254,19 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
       {!user ? (
         <div className="mx-auto max-w-md rounded-xl border border-border bg-bg-elevated p-5 text-center">
-          <p className="text-base font-semibold">Войти через Telegram</p>
-          <div className="mt-4 flex min-h-[40px] items-center justify-center" ref={widgetRef} />
-          {!authEnabled ? (
+          <p className="text-base font-semibold">
+            {webAppAuth || isTelegramWebAppEnv()
+              ? "Вход через Telegram…"
+              : "Войти через Telegram"}
+          </p>
+          {webAppAuth || isTelegramWebAppEnv() ? (
+            <p className="mt-3 text-sm text-text-secondary">
+              Авторизация Mini App… Подождите секунду.
+            </p>
+          ) : (
+            <div className="mt-4 flex min-h-[40px] items-center justify-center" ref={widgetRef} />
+          )}
+          {!authEnabled && !(webAppAuth || isTelegramWebAppEnv()) ? (
             <p className="mt-3 text-xs text-text-muted">
               Виджет недоступен: на API задайте TELEGRAM_BOT_TOKEN и TELEGRAM_BOT_USERNAME,
               в BotFather укажите Domain сайта.
@@ -292,13 +314,15 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={logout}
-              className="rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs font-medium hover:bg-zinc-50"
-            >
-              Выйти
-            </button>
+            {!webAppAuth && !isTelegramWebAppEnv() ? (
+              <button
+                type="button"
+                onClick={logout}
+                className="rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs font-medium hover:bg-zinc-50"
+              >
+                Выйти
+              </button>
+            ) : null}
           </div>
 
           {view === "list" ? (

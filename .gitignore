@@ -71,3 +71,6 @@ Desktop.ini
 # Cloudflare Wrangler
 .wrangler/
 .dev.vars
+
+# Build-time API catalog snapshot
+.cache/

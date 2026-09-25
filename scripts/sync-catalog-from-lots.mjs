@@ -7,13 +7,14 @@
  *
  * If API is unreachable, keeps existing catalog unchanged (exit 0).
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const CATALOG_PATH = join(ROOT, "lib/catalog/generated.json");
+const LOTS_CACHE_PATH = join(ROOT, ".cache", "catalog-lots.json");
 const LOTS_API = (
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.SITEMAP_API_URL ||
@@ -101,6 +102,17 @@ async function loadLots() {
 async function main() {
   const lots = await loadLots();
   if (!lots) return;
+
+  mkdirSync(dirname(LOTS_CACHE_PATH), { recursive: true });
+  writeFileSync(
+    LOTS_CACHE_PATH,
+    JSON.stringify({
+      fetchedAt: new Date().toISOString(),
+      source: LOTS_API,
+      lots,
+    }),
+  );
+  console.log(`sync-catalog: wrote ${lots.length} lots → .cache/catalog-lots.json`);
 
   const catalog = JSON.parse(readFileSync(CATALOG_PATH, "utf8"));
   const makes = catalog.makes;

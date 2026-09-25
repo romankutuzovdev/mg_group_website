@@ -82,6 +82,12 @@ class TelegramAuthPayload(BaseModel):
     hash: str
 
 
+class TelegramWebAppAuthPayload(BaseModel):
+    """Raw `Telegram.WebApp.initData` query string from Mini App."""
+
+    init_data: str = Field(..., min_length=1)
+
+
 class UserOut(BaseModel):
     id: int
     telegram_id: int

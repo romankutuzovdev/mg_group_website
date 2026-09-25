@@ -265,6 +265,7 @@ try {
 }
 
 $chromeBat = Join-Path $apiDir "scripts\start-chrome-cdp.bat"
+$chromeInstall = Join-Path $deployDir "install-chrome-cdp-service.ps1"
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Green
@@ -279,5 +280,7 @@ Write-Host " Chrome CDP:  $chromeBat"
 Write-Host " Update:      powershell -ExecutionPolicy Bypass -File $(Join-Path $deployDir 'update-from-git.ps1')"
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "Before scrapers, start Chrome with CDP:" -ForegroundColor Yellow
-Write-Host "  $chromeBat"
+Write-Host "IMPORTANT: AnyDesk disconnect kills GUI Chrome." -ForegroundColor Yellow
+Write-Host "Install headless Chrome as a Windows service (survives disconnect):" -ForegroundColor Yellow
+Write-Host "  powershell -ExecutionPolicy Bypass -File $chromeInstall"
+Write-Host "Keep in api\.env: SCRAPER_CDP_HEADLESS=true  SCRAPER_CDP_URL=http://127.0.0.1:9223"

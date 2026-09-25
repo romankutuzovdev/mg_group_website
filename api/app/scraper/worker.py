@@ -499,8 +499,22 @@ class MultiAgentOrchestrator:
         """Keep Chrome + agents alive. On CDP death — restart Chrome, never kill API."""
         settings = get_settings()
         backoff = 5.0
+        force_chrome = False
         while not self._stop.is_set():
             try:
+                if force_chrome and settings.scraper_cdp_url:
+                    from app.scraper.chrome_cdp import ensure_chrome_cdp
+
+                    logger.warning("forcing headless Chrome CDP relaunch after disconnect/death")
+                    ensure_chrome_cdp(
+                        settings.scraper_cdp_url,
+                        autostart=True,
+                        headless=True,  # always headless after crash — survives AnyDesk
+                        force_restart=True,
+                        wait_seconds=45.0,
+                    )
+                    force_chrome = False
+
                 self._pw = await async_playwright().start()
                 self._browser = await launch_chromium(
                     self._pw,
@@ -550,9 +564,11 @@ class MultiAgentOrchestrator:
                     await asyncio.sleep(8)
                     if any(a._browser_dead.is_set() for a in self._agents.values()):
                         logger.warning("agent reported dead Chrome — reconnecting")
+                        force_chrome = True
                         break
                     browser = self._browser
                     if browser is None:
+                        force_chrome = True
                         break
                     try:
                         _ = browser.contexts
@@ -561,13 +577,16 @@ class MultiAgentOrchestrator:
 
                             if not cdp_responsive(settings.scraper_cdp_url, timeout=1.0):
                                 logger.warning("CDP port died — reconnecting Chrome")
+                                force_chrome = True
                                 break
                     except Exception as exc:
                         logger.warning("browser liveness failed: %s — reconnecting", exc)
+                        force_chrome = True
                         break
 
             except Exception as exc:
                 logger.exception("supervisor session failed (will retry): %s", exc)
+                force_chrome = True
             finally:
                 if self._photo_agent:
                     try:
