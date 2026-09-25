@@ -253,36 +253,48 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
       ) : null}
 
       {!user ? (
-        <div className="mx-auto max-w-md rounded-xl border border-border bg-bg-elevated p-5 text-center">
-          <p className="text-base font-semibold">
-            {webAppAuth || isTelegramWebAppEnv()
-              ? "Вход через Telegram…"
-              : "Войти через Telegram"}
-          </p>
-          {webAppAuth || isTelegramWebAppEnv() ? (
-            <p className="mt-3 text-sm text-text-secondary">
-              Авторизация Mini App… Подождите секунду.
+        <div className="mx-auto w-full max-w-3xl space-y-6">
+          <div className="mx-auto max-w-md rounded-xl border border-border bg-bg-elevated p-5 text-center">
+            <p className="text-base font-semibold">
+              {webAppAuth || isTelegramWebAppEnv()
+                ? "Вход через Telegram…"
+                : "Войти через Telegram"}
             </p>
-          ) : (
-            <div className="mt-4 flex min-h-[40px] items-center justify-center" ref={widgetRef} />
-          )}
-          {!authEnabled && !(webAppAuth || isTelegramWebAppEnv()) ? (
-            <p className="mt-3 text-xs text-text-muted">
-              Виджет недоступен: на API задайте TELEGRAM_BOT_TOKEN и TELEGRAM_BOT_USERNAME,
-              в BotFather укажите Domain сайта.
+            {webAppAuth || isTelegramWebAppEnv() ? (
+              <p className="mt-3 text-sm text-text-secondary">
+                Авторизация Mini App… Подождите секунду.
+              </p>
+            ) : (
+              <div className="mt-4 flex min-h-[40px] items-center justify-center" ref={widgetRef} />
+            )}
+            {!authEnabled && !(webAppAuth || isTelegramWebAppEnv()) ? (
+              <p className="mt-3 text-xs text-text-muted">
+                Виджет недоступен: на API задайте TELEGRAM_BOT_TOKEN и TELEGRAM_BOT_USERNAME,
+                в BotFather укажите Domain сайта.
+              </p>
+            ) : null}
+            <p className="mt-4 text-xs text-text-muted">
+              Нет сделки?{" "}
+              <a
+                href={dictionary.global.tgLink}
+                className="font-medium text-accent-dark underline underline-offset-2"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Написать менеджеру
+              </a>
+              {" · "}
+              <a
+                href="/calculator/"
+                className="font-medium text-accent-dark underline underline-offset-2"
+              >
+                Калькулятор на сайте
+              </a>
             </p>
-          ) : null}
-          <p className="mt-4 text-xs text-text-muted">
-            Нет сделки?{" "}
-            <a
-              href={dictionary.global.tgLink}
-              className="font-medium text-accent-dark underline underline-offset-2"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Написать менеджеру
-            </a>
-          </p>
+          </div>
+
+          {/* Calculators work without Telegram login */}
+          <CabinetCalculator />
         </div>
       ) : (
         <div className="space-y-4">

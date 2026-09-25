@@ -72,6 +72,22 @@ async def scrape_copart_usa(
                 pass
         await tab.wait_for_timeout(1500)
 
+        warm_html = ""
+        try:
+            warm_html = (await tab.content())[:8000].lower()
+        except Exception:
+            pass
+        for marker, reason in (
+            ("incapsula", "incapsula"),
+            ("_incapsula_", "incapsula"),
+            ("captcha", "captcha"),
+            ("access denied", "access_denied"),
+            ("cf-browser-verification", "cloudflare"),
+        ):
+            if marker in warm_html:
+                logger.warning("copart warm page blocked: %s", reason)
+                return [{"_blocked": True, "reason": reason}]
+
         for page_idx in range(max_pages):
             body = _page_body(page_idx, page_size)
             try:
@@ -92,7 +108,20 @@ async def scrape_copart_usa(
 
             if not resp.ok:
                 logger.warning("copart search HTTP %s on page %s", resp.status, page_idx)
+                if resp.status in (401, 403, 429) and page_idx == 0:
+                    return [{"_blocked": True, "reason": f"http_{resp.status}"}]
                 break
+
+            ctype = (resp.headers.get("content-type") or "").lower()
+            if "json" not in ctype and page_idx == 0:
+                text = ""
+                try:
+                    text = (await resp.text())[:2000].lower()
+                except Exception:
+                    pass
+                if "incapsula" in text or "captcha" in text:
+                    return [{"_blocked": True, "reason": "incapsula"}]
+                return [{"_blocked": True, "reason": "empty_page_possible_bot_wall"}]
 
             payload = await resp.json()
             content = (
@@ -100,6 +129,8 @@ async def scrape_copart_usa(
                 or []
             )
             if not content:
+                if page_idx == 0 and not lots:
+                    return [{"_blocked": True, "reason": "empty_page_possible_bot_wall"}]
                 break
 
             new = 0
