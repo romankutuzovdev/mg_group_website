@@ -115,48 +115,26 @@ $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interac
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerLogon, $triggerStartup) `
   -Settings $settings -Principal $principal -Force | Out-Null
 
-# Start now in this session
-Write-Host "==> starting watchdog now"
-Start-Process -FilePath $psExe -ArgumentList $taskArgs -WorkingDirectory $apiDir -WindowStyle Minimized
-
-# 2) NSSM backup (Manual start - do not fight the interactive Chrome for the same port)
-$nssmExe = Install-Nssm $deployDir
+# Headed Chrome MUST run in the interactive desktop. NSSM = Session 0 → no window,
+# and it steals :9223 so the visible Chrome never comes up. Disable NSSM for headed.
+Write-Host "==> disable NSSM $ServiceName (Session 0 cannot show headed Chrome)"
+$nssmExe = $null
+try { $nssmExe = Install-Nssm $deployDir } catch { Write-Host "  nssm skip: $_" }
 function Invoke-NssmQuiet([string[]]$NssmArgs) {
-  # nssm writes to stderr even on success ("service not started") - ignore under Stop
+  if (-not $nssmExe) { return }
   $prev = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
-  try {
-    $null = & $nssmExe @NssmArgs 2>&1
-  } catch {
-    # ignore
-  }
+  try { $null = & $nssmExe @NssmArgs 2>&1 } catch {}
   $ErrorActionPreference = $prev
 }
+try { Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue } catch {}
+Invoke-NssmQuiet @("stop", $ServiceName)
+Invoke-NssmQuiet @("set", $ServiceName, "Start", "SERVICE_DISABLED")
+# Keep service entry if present, but never auto-start it for headed mode
 
-$existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
-if ($existing) {
-  Write-Host "==> reset NSSM service $ServiceName (quiet)"
-  try { Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue } catch {}
-  Start-Sleep -Seconds 1
-  Invoke-NssmQuiet @("stop", $ServiceName)
-  Start-Sleep -Seconds 1
-  Invoke-NssmQuiet @("remove", $ServiceName, "confirm")
-  Start-Sleep -Seconds 1
-}
-
-Invoke-NssmQuiet @("install", $ServiceName, $psExe)
-Invoke-NssmQuiet @("set", $ServiceName, "AppParameters", $taskArgs)
-Invoke-NssmQuiet @("set", $ServiceName, "AppDirectory", $apiDir)
-Invoke-NssmQuiet @("set", $ServiceName, "DisplayName", "MG.GROUP Chrome CDP (headed)")
-Invoke-NssmQuiet @("set", $ServiceName, "Description", "Backup Chrome CDP watchdog. Prefer scheduled task MG-Chrome-CDP for visible window.")
-# Manual: interactive task owns the port; start NSSM only if CDP dies and nobody is logged on
-Invoke-NssmQuiet @("set", $ServiceName, "Start", "SERVICE_DEMAND_START")
-Invoke-NssmQuiet @("set", $ServiceName, "AppStdout", (Join-Path $dataDir "chrome-cdp-out.log"))
-Invoke-NssmQuiet @("set", $ServiceName, "AppStderr", (Join-Path $dataDir "chrome-cdp-err.log"))
-Invoke-NssmQuiet @("set", $ServiceName, "AppRotateFiles", "1")
-Invoke-NssmQuiet @("set", $ServiceName, "AppExit", "Default", "Restart")
-Invoke-NssmQuiet @("set", $ServiceName, "AppRestartDelay", "5000")
-Write-Host "NSSM backup installed as Manual: $ServiceName (scheduled task is primary)"
+# Start now in THIS interactive session (AnyDesk desktop)
+Write-Host "==> starting headed watchdog now"
+Start-Process -FilePath $psExe -ArgumentList $taskArgs -WorkingDirectory $apiDir -WindowStyle Minimized
 
 Start-Sleep -Seconds 6
 $cdpOk = $false

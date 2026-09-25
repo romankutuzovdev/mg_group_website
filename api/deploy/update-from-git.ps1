@@ -140,8 +140,26 @@ if ($env:SKIP_CHROME -ne "1") {
   $watchdog = Join-Path $apiDir "scripts\chrome-cdp-watchdog.ps1"
   $psExe = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 
-  # Prefer scheduled task / install script (headed + extensions)
-  if (Test-Path $chromeInstall) {
+  # Never start NSSM mg-chrome-cdp for headed mode (Session 0 = invisible / port steal)
+  try { Stop-Service -Name "mg-chrome-cdp" -Force -ErrorAction SilentlyContinue } catch {}
+  $nssmSilent = Join-Path $apiDir "deploy\nssm.exe"
+  if (Test-Path $nssmSilent) {
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    & $nssmSilent stop "mg-chrome-cdp" 2>&1 | Out-Null
+    & $nssmSilent set "mg-chrome-cdp" Start SERVICE_DISABLED 2>&1 | Out-Null
+    $ErrorActionPreference = $prevEap
+  }
+
+  # Prefer one-shot interactive start (works when CI/SSH has a logged-on desktop)
+  $startNow = Join-Path $apiDir "deploy\start-headed-chrome.ps1"
+  if (Test-Path $startNow) {
+    try {
+      powershell -ExecutionPolicy Bypass -File $startNow -AppDir $AppDir -Port $CdpPort -SkipApiRestart
+    } catch {
+      Write-Host "  start-headed-chrome: $_" -ForegroundColor Yellow
+    }
+  } elseif (Test-Path $chromeInstall) {
     try {
       powershell -ExecutionPolicy Bypass -File $chromeInstall -AppDir $AppDir -Headless 0
     } catch {
@@ -149,14 +167,10 @@ if ($env:SKIP_CHROME -ne "1") {
     }
   }
 
-  # Start task if registered
-  try {
-    Start-ScheduledTask -TaskName "MG-Chrome-CDP" -ErrorAction SilentlyContinue
-  } catch {}
+  try { Start-ScheduledTask -TaskName "MG-Chrome-CDP" -ErrorAction SilentlyContinue } catch {}
 
-  # Fallback: start watchdog directly if CDP still down
   if (-not (Test-Cdp $CdpPort)) {
-    Write-Host "  CDP down - starting watchdog directly"
+    Write-Host "  CDP down - starting watchdog directly in current session"
     if (Test-Path $watchdog) {
       Start-Process -FilePath $psExe -ArgumentList @(
         "-NoProfile", "-ExecutionPolicy", "Bypass",
