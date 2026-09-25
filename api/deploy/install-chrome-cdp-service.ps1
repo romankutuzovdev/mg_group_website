@@ -115,7 +115,7 @@ $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interac
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerLogon, $triggerStartup) `
   -Settings $settings -Principal $principal -Force | Out-Null
 
-# Headed Chrome MUST run in the interactive desktop. NSSM = Session 0 → no window,
+# Headed Chrome MUST run in the interactive desktop. NSSM = Session 0 = no window,
 # and it steals :9223 so the visible Chrome never comes up. Disable NSSM for headed.
 Write-Host "==> disable NSSM $ServiceName (Session 0 cannot show headed Chrome)"
 $nssmExe = $null

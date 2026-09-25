@@ -1,5 +1,5 @@
-# Start visible Chrome CDP in THIS AnyDesk/desktop session (not Session 0 / NSSM).
-# Run as the logged-on user (Admin OK). Do not Log off — only Disconnect AnyDesk.
+﻿# Start visible Chrome CDP in THIS AnyDesk/desktop session (not Session 0 / NSSM).
+# Run as the logged-on user (Admin OK). Do not Log off - only Disconnect AnyDesk.
 #
 #   powershell -ExecutionPolicy Bypass -File C:\mg-api\api\deploy\start-headed-chrome.ps1
 
@@ -16,18 +16,18 @@ $profileDir = Join-Path $apiDir "data\chrome-profile"
 $psExe = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 
 if (-not (Test-Path $watchdog)) {
-  throw "Missing $watchdog — git pull first"
+  throw "Missing $watchdog - git pull first"
 }
 
 Write-Host "==> stop Session-0 NSSM Chrome (invisible / fights the port)"
-foreach ($name in @("mg-chrome-cdp")) {
-  try { Stop-Service -Name $name -Force -ErrorAction SilentlyContinue } catch {}
+foreach ($svcName in @("mg-chrome-cdp")) {
+  try { Stop-Service -Name $svcName -Force -ErrorAction SilentlyContinue } catch {}
   $nssm = Join-Path $apiDir "deploy\nssm.exe"
   if (Test-Path $nssm) {
     $prev = $ErrorActionPreference
     $ErrorActionPreference = "SilentlyContinue"
-    & $nssm stop $name 2>&1 | Out-Null
-    & $nssm set $name Start SERVICE_DISABLED 2>&1 | Out-Null
+    & $nssm stop $svcName 2>&1 | Out-Null
+    & $nssm set $svcName Start SERVICE_DISABLED 2>&1 | Out-Null
     $ErrorActionPreference = $prev
   }
 }
@@ -39,21 +39,21 @@ try {
     if ($line -notmatch "LISTENING") { continue }
     $parts = ($line.ToString() -split "\s+") | Where-Object { $_ -ne "" }
     $procId = $parts[-1]
-    if ($procId -and $procId -notmatch "^(0|4)$") {
+    if ($procId -and $procId -notmatch '^(0|4)$') {
       & taskkill /F /PID $procId 2>$null | Out-Null
     }
   }
 } catch {}
 
 # Drop stale profile locks (Chrome left after crash)
-foreach ($name in @("SingletonLock", "SingletonCookie", "SingletonSocket", "lockfile")) {
-  $p = Join-Path $profileDir $name
+foreach ($lockName in @("SingletonLock", "SingletonCookie", "SingletonSocket", "lockfile")) {
+  $p = Join-Path $profileDir $lockName
   if (Test-Path $p) { Remove-Item $p -Force -ErrorAction SilentlyContinue }
 }
 
 Write-Host "==> start headed watchdog in interactive session"
-$args = "-NoProfile -ExecutionPolicy Bypass -File `"$watchdog`" -Port $Port -ProfileDir `"$profileDir`" -Headless 0"
-Start-Process -FilePath $psExe -ArgumentList $args -WorkingDirectory $apiDir -WindowStyle Minimized
+$watchdogArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$watchdog`" -Port $Port -ProfileDir `"$profileDir`" -Headless 0"
+Start-Process -FilePath $psExe -ArgumentList $watchdogArgs -WorkingDirectory $apiDir -WindowStyle Minimized
 
 $ok = $false
 for ($i = 0; $i -lt 25; $i++) {
@@ -92,4 +92,4 @@ if (-not $SkipApiRestart) {
 
 Write-Host ""
 Write-Host "Chrome window should be visible NOW. Log into Copart/IAAI there." -ForegroundColor Green
-Write-Host "AnyDesk: Disconnect only — never Log off."
+Write-Host "AnyDesk: Disconnect only - never Log off."
