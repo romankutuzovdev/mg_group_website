@@ -119,31 +119,44 @@ Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerLo
 Write-Host "==> starting watchdog now"
 Start-Process -FilePath $psExe -ArgumentList $taskArgs -WorkingDirectory $apiDir -WindowStyle Minimized
 
-# 2) NSSM backup watchdog (same headed flags) - restarts if task dies
+# 2) NSSM backup (Manual start - do not fight the interactive Chrome for the same port)
 $nssmExe = Install-Nssm $deployDir
+function Invoke-NssmQuiet([string[]]$NssmArgs) {
+  # nssm writes to stderr even on success ("service not started") - ignore under Stop
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $null = & $nssmExe @NssmArgs 2>&1
+  } catch {
+    # ignore
+  }
+  $ErrorActionPreference = $prev
+}
+
 $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($existing) {
-  & $nssmExe stop $ServiceName 2>$null
+  Write-Host "==> reset NSSM service $ServiceName (quiet)"
+  try { Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue } catch {}
   Start-Sleep -Seconds 1
-  & $nssmExe remove $ServiceName confirm
+  Invoke-NssmQuiet @("stop", $ServiceName)
+  Start-Sleep -Seconds 1
+  Invoke-NssmQuiet @("remove", $ServiceName, "confirm")
+  Start-Sleep -Seconds 1
 }
-& $nssmExe install $ServiceName $psExe
-& $nssmExe set $ServiceName AppParameters $taskArgs
-& $nssmExe set $ServiceName AppDirectory $apiDir
-& $nssmExe set $ServiceName DisplayName "MG.GROUP Chrome CDP (headed)"
-& $nssmExe set $ServiceName Description "Visible Google Chrome with remote debugging. Restart on crash. Use with Autologon + AnyDesk disconnect (not logoff)."
-& $nssmExe set $ServiceName Start SERVICE_AUTO_START
-& $nssmExe set $ServiceName AppStdout (Join-Path $dataDir "chrome-cdp-out.log")
-& $nssmExe set $ServiceName AppStderr (Join-Path $dataDir "chrome-cdp-err.log")
-& $nssmExe set $ServiceName AppRotateFiles 1
-& $nssmExe set $ServiceName AppExit Default Restart
-& $nssmExe set $ServiceName AppRestartDelay 5000
-# Run as current user so Chrome can attach to interactive desktop when logged on
-try {
-  & $nssmExe set $ServiceName ObjectName ".\$env:USERNAME" 2>$null
-} catch {}
-# Do not auto-start NSSM now if task already launched Chrome (same port)
-Write-Host "NSSM service installed (manual start if needed): $ServiceName"
+
+Invoke-NssmQuiet @("install", $ServiceName, $psExe)
+Invoke-NssmQuiet @("set", $ServiceName, "AppParameters", $taskArgs)
+Invoke-NssmQuiet @("set", $ServiceName, "AppDirectory", $apiDir)
+Invoke-NssmQuiet @("set", $ServiceName, "DisplayName", "MG.GROUP Chrome CDP (headed)")
+Invoke-NssmQuiet @("set", $ServiceName, "Description", "Backup Chrome CDP watchdog. Prefer scheduled task MG-Chrome-CDP for visible window.")
+# Manual: interactive task owns the port; start NSSM only if CDP dies and nobody is logged on
+Invoke-NssmQuiet @("set", $ServiceName, "Start", "SERVICE_DEMAND_START")
+Invoke-NssmQuiet @("set", $ServiceName, "AppStdout", (Join-Path $dataDir "chrome-cdp-out.log"))
+Invoke-NssmQuiet @("set", $ServiceName, "AppStderr", (Join-Path $dataDir "chrome-cdp-err.log"))
+Invoke-NssmQuiet @("set", $ServiceName, "AppRotateFiles", "1")
+Invoke-NssmQuiet @("set", $ServiceName, "AppExit", "Default", "Restart")
+Invoke-NssmQuiet @("set", $ServiceName, "AppRestartDelay", "5000")
+Write-Host "NSSM backup installed as Manual: $ServiceName (scheduled task is primary)"
 
 Start-Sleep -Seconds 6
 $cdpOk = $false
