@@ -1,0 +1,30 @@
+{
+  "source": "Ценообразование США.xlsx / Title",
+  "rows": [
+    {"name": "Salvage Title / Certif / of distrctn", "cost_usd": 0.0, "cost_raw": "без доплат"},
+    {"name": "NY - MV-907A без залога", "cost_usd": 0.0, "cost_raw": "без доплат"},
+    {"name": "XX - MV-50 (NY) - мото / квадро", "cost_usd": 0.0, "cost_raw": "без доплат"},
+    {"name": "WA - Bill of Sale", "cost_usd": 50.0, "cost_raw": "$ 50"},
+    {"name": "NY - MV-907A залоговый (DMV с датой) - 150 долл", "cost_usd": 150.0, "cost_raw": "$ 150"},
+    {"name": "XX - Scrap / Junk Title /Non-Repairable Certificate", "cost_usd": 250.0, "cost_raw": "$ 250"},
+    {"name": "NY - MV-907A + OPEN LIEN (UNSATISFIED LIEN)", "cost_usd": 500.0, "cost_raw": "$ 500"},
+    {"name": "NY - MV-37; MV-51(B); TR-52", "cost_usd": 450.0, "cost_raw": "$ 450"},
+    {"name": "CA, OR, XX - Lien / ACQ / DPLCT", "cost_usd": 450.0, "cost_raw": "$ 450"},
+    {"name": "XX - BOS / Parts only / No title", "cost_usd": 450.0, "cost_raw": "$ 450"},
+    {"name": "WI - Bill of Sale", "cost_usd": 250.0, "cost_raw": "$ 250"}
+  ],
+  "rules": [
+    {"id": "ny_open_lien", "name": "NY - MV-907A + OPEN LIEN (UNSATISFIED LIEN)", "cost_usd": 500.0, "any": ["open lien", "unsatisfied lien"]},
+    {"id": "ny_mv37", "name": "NY - MV-37; MV-51(B); TR-52", "cost_usd": 450.0, "any": ["mv-37", "mv-51", "tr-52"]},
+    {"id": "lien_acq_dplct", "name": "CA, OR, XX - Lien / ACQ / DPLCT", "cost_usd": 450.0, "any": ["lien", "acq", "dplct", "duplicate title", "acquisition"]},
+    {"id": "bos_parts_no_title", "name": "XX - BOS / Parts only / No title", "cost_usd": 450.0, "any": ["parts only", "no title", "bos", "bill of sale - parts", "b.o.s"]},
+    {"id": "scrap_junk", "name": "XX - Scrap / Junk Title /Non-Repairable Certificate", "cost_usd": 250.0, "any": ["scrap", "junk", "non-repairable", "non repairable", "nonrepairable"]},
+    {"id": "wi_bos", "name": "WI - Bill of Sale", "cost_usd": 250.0, "all": ["wi", "bill of sale"]},
+    {"id": "ny_mv907a_lien", "name": "NY - MV-907A залоговый (DMV с датой) - 150 долл", "cost_usd": 150.0, "all": ["mv-907a"], "any": ["залог", "dmv"]},
+    {"id": "wa_bos", "name": "WA - Bill of Sale", "cost_usd": 50.0, "all": ["wa", "bill of sale"]},
+    {"id": "bill_of_sale", "name": "Bill of Sale", "cost_usd": 50.0, "any": ["bill of sale"]},
+    {"id": "ny_mv50_moto", "name": "XX - MV-50 (NY) - мото / квадро", "cost_usd": 0.0, "any": ["mv-50", "mv50"]},
+    {"id": "ny_mv907a_free", "name": "NY - MV-907A без залога", "cost_usd": 0.0, "any": ["mv-907a", "mv907a"]},
+    {"id": "salvage_cert_clean", "name": "Salvage Title / Certif / of distrctn", "cost_usd": 0.0, "any": ["salvage", "certificate of title", "clean title", "clear title", "cert of title", "certif", "destruction", "distrctn", "certificate of destruction", "clear", "recon", "rebuilt", "flood"]}
+  ]
+}

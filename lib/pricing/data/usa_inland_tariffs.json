@@ -1,0 +1,6446 @@
+{
+  "source": "Ценообразование США.xlsx",
+  "sizes": [
+    "regular",
+    "oversize",
+    "moto"
+  ],
+  "size_labels": {
+    "regular": "Regular / Large",
+    "oversize": "Oversize",
+    "moto": "Moto"
+  },
+  "ports": {
+    "new_york_norfolk": "New York / Norfolk",
+    "savannah": "Savannah",
+    "miami": "Miami",
+    "houston": "Houston",
+    "chicago": "Chicago",
+    "los_angeles": "Los Angeles",
+    "seattle": "Seattle",
+    "toronto": "Toronto",
+    "norfolk": "Norfolk",
+    "new_york": "New York / Newark"
+  },
+  "copart": [
+    {
+      "location": "ABILENE - Texas - Copart",
+      "city": "ABILENE",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "ADELANTO - California - Copart",
+      "city": "ADELANTO",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "ADP TOWING MAUI - Hawaii - Copart",
+      "city": "ADP TOWING MAUI",
+      "state": "Hawaii",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 2350.0,
+          "oversize": 2500.0,
+          "moto": 2200.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "AKRON - Ohio - Copart",
+      "city": "AKRON",
+      "state": "Ohio",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 550.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "ALBANY - New York - Copart",
+      "city": "ALBANY",
+      "state": "New York",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "ALBUQUERQUE - New Mexico - Copart",
+      "city": "ALBUQUERQUE",
+      "state": "New Mexico",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 700.0,
+          "oversize": 850.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "ALTOONA - Pennsylvania - Copart",
+      "city": "ALTOONA",
+      "state": "Pennsylvania",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "AMARILLO - Texas - Copart",
+      "city": "AMARILLO",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 625.0,
+          "oversize": 775.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "ANDREWS - Texas - Copart",
+      "city": "ANDREWS",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 525.0,
+          "oversize": 675.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "ANTELOPE - California - Copart",
+      "city": "ANTELOPE",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "APPLETON - Wisconsin - Copart",
+      "city": "APPLETON",
+      "state": "Wisconsin",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "ATLANTA EAST - Georgia - Copart",
+      "city": "ATLANTA EAST",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "ATLANTA NORTH - Georgia - Copart",
+      "city": "ATLANTA NORTH",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "ATLANTA SOUTH - Georgia - Copart",
+      "city": "ATLANTA SOUTH",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "ATLANTA WEST - Georgia - Copart",
+      "city": "ATLANTA WEST",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "AUSTIN - Texas - Copart",
+      "city": "AUSTIN",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "Augusta - Georgia - Copart",
+      "city": "Augusta",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "BAKERSFIELD - California - Copart",
+      "city": "BAKERSFIELD",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "BALTIMORE - Maryland - Copart",
+      "city": "BALTIMORE",
+      "state": "Maryland",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "BALTIMORE EAST - Maryland - Copart",
+      "city": "BALTIMORE EAST",
+      "state": "Maryland",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "BATON ROUGE - Louisiana - Copart",
+      "city": "BATON ROUGE",
+      "state": "Louisiana",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "BILLINGS - Montana - Copart",
+      "city": "BILLINGS",
+      "state": "Montana",
+      "auction_tag": "Copart",
+      "ports": {
+        "seattle": {
+          "regular": 950.0,
+          "oversize": 1100.0,
+          "moto": 950.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "BIRMINGHAM - Alabama - Copart",
+      "city": "BIRMINGHAM",
+      "state": "Alabama",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "BISMARCK - North Dakota - Copart",
+      "city": "BISMARCK",
+      "state": "North Dakota",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 950.0,
+          "oversize": 1100.0,
+          "moto": 875.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "BOISE - Idaho - Copart",
+      "city": "BOISE",
+      "state": "Idaho",
+      "auction_tag": "Copart",
+      "ports": {
+        "seattle": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 550.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "Buffalo - New York - Copart",
+      "city": "Buffalo",
+      "state": "New York",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 600.0,
+          "oversize": 750.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CANDIA - New Hampshire - Copart",
+      "city": "CANDIA",
+      "state": "New Hampshire",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 525.0,
+          "oversize": 675.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CARTERSVILLE - Georgia - Copart",
+      "city": "CARTERSVILLE",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "CASPER WEST - Wyoming - Copart",
+      "city": "CASPER WEST",
+      "state": "Wyoming",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 1450.0,
+          "oversize": 1600.0,
+          "moto": 1350.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "CHAMBERSBURG - Pennsylvania - Copart",
+      "city": "CHAMBERSBURG",
+      "state": "Pennsylvania",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CHARLESTON - West Virginia - Copart",
+      "city": "CHARLESTON",
+      "state": "West Virginia",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 725.0,
+          "oversize": 875.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CHICAGO NORTH - Illinois - Copart",
+      "city": "CHICAGO NORTH",
+      "state": "Illinois",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 280.0,
+          "oversize": 430.0,
+          "moto": 280.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "CHICAGO SOUTH - Illinois - Copart",
+      "city": "CHICAGO SOUTH",
+      "state": "Illinois",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 280.0,
+          "oversize": 430.0,
+          "moto": 280.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "CHICAGO SOUTH-Woodmar/Heights sublot - Illinois - Copart",
+      "city": "CHICAGO SOUTH-Woodmar/Heights sublot",
+      "state": "Illinois",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 280.0,
+          "oversize": 430.0,
+          "moto": 280.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "CHINA GROVE - North Carolina - Copart",
+      "city": "CHINA GROVE",
+      "state": "North Carolina",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CICERO - Indiana - Copart",
+      "city": "CICERO",
+      "state": "Indiana",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "CLEVELAND EAST - Ohio - Copart",
+      "city": "CLEVELAND EAST",
+      "state": "Ohio",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CLEVELAND WEST - Ohio - Copart",
+      "city": "CLEVELAND WEST",
+      "state": "Ohio",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "COLORADO SPRINGS - Colorado - Copart",
+      "city": "COLORADO SPRINGS",
+      "state": "Colorado",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 750.0,
+          "oversize": 900.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "CLEWISTON - Florida - Copart",
+      "city": "CLEWISTON",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 550.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "COLUMBUS - Ohio - Copart",
+      "city": "COLUMBUS",
+      "state": "Ohio",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "COLUMBIA - South Carolina - Copart",
+      "city": "COLUMBIA",
+      "state": "South Carolina",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "CONCORD - North Carolina - Copart",
+      "city": "CONCORD",
+      "state": "North Carolina",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CORPUS CHRISTI - Texas - Copart",
+      "city": "CORPUS CHRISTI",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "CRASHEDTOYS ATLANTA - Georgia - Copart",
+      "city": "CRASHEDTOYS ATLANTA",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "CRASHEDTOYS DALLAS - Texas - Copart",
+      "city": "CRASHEDTOYS DALLAS",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 285.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "CRASHEDTOYS SACRAMENTO - California - Copart",
+      "city": "CRASHEDTOYS SACRAMENTO",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "CUSSETA - Alabama - Copart",
+      "city": "CUSSETA",
+      "state": "Alabama",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "DALLAS - Texas - Copart",
+      "city": "DALLAS",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 285.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "DALLAS SOUTH - Texas - Copart",
+      "city": "DALLAS SOUTH",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 285.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "DANVILLE - Virginia - Copart",
+      "city": "DANVILLE",
+      "state": "Virginia",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "DAVENPORT - 169 Davenport sublot - Iowa - Copart",
+      "city": "DAVENPORT",
+      "state": "169 Davenport sublot",
+      "auction_tag": "Iowa",
+      "ports": {
+        "chicago": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DAVENPORT - Iowa - Copart",
+      "city": "DAVENPORT",
+      "state": "Iowa",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DAYTON - Ohio - Copart",
+      "city": "DAYTON",
+      "state": "Ohio",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "DENVER - Colorado - Copart",
+      "city": "DENVER",
+      "state": "Colorado",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 750.0,
+          "oversize": 900.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DENVER CENTRAL - Colorado - Copart",
+      "city": "DENVER CENTRAL",
+      "state": "Colorado",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 750.0,
+          "oversize": 900.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DENVER SOUTH - Colorado - Copart",
+      "city": "DENVER SOUTH",
+      "state": "Colorado",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 750.0,
+          "oversize": 900.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DES MOINES - Iowa - Copart",
+      "city": "DES MOINES",
+      "state": "Iowa",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DETROIT - Michigan - Copart",
+      "city": "DETROIT",
+      "state": "Michigan",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DOTHAN - Alabama - Copart",
+      "city": "DOTHAN",
+      "state": "Alabama",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "DYER - Indiana - Copart",
+      "city": "DYER",
+      "state": "Indiana",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 280.0,
+          "oversize": 430.0,
+          "moto": 280.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "EARLINGTON - Kentucky - Copart",
+      "city": "EARLINGTON",
+      "state": "Kentucky",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "EDMONTON - Alberta - Copart",
+      "city": "EDMONTON",
+      "state": "Alberta",
+      "auction_tag": "Copart",
+      "ports": {
+        "seattle": {
+          "regular": 1550.0,
+          "oversize": 1700.0,
+          "moto": 1550.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "EL PASO - Texas - Copart",
+      "city": "EL PASO",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 525.0,
+          "oversize": 675.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "EUGENE - Oregon - Copart",
+      "city": "EUGENE",
+      "state": "Oregon",
+      "auction_tag": "Copart",
+      "ports": {
+        "seattle": {
+          "regular": 475.0,
+          "oversize": 3250.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "EXETER - Rhode Island - Copart",
+      "city": "EXETER",
+      "state": "Rhode Island",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "FAIRBURN - Georgia - Copart",
+      "city": "FAIRBURN",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "FAYETTEVILLE - Arkansas - Copart",
+      "city": "FAYETTEVILLE",
+      "state": "Arkansas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "FLINT - Michigan - Copart",
+      "city": "FLINT",
+      "state": "Michigan",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "FORT WAYNE - Indiana - Copart",
+      "city": "FORT WAYNE",
+      "state": "Indiana",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "FREDERICKSBURG - Virginia - Copart",
+      "city": "FREDERICKSBURG",
+      "state": "Virginia",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "FREETOWN - Massachusetts - Copart",
+      "city": "FREETOWN",
+      "state": "Massachusetts",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "FRESNO - California - Copart",
+      "city": "FRESNO",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "FT. PIERCE - Florida - Copart",
+      "city": "FT. PIERCE",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 280.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "FT. WORTH - Texas - Copart",
+      "city": "FT. WORTH",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 285.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "GASTONIA - North Carolina - Copart",
+      "city": "GASTONIA",
+      "state": "North Carolina",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "GLASSBORO EAST - New Jersey - Copart",
+      "city": "GLASSBORO EAST",
+      "state": "New Jersey",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 265.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "GLASSBORO WEST - New Jersey - Copart",
+      "city": "GLASSBORO WEST",
+      "state": "New Jersey",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 265.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "GRAHAM - Washington - Copart",
+      "city": "GRAHAM",
+      "state": "Washington",
+      "auction_tag": "Copart",
+      "ports": {
+        "seattle": {
+          "regular": 250.0,
+          "oversize": 400.0,
+          "moto": 250.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "GRENADA - Mississippi - Copart",
+      "city": "GRENADA",
+      "state": "Mississippi",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "HAMPTON - Virginia - Copart",
+      "city": "HAMPTON",
+      "state": "Virginia",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 250.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "HARRISBURG - Pennsylvania - Copart",
+      "city": "HARRISBURG",
+      "state": "Pennsylvania",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "HARTFORD - Connecticut - Copart",
+      "city": "HARTFORD",
+      "state": "Connecticut",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "HARTFORD SPRINGFIELD - Connecticut - Copart",
+      "city": "HARTFORD SPRINGFIELD",
+      "state": "Connecticut",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "HAYWARD - California - Copart",
+      "city": "HAYWARD",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "HELENA - Montana - Copart",
+      "city": "HELENA",
+      "state": "Montana",
+      "auction_tag": "Copart",
+      "ports": {
+        "seattle": {
+          "regular": 850.0,
+          "oversize": 1000.0,
+          "moto": 850.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "HOUSTON - Texas - Copart",
+      "city": "HOUSTON",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 280.0,
+          "oversize": 430.0,
+          "moto": 200.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "HOUSTON EAST - Texas - Copart",
+      "city": "HOUSTON EAST",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 280.0,
+          "oversize": 430.0,
+          "moto": 200.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "INDIANAPOLIS - Indiana - Copart",
+      "city": "INDIANAPOLIS",
+      "state": "Indiana",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "IONIA - Michigan - Copart",
+      "city": "IONIA",
+      "state": "Michigan",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "JACKSON - Mississippi - Copart",
+      "city": "JACKSON",
+      "state": "Mississippi",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "JACKSONVILLE EAST - Florida - Copart",
+      "city": "JACKSONVILLE EAST",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "JACKSONVILLE NORTH - Florida - Copart",
+      "city": "JACKSONVILLE NORTH",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "JACKSONVILLE WEST - Florida - Copart",
+      "city": "JACKSONVILLE WEST",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "KANSAS CITY - Kansas - Copart",
+      "city": "KANSAS CITY",
+      "state": "Kansas",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 725.0,
+          "oversize": 875.0,
+          "moto": 525.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "KENS TOWING HILO - Hawaii - Copart",
+      "city": "KENS TOWING HILO",
+      "state": "Hawaii",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 2200.0,
+          "oversize": 2300.0,
+          "moto": null
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "KINCHELOE - Michigan - Copart",
+      "city": "KINCHELOE",
+      "state": "Michigan",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 850.0,
+          "oversize": 1000.0,
+          "moto": 750.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "KINDAQUICK TOWING LLC - Hawaii - Copart",
+      "city": "KINDAQUICK TOWING LLC",
+      "state": "Hawaii",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 2850.0,
+          "oversize": 3000.0,
+          "moto": 2850.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "KNOXVILLE - Tennessee - Copart",
+      "city": "KNOXVILLE",
+      "state": "Tennessee",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "LAGRANAGE - North Carolina - Copart",
+      "city": "LAGRANAGE",
+      "state": "North Carolina",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "LANSING - Michigan - Copart",
+      "city": "LANSING",
+      "state": "Michigan",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "LAS VEGAS - Nevada - Copart",
+      "city": "LAS VEGAS",
+      "state": "Nevada",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "LAS VEGAS WEST - Nevada - Copart",
+      "city": "LAS VEGAS WEST",
+      "state": "Nevada",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "LEXINGTON EAST - Kentucky - Copart",
+      "city": "LEXINGTON EAST",
+      "state": "Kentucky",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "LEXINGTON WEST - Kentucky - Copart",
+      "city": "LEXINGTON WEST",
+      "state": "Kentucky",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "LINCOLN - Nebraska - Copart",
+      "city": "LINCOLN",
+      "state": "Nebraska",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "LITTLE ROCK - Arkansas - Copart",
+      "city": "LITTLE ROCK",
+      "state": "Arkansas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "LONG BEACH - California - Copart",
+      "city": "LONG BEACH",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 250.0,
+          "oversize": 400.0,
+          "moto": 250.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "LONG ISLAND - New York - Copart",
+      "city": "LONG ISLAND",
+      "state": "New York",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 290.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "LONGVIEW - Texas - Copart",
+      "city": "LONGVIEW",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "LOS ANGELES - California - Copart",
+      "city": "LOS ANGELES",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 260.0,
+          "oversize": 410.0,
+          "moto": 260.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "LOUISVILLE - Kentucky - Copart",
+      "city": "LOUISVILLE",
+      "state": "Kentucky",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 650.0,
+          "oversize": 750.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "LUFKIN - Texas - Copart",
+      "city": "LUFKIN",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "LUMBERTON - North Carolina - Copart",
+      "city": "LUMBERTON",
+      "state": "North Carolina",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "LYMAN - Maine - Copart",
+      "city": "LYMAN",
+      "state": "Maine",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 600.0,
+          "oversize": 750.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "MACON - Georgia - Copart",
+      "city": "MACON",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "MADISON - Wisconsin - Copart",
+      "city": "MADISON",
+      "state": "Wisconsin",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "MADISON SOUTH - Wisconsin - Copart",
+      "city": "MADISON SOUTH",
+      "state": "Wisconsin",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "MARTINEZ - California - Copart",
+      "city": "MARTINEZ",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "MCALLEN - Texas - Copart",
+      "city": "MCALLEN",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 385.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "MEBANE - North Carolina - Copart",
+      "city": "MEBANE",
+      "state": "North Carolina",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "MEMPHIS - Tennessee - Copart",
+      "city": "MEMPHIS",
+      "state": "Tennessee",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 600.0,
+          "oversize": 750.0,
+          "moto": 550.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "MENTONE - California - Copart",
+      "city": "MENTONE",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "MIAMI CENTRAL - Florida - Copart",
+      "city": "MIAMI CENTRAL",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 225.0,
+          "oversize": 375.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "MIAMI NORTH - Florida - Copart",
+      "city": "MIAMI NORTH",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 225.0,
+          "oversize": 375.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "MIAMI SOUTH - Florida - Copart",
+      "city": "MIAMI SOUTH",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 250.0,
+          "oversize": 400.0,
+          "moto": 250.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "MILWAUKEE - Wisconsin - Copart",
+      "city": "MILWAUKEE",
+      "state": "Wisconsin",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "MILWAUKEE NORTH - Wisconsin - Copart",
+      "city": "MILWAUKEE NORTH",
+      "state": "Wisconsin",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "MILWAUKEE SOUTH - Wisconsin - Copart",
+      "city": "MILWAUKEE SOUTH",
+      "state": "Wisconsin",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "MINNEAPOLIS - Minnesota - Copart",
+      "city": "MINNEAPOLIS",
+      "state": "Minnesota",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "MINNEAPOLIS NORTH - Minnesota - Copart",
+      "city": "MINNEAPOLIS NORTH",
+      "state": "Minnesota",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "MO - COLUMBIA - Missouri - Copart",
+      "city": "MO",
+      "state": "COLUMBIA",
+      "auction_tag": "Missouri",
+      "ports": {
+        "savannah": {
+          "regular": 725.0,
+          "oversize": 875.0,
+          "moto": 525.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "MOBILE - Alabama - Copart",
+      "city": "MOBILE",
+      "state": "Alabama",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "MOBILE SOUTH - Alabama - Copart",
+      "city": "MOBILE SOUTH",
+      "state": "Alabama",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "MOCKSVILLE - North Carolina - Copart",
+      "city": "MOCKSVILLE",
+      "state": "North Carolina",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "MONTGOMERY - Alabama - Copart",
+      "city": "MONTGOMERY",
+      "state": "Alabama",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "NAPA - California - Copart",
+      "city": "NAPA",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "N.Boston-ROWLEY Sublot - Massachusetts - Copart",
+      "city": "N.Boston-ROWLEY Sublot",
+      "state": "Massachusetts",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 550.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "NASHVILLE - Tennessee - Copart",
+      "city": "NASHVILLE",
+      "state": "Tennessee",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "NEW ORLEANS - Louisiana - Copart",
+      "city": "NEW ORLEANS",
+      "state": "Louisiana",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "NEWBURGH - New York - Copart",
+      "city": "NEWBURGH",
+      "state": "New York",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "NORTH AUSTIN - Texas - Copart",
+      "city": "NORTH AUSTIN",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "NORTH BOSTON - Massachusetts - Copart",
+      "city": "NORTH BOSTON",
+      "state": "Massachusetts",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "NORTH CHARLESTON - South Carolina - Copart",
+      "city": "NORTH CHARLESTON",
+      "state": "South Carolina",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "NORTH SEATTLE - Washington - Copart",
+      "city": "NORTH SEATTLE",
+      "state": "Washington",
+      "auction_tag": "Copart",
+      "ports": {
+        "seattle": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "OCALA - Florida - Copart",
+      "city": "OCALA",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "OGDEN - Utah - Copart",
+      "city": "OGDEN",
+      "state": "Utah",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "OKLAHOMA CITY - Oklahoma - Copart",
+      "city": "OKLAHOMA CITY",
+      "state": "Oklahoma",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "ORLANDO - Florida - Copart",
+      "city": "ORLANDO",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "ORLANDO NORTH - Florida - Copart",
+      "city": "ORLANDO NORTH",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "ORLANDO SOUTH - Florida - Copart",
+      "city": "ORLANDO SOUTH",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "PASCO - Washington - Copart",
+      "city": "PASCO",
+      "state": "Washington",
+      "auction_tag": "Copart",
+      "ports": {
+        "seattle": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "PEORIA - Illinois - Copart",
+      "city": "PEORIA",
+      "state": "Illinois",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "PHILADELPHIA - Pennsylvania - Copart",
+      "city": "PHILADELPHIA",
+      "state": "Pennsylvania",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PHILADELPHIA EAST - Pennsylvania - Copart",
+      "city": "PHILADELPHIA EAST",
+      "state": "Pennsylvania",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PHOENIX - Arizona - Copart",
+      "city": "PHOENIX",
+      "state": "Arizona",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "PITTSBURGH EAST - Pennsylvania - Copart",
+      "city": "PITTSBURGH EAST",
+      "state": "Pennsylvania",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PITTSBURGH NORTH - Pennsylvania - Copart",
+      "city": "PITTSBURGH NORTH",
+      "state": "Pennsylvania",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PITTSBURGH SOUTH - Pennsylvania - Copart",
+      "city": "PITTSBURGH SOUTH",
+      "state": "Pennsylvania",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PITTSBURGH WEST - Pennsylvania - Copart",
+      "city": "PITTSBURGH WEST",
+      "state": "Pennsylvania",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PORTLAND NORTH - Oregon - Copart",
+      "city": "PORTLAND NORTH",
+      "state": "Oregon",
+      "auction_tag": "Copart",
+      "ports": {
+        "seattle": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "PORTLAND SOUTH - Oregon - Copart",
+      "city": "PORTLAND SOUTH",
+      "state": "Oregon",
+      "auction_tag": "Copart",
+      "ports": {
+        "seattle": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "PUNTA GORDA - Florida - Copart",
+      "city": "PUNTA GORDA",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "PUNTA GORDA SOUTH - Florida - Copart",
+      "city": "PUNTA GORDA SOUTH",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "Phoenix North - Arizona - Copart",
+      "city": "Phoenix North",
+      "state": "Arizona",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "RALEIGH - North Carolina - Copart",
+      "city": "RALEIGH",
+      "state": "North Carolina",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "RANCHO CUCAMONGA - California - Copart",
+      "city": "RANCHO CUCAMONGA",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "REDDING - California - Copart",
+      "city": "REDDING",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 900.0,
+          "oversize": 1050.0,
+          "moto": 750.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "RENO - Nevada - Copart",
+      "city": "RENO",
+      "state": "Nevada",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "RICHMOND - Virginia - Copart",
+      "city": "RICHMOND",
+      "state": "Virginia",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "RICHMOND EAST - Virginia - Copart",
+      "city": "RICHMOND EAST",
+      "state": "Virginia",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "ROCHESTER - New York - Copart",
+      "city": "ROCHESTER",
+      "state": "New York",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "RUTLAND - Vermont - Copart",
+      "city": "RUTLAND",
+      "state": "Vermont",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 600.0,
+          "oversize": 750.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "SACRAMENTO - California - Copart",
+      "city": "SACRAMENTO",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SALT LAKE CITY - Utah - Copart",
+      "city": "SALT LAKE CITY",
+      "state": "Utah",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 750.0,
+          "oversize": 900.0,
+          "moto": 650.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SALT LAKE CITY NORTH - Utah - Copart",
+      "city": "SALT LAKE CITY NORTH",
+      "state": "Utah",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SAN ANTONIO - Texas - Copart",
+      "city": "SAN ANTONIO",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "SAN BERNARDINO - California - Copart",
+      "city": "SAN BERNARDINO",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SAN DIEGO - California - Copart",
+      "city": "SAN DIEGO",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SAN JOSE - California - Copart",
+      "city": "SAN JOSE",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SAVANNAH - Georgia - Copart",
+      "city": "SAVANNAH",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 225.0,
+          "oversize": 375.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "SAVANNAH / VERTIA SUBLOT-Georgia Copart - Georgia - Copart",
+      "city": "SAVANNAH / VERTIA SUBLOT-Georgia Copart",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 275.0,
+          "oversize": 425.0,
+          "moto": 250.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "SCRANTON - Pennsylvania - Copart",
+      "city": "SCRANTON",
+      "state": "Pennsylvania",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "SEAFORD - Delaware - Copart",
+      "city": "SEAFORD",
+      "state": "Delaware",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "SHREVEPORT - Louisiana - Copart",
+      "city": "SHREVEPORT",
+      "state": "Louisiana",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 415.0,
+          "oversize": 565.0,
+          "moto": 355.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "SIKESTON - Missouri - Copart",
+      "city": "SIKESTON",
+      "state": "Missouri",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "SO SACRAMENTO - California - Copart",
+      "city": "SO SACRAMENTO",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SOMERVILLE - New Jersey - Copart",
+      "city": "SOMERVILLE",
+      "state": "New Jersey",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 250.0,
+          "oversize": 400.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "SOUTH BOSTON - Massachusetts - Copart",
+      "city": "SOUTH BOSTON",
+      "state": "Massachusetts",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "Southern Illinois - Illinois - Copart",
+      "city": "Southern Illinois",
+      "state": "Illinois",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 675.0,
+          "oversize": 825.0,
+          "moto": 525.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "SPARTANBURG - South Carolina - Copart",
+      "city": "SPARTANBURG",
+      "state": "South Carolina",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "SPOKANE - Washington - Copart",
+      "city": "SPOKANE",
+      "state": "Washington",
+      "auction_tag": "Copart",
+      "ports": {
+        "seattle": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "SPRINGFIELD - Missouri - Copart",
+      "city": "SPRINGFIELD",
+      "state": "Missouri",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 725.0,
+          "oversize": 875.0,
+          "moto": 525.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "ST. CLOUD - Minnesota - Copart",
+      "city": "ST. CLOUD",
+      "state": "Minnesota",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 600.0,
+          "oversize": 750.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "ST. LOUIS - Missouri - Copart",
+      "city": "ST. LOUIS",
+      "state": "Missouri",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 675.0,
+          "oversize": 825.0,
+          "moto": 525.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "SUN VALLEY - California - Copart",
+      "city": "SUN VALLEY",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SYRACUSE - New York - Copart",
+      "city": "SYRACUSE",
+      "state": "New York",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "TALLAHASSEE - Florida - Copart",
+      "city": "TALLAHASSEE",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "TAMPA NORTH - Florida - Copart",
+      "city": "TAMPA NORTH",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "TAMPA SOUTH - Florida - Copart",
+      "city": "TAMPA SOUTH",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "TAMPA SOUTH - Mulberry Sublot - Florida - Copart",
+      "city": "TAMPA SOUTH",
+      "state": "Mulberry Sublot",
+      "auction_tag": "Florida",
+      "ports": {
+        "miami": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "TANNER - Alabama - Copart",
+      "city": "TANNER",
+      "state": "Alabama",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "TIFTON - Georgia - Copart",
+      "city": "TIFTON",
+      "state": "Georgia",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "TOW GUYS KAMUELA - Hawaii - Copart",
+      "city": "TOW GUYS KAMUELA",
+      "state": "Hawaii",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 2400.0,
+          "oversize": 2550.0,
+          "moto": null
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "TRENTON - New Jersey - Copart",
+      "city": "TRENTON",
+      "state": "New Jersey",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 250.0,
+          "oversize": 400.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "TUCSON - Arizona - Copart",
+      "city": "TUCSON",
+      "state": "Arizona",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "TULSA - Oklahoma - Copart",
+      "city": "TULSA",
+      "state": "Oklahoma",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "VALLEJO - California - Copart",
+      "city": "VALLEJO",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "VAN NUYS - California - Copart",
+      "city": "VAN NUYS",
+      "state": "California",
+      "auction_tag": "Copart",
+      "ports": {
+        "los_angeles": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "VINTON - Louisiana - Copart",
+      "city": "VINTON",
+      "state": "Louisiana",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "WACO - Texas - Copart",
+      "city": "WACO",
+      "state": "Texas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "WALTON - Kentucky - Copart",
+      "city": "WALTON",
+      "state": "Kentucky",
+      "auction_tag": "Copart",
+      "ports": {
+        "savannah": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "WASHINGTON DC - Maryland - Copart",
+      "city": "WASHINGTON DC",
+      "state": "Maryland",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "WEBSTER - New Hampshire - Copart",
+      "city": "WEBSTER",
+      "state": "New Hampshire",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "WEST PALM BEACH - Florida - Copart",
+      "city": "WEST PALM BEACH",
+      "state": "Florida",
+      "auction_tag": "Copart",
+      "ports": {
+        "miami": {
+          "regular": 270.0,
+          "oversize": 420.0,
+          "moto": 270.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "WEST WARREN - Massachusetts - Copart",
+      "city": "WEST WARREN",
+      "state": "Massachusetts",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "WHEELING - Illinois - Copart",
+      "city": "WHEELING",
+      "state": "Illinois",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 280.0,
+          "oversize": 430.0,
+          "moto": 280.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "WAYLAND - Michigan - Copart",
+      "city": "WAYLAND",
+      "state": "Michigan",
+      "auction_tag": "Copart",
+      "ports": {
+        "chicago": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "WICHITA - Kansas - Copart",
+      "city": "WICHITA",
+      "state": "Kansas",
+      "auction_tag": "Copart",
+      "ports": {
+        "houston": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 550.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "Windham - Maine - Copart",
+      "city": "Windham",
+      "state": "Maine",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 600.0,
+          "oversize": 750.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "YORK HAVEN - Pennsylvania - Copart",
+      "city": "YORK HAVEN",
+      "state": "Pennsylvania",
+      "auction_tag": "Copart",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    }
+  ],
+  "iaai": [
+    {
+      "location": "ABILENE - Texas - IAAI",
+      "city": "ABILENE",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "ACE - Carson - California - IAAI",
+      "city": "ACE",
+      "state": "Carson",
+      "auction_tag": "California",
+      "ports": {
+        "los_angeles": {
+          "regular": 260.0,
+          "oversize": 410.0,
+          "moto": 260.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "ACE - PERRIS 2 - California - IAAI",
+      "city": "ACE",
+      "state": "PERRIS 2",
+      "auction_tag": "California",
+      "ports": {
+        "los_angeles": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "ACE - Perris - California - IAAI",
+      "city": "ACE",
+      "state": "Perris",
+      "auction_tag": "California",
+      "ports": {
+        "los_angeles": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "AKRON-CANTON - Ohio - IAAI",
+      "city": "AKRON-CANTON",
+      "state": "Ohio",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "ALBANY - New York - IAAI",
+      "city": "ALBANY",
+      "state": "New York",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "ALBUQUERQUE - New Mexico - IAAI",
+      "city": "ALBUQUERQUE",
+      "state": "New Mexico",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 700.0,
+          "oversize": 850.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "ALTOONA - Pennsylvania - IAAI",
+      "city": "ALTOONA",
+      "state": "Pennsylvania",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "AMARILLO - Texas - IAAI",
+      "city": "AMARILLO",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 625.0,
+          "oversize": 775.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "ANAHEIM - California - IAAI",
+      "city": "ANAHEIM",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "APPLETON - Wisconsin - IAAI",
+      "city": "APPLETON",
+      "state": "Wisconsin",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "ASHEVILLE - North Carolina - IAAI",
+      "city": "ASHEVILLE",
+      "state": "North Carolina",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 525.0,
+          "oversize": 675.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "ASHLAND - Kentucky - IAAI",
+      "city": "ASHLAND",
+      "state": "Kentucky",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 725.0,
+          "oversize": 875.0,
+          "moto": 675.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "ATLANTA - Georgia - IAAI",
+      "city": "ATLANTA",
+      "state": "Georgia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "ATLANTA EAST - Georgia - IAAI",
+      "city": "ATLANTA EAST",
+      "state": "Georgia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "ATLANTA NORTH - Georgia - IAAI",
+      "city": "ATLANTA NORTH",
+      "state": "Georgia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "ATLANTA SOUTH - Georgia - IAAI",
+      "city": "ATLANTA SOUTH",
+      "state": "Georgia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "AUSTIN - Texas - IAAI",
+      "city": "AUSTIN",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "AUSTIN NORTH - Texas - IAAI",
+      "city": "AUSTIN NORTH",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 285.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "AVENEL NEW JERSEY - New Jersey - IAAI",
+      "city": "AVENEL NEW JERSEY",
+      "state": "New Jersey",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 250.0,
+          "oversize": 375.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "BALTIMORE - Maryland - IAAI",
+      "city": "BALTIMORE",
+      "state": "Maryland",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "BATON ROUGE - Louisiana - IAAI",
+      "city": "BATON ROUGE",
+      "state": "Louisiana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "BILLINGS - Montana - IAAI",
+      "city": "BILLINGS",
+      "state": "Montana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "seattle": {
+          "regular": 950.0,
+          "oversize": 120.0,
+          "moto": 950.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "BIRMINGHAM - Alabama - IAAI",
+      "city": "BIRMINGHAM",
+      "state": "Alabama",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "BOISE - Idaho - IAAI",
+      "city": "BOISE",
+      "state": "Idaho",
+      "auction_tag": "IAAI",
+      "ports": {
+        "seattle": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 550.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "BOSTON - SHIRLEY - Massachusetts - IAAI",
+      "city": "BOSTON",
+      "state": "SHIRLEY",
+      "auction_tag": "Massachusetts",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "BOWLING GREEN - Kentucky - IAAI",
+      "city": "BOWLING GREEN",
+      "state": "Kentucky",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 650.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "BRIDGEPORT - Pennsylvania - IAAI",
+      "city": "BRIDGEPORT",
+      "state": "Pennsylvania",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "BUCKHANNON - West Virginia - IAAI",
+      "city": "BUCKHANNON",
+      "state": "West Virginia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 725.0,
+          "oversize": 875.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "BUFFALO - New York - IAAI",
+      "city": "BUFFALO",
+      "state": "New York",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 600.0,
+          "oversize": 750.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "BURLINGTON - Vermont - IAAI",
+      "city": "BURLINGTON",
+      "state": "Vermont",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 600.0,
+          "oversize": 750.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "BZ Trucking - Hawaii - IAAI",
+      "city": "BZ Trucking",
+      "state": "Hawaii",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 2400.0,
+          "oversize": 2550.0,
+          "moto": 2400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "CASPER - Wyoming - IAAI",
+      "city": "CASPER",
+      "state": "Wyoming",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 1300.0,
+          "oversize": 1450.0,
+          "moto": 1300.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "CENTRAL NEW JERSEY - New Jersey - IAAI",
+      "city": "CENTRAL NEW JERSEY",
+      "state": "New Jersey",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 250.0,
+          "oversize": 400.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CHARLESTON - South Carolina - IAAI",
+      "city": "CHARLESTON",
+      "state": "South Carolina",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "CHARLOTTE - North Carolina - IAAI",
+      "city": "CHARLOTTE",
+      "state": "North Carolina",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CHATTANOOGA - Tennessee - IAAI",
+      "city": "CHATTANOOGA",
+      "state": "Tennessee",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 525.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "CHICAGO-NORTH - Illinois - IAAI",
+      "city": "CHICAGO-NORTH",
+      "state": "Illinois",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 280.0,
+          "oversize": 450.0,
+          "moto": 280.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "CHICAGO-SOUTH - Illinois - IAAI",
+      "city": "CHICAGO-SOUTH",
+      "state": "Illinois",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 280.0,
+          "oversize": 450.0,
+          "moto": 280.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "CHICAGO-WEST - Illinois - IAAI",
+      "city": "CHICAGO-WEST",
+      "state": "Illinois",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 280.0,
+          "oversize": 450.0,
+          "moto": 280.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "CINCINNATI - Ohio - IAAI",
+      "city": "CINCINNATI",
+      "state": "Ohio",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CINCINNATI SOUTH - Ohio - IAAI",
+      "city": "CINCINNATI SOUTH",
+      "state": "Ohio",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CLEARWATER - Florida - IAAI",
+      "city": "CLEARWATER",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "miami": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "CLEVELAND - Ohio - IAAI",
+      "city": "CLEVELAND",
+      "state": "Ohio",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "COLTON - California - IAAI",
+      "city": "COLTON",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "COLUMBIA - South Carolina - IAAI",
+      "city": "COLUMBIA",
+      "state": "South Carolina",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "COLUMBUS - Ohio - IAAI",
+      "city": "COLUMBUS",
+      "state": "Ohio",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CONCORD - North Carolina - IAAI",
+      "city": "CONCORD",
+      "state": "North Carolina",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "CORPUS CHRISTI - Texas - IAAI",
+      "city": "CORPUS CHRISTI",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "CULPEPER - Virginia - IAAI",
+      "city": "CULPEPER",
+      "state": "Virginia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "Colorado Springs - Colorado - IAAI",
+      "city": "Colorado Springs",
+      "state": "Colorado",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 750.0,
+          "oversize": 900.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "D&D TOWING INC MAUI - Hawaii - IAAI",
+      "city": "D&D TOWING INC MAUI",
+      "state": "Hawaii",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 2500.0,
+          "oversize": 2800.0,
+          "moto": null
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "DALLAS - Texas - IAAI",
+      "city": "DALLAS",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 285.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "DAVENPORT - Iowa - IAAI",
+      "city": "DAVENPORT",
+      "state": "Iowa",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DAYTON - Ohio - IAAI",
+      "city": "DAYTON",
+      "state": "Ohio",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "DC TOWING HILO - Hawaii - IAAI",
+      "city": "DC TOWING HILO",
+      "state": "Hawaii",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 2200.0,
+          "oversize": 2500.0,
+          "moto": null
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "DENVER - Colorado - IAAI",
+      "city": "DENVER",
+      "state": "Colorado",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 750.0,
+          "oversize": 900.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DENVER EAST - Colorado - IAAI",
+      "city": "DENVER EAST",
+      "state": "Colorado",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 750.0,
+          "oversize": 900.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DES MOINES - Iowa - IAAI",
+      "city": "DES MOINES",
+      "state": "Iowa",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DETROIT - Michigan - IAAI",
+      "city": "DETROIT",
+      "state": "Michigan",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "DOTHAN - Alabama - IAAI",
+      "city": "DOTHAN",
+      "state": "Alabama",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "DUNDALK - Maryland - IAAI",
+      "city": "DUNDALK",
+      "state": "Maryland",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "Dallas/Ft Worth - Texas - IAAI",
+      "city": "Dallas/Ft Worth",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 285.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "EAST BAY - California - IAAI",
+      "city": "EAST BAY",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "EL PASO - Texas - IAAI",
+      "city": "EL PASO",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 525.0,
+          "oversize": 675.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "ERIE - Pennsylvania - IAAI",
+      "city": "ERIE",
+      "state": "Pennsylvania",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 600.0,
+          "oversize": 750.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "EUGENE - Oregon - IAAI",
+      "city": "EUGENE",
+      "state": "Oregon",
+      "auction_tag": "IAAI",
+      "ports": {
+        "seattle": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "Elkton - Maryland - IAAI",
+      "city": "Elkton",
+      "state": "Maryland",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "Englishtown - New Jersey - IAAI",
+      "city": "Englishtown",
+      "state": "New Jersey",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 250.0,
+          "oversize": 400.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "FARGO - North Dakota - IAAI",
+      "city": "FARGO",
+      "state": "North Dakota",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 750.0,
+          "oversize": 900.0,
+          "moto": 650.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "FAYETTEVILLE - Arkansas - IAAI",
+      "city": "FAYETTEVILLE",
+      "state": "Arkansas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "FLINT - Michigan - IAAI",
+      "city": "FLINT",
+      "state": "Michigan",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "FONTANA - California - IAAI",
+      "city": "FONTANA",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "FORT MYERS - Florida - IAAI",
+      "city": "FORT MYERS",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "miami": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "FORT PIERCE - Florida - IAAI",
+      "city": "FORT PIERCE",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "miami": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 280.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "FREMONT - California - IAAI",
+      "city": "FREMONT",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "FRESNO - California - IAAI",
+      "city": "FRESNO",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "Fort Wayne - Indiana - IAAI",
+      "city": "Fort Wayne",
+      "state": "Indiana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "Fort Worth North - Texas - IAAI",
+      "city": "Fort Worth North",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "Fredericksburg-South - Virginia - IAAI",
+      "city": "Fredericksburg-South",
+      "state": "Virginia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "GRAND RAPIDS - Michigan - IAAI",
+      "city": "GRAND RAPIDS",
+      "state": "Michigan",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "GREENSBORO - North Carolina - IAAI",
+      "city": "GREENSBORO",
+      "state": "North Carolina",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "GREENVILLE - South Carolina - IAAI",
+      "city": "GREENVILLE",
+      "state": "South Carolina",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "GRENADA - Mississippi - IAAI",
+      "city": "GRENADA",
+      "state": "Mississippi",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "GULF COAST - Mississippi - IAAI",
+      "city": "GULF COAST",
+      "state": "Mississippi",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "HARTFORD - Connecticut - IAAI",
+      "city": "HARTFORD",
+      "state": "Connecticut",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "HARTFORD-SOUTH - Connecticut - IAAI",
+      "city": "HARTFORD-SOUTH",
+      "state": "Connecticut",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 325.0,
+          "oversize": 375.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "HIGH DESERT - California - IAAI",
+      "city": "HIGH DESERT",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "HIGH POINT - Norgolk - IAAI",
+      "city": "HIGH POINT",
+      "state": "Norgolk",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "HOUSTON - Texas - IAAI",
+      "city": "HOUSTON",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 280.0,
+          "oversize": 450.0,
+          "moto": 200.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "HOUSTON SOUTH - Texas - IAAI",
+      "city": "HOUSTON SOUTH",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 280.0,
+          "oversize": 450.0,
+          "moto": 200.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "HOUSTON-NORTH - Texas - IAAI",
+      "city": "HOUSTON-NORTH",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 280.0,
+          "oversize": 450.0,
+          "moto": 200.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "HUNTSVILLE - Alabama - IAAI",
+      "city": "HUNTSVILLE",
+      "state": "Alabama",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "INDIANAPOLIS - Indiana - IAAI",
+      "city": "INDIANAPOLIS",
+      "state": "Indiana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "Indianapolis South - Indiana - IAAI",
+      "city": "Indianapolis South",
+      "state": "Indiana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 700.0,
+          "oversize": 850.0,
+          "moto": 625.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "JACKSON - Mississippi - IAAI",
+      "city": "JACKSON",
+      "state": "Mississippi",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "JACKSONVILLE - Florida - IAAI",
+      "city": "JACKSONVILLE",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "KANSAS CITY - Kansas - IAAI",
+      "city": "KANSAS CITY",
+      "state": "Kansas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 725.0,
+          "oversize": 875.0,
+          "moto": 550.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "KNOXVILLE - Tennessee - IAAI",
+      "city": "KNOXVILLE",
+      "state": "Tennessee",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "Kansas City East - Missouri - IAAI",
+      "city": "Kansas City East",
+      "state": "Missouri",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 725.0,
+          "oversize": 875.0,
+          "moto": 525.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "LAFAYETTE - Louisiana - IAAI",
+      "city": "LAFAYETTE",
+      "state": "Louisiana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "LAS VEGAS - (OLD) - Nevada - IAAI",
+      "city": "LAS VEGAS",
+      "state": "(OLD)",
+      "auction_tag": "Nevada",
+      "ports": {
+        "los_angeles": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "LAS VEGAS - Nevada - IAAI",
+      "city": "LAS VEGAS",
+      "state": "Nevada",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "LAUREL - Maryland - IAAI",
+      "city": "LAUREL",
+      "state": "Maryland",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "LEE'S TOWING KAUAI - Hawaii - IAAI",
+      "city": "LEE'S TOWING KAUAI",
+      "state": "Hawaii",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 3050.0,
+          "oversize": 3250.0,
+          "moto": null
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "LINCOLN - Illinois - IAAI",
+      "city": "LINCOLN",
+      "state": "Illinois",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "LITTLE ROCK - Arkansas - IAAI",
+      "city": "LITTLE ROCK",
+      "state": "Arkansas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "LONG ISLAND - New York - IAAI",
+      "city": "LONG ISLAND",
+      "state": "New York",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 290.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "LONGVIEW - Texas - IAAI",
+      "city": "LONGVIEW",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "LOS ANGELES - California - IAAI",
+      "city": "LOS ANGELES",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 260.0,
+          "oversize": 425.0,
+          "moto": 260.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "LOUISVILLE - Kentucky - IAAI",
+      "city": "LOUISVILLE",
+      "state": "Kentucky",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "LOUISVILLE NORTH - Kentucky - IAAI",
+      "city": "LOUISVILLE NORTH",
+      "state": "Kentucky",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "LUBBOCK - Texas - IAAI",
+      "city": "LUBBOCK",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "Lexington - South Carolina - IAAI",
+      "city": "Lexington",
+      "state": "South Carolina",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "Los Angeles South - California - IAAI",
+      "city": "Los Angeles South",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 250.0,
+          "oversize": 400.0,
+          "moto": 250.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "MACON - Georgia - IAAI",
+      "city": "MACON",
+      "state": "Georgia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 425.0,
+          "oversize": 575.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "MANCHESTER - New Hampshire - IAAI",
+      "city": "MANCHESTER",
+      "state": "New Hampshire",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 525.0,
+          "oversize": 675.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "MCALLEN - Texas - IAAI",
+      "city": "MCALLEN",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 385.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "MEMPHIS - Tennessee - IAAI",
+      "city": "MEMPHIS",
+      "state": "Tennessee",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 600.0,
+          "oversize": 750.0,
+          "moto": 550.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "METRO DC - Maryland - IAAI",
+      "city": "METRO DC",
+      "state": "Maryland",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "MIAMI - Florida - IAAI",
+      "city": "MIAMI",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "miami": {
+          "regular": 225.0,
+          "oversize": 375.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "MIAMI-NORTH - Florida - IAAI",
+      "city": "MIAMI-NORTH",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "miami": {
+          "regular": 250.0,
+          "oversize": 400.0,
+          "moto": 250.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "MILWAUKEE - Wisconsin - IAAI",
+      "city": "MILWAUKEE",
+      "state": "Wisconsin",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "MINNEAPOLIS/ST. PAUL - Minnesota - IAAI",
+      "city": "MINNEAPOLIS/ST. PAUL",
+      "state": "Minnesota",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "Minneapolis South - Minnesota - IAAI",
+      "city": "Minneapolis South",
+      "state": "Minnesota",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "MISSOULA - Montana - IAAI",
+      "city": "MISSOULA",
+      "state": "Montana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "seattle": {
+          "regular": 700.0,
+          "oversize": 850.0,
+          "moto": 700.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "MOBILE - Alabama - IAAI",
+      "city": "MOBILE",
+      "state": "Alabama",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "NASHVILLE - Tennessee - IAAI",
+      "city": "NASHVILLE",
+      "state": "Tennessee",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "NEW CASTLE - Delaware - IAAI",
+      "city": "NEW CASTLE",
+      "state": "Delaware",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "NEW ORLEANS - Louisiana - IAAI",
+      "city": "NEW ORLEANS",
+      "state": "Louisiana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "New Orleans and Louisiana Flood - Louisiana - IAAI",
+      "city": "New Orleans and Louisiana Flood",
+      "state": "Louisiana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 525.0,
+          "oversize": 675.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "NEW ORLEANS EAST - Louisiana - IAAI",
+      "city": "NEW ORLEANS EAST",
+      "state": "Louisiana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "NEWBURGH - New York - IAAI",
+      "city": "NEWBURGH",
+      "state": "New York",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "NORTH HOLLYWOOD - California - IAAI",
+      "city": "NORTH HOLLYWOOD",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 3000.0,
+          "oversize": 450.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "NORTHERN NEW JERSEY - New Jersey - IAAI",
+      "city": "NORTHERN NEW JERSEY",
+      "state": "New Jersey",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 225.0,
+          "oversize": 375.0,
+          "moto": 175.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "NORTHERN VIRGINIA - Virginia - IAAI",
+      "city": "NORTHERN VIRGINIA",
+      "state": "Virginia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "OKLAHOMA CITY - Oklahoma - IAAI",
+      "city": "OKLAHOMA CITY",
+      "state": "Oklahoma",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "OMAHA - Nebraska - IAAI",
+      "city": "OMAHA",
+      "state": "Nebraska",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "OMAHA SOUTH - Nebraska - IAAI",
+      "city": "OMAHA SOUTH",
+      "state": "Nebraska",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "ORLANDO - Florida - IAAI",
+      "city": "ORLANDO",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "miami": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "ORLANDO-NORTH - Florida - IAAI",
+      "city": "ORLANDO-NORTH",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "miami": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "PADUCAH - Kentucky - IAAI",
+      "city": "PADUCAH",
+      "state": "Kentucky",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "PENSACOLA - Florida - IAAI",
+      "city": "PENSACOLA",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "miami": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "PERMIAN BASIN - Texas - IAAI",
+      "city": "PERMIAN BASIN",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "PHILADELPHIA - Pennsylvania - IAAI",
+      "city": "PHILADELPHIA",
+      "state": "Pennsylvania",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 325.0,
+          "oversize": 475.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PHOENIX - Arizona - IAAI",
+      "city": "PHOENIX",
+      "state": "Arizona",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "PITTSBURGH - Pennsylvania - IAAI",
+      "city": "PITTSBURGH",
+      "state": "Pennsylvania",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PITTSBURGH-NORTH - Pennsylvania - IAAI",
+      "city": "PITTSBURGH-NORTH",
+      "state": "Pennsylvania",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PORT MURRAY - New Jersey - IAAI",
+      "city": "PORT MURRAY",
+      "state": "New Jersey",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 275.0,
+          "oversize": 425.0,
+          "moto": 250.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PORTAGE - Wisconsin - IAAI",
+      "city": "PORTAGE",
+      "state": "Wisconsin",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "PORTLAND - GORHAM - Maine - IAAI",
+      "city": "PORTLAND",
+      "state": "GORHAM",
+      "auction_tag": "Maine",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 600.0,
+          "oversize": 750.0,
+          "moto": 500.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PORTLAND - Oregon - IAAI",
+      "city": "PORTLAND",
+      "state": "Oregon",
+      "auction_tag": "IAAI",
+      "ports": {
+        "seattle": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "PORTLAND SOUTH - Oregon - IAAI",
+      "city": "PORTLAND SOUTH",
+      "state": "Oregon",
+      "auction_tag": "IAAI",
+      "ports": {
+        "seattle": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "PROVIDENCE - Rhode Island - IAAI",
+      "city": "PROVIDENCE",
+      "state": "Rhode Island",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "PULASKI - Virginia - IAAI",
+      "city": "PULASKI",
+      "state": "Virginia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "Philadelphia East - Pennsylvania - IAAI",
+      "city": "Philadelphia East",
+      "state": "Pennsylvania",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "Portland West - Oregon - IAAI",
+      "city": "Portland West",
+      "state": "Oregon",
+      "auction_tag": "IAAI",
+      "ports": {
+        "seattle": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "Provo - Utah - IAAI",
+      "city": "Provo",
+      "state": "Utah",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 750.0,
+          "oversize": 900.0,
+          "moto": 650.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "RALEIGH - North Carolina - IAAI",
+      "city": "RALEIGH",
+      "state": "North Carolina",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "RENO - Nevada - IAAI",
+      "city": "RENO",
+      "state": "Nevada",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "RICHMOND - Virginia - IAAI",
+      "city": "RICHMOND",
+      "state": "Virginia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "ROANOKE - Virginia - IAAI",
+      "city": "ROANOKE",
+      "state": "Virginia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "ROCHESTER - New York - IAAI",
+      "city": "ROCHESTER",
+      "state": "New York",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 550.0,
+          "oversize": 700.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "ROSEDALE - Maryland - IAAI",
+      "city": "ROSEDALE",
+      "state": "Maryland",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 425.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "SACRAMENTO - California - IAAI",
+      "city": "SACRAMENTO",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SALT LAKE CITY - Utah - IAAI",
+      "city": "SALT LAKE CITY",
+      "state": "Utah",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SAN ANTONIO - Texas - IAAI",
+      "city": "SAN ANTONIO",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "SAN ANTONIO-SOUTH - Texas - IAAI",
+      "city": "SAN ANTONIO-SOUTH",
+      "state": "Texas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "SAN BERNARDINO - California - IAAI",
+      "city": "SAN BERNARDINO",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SAN DIEGO - California - IAAI",
+      "city": "SAN DIEGO",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SANTA CLARITA - California - IAAI",
+      "city": "SANTA CLARITA",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 400.0,
+          "oversize": 550.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SAVANNAH - Georgia - IAAI",
+      "city": "SAVANNAH",
+      "state": "Georgia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 225.0,
+          "oversize": 375.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "SCRANTON - Pennsylvania - IAAI",
+      "city": "SCRANTON",
+      "state": "Pennsylvania",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "SEATTLE - Washington - IAAI",
+      "city": "SEATTLE",
+      "state": "Washington",
+      "auction_tag": "IAAI",
+      "ports": {
+        "seattle": {
+          "regular": 275.0,
+          "oversize": 425.0,
+          "moto": 275.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "SHADY SPRING - West Virginia - IAAI",
+      "city": "SHADY SPRING",
+      "state": "West Virginia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 725.0,
+          "oversize": 875.0,
+          "moto": 600.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "SHREVEPORT - Louisiana - IAAI",
+      "city": "SHREVEPORT",
+      "state": "Louisiana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 415.0,
+          "oversize": 565.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "SIOUX FALLS - South Dakota - IAAI",
+      "city": "SIOUX FALLS",
+      "state": "South Dakota",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 750.0,
+          "oversize": 900.0,
+          "moto": 650.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "SOUTH BEND - Indiana - IAAI",
+      "city": "SOUTH BEND",
+      "state": "Indiana",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 300.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "SOUTHERN NEW JERSEY - New Jersey - IAAI",
+      "city": "SOUTHERN NEW JERSEY",
+      "state": "New Jersey",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 265.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "SPOKANE - Washington - IAAI",
+      "city": "SPOKANE",
+      "state": "Washington",
+      "auction_tag": "IAAI",
+      "ports": {
+        "seattle": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 375.0
+        }
+      },
+      "primary_port": "seattle",
+      "primary_port_label": "Seattle"
+    },
+    {
+      "location": "SPRINGFIELD - Missouri - IAAI",
+      "city": "SPRINGFIELD",
+      "state": "Missouri",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 725.0,
+          "oversize": 875.0,
+          "moto": 525.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "ST. LOUIS - Illinois - IAAI",
+      "city": "ST. LOUIS",
+      "state": "Illinois",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 675.0,
+          "oversize": 825.0,
+          "moto": 525.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "STOCKTON - California - IAAI",
+      "city": "STOCKTON",
+      "state": "California",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 575.0,
+          "oversize": 825.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "SYRACUSE - New York - IAAI",
+      "city": "SYRACUSE",
+      "state": "New York",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 450.0,
+          "oversize": 600.0,
+          "moto": 400.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "Sayreville - New Jersey - IAAI",
+      "city": "Sayreville",
+      "state": "New Jersey",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 250.0,
+          "oversize": 400.0,
+          "moto": 225.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "Suffolk - Virginia - IAAI",
+      "city": "Suffolk",
+      "state": "Virginia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 250.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "TAMPA - Florida - IAAI",
+      "city": "TAMPA",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "miami": {
+          "regular": 350.0,
+          "oversize": 500.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "TAUNTON - Massachusetts - IAAI",
+      "city": "TAUNTON",
+      "state": "Massachusetts",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "TIDEWATER - Virginia - IAAI",
+      "city": "TIDEWATER",
+      "state": "Virginia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 300.0,
+          "oversize": 450.0,
+          "moto": 250.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "TIFTON - Georgia - IAAI",
+      "city": "TIFTON",
+      "state": "Georgia",
+      "auction_tag": "IAAI",
+      "ports": {
+        "savannah": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "savannah",
+      "primary_port_label": "Savannah"
+    },
+    {
+      "location": "TUCSON - Arizona - IAAI",
+      "city": "TUCSON",
+      "state": "Arizona",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "TULSA - Oklahoma - IAAI",
+      "city": "TULSA",
+      "state": "Oklahoma",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 575.0,
+          "oversize": 725.0,
+          "moto": 475.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "Tampa North - Florida - IAAI",
+      "city": "Tampa North",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "miami": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "Templeton - Massachusetts - IAAI",
+      "city": "Templeton",
+      "state": "Massachusetts",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 475.0,
+          "oversize": 625.0,
+          "moto": 350.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "WEST HAWAII TOWING & REPAIR INC KONA - Hawaii - IAAI",
+      "city": "WEST HAWAII TOWING & REPAIR INC KONA",
+      "state": "Hawaii",
+      "auction_tag": "IAAI",
+      "ports": {
+        "los_angeles": {
+          "regular": 2400.0,
+          "oversize": 2550.0,
+          "moto": null
+        }
+      },
+      "primary_port": "los_angeles",
+      "primary_port_label": "Los Angeles"
+    },
+    {
+      "location": "WEST PALM BEACH - Florida - IAAI",
+      "city": "WEST PALM BEACH",
+      "state": "Florida",
+      "auction_tag": "IAAI",
+      "ports": {
+        "miami": {
+          "regular": 280.0,
+          "oversize": 430.0,
+          "moto": 280.0
+        }
+      },
+      "primary_port": "miami",
+      "primary_port_label": "Miami"
+    },
+    {
+      "location": "WESTERN COLORADO - Colorado - IAAI",
+      "city": "WESTERN COLORADO",
+      "state": "Colorado",
+      "auction_tag": "IAAI",
+      "ports": {
+        "chicago": {
+          "regular": 1000.0,
+          "oversize": 1150.0,
+          "moto": 950.0
+        }
+      },
+      "primary_port": "chicago",
+      "primary_port_label": "Chicago"
+    },
+    {
+      "location": "WICHITA - Kansas - IAAI",
+      "city": "WICHITA",
+      "state": "Kansas",
+      "auction_tag": "IAAI",
+      "ports": {
+        "houston": {
+          "regular": 650.0,
+          "oversize": 800.0,
+          "moto": 550.0
+        }
+      },
+      "primary_port": "houston",
+      "primary_port_label": "Houston"
+    },
+    {
+      "location": "WILMINGTON - North Carolina - IAAI",
+      "city": "WILMINGTON",
+      "state": "North Carolina",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 500.0,
+          "oversize": 650.0,
+          "moto": 450.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    },
+    {
+      "location": "YORK SPRINGS - Pennsylvania - IAAI",
+      "city": "YORK SPRINGS",
+      "state": "Pennsylvania",
+      "auction_tag": "IAAI",
+      "ports": {
+        "new_york_norfolk": {
+          "regular": 375.0,
+          "oversize": 525.0,
+          "moto": 325.0
+        }
+      },
+      "primary_port": "new_york_norfolk",
+      "primary_port_label": "New York / Norfolk"
+    }
+  ],
+  "ocean": {
+    "klaipeda": {
+      "new_york_norfolk": {
+        "moto": 475.0,
+        "regular": 800.0,
+        "large": 850.0,
+        "oversize": 1100.0
+      },
+      "savannah": {
+        "moto": 475.0,
+        "regular": 800.0,
+        "large": 850.0,
+        "oversize": 1100.0
+      },
+      "miami": {
+        "moto": 500.0,
+        "regular": 875.0,
+        "large": 925.0,
+        "oversize": 1175.0
+      },
+      "houston": {
+        "moto": 525.0,
+        "regular": 925.0,
+        "large": 975.0,
+        "oversize": 1300.0
+      },
+      "chicago": {
+        "moto": 525.0,
+        "regular": 1000.0,
+        "large": 1050.0,
+        "oversize": 1350.0
+      },
+      "los_angeles": {
+        "moto": 650.0,
+        "regular": 1400.0,
+        "large": 1450.0,
+        "oversize": 1800.0
+      },
+      "seattle": {
+        "moto": 850.0,
+        "regular": 1800.0,
+        "large": 1900.0,
+        "oversize": 2500.0
+      },
+      "toronto": {
+        "moto": 600.0,
+        "regular": 1100.0,
+        "large": 1150.0,
+        "oversize": 1450.0
+      }
+    },
+    "poti": {
+      "new_york_norfolk": {
+        "moto": 500.0,
+        "regular": 1000.0,
+        "large": 1150.0,
+        "oversize": 1450.0
+      },
+      "savannah": {
+        "moto": 500.0,
+        "regular": 1000.0,
+        "large": 1150.0,
+        "oversize": 1450.0
+      },
+      "miami": {
+        "moto": 525.0,
+        "regular": 1050.0,
+        "large": 1250.0,
+        "oversize": 1450.0
+      },
+      "houston": {
+        "moto": 550.0,
+        "regular": 1200.0,
+        "large": 1300.0,
+        "oversize": 1650.0
+      },
+      "chicago": {
+        "moto": 575.0,
+        "regular": 1150.0,
+        "large": 1300.0,
+        "oversize": 1650.0
+      },
+      "los_angeles": {
+        "moto": 850.0,
+        "regular": 1750.0,
+        "large": 1850.0,
+        "oversize": 2150.0
+      },
+      "seattle": {
+        "moto": 900.0,
+        "regular": 1600.0,
+        "large": 1700.0,
+        "oversize": 2200.0
+      },
+      "toronto": {
+        "moto": 625.0,
+        "regular": 1300.0,
+        "large": 1450.0,
+        "oversize": 1750.0
+      }
+    }
+  }
+}

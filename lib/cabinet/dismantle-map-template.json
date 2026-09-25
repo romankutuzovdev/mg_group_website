@@ -1,0 +1,1134 @@
+{
+  "title": "Карта разбора",
+  "vehicleHeaderHint": "марка авто, модель, Lot#",
+  "sections": [
+    "Оптика",
+    "Кузовные элементы съемные",
+    "Отрезы кузова",
+    "Части кузова сьемные",
+    "Двигатель и подкапотное пространство",
+    "Глушитель",
+    "Педали",
+    "Подвеска",
+    "Колеса",
+    "Салонные детали",
+    "Безопасность",
+    "Пластики  салонные",
+    "Пластики багажника",
+    "Система отопления (печка)",
+    "Бензобак",
+    "Дополнительные поля (заполнить при необходимости)"
+  ],
+  "items": [
+    {
+      "key": "1",
+      "num": 1,
+      "section": "Оптика",
+      "name": "Фара в сборе",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "2",
+      "num": 2,
+      "section": "Оптика",
+      "name": "Задний фонарь в сборе",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "3",
+      "num": 3,
+      "section": "Кузовные элементы съемные",
+      "name": "Бампер передний в сборе",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "4",
+      "num": 4,
+      "section": "Кузовные элементы съемные",
+      "name": "Бампер задний в сборе",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "5",
+      "num": 5,
+      "section": "Кузовные элементы съемные",
+      "name": "Усилитель бампера",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "6",
+      "num": 6,
+      "section": "Кузовные элементы съемные",
+      "name": "Прицепное устройство",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "7",
+      "num": 7,
+      "section": "Кузовные элементы съемные",
+      "name": "Дверь передняя в сборе",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "8",
+      "num": 8,
+      "section": "Кузовные элементы съемные",
+      "name": "Дверь задняя в сборе",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "9",
+      "num": 9,
+      "section": "Кузовные элементы съемные",
+      "name": "Крышка багажника",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "10",
+      "num": 10,
+      "section": "Кузовные элементы съемные",
+      "name": "Лючок бензобака",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "11",
+      "num": 11,
+      "section": "Кузовные элементы съемные",
+      "name": "Капот",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "12",
+      "num": 12,
+      "section": "Кузовные элементы съемные",
+      "name": "Крыло переднее съёмное",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "13",
+      "num": 13,
+      "section": "Отрезы кузова",
+      "name": "Лонжерон",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "14",
+      "num": 14,
+      "section": "Отрезы кузова",
+      "name": "Четверть передняя",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "15",
+      "num": 15,
+      "section": "Отрезы кузова",
+      "name": "панель передняя в сборе с радиаторами (телевизор)",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "16",
+      "num": 16,
+      "section": "Отрезы кузова",
+      "name": "Крыло заднее отрезное",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "17",
+      "num": 17,
+      "section": "Отрезы кузова",
+      "name": "Задняя панель отрезная",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "18",
+      "num": 18,
+      "section": "Отрезы кузова",
+      "name": "Бочина отрезная",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "19",
+      "num": 19,
+      "section": "Отрезы кузова",
+      "name": "Порог отрезной",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "20",
+      "num": 20,
+      "section": "Отрезы кузова",
+      "name": "Крыша",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "21",
+      "num": 21,
+      "section": "Части кузова сьемные",
+      "name": "Рейлинг",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "22",
+      "num": 22,
+      "section": "Части кузова сьемные",
+      "name": "Антенна",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "23",
+      "num": 23,
+      "section": "Части кузова сьемные",
+      "name": "Пороги пластиковые",
+      "defaultQty": "Все",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "24",
+      "num": 24,
+      "section": "Части кузова сьемные",
+      "name": "Люк",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "25",
+      "num": 25,
+      "section": "Части кузова сьемные",
+      "name": "Стекло заднее",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "26",
+      "num": 26,
+      "section": "Части кузова сьемные",
+      "name": "Подкрылок",
+      "defaultQty": "4",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "27",
+      "num": 27,
+      "section": "Части кузова сьемные",
+      "name": "Защита двигателя и КПП",
+      "defaultQty": "все",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "28",
+      "num": 28,
+      "section": "Части кузова сьемные",
+      "name": "Брызговик колёсный",
+      "defaultQty": "4",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "29",
+      "num": 29,
+      "section": "Части кузова сьемные",
+      "name": "Стекло глухое кузовное",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "30",
+      "num": 30,
+      "section": "Части кузова сьемные",
+      "name": "Трапеция с электромотором",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "31",
+      "num": 31,
+      "section": "Части кузова сьемные",
+      "name": "Поводки дворников",
+      "defaultQty": "Все",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "32",
+      "num": 32,
+      "section": "Части кузова сьемные",
+      "name": "Жабо",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "33",
+      "num": 33,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Двигатель с КПП",
+      "defaultQty": "Все",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "34",
+      "num": 34,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Подушки двигателя и КПП",
+      "defaultQty": "Все",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "35",
+      "num": 35,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Блок управления двигателем",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "36",
+      "num": 36,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Корпус воздушного фильтра",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "37",
+      "num": 37,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Бачки пластмассовые",
+      "defaultQty": "3",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "38",
+      "num": 38,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Цилиндр сцепления главный",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "39",
+      "num": 39,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Вакуумный усилитель",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "40",
+      "num": 40,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Насос АБС (Блок ABS)",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "41",
+      "num": 41,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Трубки кодиционера",
+      "defaultQty": "все",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "42",
+      "num": 42,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Тросик открывания капота",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "43",
+      "num": 43,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Тросик ручника",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "44",
+      "num": 44,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Радиаторы",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "45",
+      "num": 45,
+      "section": "Глушитель",
+      "name": "Глушители в сборе (весь тракт)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "46",
+      "num": 46,
+      "section": "Глушитель",
+      "name": "Задняя банка",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "48",
+      "num": 48,
+      "section": "Глушитель",
+      "name": "Центральная банка",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "49",
+      "num": 49,
+      "section": "Глушитель",
+      "name": "Катализатор",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "50",
+      "num": 50,
+      "section": "Педали",
+      "name": "Датчик педального моста",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "51",
+      "num": 51,
+      "section": "Педали",
+      "name": "Педаль газа",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "52",
+      "num": 52,
+      "section": "Педали",
+      "name": "Педаль сцепления",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "53",
+      "num": 53,
+      "section": "Педали",
+      "name": "Педаль тормоза",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "54",
+      "num": 54,
+      "section": "Подвеска",
+      "name": "Передния подвеска в сборе (подрамник с рычагами)",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "55",
+      "num": 55,
+      "section": "Подвеска",
+      "name": "Рулевая рейка (редуктор)",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "56",
+      "num": 56,
+      "section": "Подвеска",
+      "name": "Привод колеса",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "57",
+      "num": 57,
+      "section": "Подвеска",
+      "name": "амортизаторы передние в сборе (стойка в сборе)",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "58",
+      "num": 58,
+      "section": "Подвеска",
+      "name": "задняя подвеска в сборе (мост/балка)",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "59",
+      "num": 59,
+      "section": "Подвеска",
+      "name": "Карданный вал",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "60",
+      "num": 60,
+      "section": "Подвеска",
+      "name": "Редуктор",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "61",
+      "num": 61,
+      "section": "Подвеска",
+      "name": "амортизаторы задние в сборе",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "62",
+      "num": 62,
+      "section": "Подвеска",
+      "name": "Пружины задние",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "63",
+      "num": 63,
+      "section": "Колеса",
+      "name": "Колесо ходовое СТАЛЬ",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "64",
+      "num": 64,
+      "section": "Колеса",
+      "name": "Колесо ходовое ЛИТЬЁ",
+      "defaultQty": "4",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "65",
+      "num": 65,
+      "section": "Колеса",
+      "name": "Запаска (докатка)",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "66",
+      "num": 66,
+      "section": "Колеса",
+      "name": "Домкрат",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "67",
+      "num": 67,
+      "section": "Салонные детали",
+      "name": "Торпедо в сборе",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "68",
+      "num": 68,
+      "section": "Салонные детали",
+      "name": "Бардачек с замком",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "69",
+      "num": 69,
+      "section": "Салонные детали",
+      "name": "Рулевая колонка в сборе",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "70",
+      "num": 70,
+      "section": "Салонные детали",
+      "name": "Панель управления печкой",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "71",
+      "num": 71,
+      "section": "Салонные детали",
+      "name": "Кулиса КПП",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "72",
+      "num": 72,
+      "section": "Салонные детали",
+      "name": "Консоль верхняя пластиковая",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "73",
+      "num": 73,
+      "section": "Салонные детали",
+      "name": "Подлокотник с консолью",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "74",
+      "num": 74,
+      "section": "Салонные детали",
+      "name": "Щиток приборов",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "75",
+      "num": 75,
+      "section": "Салонные детали",
+      "name": "Зеркалло заднего вида",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "76",
+      "num": 76,
+      "section": "Салонные детали",
+      "name": "Табло компьютера",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "77",
+      "num": 77,
+      "section": "Салонные детали",
+      "name": "Электронный ручник с тросами",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "78",
+      "num": 78,
+      "section": "Салонные детали",
+      "name": "Ручка ручника",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "79",
+      "num": 79,
+      "section": "Салонные детали",
+      "name": "Автомагнитола",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "80",
+      "num": 80,
+      "section": "Салонные детали",
+      "name": "CD чейнджер",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "81",
+      "num": 81,
+      "section": "Салонные детали",
+      "name": "Усилитель звука",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "82",
+      "num": 82,
+      "section": "Салонные детали",
+      "name": "Спутниковая навигация",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "83",
+      "num": 83,
+      "section": "Салонные детали",
+      "name": "Блоки электронные с разъёмами",
+      "defaultQty": "все",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "84",
+      "num": 84,
+      "section": "Салонные детали",
+      "name": "Блок предохранителей",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "85",
+      "num": 85,
+      "section": "Салонные детали",
+      "name": "Сидения",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "86",
+      "num": 86,
+      "section": "Салонные детали",
+      "name": "Обшивка сидений (шкура)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "87",
+      "num": 87,
+      "section": "Безопасность",
+      "name": "Ремень безопасности+пиропатрон",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "88",
+      "num": 88,
+      "section": "Безопасность",
+      "name": "Ответные части ремня (на перед сидении)",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "89",
+      "num": 89,
+      "section": "Безопасность",
+      "name": "Подушки безопасности",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "90",
+      "num": 90,
+      "section": "Безопасность",
+      "name": "Шторки безопасности",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "91",
+      "num": 91,
+      "section": "Безопасность",
+      "name": "Подушки безопасноти из сидений перед",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "92",
+      "num": 92,
+      "section": "Пластики  салонные",
+      "name": "Накладки на порог пластиковае внутр.",
+      "defaultQty": "4",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "93",
+      "num": 93,
+      "section": "Пластики  салонные",
+      "name": "Обшиви стоек (перед+центр+зад)",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "94",
+      "num": 94,
+      "section": "Пластики  салонные",
+      "name": "Козырёк солцезащитный",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "95",
+      "num": 95,
+      "section": "Пластики  салонные",
+      "name": "Ручки потолочные",
+      "defaultQty": "4",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "96",
+      "num": 96,
+      "section": "Пластики  салонные",
+      "name": "Освещение салонное",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "97",
+      "num": 97,
+      "section": "Пластики  салонные",
+      "name": "Потолок",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "99",
+      "num": 99,
+      "section": "Пластики  салонные",
+      "name": "Уплотнитель двери (целый)",
+      "defaultQty": "4",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "100",
+      "num": 100,
+      "section": "Пластики багажника",
+      "name": "Обшивка багажника боковые",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "101",
+      "num": 101,
+      "section": "Пластики багажника",
+      "name": "Пол багажника",
+      "defaultQty": "2",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "102",
+      "num": 102,
+      "section": "Пластики багажника",
+      "name": "Пластиковое корыто (органайзер)",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "103",
+      "num": 103,
+      "section": "Пластики багажника",
+      "name": "Полка багажника ( х/б, универ)",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "104",
+      "num": 104,
+      "section": "Пластики багажника",
+      "name": "Уплотнитель багажника (целый)",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "105",
+      "num": 105,
+      "section": "Система отопления (печка)",
+      "name": "Печка в сборе",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "106",
+      "num": 106,
+      "section": "Система отопления (печка)",
+      "name": "Радиатор печки",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "107",
+      "num": 107,
+      "section": "Система отопления (печка)",
+      "name": "Моторчик печки с блоком сопротивления",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "108",
+      "num": 108,
+      "section": "Система отопления (печка)",
+      "name": "Вебасто в сборе  (доп отопитель)",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "109",
+      "num": 109,
+      "section": "Бензобак",
+      "name": "Топливный насос",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "110",
+      "num": 110,
+      "section": "Бензобак",
+      "name": "Бензобак",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "111",
+      "num": 111,
+      "section": "Бензобак",
+      "name": "Заливная горловина",
+      "defaultQty": "0",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "112",
+      "num": 112,
+      "section": "Бензобак",
+      "name": "Указатель уровня топлива",
+      "defaultQty": "1",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "note-111",
+      "num": null,
+      "section": "Дополнительные поля (заполнить при необходимости)",
+      "name": "Снять все что откручивается от кузова.",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": true
+    }
+  ]
+}

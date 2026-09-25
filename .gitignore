@@ -1,0 +1,68 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+!**/.env.example
+!.env*.example
+
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+
+# Python / API
+api/.venv/
+api/.pw-browsers/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# API runtime data (cabinet DB, uploads, service logs)
+api/data/*.db
+api/data/*.db-journal
+api/data/*.db-wal
+api/data/*.db-shm
+api/data/uploads/
+api/data/*.log
+api/data/service-*.log
+
+# NSSM binary downloaded by setup-windows.ps1
+api/deploy/nssm.exe
+
+# Playwright / scraper local junk
+.playwright/
+playwright-report/
+test-results/
+
+# Large local catalog dumps (optional; keep if you want them in git — remove these lines)
+# bidcars_catalog.json
+# copart_catalog.json
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+Desktop.ini
+*~
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Cloudflare Wrangler
+.wrangler/
+.dev.vars

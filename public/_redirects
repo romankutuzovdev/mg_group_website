@@ -1,0 +1,9 @@
+# Encar landing → SEO catalog Korea
+/avto-iz-korei /avto/korea/ 301
+/avto-iz-korei/ /avto/korea/ 301
+/avto-iz-korei/* /avto/korea/ 301
+
+# Legacy USA feed → SEO catalog USA (единый каталог)
+/avto-pod-zakaz /avto/usa/ 301
+/avto-pod-zakaz/ /avto/usa/ 301
+/avto-pod-zakaz/* /avto/usa/ 301

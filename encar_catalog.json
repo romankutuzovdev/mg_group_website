@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-09-20T10:00:00.000Z",
+  "source": "sample-fixture",
+  "note": "Replace with a real Encar SearchResults dump. Run: npm run import:encar",
+  "SearchResults": [
+    {
+      "Id": 39123456,
+      "Manufacturer": "현대",
+      "Model": "그랜저",
+      "Badge": "GN7",
+      "Year": "2023",
+      "Mileage": 18500,
+      "Price": 3850,
+      "FuelType": "가솔린",
+      "Transmission": "오토",
+      "OfficeCityState": "서울",
+      "Photos": ["/carpicture05/pic39123456_001.jpg"],
+      "Color": "검정",
+      "BodyName": "세단"
+    },
+    {
+      "Id": 39123457,
+      "Manufacturer": "기아",
+      "Model": "쏘렌토",
+      "Badge": "MQ4",
+      "Year": "2022",
+      "Mileage": 42000,
+      "Price": 3120,
+      "FuelType": "디젤",
+      "Transmission": "오토",
+      "OfficeCityState": "부산",
+      "Photos": ["/carpicture06/pic39123457_001.jpg"],
+      "Color": "흰색",
+      "BodyName": "SUV"
+    },
+    {
+      "Id": 39123458,
+      "Manufacturer": "제네시스",
+      "Model": "G80",
+      "Year": "2021",
+      "Mileage": 51000,
+      "Price": 4500,
+      "FuelType": "가솔린",
+      "Transmission": "오토",
+      "OfficeCityState": "인천",
+      "Photos": ["/carpicture07/pic39123458_001.jpg"]
+    },
+    {
+      "Id": 39123459,
+      "Manufacturer": "기아",
+      "Model": "K5",
+      "Year": "2020",
+      "Mileage": 68000,
+      "Price": 1980,
+      "FuelType": "가솔린",
+      "Transmission": "오토",
+      "OfficeCityState": "대구",
+      "Photos": ["/carpicture08/pic39123459_001.jpg"]
+    },
+    {
+      "Id": 39123460,
+      "Manufacturer": "현대",
+      "Model": "투싼",
+      "Year": "2024",
+      "Mileage": 9000,
+      "Price": 3400,
+      "FuelType": "하이브리드",
+      "Transmission": "오토",
+      "OfficeCityState": "경기",
+      "Photos": ["/carpicture01/pic39123460_001.jpg"]
+    }
+  ]
+}

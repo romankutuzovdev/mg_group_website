@@ -1,0 +1,3295 @@
+{
+  "regions": {
+    "usa": {
+      "slug": "usa",
+      "name": "США",
+      "nameGenitive": "США",
+      "title": "Авто из США",
+      "h1": "Автомобили из США под заказ",
+      "description": "Подбор и доставка авто из США под ключ: Copart, IAAI, Manheim. Расчёт до Минска, таможенное оформление.",
+      "intro": "Выкупаем лоты на Copart и IAAI, считаем полную стоимость до Минска и ведём сделку до постановки на учёт."
+    },
+    "china": {
+      "slug": "china",
+      "name": "Китай",
+      "nameGenitive": "Китая",
+      "title": "Авто из Китая",
+      "h1": "Автомобили из Китая под заказ",
+      "description": "Подбор и доставка авто из Китая под ключ: BYD, Li Auto, Zeekr, Xiaomi и другие. Расчёт и таможенное оформление.",
+      "intro": "Новые и актуальные модели китайского рынка — подбор комплектации, логистика и растаможка под ключ."
+    },
+    "korea": {
+      "slug": "korea",
+      "name": "Корея",
+      "nameGenitive": "Кореи",
+      "title": "Авто из Кореи",
+      "h1": "Автомобили из Кореи под заказ",
+      "description": "Подбор и доставка авто из Кореи под ключ: Hyundai, Kia, Genesis и другие. Прозрачный расчёт до Минска.",
+      "intro": "Подбираем авто с корейского рынка с проверкой истории и полным сопровождением доставки."
+    },
+    "uk": {
+      "slug": "uk",
+      "name": "Англия",
+      "nameGenitive": "Англии",
+      "title": "Авто и машинокомплекты из Англии",
+      "h1": "Авто и машинокомплекты из Англии",
+      "description": "Лоты Copart UK и машинокомплекты из Англии: подбор, разборка, доставка в Беларусь.",
+      "intro": "Работаем с британскими площадками: целые авто и машинокомплекты с контролем разборки."
+    }
+  },
+  "makes": {
+    "acura": {
+      "slug": "acura",
+      "name": "Acura",
+      "logo": "/catalog/makes/acura.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "integra",
+          "name": "Integra",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/d7af52a8667642e7ada7fd1f8d00c2be_ful.jpg"
+        },
+        {
+          "slug": "mdx",
+          "name": "MDX",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/8b51e79f27ce4836b83df5d677ca575e_ful.jpg"
+        },
+        {
+          "slug": "rdx",
+          "name": "RDX",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/295de3b11b4e4c5d9913c21513c973b7_ful.jpg"
+        },
+        {
+          "slug": "tl",
+          "name": "TL",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/01587c21643c4fd79e9477ebf7e87e40_ful.jpg"
+        },
+        {
+          "slug": "tlx",
+          "name": "TLX",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/09fdf2fb19cc431b933daa9014ff45e6_ful.jpg"
+        },
+        {
+          "slug": "tsx",
+          "name": "TSX",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/b801e336167b40b8a97425f9255c34ba_ful.jpg"
+        }
+      ]
+    },
+    "aito": {
+      "slug": "aito",
+      "name": "AITO",
+      "logo": "/catalog/makes/aito.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "m7",
+          "name": "M7",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/1e0998bfbfe949ce86b75e2d298f1fed_ful.jpg"
+        },
+        {
+          "slug": "m9",
+          "name": "M9",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/8ad82cc8d4d04fda804666714d43c99d_ful.jpg"
+        }
+      ]
+    },
+    "arcfox": {
+      "slug": "arcfox",
+      "name": "Arcfox",
+      "logo": "/catalog/makes/arcfox.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "alpha-s5",
+          "name": "Alpha S5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1125/99fffe37120e495ea14f578ea141cb83_ful.jpg"
+        },
+        {
+          "slug": "alpha-t5",
+          "name": "Alpha T5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/81900392cba948b6951081aae032fec6_ful.jpg"
+        },
+        {
+          "slug": "kaola",
+          "name": "Kaola",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/141005296f8847e6a8662b23c43d960c_ful.jpg"
+        },
+        {
+          "slug": "kaola-s",
+          "name": "Kaola S",
+          "image": "/catalog/models/arcfox/kaola-s.jpg"
+        },
+        {
+          "slug": "t1",
+          "name": "T1",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/25a5b9c2710643359bd717906d525848_ful.jpg"
+        }
+      ]
+    },
+    "aston-martin": {
+      "slug": "aston-martin",
+      "name": "Aston Martin",
+      "logo": "/catalog/makes/aston-martin.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "dbx-707",
+          "name": "DBX 707",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1125/3708efe88f8b4b9da1e6f533193b32d8_ful.jpg"
+        }
+      ]
+    },
+    "audi": {
+      "slug": "audi",
+      "name": "Audi",
+      "logo": "/catalog/makes/audi.svg",
+      "regions": [
+        "korea",
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "a4",
+          "name": "A4",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/a23c045f9eaf4d6195b2983587f3bf11_ful.jpg"
+        },
+        {
+          "slug": "a5",
+          "name": "A5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/864d6165b4d34dfe8b5db83f859ada9a_ful.jpg"
+        },
+        {
+          "slug": "a6",
+          "name": "A6",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/079ec214d12347f9b77aa9129ffbb5f1_ful.jpg"
+        },
+        {
+          "slug": "a8",
+          "name": "A8",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/2dd2e36e661f4ebc8f7cbc9ddb079ffa_ful.jpg"
+        },
+        {
+          "slug": "e5",
+          "name": "E5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/e6b58366e60c4cf2b7125aa53a5a7d03_ful.jpg"
+        },
+        {
+          "slug": "e7x",
+          "name": "E7x",
+          "image": "/catalog/models/audi/e7x.jpg"
+        },
+        {
+          "slug": "q3",
+          "name": "Q3",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/ab6adbaf609f4db6a7e7050a1d5c6c05_ful.jpg"
+        },
+        {
+          "slug": "q4-e-tron",
+          "name": "Q4 E Tron",
+          "image": "/catalog/models/audi/q4-e-tron.jpg"
+        },
+        {
+          "slug": "q5",
+          "name": "Q5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/92c8d09344634e4c855cc7c4b0a56cf0_ful.jpg"
+        },
+        {
+          "slug": "q5l",
+          "name": "Q5l",
+          "image": "/catalog/models/audi/q5l.jpg"
+        },
+        {
+          "slug": "q6-e-tron",
+          "name": "Q6 E Tron",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/7fc254f6309c485ea3779ea9ae747c99_ful.jpg"
+        },
+        {
+          "slug": "q6l-e-tron",
+          "name": "Q6l E Tron",
+          "image": "/catalog/models/audi/q6l-e-tron.jpg"
+        },
+        {
+          "slug": "q7",
+          "name": "Q7",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/d1aea1e578e54690b08b2f670452d552_ful.jpg"
+        },
+        {
+          "slug": "q8",
+          "name": "Q8",
+          "image": "/catalog/models/audi/q8.jpg"
+        },
+        {
+          "slug": "rs-q8",
+          "name": "RS Q8",
+          "image": "/catalog/models/audi/rs-q8.jpg"
+        },
+        {
+          "slug": "s4-rs4",
+          "name": "S4 Rs4",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/a2004f4aa95c4cbb83ed5c5f47297289_ful.jpg"
+        },
+        {
+          "slug": "sq5",
+          "name": "Sq5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/aae42ccfbc034364b8cd340a1bfb5e90_ful.jpg"
+        },
+        {
+          "slug": "sq7",
+          "name": "Sq7",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/f94b5954dd3a45a3a153fa7c4e401038_ful.jpg"
+        },
+        {
+          "slug": "sq8",
+          "name": "Sq8",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1125/78680a1867f444a58056e351f6c02427_ful.jpg"
+        }
+      ]
+    },
+    "avatr": {
+      "slug": "avatr",
+      "name": "Avatr",
+      "logo": "/catalog/makes/avatr.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "06",
+          "name": "06",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/cbc5053642e44afcb9dbf9d08e80de04_ful.jpg"
+        },
+        {
+          "slug": "07",
+          "name": "07",
+          "image": "/catalog/models/avatr/07.jpg"
+        },
+        {
+          "slug": "11",
+          "name": "11",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/0a20237199e4423683e3e205a9a64022_ful.jpg"
+        },
+        {
+          "slug": "12",
+          "name": "12",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/00bd2290fc7d4c4e8d4863fa18f252a0_ful.jpg"
+        }
+      ]
+    },
+    "baw": {
+      "slug": "baw",
+      "name": "BAW",
+      "logo": "/catalog/makes/baw.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "212-t01",
+          "name": "212 T01",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/ebfd1ccf600f4e888074f5ec4613a3d6_ful.jpg"
+        }
+      ]
+    },
+    "belgee": {
+      "slug": "belgee",
+      "name": "Belgee",
+      "logo": "/catalog/makes/belgee.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "s50",
+          "name": "S50",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/fd0c1365fe304f30bb3c31fceb352498_ful.jpg"
+        },
+        {
+          "slug": "x50-plus",
+          "name": "X50 Plus",
+          "image": "/catalog/models/belgee/x50-plus.jpg"
+        },
+        {
+          "slug": "x7",
+          "name": "X7",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/094aa0869b2743479c1c342bebff0c2d_ful.jpg"
+        },
+        {
+          "slug": "x70",
+          "name": "X70",
+          "image": "/catalog/models/belgee/x70.jpg"
+        },
+        {
+          "slug": "x80",
+          "name": "X80",
+          "image": "/catalog/models/belgee/x80.jpg"
+        }
+      ]
+    },
+    "bmg": {
+      "slug": "bmg",
+      "name": "BMG",
+      "logo": "/catalog/makes/bmg.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "m5",
+          "name": "M5",
+          "image": "/catalog/models/bmg/m5.jpg"
+        }
+      ]
+    },
+    "bmw": {
+      "slug": "bmw",
+      "name": "BMW",
+      "logo": "/catalog/makes/bmw.svg",
+      "regions": [
+        "korea",
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "2-series",
+          "name": "2 Series",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0426/ef01f347b3044dabac0e2f8d805b8c8c_ful.jpg"
+        },
+        {
+          "slug": "3-series",
+          "name": "3 Series",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/93a78eec3721470a9e355ff05d593707_ful.jpg"
+        },
+        {
+          "slug": "4-series",
+          "name": "4 Series",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/4e9eb81b4ee147e7b7c42b2efae1b195_ful.jpg"
+        },
+        {
+          "slug": "5-seriya",
+          "name": "5 Series",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/46336cf124f14804a16aff36bd9c797b_ful.jpg"
+        },
+        {
+          "slug": "7-series",
+          "name": "7 Series",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/8824f1c77342457b994bfbafde89246e_ful.jpg"
+        },
+        {
+          "slug": "i3",
+          "name": "I3",
+          "image": "/catalog/models/bmw/i3.jpg"
+        },
+        {
+          "slug": "i4",
+          "name": "I4",
+          "image": "/catalog/models/bmw/i4.jpg"
+        },
+        {
+          "slug": "i4-edrive",
+          "name": "I4 Edrive",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1125/ff6aefb1072a4d479224b4b596e31b25_ful.jpg"
+        },
+        {
+          "slug": "i5",
+          "name": "I5",
+          "image": "/catalog/models/bmw/i5.jpg"
+        },
+        {
+          "slug": "i7",
+          "name": "I7",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/6ba5be11c5e942ab9d74d6fbe030700c_ful.jpg"
+        },
+        {
+          "slug": "ix1",
+          "name": "Ix1",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/3874e04c14974ac88dd42e22932968d1_ful.jpg"
+        },
+        {
+          "slug": "ix3",
+          "name": "Ix3",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/764f2e7a48eb465687bc14c9d054cd9b_ful.jpg"
+        },
+        {
+          "slug": "m3",
+          "name": "M3",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/1ed745109f5a4b15868779e031dc6e00_ful.jpg"
+        },
+        {
+          "slug": "m5",
+          "name": "M5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/3874e04c14974ac88dd42e22932968d1_ful.jpg"
+        },
+        {
+          "slug": "x1",
+          "name": "X1",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0426/79fcd1d80404470a8767f16b383ddac1_ful.jpg"
+        },
+        {
+          "slug": "x2",
+          "name": "X2",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/9a15a1e22c5d491b8c1c60a442a4f897_ful.jpg"
+        },
+        {
+          "slug": "x3",
+          "name": "X3",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/11cabda6320049b987425f147d35c4ed_ful.jpg"
+        },
+        {
+          "slug": "x4",
+          "name": "X4",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/6ba5be11c5e942ab9d74d6fbe030700c_ful.jpg"
+        },
+        {
+          "slug": "x5",
+          "name": "X5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/76b010b06b50498690c5e20a26982485_ful.jpg"
+        },
+        {
+          "slug": "x6",
+          "name": "X6",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/bb1d2a2d21c044ceaed33ab558ec23ca_ful.jpg"
+        },
+        {
+          "slug": "x7",
+          "name": "X7",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/df170f35efcb467db8e3b66c4c1d58f4_ful.jpg"
+        }
+      ]
+    },
+    "buick": {
+      "slug": "buick",
+      "name": "Buick",
+      "logo": "/catalog/makes/buick.png",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "century",
+          "name": "Century",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/9e4bca5495e8461e8359b3d733af391f_ful.jpg"
+        },
+        {
+          "slug": "enclave",
+          "name": "Enclave",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/729cd3dec97e4e13a0966e6368545ff4_ful.jpg"
+        },
+        {
+          "slug": "encore",
+          "name": "Encore",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0426/dc9f4dd1b3bd4fa09cfe1c00901be453_ful.jpg"
+        },
+        {
+          "slug": "lacrosse",
+          "name": "LaCrosse",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/4ff783e7cbde41498558fc92296a37e4_ful.jpg"
+        },
+        {
+          "slug": "verano",
+          "name": "Verano",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/8a4baf91bfe04256a0fe8c27474de363_ful.jpg"
+        }
+      ]
+    },
+    "byd": {
+      "slug": "byd",
+      "name": "BYD",
+      "logo": "/catalog/makes/byd.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "destroyer-05",
+          "name": "Destroyer 05",
+          "image": "/catalog/models/byd/destroyer-05.jpg"
+        },
+        {
+          "slug": "dolphin",
+          "name": "Dolphin",
+          "image": "/catalog/models/byd/dolphin.jpg"
+        },
+        {
+          "slug": "e7",
+          "name": "E7",
+          "image": "/catalog/models/byd/e7.jpg"
+        },
+        {
+          "slug": "han",
+          "name": "Han",
+          "image": "/catalog/models/byd/han.jpg"
+        },
+        {
+          "slug": "han-l",
+          "name": "Han L",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0426/94670316a82046faade8413e14303bd8_ful.jpg"
+        },
+        {
+          "slug": "qin-plus-ev",
+          "name": "Qin Plus EV",
+          "image": "/catalog/models/byd/qin-plus-ev.jpg"
+        },
+        {
+          "slug": "sea-lion-05-ev",
+          "name": "Sea Lion 05 EV",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/345805d867df42bab3d8b7cac1ca4821_ful.jpg"
+        },
+        {
+          "slug": "sea-lion-06-ev",
+          "name": "Sea Lion 06 EV",
+          "image": "/catalog/models/byd/sea-lion-06-ev.jpg"
+        },
+        {
+          "slug": "sea-lion-07",
+          "name": "Sea Lion 07",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/b1f779f625104320928391c6e91852f4_ful.jpg"
+        },
+        {
+          "slug": "shark",
+          "name": "Shark",
+          "image": "/catalog/models/byd/shark.jpg"
+        },
+        {
+          "slug": "song-l",
+          "name": "Song L",
+          "image": "/catalog/models/byd/song-l.jpg"
+        },
+        {
+          "slug": "song-plus-ev",
+          "name": "Song Plus EV",
+          "image": "/catalog/models/byd/song-plus-ev.jpg"
+        },
+        {
+          "slug": "tang-l",
+          "name": "Tang L",
+          "image": "/catalog/models/byd/tang-l.jpg"
+        },
+        {
+          "slug": "yuan-plus",
+          "name": "Yuan Plus",
+          "image": "/catalog/models/byd/yuan-plus.jpg"
+        },
+        {
+          "slug": "yuan-up",
+          "name": "Yuan UP",
+          "image": "/catalog/models/byd/yuan-up.jpg"
+        }
+      ]
+    },
+    "cadillac": {
+      "slug": "cadillac",
+      "name": "Cadillac",
+      "logo": "/catalog/makes/cadillac.png",
+      "regions": [
+        "korea",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "ats",
+          "name": "ATS",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/21448c14d4d8443ab3756b2bc88eac3b_ful.jpg"
+        },
+        {
+          "slug": "cts",
+          "name": "CTS",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0426/477a3912006943d0b4b73cc9e948da08_ful.jpg"
+        },
+        {
+          "slug": "es",
+          "name": "ES",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/15a351b574cf44279ed1a7c217456ee2_ful.jpg"
+        },
+        {
+          "slug": "escalade",
+          "name": "Escalade",
+          "image": "/catalog/models/cadillac/escalade.jpg"
+        }
+      ]
+    },
+    "changan": {
+      "slug": "changan",
+      "name": "Changan",
+      "logo": "/catalog/makes/changan.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "cs55-plus",
+          "name": "Cs55 Plus",
+          "image": "/catalog/models/changan/cs55-plus.jpg"
+        },
+        {
+          "slug": "cs75",
+          "name": "Cs75",
+          "image": "/catalog/models/changan/cs75.jpg"
+        },
+        {
+          "slug": "cs75-plus",
+          "name": "Cs75 Plus",
+          "image": "/catalog/models/changan/cs75-plus.jpg"
+        },
+        {
+          "slug": "cs75-pro",
+          "name": "Cs75 Pro",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0425/6909297d4c184bcba5e51662da26ac2b_ful.jpg"
+        },
+        {
+          "slug": "eado",
+          "name": "Eado",
+          "image": "/catalog/models/changan/eado.jpg"
+        },
+        {
+          "slug": "hunter",
+          "name": "Hunter",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1125/8ddaf7a58f7445409fe6cd2fa73ebf5b_ful.jpg"
+        },
+        {
+          "slug": "kaicheng-v919",
+          "name": "Kaicheng V919",
+          "image": "/catalog/models/changan/kaicheng-v919.jpg"
+        },
+        {
+          "slug": "qiyuan-a05",
+          "name": "Qiyuan A05",
+          "image": "/catalog/models/changan/qiyuan-a05.jpg"
+        },
+        {
+          "slug": "qiyuan-a06",
+          "name": "Qiyuan A06",
+          "image": "/catalog/models/changan/qiyuan-a06.jpg"
+        },
+        {
+          "slug": "qiyuan-a07",
+          "name": "Qiyuan A07",
+          "image": "/catalog/models/changan/qiyuan-a07.jpg"
+        },
+        {
+          "slug": "qiyuan-q05",
+          "name": "Qiyuan Q05",
+          "image": "/catalog/models/changan/qiyuan-q05.jpg"
+        },
+        {
+          "slug": "qiyuan-q07",
+          "name": "Qiyuan Q07",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/31c04b147e1049e3b3bdfd2b3df8b00b_ful.jpg"
+        },
+        {
+          "slug": "uni",
+          "name": "UNI",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/672675f1ac21445cb930893c4bdf9862_ful.jpg"
+        },
+        {
+          "slug": "uni-k",
+          "name": "Uni K",
+          "image": "/catalog/models/changan/uni-k.jpg"
+        },
+        {
+          "slug": "uni-s",
+          "name": "Uni S",
+          "image": "/catalog/models/changan/uni-s.jpg"
+        },
+        {
+          "slug": "uni-t",
+          "name": "Uni T",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/975ad4fd30d64c4ba9f96f36c1925100_ful.jpg"
+        },
+        {
+          "slug": "uni-z",
+          "name": "Uni Z",
+          "image": "/catalog/models/changan/uni-z.jpg"
+        },
+        {
+          "slug": "x5-plus",
+          "name": "X5 Plus",
+          "image": "/catalog/models/changan/x5-plus.jpg"
+        }
+      ]
+    },
+    "chevrolet": {
+      "slug": "chevrolet",
+      "name": "Chevrolet",
+      "logo": "/catalog/makes/chevrolet.png",
+      "regions": [
+        "korea",
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "avalanche",
+          "name": "Avalanche",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/0b7be50899f04e2ba11b129459839f45_ful.jpg"
+        },
+        {
+          "slug": "blazer",
+          "name": "Blazer",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/556d059cda0d40249eef3da53f30b772_ful.jpg"
+        },
+        {
+          "slug": "camaro",
+          "name": "Camaro",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/e6f3e31031fa49e6ba525d7b226d1ad2_ful.jpg"
+        },
+        {
+          "slug": "cavalier",
+          "name": "Cavalier",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/fb663ff505984adfa94bc91c33272e8c_ful.jpg"
+        },
+        {
+          "slug": "colorado",
+          "name": "Colorado",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/750d7efada794ac4b952a1856d797832_ful.jpg"
+        },
+        {
+          "slug": "corvette",
+          "name": "Corvette",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/40a166f80019450cac0106d3bfb0c982_ful.jpg"
+        },
+        {
+          "slug": "cruze",
+          "name": "Cruze",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/dd1cb87640944841b042988dabf417a0_ful.jpg"
+        },
+        {
+          "slug": "equinox",
+          "name": "Equinox",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/d210767da7e24beea5cd5b888e608d21_ful.jpg"
+        },
+        {
+          "slug": "gmt",
+          "name": "GMT",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/d1f76c17dba14722b16077205dba4c97_ful.jpg"
+        },
+        {
+          "slug": "hhr",
+          "name": "HHR",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/c4c27981049d4ff7aab9683c3d1670d7_ful.jpg"
+        },
+        {
+          "slug": "impala",
+          "name": "Impala",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/f20102e39c3544b78d11eb4fe6580a3c_ful.jpg"
+        },
+        {
+          "slug": "malibu",
+          "name": "Malibu",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/d5a73930ede04b63af21044c1ab2b144_ful.jpg"
+        },
+        {
+          "slug": "silverado",
+          "name": "Silverado",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/c13e8812e0b441369133e7b416854a80_ful.jpg"
+        },
+        {
+          "slug": "sonic",
+          "name": "Sonic",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/d8604106ef2a450284a7f859c58b5a60_ful.jpg"
+        },
+        {
+          "slug": "suburban",
+          "name": "Suburban",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/276745aa9009419da5de479fda3123a3_ful.jpg"
+        },
+        {
+          "slug": "tahoe",
+          "name": "Tahoe",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/a6bc40f059164916b55eee2f6cda79a5_ful.jpg"
+        },
+        {
+          "slug": "trailblzr",
+          "name": "Trailblzr",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/a6e5077eb2b2488aa0c504d3962e0a89_ful.jpg"
+        },
+        {
+          "slug": "traverse",
+          "name": "Traverse",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/035c6280f9714eeea071c400551cc6e5_ful.jpg"
+        },
+        {
+          "slug": "trax-2rs",
+          "name": "Trax 2RS",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/688393c6414a43e0be83362922f43277_ful.jpg"
+        }
+      ]
+    },
+    "chrysler": {
+      "slug": "chrysler",
+      "name": "Chrysler",
+      "logo": "/catalog/makes/chrysler.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "200",
+          "name": "200",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/2f6f616c96794a6fb81e01d77a943521_ful.jpg"
+        },
+        {
+          "slug": "300",
+          "name": "300",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/011adb72407b4746a762db77b725cc59_ful.jpg"
+        },
+        {
+          "slug": "minivan",
+          "name": "Minivan",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/a2b4caf18c344b369c0a71ebb32c7789_ful.jpg"
+        },
+        {
+          "slug": "pacifica",
+          "name": "Pacifica",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0825/41631bce1a394b16b526ac63d80d5233_ful.jpg"
+        },
+        {
+          "slug": "pt-cruiser",
+          "name": "PT Cruiser",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/43c53e239f1e4a8cb01e8fec77e061a4_ful.jpg"
+        }
+      ]
+    },
+    "citroen": {
+      "slug": "citroen",
+      "name": "Citroen",
+      "logo": "/catalog/makes/citroen.svg",
+      "regions": [
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "c3",
+          "name": "C3",
+          "image": "/catalog/models/citroen/c3.jpg"
+        },
+        {
+          "slug": "c5-aircross",
+          "name": "C5 Aircross",
+          "image": "/catalog/models/citroen/c5-aircross.jpg"
+        },
+        {
+          "slug": "c5-x",
+          "name": "C5 X",
+          "image": "/catalog/models/citroen/c5-x.jpg"
+        }
+      ]
+    },
+    "denza": {
+      "slug": "denza",
+      "name": "Denza",
+      "logo": "/catalog/makes/denza.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "n8l",
+          "name": "N8l",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/780f364debc74cd393f73bb76dc92f1d_ful.jpg"
+        }
+      ]
+    },
+    "dfsk": {
+      "slug": "dfsk",
+      "name": "DFSK",
+      "logo": "/catalog/makes/dfsk.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "e5-plus",
+          "name": "E5 Plus",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/f94b5954dd3a45a3a153fa7c4e401038_ful.jpg"
+        }
+      ]
+    },
+    "dodge": {
+      "slug": "dodge",
+      "name": "Dodge",
+      "logo": "/catalog/makes/dodge.png",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "caravan",
+          "name": "Caravan",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/e2e93f546095426fb11614857b957fb7_ful.jpg"
+        },
+        {
+          "slug": "challenger",
+          "name": "Challenger",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/d34c71229cbe4eb18b23f7c5f0583171_ful.jpg"
+        },
+        {
+          "slug": "charger",
+          "name": "Charger",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/fc648cd2acd540f2b7c26ba0b9a27595_ful.jpg"
+        },
+        {
+          "slug": "dart",
+          "name": "Dart",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/672675f1ac21445cb930893c4bdf9862_ful.jpg"
+        },
+        {
+          "slug": "durango",
+          "name": "Durango",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/26773cd7d74d4b89b9f983a63d858693_ful.jpg"
+        },
+        {
+          "slug": "hornet-r-t",
+          "name": "Hornet R T",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/50e19dd176034b54bb425c42e84cbb20_ful.jpg"
+        },
+        {
+          "slug": "journey",
+          "name": "Journey",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/b370a675b9f94af6a3bfb02da820826e_ful.jpg"
+        },
+        {
+          "slug": "ram-1500",
+          "name": "RAM 1500",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/b6e0e744959e4c8ba26bfa4e7a6a775a_ful.jpg"
+        }
+      ]
+    },
+    "epai": {
+      "slug": "epai",
+      "name": "EPAI",
+      "logo": "/catalog/makes/epai.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "epi-007",
+          "name": "Epi 007",
+          "image": "/catalog/models/epai/epi-007.jpg"
+        },
+        {
+          "slug": "epi-008",
+          "name": "Epi 008",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/6b0572fb0b8b44dfb484c0fe8c241787_ful.jpg"
+        }
+      ]
+    },
+    "fangchengbao": {
+      "slug": "fangchengbao",
+      "name": "Fangchengbao",
+      "logo": "/catalog/makes/fangchengbao.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "leopard-5",
+          "name": "Leopard 5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/8821b651fc00419780ea3241b09bbbc4_ful.jpg"
+        },
+        {
+          "slug": "leopard-8",
+          "name": "Leopard 8",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/a77e30f8569244a0a134bcfdf577d97c_ful.jpg"
+        },
+        {
+          "slug": "titanium-3",
+          "name": "Titanium 3",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/a6bc40f059164916b55eee2f6cda79a5_ful.jpg"
+        },
+        {
+          "slug": "titanium-7",
+          "name": "Titanium 7",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/d27a3f6e3c1e470dae6af473ed25a9cb_ful.jpg"
+        }
+      ]
+    },
+    "farizon": {
+      "slug": "farizon",
+      "name": "Farizon",
+      "logo": "/catalog/makes/farizon.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "super-van",
+          "name": "Super Van",
+          "image": "/catalog/models/farizon/super-van.jpg"
+        },
+        {
+          "slug": "v6e",
+          "name": "V6e",
+          "image": "/catalog/models/farizon/v6e.jpg"
+        },
+        {
+          "slug": "v8e",
+          "name": "V8e",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/ff88a237880c4906babaefa1f2920f61_ful.jpg"
+        }
+      ]
+    },
+    "faw": {
+      "slug": "faw",
+      "name": "FAW",
+      "logo": "/catalog/makes/faw.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "bestune-joyee-03",
+          "name": "Bestune Joyee 03",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/28fd0e3b673b42f182beb78efb7a1566_ful.jpg"
+        },
+        {
+          "slug": "bestune-nat",
+          "name": "Bestune Nat",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/edadc7d7ecac4c20be1d797161b0a710_ful.jpg"
+        },
+        {
+          "slug": "bestune-xiaoma",
+          "name": "Bestune Xiaoma",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/0de129b353744f96bb54979927c7f921_ful.jpg"
+        },
+        {
+          "slug": "joyee-s04",
+          "name": "Joyee S04",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/c2048efaf5464d56a27300afd30eeeac_ful.jpg"
+        }
+      ]
+    },
+    "ford": {
+      "slug": "ford",
+      "name": "Ford",
+      "logo": "/catalog/makes/ford.png",
+      "regions": [
+        "korea",
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "bronco",
+          "name": "Bronco",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/25dacd77bbec450c8413fffb3a98ee20_ful.jpg"
+        },
+        {
+          "slug": "bronco-sport",
+          "name": "Bronco Sport",
+          "image": "/catalog/models/ford/bronco-sport.jpg"
+        },
+        {
+          "slug": "ecosport",
+          "name": "Ecosport",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/d0260b081dc2467b94f5fbc8f715c8bd_ful.jpg"
+        },
+        {
+          "slug": "edge",
+          "name": "Edge",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/8281473a9fde47e2983882a6c5e08456_ful.jpg"
+        },
+        {
+          "slug": "es",
+          "name": "ES",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/85849bcefefd4205aa528a375e025dd6_ful.jpg"
+        },
+        {
+          "slug": "expedition",
+          "name": "Expedition",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/5597b45997c144bd92c171945f2e0d4b_ful.jpg"
+        },
+        {
+          "slug": "explorer",
+          "name": "Explorer",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/c4894bec6bbe449ebec088e99c5e15d4_ful.jpg"
+        },
+        {
+          "slug": "f-150",
+          "name": "F-150",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/f92547db5ab343d297288d4ecdb81b20_ful.jpg"
+        },
+        {
+          "slug": "f-250",
+          "name": "F-250",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/40b0a646433f43b9a5001ea08ba7f77f_ful.jpg"
+        },
+        {
+          "slug": "f-350",
+          "name": "F-350",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/d7cc1f4780e94d7b89140b383b9d425a_ful.jpg"
+        },
+        {
+          "slug": "f100",
+          "name": "F100",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1125/82e8d43174574914b07296d98e333008_ful.jpg"
+        },
+        {
+          "slug": "fiesta",
+          "name": "Fiesta",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/92ae868a84164c429547876a0c1fba34_ful.jpg"
+        },
+        {
+          "slug": "flex",
+          "name": "Flex",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/c8a4c20af3db40e0b202849671a073e3_ful.jpg"
+        },
+        {
+          "slug": "focus",
+          "name": "Focus",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/97107c5cb788466895ed28642d4a1d80_ful.jpg"
+        },
+        {
+          "slug": "fusion",
+          "name": "Fusion",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/3b327bc090cb4b57a0be3d943c0311dd_ful.jpg"
+        },
+        {
+          "slug": "mustang",
+          "name": "Mustang",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/5ce2ee21010c49368e40b9fbb87cd9e2_ful.jpg"
+        },
+        {
+          "slug": "ranger",
+          "name": "Ranger",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/a2a65fefb1874b32896e0b20e13c98a5_ful.jpg"
+        },
+        {
+          "slug": "taurus",
+          "name": "Taurus",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/e6a5e7d0f4cb4b12871a861c9085f5e1_ful.jpg"
+        },
+        {
+          "slug": "tbird",
+          "name": "Tbird",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/7f0d25861bbc41f88a06a7337d4c4f68_ful.jpg"
+        },
+        {
+          "slug": "transit",
+          "name": "Transit",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/c3e1821f166b4c7c98a5c238668d601a_ful.jpg"
+        }
+      ]
+    },
+    "foton": {
+      "slug": "foton",
+      "name": "Foton",
+      "logo": "/catalog/makes/foton.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "tunland-g7",
+          "name": "Tunland G7",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/f4e74897b82c4755b96031aa9266ba9a_ful.jpg"
+        },
+        {
+          "slug": "tunland-v9",
+          "name": "Tunland V9",
+          "image": "/catalog/models/foton/tunland-v9.jpg"
+        }
+      ]
+    },
+    "gac": {
+      "slug": "gac",
+      "name": "GAC",
+      "logo": "/catalog/makes/gac.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "aion",
+          "name": "Aion",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0426/68ec47b6dff44728b5fab282ce22890a_ful.jpg"
+        },
+        {
+          "slug": "aion-i60",
+          "name": "Aion I60",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0426/2ce23eaf77f44682bfc2442dd202025f_ful.jpg"
+        },
+        {
+          "slug": "aion-s",
+          "name": "Aion S",
+          "image": "/catalog/models/gac/aion-s.jpg"
+        },
+        {
+          "slug": "trumpchi-gs3",
+          "name": "Trumpchi Gs3",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/8f08234b94234d1db20acd1a8941cb73_ful.jpg"
+        }
+      ]
+    },
+    "geely": {
+      "slug": "geely",
+      "name": "Geely",
+      "logo": "/catalog/makes/geely.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "atlas",
+          "name": "Atlas",
+          "image": "/catalog/models/geely/atlas.jpg"
+        },
+        {
+          "slug": "binyue",
+          "name": "Binyue",
+          "image": "/catalog/models/geely/binyue.jpg"
+        },
+        {
+          "slug": "binyue-l",
+          "name": "Binyue L",
+          "image": "/catalog/models/geely/binyue-l.jpg"
+        },
+        {
+          "slug": "boyue-cool",
+          "name": "Boyue Cool",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1125/43cb38c7dbca4e5bb28d51d829c5da6c_ful.jpg"
+        },
+        {
+          "slug": "boyue-l",
+          "name": "Boyue L",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/e997bd0987354fa4bc403a34cdbac56e_ful.jpg"
+        },
+        {
+          "slug": "cityray",
+          "name": "Cityray",
+          "image": "/catalog/models/geely/cityray.jpg"
+        },
+        {
+          "slug": "coolray",
+          "name": "Coolray",
+          "image": "/catalog/models/geely/coolray.jpg"
+        },
+        {
+          "slug": "cowboy",
+          "name": "Cowboy",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/b2df76ff98834d9bb94b6f89c87498b3_ful.jpg"
+        },
+        {
+          "slug": "ex2",
+          "name": "Ex2",
+          "image": "/catalog/models/geely/ex2.jpg"
+        },
+        {
+          "slug": "ex5",
+          "name": "Ex5",
+          "image": "/catalog/models/geely/ex5.jpg"
+        },
+        {
+          "slug": "galaxy-a7",
+          "name": "Galaxy A7",
+          "image": "/catalog/models/geely/galaxy-a7.jpg"
+        },
+        {
+          "slug": "galaxy-e5",
+          "name": "Galaxy E5",
+          "image": "/catalog/models/geely/galaxy-e5.jpg"
+        },
+        {
+          "slug": "galaxy-l6",
+          "name": "Galaxy L6",
+          "image": "/catalog/models/geely/galaxy-l6.jpg"
+        },
+        {
+          "slug": "galaxy-m7",
+          "name": "Galaxy M7",
+          "image": "/catalog/models/geely/galaxy-m7.jpg"
+        },
+        {
+          "slug": "galaxy-m9",
+          "name": "Galaxy M9",
+          "image": "/catalog/models/geely/galaxy-m9.jpg"
+        },
+        {
+          "slug": "galaxy-starship-7",
+          "name": "Galaxy Starship 7",
+          "image": "/catalog/models/geely/galaxy-starship-7.jpg"
+        },
+        {
+          "slug": "haoyue-l",
+          "name": "Haoyue L",
+          "image": "/catalog/models/geely/haoyue-l.jpg"
+        },
+        {
+          "slug": "monjaro",
+          "name": "Monjaro",
+          "image": "/catalog/models/geely/monjaro.jpg"
+        },
+        {
+          "slug": "okavango",
+          "name": "Okavango",
+          "image": "/catalog/models/geely/okavango.jpg"
+        },
+        {
+          "slug": "star-wish",
+          "name": "Star Wish",
+          "image": "/catalog/models/geely/star-wish.jpg"
+        },
+        {
+          "slug": "xingyue-l",
+          "name": "Xingyue L",
+          "image": "/catalog/models/geely/xingyue-l.jpg"
+        }
+      ]
+    },
+    "genesis": {
+      "slug": "genesis",
+      "name": "Genesis",
+      "logo": "/catalog/makes/genesis.svg",
+      "regions": [
+        "korea",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "g70-3-3t",
+          "name": "G70 3.3T",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/8cf198f744db4284ad0c9a99b592085b_ful.jpg"
+        },
+        {
+          "slug": "g80",
+          "name": "G80",
+          "image": "https://ci.encar.com/carpicture07/pic39123458_001.jpg"
+        },
+        {
+          "slug": "gv70",
+          "name": "Gv70",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/c1e59e3852d84dc8b268d78d6cb8dc92_ful.jpg"
+        }
+      ]
+    },
+    "gmc": {
+      "slug": "gmc",
+      "name": "GMC",
+      "logo": "/catalog/makes/gmc.png",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "1500",
+          "name": "1500",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/6103713266594baf89ec2498bbcd9608_ful.jpg"
+        },
+        {
+          "slug": "acadia",
+          "name": "Acadia",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0825/c6d5915b26e24dee876040eb4370d840_ful.jpg"
+        },
+        {
+          "slug": "sierra",
+          "name": "Sierra",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/d7ecb0455e994d5197765047002f0b37_ful.jpg"
+        },
+        {
+          "slug": "terrain",
+          "name": "Terrain",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/764f2e7a48eb465687bc14c9d054cd9b_ful.jpg"
+        },
+        {
+          "slug": "yukon",
+          "name": "Yukon",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/a3f18b0676d84815a43cde909c60ebbb_ful.jpg"
+        }
+      ]
+    },
+    "haval": {
+      "slug": "haval",
+      "name": "Haval",
+      "logo": "/catalog/makes/haval.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "dargo",
+          "name": "Dargo",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/d60d719c1e714e448cae4feef2846f91_ful.jpg"
+        },
+        {
+          "slug": "f7",
+          "name": "F7",
+          "image": "/catalog/models/haval/f7.jpg"
+        },
+        {
+          "slug": "f7x",
+          "name": "F7x",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/8281473a9fde47e2983882a6c5e08456_ful.jpg"
+        },
+        {
+          "slug": "jolion",
+          "name": "Jolion",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/764f2e7a48eb465687bc14c9d054cd9b_ful.jpg"
+        }
+      ]
+    },
+    "honda": {
+      "slug": "honda",
+      "name": "Honda",
+      "logo": "/catalog/makes/honda.png",
+      "regions": [
+        "korea",
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "accord",
+          "name": "Accord",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/b209cb511ace4ca0b1a07af1b09b010a_ful.jpg"
+        },
+        {
+          "slug": "civic",
+          "name": "Civic",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0924/e727b8bbc99343989db5ab9e240008fe_ful.jpg"
+        },
+        {
+          "slug": "cr-v",
+          "name": "CR-V",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/c7a8e624e9d44cd7b1a4c2d7398b028e_ful.jpg"
+        },
+        {
+          "slug": "crosstour",
+          "name": "Crosstour",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/f91867c47c69481abd93031a6bd92d42_ful.jpg"
+        },
+        {
+          "slug": "element",
+          "name": "Element",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0426/6abd58b1c128424ea99dd076ab0d6cff_ful.jpg"
+        },
+        {
+          "slug": "ens1",
+          "name": "Ens1",
+          "image": "/catalog/models/honda/ens1.jpg"
+        },
+        {
+          "slug": "fit",
+          "name": "FIT",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/beb24bc9b4914d5ca24e3cfff03b58bf_ful.jpg"
+        },
+        {
+          "slug": "pilot",
+          "name": "Pilot",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/d484e31971c041f0bac5246c4a81739f_ful.jpg"
+        },
+        {
+          "slug": "prologue",
+          "name": "Prologue",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/f87b973e45234862a6ae5a852b1d051c_ful.jpg"
+        },
+        {
+          "slug": "ridgeline",
+          "name": "Ridgeline",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/519a0cf330424740b5bd3b865aa62cb2_ful.jpg"
+        },
+        {
+          "slug": "ye-s7",
+          "name": "YE S7",
+          "image": "/catalog/models/honda/ye-s7.jpg"
+        }
+      ]
+    },
+    "hongqi": {
+      "slug": "hongqi",
+      "name": "Hongqi",
+      "logo": "/catalog/makes/hongqi.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "e-qm5",
+          "name": "E Qm5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/30c98d333c0c4577936d3dbfb6f06828_ful.jpg"
+        }
+      ]
+    },
+    "hummer": {
+      "slug": "hummer",
+      "name": "Hummer",
+      "logo": "/catalog/makes/hummer.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "h2",
+          "name": "H2",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0925/a874e9831aca4c8d80e7608087e28856_ful.jpg"
+        },
+        {
+          "slug": "h3",
+          "name": "H3",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/5cd5ff022aae4aedb68c0a57a9a2dc24_ful.jpg"
+        }
+      ]
+    },
+    "hyundai": {
+      "slug": "hyundai",
+      "name": "Hyundai",
+      "logo": "/catalog/makes/hyundai.svg",
+      "regions": [
+        "korea",
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "elantra",
+          "name": "Elantra",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/a09d158e6ad2430bbfa4046a39677f6d_ful.jpg"
+        },
+        {
+          "slug": "genesis",
+          "name": "Genesis",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/3e3c264c78b04c859db1e84a2fb1bfa1_ful.jpg"
+        },
+        {
+          "slug": "grandeur",
+          "name": "Grandeur",
+          "image": "https://ci.encar.com/carpicture05/pic39123456_001.jpg"
+        },
+        {
+          "slug": "ioniq",
+          "name": "Ioniq",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/0aa5279768a2492ca2d553392b7dd2ef_ful.jpg"
+        },
+        {
+          "slug": "kona",
+          "name": "Kona",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/452497590418403ba015f362c54210a6_ful.jpg"
+        },
+        {
+          "slug": "palisade",
+          "name": "Palisade",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/6a1fe5f3bc194f09be6b859c3727ab95_ful.jpg"
+        },
+        {
+          "slug": "santa-cruz",
+          "name": "Santa Cruz",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0925/d4169b4e4fe54045b6d1476cd0782b7d_ful.jpg"
+        },
+        {
+          "slug": "santa-fe",
+          "name": "Santa FE",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/400a2336d82949db9038d32e38bacfcf_ful.jpg"
+        },
+        {
+          "slug": "sonata",
+          "name": "Sonata",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/f06a6dd832314bbabed21050dccaf634_ful.jpg"
+        },
+        {
+          "slug": "staria",
+          "name": "Staria",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/d4d0e3bc2d7c45088e3ba46ef8af9691_ful.jpg"
+        },
+        {
+          "slug": "tucson",
+          "name": "Tucson",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/dbf8abe74d5849cbbc693151b4fe2a5a_ful.jpg"
+        },
+        {
+          "slug": "venue",
+          "name": "Venue",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/ec92606169c54f6d84b8ea2f52fc9ce2_ful.jpg"
+        }
+      ]
+    },
+    "im-motors": {
+      "slug": "im-motors",
+      "name": "IM Motors",
+      "logo": "/catalog/makes/im-motors.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "ls",
+          "name": "LS",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/9a0a7bc1759d4088b7dab4a876e5d647_ful.jpg"
+        },
+        {
+          "slug": "ls7",
+          "name": "Ls7",
+          "image": "/catalog/models/im-motors/ls7.jpg"
+        }
+      ]
+    },
+    "infiniti": {
+      "slug": "infiniti",
+      "name": "Infiniti",
+      "logo": "/catalog/makes/infiniti.svg",
+      "regions": [
+        "korea",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "g35",
+          "name": "G35",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/e54c56ea311f41d1a1f27624cbecf3d0_ful.jpg"
+        },
+        {
+          "slug": "g37",
+          "name": "G37",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/d23f5cbcc9694a16b269fca35a162da9_ful.jpg"
+        },
+        {
+          "slug": "q50",
+          "name": "Q50",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/31c04b147e1049e3b3bdfd2b3df8b00b_ful.jpg"
+        },
+        {
+          "slug": "q60",
+          "name": "Q60",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/e2b2b4c7c4ba43fdb4094121b2e773f8_ful.jpg"
+        },
+        {
+          "slug": "q70",
+          "name": "Q70",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/f6c19d2c21cd4443a9d260ff1165fb57_ful.jpg"
+        },
+        {
+          "slug": "qx50",
+          "name": "Qx50",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/e071070778624f2eaf278409167163c3_ful.jpg"
+        },
+        {
+          "slug": "qx56",
+          "name": "Qx56",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/19b82a9349e04731af86945b1c86a17d_ful.jpg"
+        },
+        {
+          "slug": "qx60",
+          "name": "Qx60",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1125/8ddaf7a58f7445409fe6cd2fa73ebf5b_ful.jpg"
+        },
+        {
+          "slug": "qx80",
+          "name": "Qx80",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/f12dcd38d91c43a99b54701623b050f5_ful.jpg"
+        }
+      ]
+    },
+    "iveco": {
+      "slug": "iveco",
+      "name": "IVECO",
+      "logo": "/catalog/makes/iveco.png",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "fidato",
+          "name": "Fidato",
+          "image": "/catalog/models/iveco/fidato.jpg"
+        }
+      ]
+    },
+    "jac": {
+      "slug": "jac",
+      "name": "JAC",
+      "logo": "/catalog/makes/jac.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "rf8",
+          "name": "Rf8",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/c0586f2e4f4e47a59d54c649f661046c_ful.jpg"
+        },
+        {
+          "slug": "t8-pro",
+          "name": "T8 Pro",
+          "image": "/catalog/models/jac/t8-pro.jpg"
+        },
+        {
+          "slug": "t9",
+          "name": "T9",
+          "image": "/catalog/models/jac/t9.jpg"
+        }
+      ]
+    },
+    "jaguar": {
+      "slug": "jaguar",
+      "name": "Jaguar",
+      "logo": "/catalog/makes/jaguar.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "xe",
+          "name": "XE",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/468007971835429d87ef24f1255b0ea3_ful.jpg"
+        }
+      ]
+    },
+    "jeep": {
+      "slug": "jeep",
+      "name": "Jeep",
+      "logo": "/catalog/makes/jeep.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "cherokee",
+          "name": "Cherokee",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/da11b23ded6648ef813d1b40a99250d1_ful.jpg"
+        },
+        {
+          "slug": "compass",
+          "name": "Compass",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/fe14cf5f20a549ea995b255c13c190ba_ful.jpg"
+        },
+        {
+          "slug": "grand-cherokee",
+          "name": "Grand Cherokee",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/66f5a41898c24cf1a8f676dc45a0dd08_ful.jpg"
+        },
+        {
+          "slug": "liberty",
+          "name": "Liberty",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/ee133e701cfd4af38075f7a40ebc139c_ful.jpg"
+        },
+        {
+          "slug": "patriot",
+          "name": "Patriot",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1125/ebfc42d19f324da89bdfa16b72c98208_ful.jpg"
+        },
+        {
+          "slug": "renegade",
+          "name": "Renegade",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/92bb6553ddfe4350ac702f8036b11f8d_ful.jpg"
+        },
+        {
+          "slug": "wrangler",
+          "name": "Wrangler",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/07d6f1eb7a924e41b61fb9a6802638fe_ful.jpg"
+        }
+      ]
+    },
+    "jetour": {
+      "slug": "jetour",
+      "name": "Jetour",
+      "logo": "/catalog/makes/jetour.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "t2",
+          "name": "T2",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/10e5e678c837498abe37a1e4953bcdf2_ful.jpg"
+        }
+      ]
+    },
+    "jetta": {
+      "slug": "jetta",
+      "name": "Jetta",
+      "logo": "/catalog/makes/jetta.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "vs5",
+          "name": "Vs5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/2c60af3ebbc14da185239e8534d1d3f9_ful.jpg"
+        }
+      ]
+    },
+    "kia": {
+      "slug": "kia",
+      "name": "Kia",
+      "logo": "/catalog/makes/kia.svg",
+      "regions": [
+        "korea",
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "carnival",
+          "name": "Carnival",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/468007971835429d87ef24f1255b0ea3_ful.jpg"
+        },
+        {
+          "slug": "ev5",
+          "name": "Ev5",
+          "image": "/catalog/models/kia/ev5.jpg"
+        },
+        {
+          "slug": "forte",
+          "name": "Forte",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/d40a51fd25494a71b4b856b7f7628d3a_ful.jpg"
+        },
+        {
+          "slug": "forte-lxs",
+          "name": "Forte LXS",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0426/e1bd4f7e66e848f0ba83cd7b7ceb36f8_ful.jpg"
+        },
+        {
+          "slug": "k3",
+          "name": "K3",
+          "image": "/catalog/models/kia/k3.jpg"
+        },
+        {
+          "slug": "k4",
+          "name": "K4",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/2a28ae7857574e2b8bfb8bdbb56bfaff_ful.jpg"
+        },
+        {
+          "slug": "k4-gt-line",
+          "name": "K4 GT Line",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/5934392499214c01b9c5718e681c2060_ful.jpg"
+        },
+        {
+          "slug": "k5",
+          "name": "K5",
+          "image": "https://ci.encar.com/carpicture08/pic39123459_001.jpg"
+        },
+        {
+          "slug": "kx1",
+          "name": "Kx1",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/6e1c44c50b024439925836a92c13f964_ful.jpg"
+        },
+        {
+          "slug": "niro-wave",
+          "name": "Niro Wave",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/fed3596ed12a4bddbd54f4ce235b2b45_ful.jpg"
+        },
+        {
+          "slug": "optima",
+          "name": "Optima",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/fbe742dedffd4506bd587bcfe383edec_ful.jpg"
+        },
+        {
+          "slug": "rio",
+          "name": "RIO",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/64b1f45c0522470e9abd5af40df9be4c_ful.jpg"
+        },
+        {
+          "slug": "seltos",
+          "name": "Seltos",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/9af59bde09474847aedcce7f0234c0eb_ful.jpg"
+        },
+        {
+          "slug": "sorento",
+          "name": "Sorento",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1024/b1c237cea6c644eb967398aa508f8641_ful.jpg"
+        },
+        {
+          "slug": "soul",
+          "name": "Soul",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/f8622fe789a5408199fda76434be3a83_ful.jpg"
+        },
+        {
+          "slug": "sportage",
+          "name": "Sportage",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/0e1103a4015d404cbc2175d906a7373e_ful.jpg"
+        },
+        {
+          "slug": "stinger",
+          "name": "Stinger",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/e55860c7605e450bbd78177b4d72282f_ful.jpg"
+        },
+        {
+          "slug": "telluride",
+          "name": "Telluride",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/e26804df70d04df8941a65f6b7c8ac49_ful.jpg"
+        }
+      ]
+    },
+    "lamborghini": {
+      "slug": "lamborghini",
+      "name": "Lamborghini",
+      "logo": "/catalog/makes/lamborghini.png",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "urus",
+          "name": "Urus",
+          "image": "/catalog/models/lamborghini/urus.jpg"
+        }
+      ]
+    },
+    "land-rover": {
+      "slug": "land-rover",
+      "name": "Land Rover",
+      "logo": "/catalog/makes/land-rover.svg",
+      "regions": [
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "discovery",
+          "name": "Discovery",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/48335892c8d14f169a7433069d448037_ful.jpg"
+        },
+        {
+          "slug": "range-rover",
+          "name": "Range Rover",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/685edecde9494f17966f35133805327f_ful.jpg"
+        },
+        {
+          "slug": "range-rover-sport",
+          "name": "Range Rover Sport",
+          "image": "/catalog/models/land-rover/range-rover-sport.jpg"
+        }
+      ]
+    },
+    "leapmotor": {
+      "slug": "leapmotor",
+      "name": "Leapmotor",
+      "logo": "/catalog/makes/leapmotor.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "b01",
+          "name": "B01",
+          "image": "/catalog/models/leapmotor/b01.jpg"
+        },
+        {
+          "slug": "c10",
+          "name": "C10",
+          "image": "/catalog/models/leapmotor/c10.jpg"
+        },
+        {
+          "slug": "c16",
+          "name": "C16",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/7abb5f32c86b402197f18dd87d203be8_ful.jpg"
+        },
+        {
+          "slug": "lafa-5",
+          "name": "Lafa 5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/eb383da333fd46558e59c86e3ea039d4_ful.jpg"
+        }
+      ]
+    },
+    "lexus": {
+      "slug": "lexus",
+      "name": "Lexus",
+      "logo": "/catalog/makes/lexus.png",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "es",
+          "name": "ES",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/cb872192488748aaa9a55691e0840dcc_ful.jpg"
+        },
+        {
+          "slug": "gs",
+          "name": "GS",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/3313dd8ad02a4270afe3f41130c87ba8_ful.jpg"
+        },
+        {
+          "slug": "gx",
+          "name": "GX",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/00b8a3d5a7244fdcb216688697e0611d_ful.jpg"
+        },
+        {
+          "slug": "is",
+          "name": "IS",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/a66c1c84eea74b72be9dc3cf746771b9_ful.jpg"
+        },
+        {
+          "slug": "ls",
+          "name": "LS",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/97a9607de06a48ec902941348de8f554_ful.jpg"
+        },
+        {
+          "slug": "nx",
+          "name": "NX",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/e972c1b2fbc549bb91c2142b5ff5fc4e_ful.jpg"
+        },
+        {
+          "slug": "rc",
+          "name": "RC",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/f0e35073c97c48c29ce4fd7f06a9ec1c_ful.jpg"
+        },
+        {
+          "slug": "rx",
+          "name": "RX",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0525/7f6d8ceec48b48849e3b86209d80be68_ful.jpg"
+        },
+        {
+          "slug": "ux",
+          "name": "UX",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/fd183cec4eff43378855c54597effb17_ful.jpg"
+        }
+      ]
+    },
+    "li-auto": {
+      "slug": "li-auto",
+      "name": "Li Auto",
+      "logo": "/catalog/makes/li-auto.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "i6",
+          "name": "I6",
+          "image": "/catalog/models/li-auto/i6.jpg"
+        },
+        {
+          "slug": "i8",
+          "name": "I8",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/4ff783e7cbde41498558fc92296a37e4_ful.jpg"
+        },
+        {
+          "slug": "l6",
+          "name": "L6",
+          "image": "/catalog/models/li-auto/l6.jpg"
+        },
+        {
+          "slug": "l7",
+          "name": "L7",
+          "image": "/catalog/models/li-auto/l7.jpg"
+        },
+        {
+          "slug": "l9",
+          "name": "L9",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/f75a408b17c348aea2d533f650fa6a94_ful.jpg"
+        }
+      ]
+    },
+    "lincoln": {
+      "slug": "lincoln",
+      "name": "Lincoln",
+      "logo": "/catalog/makes/lincoln.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "corsair",
+          "name": "Corsair",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/06d889dd36cb44d2a7faed06c10da15d_ful.jpg"
+        },
+        {
+          "slug": "mkc",
+          "name": "MKC",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/5e34ea9ad74f4a6f997e9b325dd95852_ful.jpg"
+        },
+        {
+          "slug": "mks",
+          "name": "MKS",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/bd364298ba2a46618fbe1548c0d2d3e1_ful.jpg"
+        },
+        {
+          "slug": "mkx",
+          "name": "MKX",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/b0234c804e1f4a1d81989c5d83597aa0_ful.jpg"
+        },
+        {
+          "slug": "mkz",
+          "name": "MKZ",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1125/2d157fa344a04a198301d4196dce138e_ful.jpg"
+        },
+        {
+          "slug": "navigator",
+          "name": "Navigator",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/b6405b9f5f274e6ca9f9c4c29aa61191_ful.jpg"
+        },
+        {
+          "slug": "zephyr",
+          "name": "Zephyr",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/aca1677588f24cdebdf6c04f702791bf_ful.jpg"
+        }
+      ]
+    },
+    "lotus": {
+      "slug": "lotus",
+      "name": "Lotus",
+      "logo": "/catalog/makes/lotus.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "eletre",
+          "name": "Eletre",
+          "image": "/catalog/models/lotus/eletre.jpg"
+        }
+      ]
+    },
+    "maserati": {
+      "slug": "maserati",
+      "name": "Maserati",
+      "logo": "/catalog/makes/maserati.png",
+      "regions": [
+        "usa"
+      ],
+      "models": []
+    },
+    "mazda": {
+      "slug": "mazda",
+      "name": "Mazda",
+      "logo": "/catalog/makes/mazda.svg",
+      "regions": [
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "2",
+          "name": "2",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/1b70d12c9cd64521a67da010b8c81542_ful.jpg"
+        },
+        {
+          "slug": "3",
+          "name": "3",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/8b429cd5ce06404b86bd9a377c4dc82e_ful.jpg"
+        },
+        {
+          "slug": "6",
+          "name": "6",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/a1e03d38ab344e03a3edfb5067167902_ful.jpg"
+        },
+        {
+          "slug": "all-other",
+          "name": "ALL Other",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/85d9fd6731f74d07ad88c642a31aacd2_ful.jpg"
+        },
+        {
+          "slug": "cx-5",
+          "name": "CX 5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/055bc91cd6844c1b81cca0262512d354_ful.jpg"
+        },
+        {
+          "slug": "cx-50",
+          "name": "CX 50",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1125/c79c17487dd147fdb1eee6aa306370f3_ful.jpg"
+        },
+        {
+          "slug": "cx-9",
+          "name": "CX 9",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/24ce1998b97242c8a28a23aea4d55dce_ful.jpg"
+        },
+        {
+          "slug": "ez-6",
+          "name": "EZ 6",
+          "image": "/catalog/models/mazda/ez-6.jpg"
+        },
+        {
+          "slug": "ez-60",
+          "name": "EZ 60",
+          "image": "/catalog/models/mazda/ez-60.jpg"
+        },
+        {
+          "slug": "mx5",
+          "name": "Mx5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/e07b725f21cc47a391e86bee776a4099_ful.jpg"
+        }
+      ]
+    },
+    "mercedes-benz": {
+      "slug": "mercedes-benz",
+      "name": "Mercedes-Benz",
+      "logo": "/catalog/makes/mercedes-benz.svg",
+      "regions": [
+        "korea",
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "300",
+          "name": "300",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/9b354034c10042b3b4112a3514ec5907_ful.jpg"
+        },
+        {
+          "slug": "450-sl",
+          "name": "450 SL",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/4bb5b286eeb64c8c985555e8aede549c_ful.jpg"
+        },
+        {
+          "slug": "c-class",
+          "name": "C Class",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/dc08ff7da5e7467b8e662c5e01b2cd00_ful.jpg"
+        },
+        {
+          "slug": "cla",
+          "name": "Cla",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/e6b58366e60c4cf2b7125aa53a5a7d03_ful.jpg"
+        },
+        {
+          "slug": "cla-class",
+          "name": "CLA Class",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/575e445d9e864cadb1ba9fd7c61632cf_ful.jpg"
+        },
+        {
+          "slug": "e-class",
+          "name": "E Class",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/5b2a839f25af4896bbef3c1cabe7472b_ful.jpg"
+        },
+        {
+          "slug": "eqa",
+          "name": "Eqa",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/2e535a6625aa441488519959192f06ae_ful.jpg"
+        },
+        {
+          "slug": "eqb",
+          "name": "Eqb",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/a5b5a0d4f43a459e9d4e88e4bd064663_ful.jpg"
+        },
+        {
+          "slug": "eqe",
+          "name": "Eqe",
+          "image": "/catalog/models/mercedes-benz/eqe.jpg"
+        },
+        {
+          "slug": "eqe-suv",
+          "name": "Eqe Suv",
+          "image": "/catalog/models/mercedes-benz/eqe-suv.jpg"
+        },
+        {
+          "slug": "g-klass",
+          "name": "G Klass",
+          "image": "/catalog/models/mercedes-benz/g-klass.jpg"
+        },
+        {
+          "slug": "g-klass-amg",
+          "name": "G Klass Amg",
+          "image": "/catalog/models/mercedes-benz/g-klass-amg.jpg"
+        },
+        {
+          "slug": "gl-class",
+          "name": "GL Class",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/137a2012b6be4ac5af217490f0125e41_ful.jpg"
+        },
+        {
+          "slug": "gla-class",
+          "name": "GLA Class",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/a779c8bfbdfe4eae8869434d020cae63_ful.jpg"
+        },
+        {
+          "slug": "glc-class",
+          "name": "GLC Class",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/8f17f978d6484bdb88d3bddcf9d583b3_ful.jpg"
+        },
+        {
+          "slug": "gle",
+          "name": "GLE",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/5759d7aca3584d53970c8449a8faad35_ful.jpg"
+        },
+        {
+          "slug": "gle-class",
+          "name": "GLE Class",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/82e8bfd512114657ad731cc7bdfa2876_ful.jpg"
+        },
+        {
+          "slug": "gle-coupe",
+          "name": "Gle Coupe",
+          "image": "/catalog/models/mercedes-benz/gle-coupe.jpg"
+        },
+        {
+          "slug": "gle-coupe-amg",
+          "name": "Gle Coupe Amg",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/fd0c1365fe304f30bb3c31fceb352498_ful.jpg"
+        },
+        {
+          "slug": "glk-class",
+          "name": "GLK Class",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/9b433b003ae2421c8a926c69f83e9627_ful.jpg"
+        },
+        {
+          "slug": "gls",
+          "name": "Gls",
+          "image": "/catalog/models/mercedes-benz/gls.jpg"
+        },
+        {
+          "slug": "metris",
+          "name": "Metris",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/79f61dba383d4eba90235d772d585a1d_ful.jpg"
+        },
+        {
+          "slug": "r-class",
+          "name": "R Class",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0426/94670316a82046faade8413e14303bd8_ful.jpg"
+        },
+        {
+          "slug": "s-class",
+          "name": "S Class",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/2187109db23f443ab953f36d895dd97b_ful.jpg"
+        },
+        {
+          "slug": "s-klass",
+          "name": "S Klass",
+          "image": "/catalog/models/mercedes-benz/s-klass.jpg"
+        },
+        {
+          "slug": "sl-class",
+          "name": "SL Class",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/c183cbc6e34544d6a6fe739931cc27cc_ful.jpg"
+        },
+        {
+          "slug": "v-klass",
+          "name": "V Klass",
+          "image": "/catalog/models/mercedes-benz/v-klass.jpg"
+        }
+      ]
+    },
+    "mg": {
+      "slug": "mg",
+      "name": "MG",
+      "logo": "/catalog/makes/mg.png",
+      "regions": [
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "5",
+          "name": "5",
+          "image": "/catalog/models/mg/5.jpg"
+        }
+      ]
+    },
+    "mhero": {
+      "slug": "mhero",
+      "name": "M-Hero",
+      "logo": "/catalog/makes/mhero.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "817",
+          "name": "817",
+          "image": "/catalog/models/mhero/817.jpg"
+        },
+        {
+          "slug": "917",
+          "name": "917",
+          "image": "/catalog/models/mhero/917.jpg"
+        }
+      ]
+    },
+    "mini": {
+      "slug": "mini",
+      "name": "MINI",
+      "logo": "/catalog/makes/mini.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "cooper",
+          "name": "Cooper",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/c4254bfda584452aa14a58072d17eabb_ful.jpg"
+        }
+      ]
+    },
+    "mitsubishi": {
+      "slug": "mitsubishi",
+      "name": "Mitsubishi",
+      "logo": "/catalog/makes/mitsubishi.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "galant",
+          "name": "Galant",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/30c98d333c0c4577936d3dbfb6f06828_ful.jpg"
+        },
+        {
+          "slug": "lancer",
+          "name": "Lancer",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/2e39be938aac4ebdada7b0b233a894ba_ful.jpg"
+        },
+        {
+          "slug": "outlander",
+          "name": "Outlander",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/600a1d324680431188307d62dea12578_ful.jpg"
+        }
+      ]
+    },
+    "nissan": {
+      "slug": "nissan",
+      "name": "Nissan",
+      "logo": "/catalog/makes/nissan.svg",
+      "regions": [
+        "korea",
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "350z",
+          "name": "350Z",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/02778d967c21482fbea3ba982d6265fe_ful.jpg"
+        },
+        {
+          "slug": "altima",
+          "name": "Altima",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/8be63498ae5b49ecaa715c4543bceb22_ful.jpg"
+        },
+        {
+          "slug": "cube-1-8",
+          "name": "Cube 1.8",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1025/168567818d304cbc9ebdd0fbca3a0dc1_ful.jpg"
+        },
+        {
+          "slug": "frontier",
+          "name": "Frontier",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/714e8cc514504ab58e84f8a9c78244a7_ful.jpg"
+        },
+        {
+          "slug": "juke",
+          "name": "Juke",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0525/4b479abcca9f4ae8a4692dac3672c3c1_ful.jpg"
+        },
+        {
+          "slug": "kicks",
+          "name": "Kicks",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/60140b97f39a4d409e79634db2943e74_ful.jpg"
+        },
+        {
+          "slug": "maxima",
+          "name": "Maxima",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/a4e3d4720bbb4009a27aa659414a4b13_ful.jpg"
+        },
+        {
+          "slug": "murano",
+          "name": "Murano",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/acbfeb9bc96841b78d21632c40817861_ful.jpg"
+        },
+        {
+          "slug": "n7",
+          "name": "N7",
+          "image": "/catalog/models/nissan/n7.jpg"
+        },
+        {
+          "slug": "nx8",
+          "name": "Nx8",
+          "image": "/catalog/models/nissan/nx8.jpg"
+        },
+        {
+          "slug": "pathfinder",
+          "name": "Pathfinder",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/bbe6a789209b403ca2313686c57c34a1_ful.jpg"
+        },
+        {
+          "slug": "qashqai",
+          "name": "Qashqai",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/731cefe2b46c4b8c8ed4023f154373fe_ful.jpg"
+        },
+        {
+          "slug": "quest",
+          "name": "Quest",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/e6b58366e60c4cf2b7125aa53a5a7d03_ful.jpg"
+        },
+        {
+          "slug": "rogue",
+          "name": "Rogue",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/ff0c2a65938746eaa956149faba3758a_ful.jpg"
+        },
+        {
+          "slug": "sentra",
+          "name": "Sentra",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/3049723e2459457ea5f5a1ae1407b34d_ful.jpg"
+        },
+        {
+          "slug": "titan",
+          "name": "Titan",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/53d8ea9f8cfc4068b0b0010273af1d3d_ful.jpg"
+        },
+        {
+          "slug": "versa",
+          "name": "Versa",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/62f04aa6486e4d2ea7e83b27e96affea_ful.jpg"
+        },
+        {
+          "slug": "versa-1-8",
+          "name": "Versa 1.8",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/3f71c94bee734fbdafef4455962db0fa_ful.jpg"
+        },
+        {
+          "slug": "x-trail",
+          "name": "X Trail",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/95a187db70a74cfaaabbe29155b5a1b6_ful.jpg"
+        },
+        {
+          "slug": "xterra",
+          "name": "Xterra",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/f70c8bafc06b4adf8acad156c8d3a173_ful.jpg"
+        }
+      ]
+    },
+    "opel": {
+      "slug": "opel",
+      "name": "Opel",
+      "logo": "/catalog/makes/opel.svg",
+      "regions": [
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "combo",
+          "name": "Combo",
+          "image": "/catalog/models/opel/combo.jpg"
+        },
+        {
+          "slug": "zafira-life",
+          "name": "Zafira Life",
+          "image": "/catalog/models/opel/zafira-life.jpg"
+        }
+      ]
+    },
+    "peugeot": {
+      "slug": "peugeot",
+      "name": "Peugeot",
+      "logo": "/catalog/makes/peugeot.svg",
+      "regions": [
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "partner",
+          "name": "Partner",
+          "image": "/catalog/models/peugeot/partner.jpg"
+        },
+        {
+          "slug": "traveller",
+          "name": "Traveller",
+          "image": "/catalog/models/peugeot/traveller.jpg"
+        }
+      ]
+    },
+    "polestar": {
+      "slug": "polestar",
+      "name": "Polestar",
+      "logo": "/catalog/makes/polestar.png",
+      "regions": [
+        "korea",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "4",
+          "name": "4",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/3f7b50e6139b4ae2aac7d42987abab3b_ful.jpg"
+        }
+      ]
+    },
+    "pontiac": {
+      "slug": "pontiac",
+      "name": "Pontiac",
+      "logo": "/catalog/makes/pontiac.png",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "g6",
+          "name": "G6",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/dbd0564897004d6587e3459741467c26_ful.jpg"
+        },
+        {
+          "slug": "grandprix",
+          "name": "Grandprix",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/4206dd19b7fd4deba6eaed799256ed54_ful.jpg"
+        },
+        {
+          "slug": "vibe",
+          "name": "Vibe",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/a5218708111e490f97aac6eff4cfe877_ful.jpg"
+        }
+      ]
+    },
+    "porsche": {
+      "slug": "porsche",
+      "name": "Porsche",
+      "logo": "/catalog/makes/porsche.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "boxster",
+          "name": "Boxster",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/ff88a237880c4906babaefa1f2920f61_ful.jpg"
+        },
+        {
+          "slug": "cayman",
+          "name": "Cayman",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0426/76f2633ba90b43d49499d3548dcce607_ful.jpg"
+        },
+        {
+          "slug": "macan",
+          "name": "Macan",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/455dcb1bf9274491b9ea8a8d592d18df_ful.jpg"
+        },
+        {
+          "slug": "panamera",
+          "name": "Panamera",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/cb81d0eb7c384e90b6cf3035fe288b09_ful.jpg"
+        }
+      ]
+    },
+    "ram": {
+      "slug": "ram",
+      "name": "Ram",
+      "logo": "/catalog/makes/ram.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "1500",
+          "name": "1500",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/ea8ec29749ea44eaa21f9f4398c5a9e7_ful.jpg"
+        },
+        {
+          "slug": "2500",
+          "name": "2500",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/35bc02694bb246f98afca484482272e3_ful.jpg"
+        }
+      ]
+    },
+    "rivian": {
+      "slug": "rivian",
+      "name": "Rivian",
+      "logo": "/catalog/makes/rivian.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "r1s",
+          "name": "R1S",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/aac2df267188465f94133b6a8c657f15_ful.jpg"
+        }
+      ]
+    },
+    "rolls-royce": {
+      "slug": "rolls-royce",
+      "name": "Rolls Royce",
+      "logo": "/catalog/makes/rolls-royce.svg",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "cullinan",
+          "name": "Cullinan",
+          "image": "/catalog/models/rolls-royce/cullinan.jpg"
+        }
+      ]
+    },
+    "rox": {
+      "slug": "rox",
+      "name": "ROX",
+      "logo": "/catalog/makes/rox.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "01",
+          "name": "01",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/610f45c99b65401eb3ccb8f1a019c94a_ful.jpg"
+        }
+      ]
+    },
+    "scion": {
+      "slug": "scion",
+      "name": "Scion",
+      "logo": "/catalog/makes/scion.png",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "ia",
+          "name": "IA",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/d9f3578af80c4f619beb5f3c6e7c7f15_ful.jpg"
+        },
+        {
+          "slug": "iq",
+          "name": "IQ",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/b159931c49414a2eb6e2d40ef9ed175b_ful.jpg"
+        }
+      ]
+    },
+    "seres": {
+      "slug": "seres",
+      "name": "Seres",
+      "logo": "/catalog/makes/seres.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "5",
+          "name": "5",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/d78723c598ef468aae5694949efcfa31_ful.jpg"
+        }
+      ]
+    },
+    "shenlan": {
+      "slug": "shenlan",
+      "name": "Shenlan",
+      "logo": "/catalog/makes/shenlan.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "g318",
+          "name": "G318",
+          "image": "/catalog/models/shenlan/g318.jpg"
+        },
+        {
+          "slug": "l07",
+          "name": "L07",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/99aff616b60b4ecab3c6824cba3e2145_ful.jpg"
+        },
+        {
+          "slug": "s05",
+          "name": "S05",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/cb98123affaa44edb1b4d84536495dff_ful.jpg"
+        },
+        {
+          "slug": "s07-s7",
+          "name": "S07 S7",
+          "image": "/catalog/models/shenlan/s07-s7.jpg"
+        },
+        {
+          "slug": "s09",
+          "name": "S09",
+          "image": "/catalog/models/shenlan/s09.jpg"
+        },
+        {
+          "slug": "sl03",
+          "name": "Sl03",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/2217d29768984ad4bef6beca45bff55a_ful.jpg"
+        }
+      ]
+    },
+    "shineray": {
+      "slug": "shineray",
+      "name": "Shineray",
+      "logo": "/catalog/makes/shineray.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "m7",
+          "name": "M7",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/99aff616b60b4ecab3c6824cba3e2145_ful.jpg"
+        }
+      ]
+    },
+    "subaru": {
+      "slug": "subaru",
+      "name": "Subaru",
+      "logo": "/catalog/makes/subaru.png",
+      "regions": [
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "ascent",
+          "name": "Ascent",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/d91a8514e92b4f1aae693a4cee6eca6a_ful.jpg"
+        },
+        {
+          "slug": "crosstrek",
+          "name": "Crosstrek",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/a3f1a91ab4b34acb9652f68e63cc8a4c_ful.jpg"
+        },
+        {
+          "slug": "forester",
+          "name": "Forester",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/96cc17ff3d4a4a4fa225344fb4a03198_ful.jpg"
+        },
+        {
+          "slug": "impreza",
+          "name": "Impreza",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/57281cdd62d24a8a89782124df7a24f9_ful.jpg"
+        },
+        {
+          "slug": "legacy",
+          "name": "Legacy",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/c50bf9f6982b4e689f91c0aa49048601_ful.jpg"
+        },
+        {
+          "slug": "outback",
+          "name": "Outback",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/035c2b8074c045aa8346a5a77955c6ca_ful.jpg"
+        },
+        {
+          "slug": "solterra-p",
+          "name": "Solterra P",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/4975c5a53d7f4a1ead2301188f68b3de_ful.jpg"
+        },
+        {
+          "slug": "wrx",
+          "name": "WRX",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/4c06279ed9424fc9aba77cdbb2bae4a6_ful.jpg"
+        },
+        {
+          "slug": "xv",
+          "name": "XV",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/510aa7e4f6534eb6a7fd61f5b391e6ed_ful.jpg"
+        }
+      ]
+    },
+    "tank": {
+      "slug": "tank",
+      "name": "Tank",
+      "logo": "/catalog/makes/tank.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "500",
+          "name": "500",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/a51c0a293cdf47b8a0fe7b922724d3f3_ful.jpg"
+        }
+      ]
+    },
+    "tesla": {
+      "slug": "tesla",
+      "name": "Tesla",
+      "logo": "/catalog/makes/tesla.svg",
+      "regions": [
+        "korea",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "cybertruck",
+          "name": "Cybertruck",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/278c8e55242a4a978e167376dd9138b8_ful.jpg"
+        },
+        {
+          "slug": "model-3",
+          "name": "Model 3",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/c1a7fe85de894ec99f533be3b27c9d2f_ful.jpg"
+        },
+        {
+          "slug": "model-s",
+          "name": "Model S",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/27f7449d24b3493393c9e0f263a22268_ful.jpg"
+        },
+        {
+          "slug": "model-x",
+          "name": "Model X",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/0ff89cf92429478e815027337950c4a3_ful.jpg"
+        },
+        {
+          "slug": "model-y",
+          "name": "Model Y",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/df2c7d86f460493c89e1a8ca3cdb50db_ful.jpg"
+        }
+      ]
+    },
+    "toyota": {
+      "slug": "toyota",
+      "name": "Toyota",
+      "logo": "/catalog/makes/toyota.svg",
+      "regions": [
+        "korea",
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "4runner",
+          "name": "4Runner",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/657816c6e4d94968b7f66f7224800bf1_ful.jpg"
+        },
+        {
+          "slug": "all-other",
+          "name": "ALL Other",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/eb383da333fd46558e59c86e3ea039d4_ful.jpg"
+        },
+        {
+          "slug": "avalon",
+          "name": "Avalon",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/d02aab3625b24fbd8aafced5c0729c7f_ful.jpg"
+        },
+        {
+          "slug": "bz3x",
+          "name": "bZ3X",
+          "image": "/catalog/models/toyota/bz3x.jpg"
+        },
+        {
+          "slug": "c-hr",
+          "name": "C-HR",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/feb8cafc6fbd436890c51e43c7b66cb4_ful.jpg"
+        },
+        {
+          "slug": "camry",
+          "name": "Camry",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/c6c9b42a2f4f4aacbbfc1ce31ff5768e_ful.jpg"
+        },
+        {
+          "slug": "corolla",
+          "name": "Corolla",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/1b9dbe6208bd40d6a181e30a71e5330d_ful.jpg"
+        },
+        {
+          "slug": "corolla-cross",
+          "name": "Corolla Cross",
+          "image": "/catalog/models/toyota/corolla-cross.jpg"
+        },
+        {
+          "slug": "gr-86",
+          "name": "GR 86",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/f04ee782f970404d97093fa5bad5e365_ful.jpg"
+        },
+        {
+          "slug": "highlander",
+          "name": "Highlander",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/16b1120df062411fbee131575819e8dc_ful.jpg"
+        },
+        {
+          "slug": "land-cruiser",
+          "name": "Land Cruiser",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/1225/39e4e7eef84f44098cd9cb4fdbf1e36a_ful.jpg"
+        },
+        {
+          "slug": "land-cruiser-prado",
+          "name": "Land Cruiser Prado",
+          "image": "/catalog/models/toyota/land-cruiser-prado.jpg"
+        },
+        {
+          "slug": "matrix",
+          "name": "Matrix",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/f27e31f0868a46879bed78a01e06b62e_ful.jpg"
+        },
+        {
+          "slug": "prius",
+          "name": "Prius",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/7988cda85f344be0848e6e62b74c5828_ful.jpg"
+        },
+        {
+          "slug": "rav4",
+          "name": "RAV4",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/0e8cd935f56a45539469530da5d0b79a_ful.jpg"
+        },
+        {
+          "slug": "sequoia",
+          "name": "Sequoia",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/5d2348eec86940b2a38f879184a7e592_ful.jpg"
+        },
+        {
+          "slug": "sienna",
+          "name": "Sienna",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/f506a209872548d1bca7bfd5ce323512_ful.jpg"
+        },
+        {
+          "slug": "tacoma",
+          "name": "Tacoma",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/ff999a81abaf4e3c82107e8984c34345_ful.jpg"
+        },
+        {
+          "slug": "tundra",
+          "name": "Tundra",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0425/d17635c1c28d43a58203cc1f00149c11_ful.jpg"
+        },
+        {
+          "slug": "yaris",
+          "name": "Yaris",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/a5a0bad37b4447ed92611b08ab6a1303_ful.jpg"
+        }
+      ]
+    },
+    "volkswagen": {
+      "slug": "volkswagen",
+      "name": "Volkswagen",
+      "logo": "/catalog/makes/volkswagen.svg",
+      "regions": [
+        "korea",
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "caddy-maxi",
+          "name": "Caddy Maxi",
+          "image": "/catalog/models/volkswagen/caddy-maxi.jpg"
+        },
+        {
+          "slug": "id-unyx",
+          "name": "ID Unyx",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/39117366f46945f09f81211f57e36297_ful.jpg"
+        },
+        {
+          "slug": "jetta",
+          "name": "Jetta",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/f12dcd38d91c43a99b54701623b050f5_ful.jpg"
+        },
+        {
+          "slug": "jetta-4d",
+          "name": "Jetta 4D",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/6b0572fb0b8b44dfb484c0fe8c241787_ful.jpg"
+        },
+        {
+          "slug": "t-roc",
+          "name": "T Roc",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/69bb6d91ac014d60b197c104ee3e8c5f_ful.jpg"
+        },
+        {
+          "slug": "taos",
+          "name": "Taos",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0326/5f19993c605440129c70503ee1bafe52_ful.jpg"
+        },
+        {
+          "slug": "tharu",
+          "name": "Tharu",
+          "image": "/catalog/models/volkswagen/tharu.jpg"
+        },
+        {
+          "slug": "tiguan",
+          "name": "Tiguan",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0226/71b514c82f8145b784902b5ba778206e_ful.jpg"
+        },
+        {
+          "slug": "touareg",
+          "name": "Touareg",
+          "image": "/catalog/models/volkswagen/touareg.jpg"
+        }
+      ]
+    },
+    "volvo": {
+      "slug": "volvo",
+      "name": "Volvo",
+      "logo": "/catalog/makes/volvo.svg",
+      "regions": [
+        "uk",
+        "usa"
+      ],
+      "models": [
+        {
+          "slug": "s60",
+          "name": "S60",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/ad061e43af5244b28297a14f9609d1e3_ful.jpg"
+        },
+        {
+          "slug": "xc60",
+          "name": "Xc60",
+          "image": "/catalog/models/volvo/xc60.jpg"
+        },
+        {
+          "slug": "xc70",
+          "name": "Xc70",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/50bdd4f8f2624d8f8c2505c1f231700e_ful.jpg"
+        },
+        {
+          "slug": "xc90",
+          "name": "Xc90",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0526/32520887bb38418992e0ccafde9b2b3d_ful.jpg"
+        },
+        {
+          "slug": "xc90-plus",
+          "name": "Xc90 Plus",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/eef5d1cdcee549f78e2dc1b0d50912d1_ful.jpg"
+        }
+      ]
+    },
+    "voyah": {
+      "slug": "voyah",
+      "name": "Voyah",
+      "logo": "/catalog/makes/voyah.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "courage",
+          "name": "Courage",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/eaef22f5aa7b46ac89428b487843b247_ful.jpg"
+        },
+        {
+          "slug": "dream",
+          "name": "Dream",
+          "image": "/catalog/models/voyah/dream.jpg"
+        },
+        {
+          "slug": "epi-007",
+          "name": "Epi 007",
+          "image": "/catalog/models/voyah/epi-007.jpg"
+        },
+        {
+          "slug": "free",
+          "name": "Free",
+          "image": "/catalog/models/voyah/free.jpg"
+        },
+        {
+          "slug": "passion",
+          "name": "Passion",
+          "image": "/catalog/models/voyah/passion.jpg"
+        }
+      ]
+    },
+    "wuling": {
+      "slug": "wuling",
+      "name": "Wuling",
+      "logo": "/catalog/makes/wuling.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "yangguang",
+          "name": "Yangguang",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/48f5ccf1e0574439a05549a40a8b466a_ful.jpg"
+        }
+      ]
+    },
+    "xiaomi": {
+      "slug": "xiaomi",
+      "name": "Xiaomi",
+      "logo": "/catalog/makes/xiaomi.svg",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "su7",
+          "name": "Su7",
+          "image": "/catalog/models/xiaomi/su7.jpg"
+        },
+        {
+          "slug": "su7-ultra",
+          "name": "Su7 Ultra",
+          "image": "/catalog/models/xiaomi/su7-ultra.jpg"
+        },
+        {
+          "slug": "yu7",
+          "name": "Yu7",
+          "image": "/catalog/models/xiaomi/yu7.jpg"
+        }
+      ]
+    },
+    "xpeng": {
+      "slug": "xpeng",
+      "name": "XPENG",
+      "logo": "/catalog/makes/xpeng.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "g6",
+          "name": "G6",
+          "image": "/catalog/models/xpeng/g6.jpg"
+        },
+        {
+          "slug": "g7",
+          "name": "G7",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/343353bdb20443cd83b68bca0dcdd328_ful.jpg"
+        },
+        {
+          "slug": "g9",
+          "name": "G9",
+          "image": "/catalog/models/xpeng/g9.jpg"
+        },
+        {
+          "slug": "gx",
+          "name": "GX",
+          "image": "/catalog/models/xpeng/gx.jpg"
+        },
+        {
+          "slug": "mona-m03",
+          "name": "Mona M03",
+          "image": "/catalog/models/xpeng/mona-m03.jpg"
+        },
+        {
+          "slug": "p7",
+          "name": "P7",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/1734b3c2f939492cbb792afc41209105_ful.jpg"
+        },
+        {
+          "slug": "x9",
+          "name": "X9",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/81354a8fdad04981800b7b43a5285a71_ful.jpg"
+        }
+      ]
+    },
+    "zeekr": {
+      "slug": "zeekr",
+      "name": "Zeekr",
+      "logo": "/catalog/makes/zeekr.png",
+      "regions": [
+        "china"
+      ],
+      "models": [
+        {
+          "slug": "001",
+          "name": "001",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0926/2637f5f4c2a54a228f7130ebe63849a2_ful.jpg"
+        },
+        {
+          "slug": "007",
+          "name": "007",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0826/610f45c99b65401eb3ccb8f1a019c94a_ful.jpg"
+        },
+        {
+          "slug": "007-gt",
+          "name": "007 GT",
+          "image": "/catalog/models/zeekr/007-gt.jpg"
+        },
+        {
+          "slug": "7x",
+          "name": "7X",
+          "image": "/catalog/models/zeekr/7x.jpg"
+        },
+        {
+          "slug": "8x",
+          "name": "8X",
+          "image": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0126/345805d867df42bab3d8b7cac1ca4821_ful.jpg"
+        },
+        {
+          "slug": "9x",
+          "name": "9X",
+          "image": "/catalog/models/zeekr/9x.jpg"
+        },
+        {
+          "slug": "x",
+          "name": "X",
+          "image": "/catalog/models/zeekr/x.jpg"
+        }
+      ]
+    }
+  }
+}
