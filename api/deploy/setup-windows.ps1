@@ -37,6 +37,53 @@ function Assert-Command([string]$Name, [string]$Hint) {
   }
 }
 
+function Refresh-Path {
+  $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
+  $user = [Environment]::GetEnvironmentVariable("Path", "User")
+  $env:Path = "$machine;$user"
+}
+
+function Resolve-PythonExe {
+  Refresh-Path
+
+  foreach ($cmd in @("python", "python3")) {
+    $c = Get-Command $cmd -ErrorAction SilentlyContinue
+    if ($c -and $c.Source -and (Test-Path $c.Source)) {
+      # Skip Windows Store stub
+      if ($c.Source -match 'WindowsApps\\python') { continue }
+      return $c.Source
+    }
+  }
+
+  $py = Get-Command py -ErrorAction SilentlyContinue
+  if ($py) {
+    try {
+      $viaPy = & py -3 -c "import sys; print(sys.executable)" 2>$null
+      if ($viaPy -and (Test-Path $viaPy.Trim())) { return $viaPy.Trim() }
+    } catch {}
+  }
+
+  $roots = @(
+    "$env:LocalAppData\Programs\Python",
+    "$env:ProgramFiles\Python*",
+    "${env:ProgramFiles(x86)}\Python*",
+    "C:\Python*"
+  )
+  $found = Get-ChildItem -Path $roots -Filter "python.exe" -Recurse -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -notmatch '\\WindowsApps\\' } |
+    Sort-Object FullName -Descending |
+    Select-Object -First 1
+  if ($found) { return $found.FullName }
+
+  throw @"
+Python not found in PATH.
+1) Reinstall Python 3.12 from https://www.python.org/downloads/windows/
+2) Enable checkbox: Add python.exe to PATH
+3) Close ALL PowerShell windows and open a NEW Administrator PowerShell
+4) Check:  python --version   OR   py -3 --version
+"@
+}
+
 function Set-EnvValue([string]$Path, [string]$Key, [string]$Value) {
   $lines = @()
   if (Test-Path $Path) {
@@ -82,10 +129,14 @@ function Install-Nssm([string]$DestDir) {
 Assert-Admin
 Write-Step "Checking Git / Python"
 Assert-Command git "Install Git: https://git-scm.com/download/win"
-Assert-Command python "Install Python 3.12+: https://www.python.org/downloads/ (Add to PATH)"
+$PythonExe = Resolve-PythonExe
+Write-Host "Using Python: $PythonExe"
 
-$pyVer = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+$pyVer = & $PythonExe -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
 Write-Host "Python $pyVer"
+if ([version]$pyVer -lt [version]"3.10") {
+  throw "Need Python 3.10+, found $pyVer"
+}
 
 Write-Step "Repository -> $AppDir"
 if (Test-Path (Join-Path $AppDir ".git")) {
@@ -153,7 +204,7 @@ $venvPython = Join-Path $venvDir "Scripts\python.exe"
 $venvPip = Join-Path $venvDir "Scripts\pip.exe"
 $uvicornExe = Join-Path $venvDir "Scripts\uvicorn.exe"
 if (-not (Test-Path $venvPython)) {
-  python -m venv $venvDir
+  & $PythonExe -m venv $venvDir
 }
 & $venvPip install --upgrade pip
 & $venvPip install -r (Join-Path $apiDir "requirements.txt")

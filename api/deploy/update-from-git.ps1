@@ -2,6 +2,12 @@
 #   powershell -ExecutionPolicy Bypass -File C:\mg-api\api\deploy\update-from-git.ps1
 $ErrorActionPreference = "Stop"
 
+function Refresh-Path {
+  $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
+  $user = [Environment]::GetEnvironmentVariable("Path", "User")
+  $env:Path = "$machine;$user"
+}
+
 $AppDir = if ($env:APP_DIR) { $env:APP_DIR } else { "C:\mg-api" }
 $Branch = if ($env:BRANCH) { $env:BRANCH } else { "main" }
 $Port = if ($env:API_PORT) { [int]$env:API_PORT } else { 80 }
@@ -25,11 +31,28 @@ git reset --hard "origin/$Branch"
 # Do NOT touch: api\.env, api\data\cabinet.db, api\data\uploads, lib\auctions\generated-lots.json
 
 Write-Host "==> Python deps"
+Refresh-Path
+$PythonExe = $null
+foreach ($cmd in @("python", "python3")) {
+  $c = Get-Command $cmd -ErrorAction SilentlyContinue
+  if ($c -and $c.Source -and (Test-Path $c.Source) -and ($c.Source -notmatch 'WindowsApps\\python')) {
+    $PythonExe = $c.Source
+    break
+  }
+}
+if (-not $PythonExe) {
+  $py = Get-Command py -ErrorAction SilentlyContinue
+  if ($py) {
+    try { $PythonExe = (& py -3 -c "import sys; print(sys.executable)").Trim() } catch {}
+  }
+}
+
 $venvDir = Join-Path $apiDir ".venv"
 $venvPython = Join-Path $venvDir "Scripts\python.exe"
 $venvPip = Join-Path $venvDir "Scripts\pip.exe"
 if (-not (Test-Path $venvPython)) {
-  python -m venv $venvDir
+  if (-not $PythonExe) { throw "Python not found. Install Python 3.12 and reopen PowerShell." }
+  & $PythonExe -m venv $venvDir
 }
 & $venvPip install -q --upgrade pip
 & $venvPip install -q -r (Join-Path $apiDir "requirements.txt")
