@@ -1,5 +1,5 @@
-# Обновление MG.GROUP API на Windows Server из GitHub (CI или вручную).
-# Пример: powershell -ExecutionPolicy Bypass -File C:\mg-api\api\deploy\update-from-git.ps1
+# Update MG.GROUP API on Windows Server from GitHub (CI or manual).
+#   powershell -ExecutionPolicy Bypass -File C:\mg-api\api\deploy\update-from-git.ps1
 $ErrorActionPreference = "Stop"
 
 $AppDir = if ($env:APP_DIR) { $env:APP_DIR } else { "C:\mg-api" }
@@ -9,10 +9,10 @@ $ServiceName = if ($env:SERVICE_NAME) { $env:SERVICE_NAME } else { "mg-api" }
 
 $apiDir = Join-Path $AppDir "api"
 if (-not (Test-Path (Join-Path $AppDir ".git"))) {
-  throw "Нет git-репозитория в $AppDir. Сначала: git clone <repo> $AppDir и api\deploy\install-windows.ps1"
+  throw "No git repo in $AppDir. First: git clone <repo> $AppDir then api\deploy\install-windows.ps1"
 }
 if (-not (Test-Path $apiDir)) {
-  throw "Не найден каталог api в $AppDir"
+  throw "api folder not found in $AppDir"
 }
 
 Set-Location $AppDir
@@ -22,7 +22,7 @@ git fetch --all --prune
 git checkout $Branch
 git reset --hard "origin/$Branch"
 
-# НЕ трогаем: api\.env, api\data\cabinet.db, api\data\uploads, lib\auctions\generated-lots.json
+# Do NOT touch: api\.env, api\data\cabinet.db, api\data\uploads, lib\auctions\generated-lots.json
 
 Write-Host "==> Python deps"
 $venvDir = Join-Path $apiDir ".venv"
@@ -56,7 +56,7 @@ if ($svc) {
   Start-Sleep -Seconds 4
   Get-Service -Name $ServiceName | Format-List Name, Status, StartType
 } else {
-  Write-Host "==> служба $ServiceName не найдена — перезапустите uvicorn вручную" -ForegroundColor Yellow
+  Write-Host "==> service $ServiceName not found - start uvicorn manually" -ForegroundColor Yellow
 }
 
 Write-Host "==> health check"
@@ -65,7 +65,7 @@ try {
   $resp = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 15
   Write-Host "  $($resp.StatusCode) $($resp.Content)"
 } catch {
-  Write-Host "  Health пока недоступен ($healthUrl): $_" -ForegroundColor Yellow
+  Write-Host "  Health not ready yet ($healthUrl): $_" -ForegroundColor Yellow
 }
 
-Write-Host "Готово."
+Write-Host "Done."

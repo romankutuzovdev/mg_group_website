@@ -1,11 +1,11 @@
-# Полная установка MG.GROUP API на Windows Server.
-# Запуск от администратора (из корня уже склонированного репо):
+# Full install of MG.GROUP API on Windows Server (run as Administrator).
 #   powershell -ExecutionPolicy Bypass -File .\api\deploy\setup-windows.ps1
 #
-# Параметры (опционально):
+# Optional:
 #   -RepoUrl "https://github.com/romankutuzovdev/mg_group_website.git"
 #   -AppDir  "C:\mg-api"
-#   -SkipService   # не ставить Windows-службу
+#   -Port 80
+#   -SkipService
 
 param(
   [string]$RepoUrl = "https://github.com/romankutuzovdev/mg_group_website.git",
@@ -27,13 +27,13 @@ function Assert-Admin {
   $id = [Security.Principal.WindowsIdentity]::GetCurrent()
   $p = New-Object Security.Principal.WindowsPrincipal($id)
   if (-not $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    throw "Запустите PowerShell от имени администратора."
+    throw "Run PowerShell as Administrator."
   }
 }
 
 function Assert-Command([string]$Name, [string]$Hint) {
   if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
-    throw "Не найдено: $Name. $Hint"
+    throw "Missing: $Name. $Hint"
   }
 }
 
@@ -64,7 +64,7 @@ function Install-Nssm([string]$DestDir) {
     return (Get-Command nssm).Source
   }
 
-  Write-Step "Скачиваю NSSM"
+  Write-Step "Downloading NSSM"
   $zip = Join-Path $env:TEMP "nssm-2.24.zip"
   $extract = Join-Path $env:TEMP "nssm-extract"
   Invoke-WebRequest -Uri "https://nssm.cc/release/nssm-2.24.zip" -OutFile $zip -UseBasicParsing
@@ -73,28 +73,28 @@ function Install-Nssm([string]$DestDir) {
   $src = Get-ChildItem -Path $extract -Recurse -Filter "nssm.exe" |
     Where-Object { $_.FullName -match '\\win64\\nssm\.exe$' } |
     Select-Object -First 1
-  if (-not $src) { throw "Не удалось найти nssm.exe в архиве." }
+  if (-not $src) { throw "nssm.exe not found in archive." }
   New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
   Copy-Item $src.FullName $nssmExe -Force
   return $nssmExe
 }
 
 Assert-Admin
-Write-Step "Проверка Git / Python"
-Assert-Command git "Установите Git: https://git-scm.com/download/win"
-Assert-Command python "Установите Python 3.12+: https://www.python.org/downloads/ (Add to PATH)"
+Write-Step "Checking Git / Python"
+Assert-Command git "Install Git: https://git-scm.com/download/win"
+Assert-Command python "Install Python 3.12+: https://www.python.org/downloads/ (Add to PATH)"
 
 $pyVer = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
 Write-Host "Python $pyVer"
 
-Write-Step "Репозиторий → $AppDir"
+Write-Step "Repository -> $AppDir"
 if (Test-Path (Join-Path $AppDir ".git")) {
   Set-Location $AppDir
   git fetch --all --prune
   git checkout main
   git reset --hard origin/main
 } elseif (Test-Path $AppDir) {
-  throw "Папка $AppDir уже есть, но это не git-репозиторий. Удалите её или укажите другой -AppDir."
+  throw "Folder $AppDir exists but is not a git repo. Delete it or pass another -AppDir."
 } else {
   New-Item -ItemType Directory -Force -Path (Split-Path $AppDir -Parent) | Out-Null
   git clone $RepoUrl $AppDir
@@ -107,7 +107,7 @@ $envExample = Join-Path $apiDir ".env.example"
 $envFile = Join-Path $apiDir ".env"
 
 if (-not (Test-Path $apiDir)) {
-  throw "Не найден каталог api в $AppDir. Проверьте, что клонирован репозиторий mg_group_website."
+  throw "api folder not found in $AppDir. Clone mg_group_website first."
 }
 
 Write-Step ".env"
@@ -129,11 +129,11 @@ SCRAPER_HEADLESS=false
 SCRAPER_CDP_URL=http://127.0.0.1:9223
 SCRAPER_PRUNE_ENDED=true
 SCRAPER_AUCTION_GRACE_HOURS=3
+SCRAPER_PHOTOS_ENABLED=true
 "@ | Set-Content -Path $envFile -Encoding UTF8
   }
 }
 
-# Windows defaults for scrapers (do not overwrite existing non-empty values)
 if (-not ((Get-Content $envFile -Raw) -match '(?m)^SCRAPER_CDP_URL=')) {
   Set-EnvValue $envFile "SCRAPER_CDP_URL" "http://127.0.0.1:9223"
 }
@@ -147,7 +147,7 @@ if (-not ((Get-Content $envFile -Raw) -match '(?m)^SCRAPER_PERSIST=')) {
   Set-EnvValue $envFile "SCRAPER_PERSIST" "true"
 }
 
-Write-Step "Python venv + зависимости"
+Write-Step "Python venv + dependencies"
 $venvDir = Join-Path $apiDir ".venv"
 $venvPython = Join-Path $venvDir "Scripts\python.exe"
 $venvPip = Join-Path $venvDir "Scripts\pip.exe"
@@ -170,7 +170,7 @@ New-Item -ItemType Directory -Force -Path $uploadsDir | Out-Null
 
 if (-not $SkipService) {
   $nssmExe = Install-Nssm $deployDir
-  Write-Step "Служба Windows: $ServiceName"
+  Write-Step "Windows service: $ServiceName (port $Port)"
   $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
   if ($existing) {
     & $nssmExe stop $ServiceName 2>$null
@@ -189,7 +189,7 @@ if (-not $SkipService) {
   Start-Sleep -Seconds 3
   Get-Service $ServiceName | Format-List Name, Status, StartType
 } else {
-  Write-Host "Служба пропущена (-SkipService). Запуск вручную:"
+  Write-Host "Service skipped (-SkipService). Run manually:"
   Write-Host "  cd $apiDir"
   Write-Host "  $uvicornExe app.main:app --host 0.0.0.0 --port $Port"
 }
@@ -201,23 +201,23 @@ try {
     New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Protocol TCP -LocalPort $Port -Action Allow | Out-Null
   }
 } catch {
-  Write-Host "Firewall-правило не создано (нужны права / модуль NetSecurity): $_" -ForegroundColor Yellow
+  Write-Host "Firewall rule not created: $_" -ForegroundColor Yellow
 }
 
 $chromeBat = Join-Path $apiDir "scripts\start-chrome-cdp.bat"
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Green
-Write-Host " Готово."
-Write-Host " Каталог:     $AppDir"
+Write-Host " Done."
+Write-Host " AppDir:      $AppDir"
 Write-Host " API dir:     $apiDir"
 Write-Host " Health:      http://127.0.0.1:$Port/health"
 Write-Host " Docs:        http://127.0.0.1:$Port/docs"
-Write-Host " Логи:        $dataDir\service-out.log / service-err.log"
-Write-Host " .env:        $envFile  (заполните Telegram / JWT / scraper)"
+Write-Host " Logs:        $dataDir\service-out.log / service-err.log"
+Write-Host " .env:        $envFile  (fill Telegram / JWT / scraper)"
 Write-Host " Chrome CDP:  $chromeBat"
-Write-Host " Обновить:    powershell -ExecutionPolicy Bypass -File $(Join-Path $deployDir 'update-from-git.ps1')"
+Write-Host " Update:      powershell -ExecutionPolicy Bypass -File $(Join-Path $deployDir 'update-from-git.ps1')"
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "Перед скрапером запустите Chrome с CDP (отдельное окно):" -ForegroundColor Yellow
+Write-Host "Before scrapers, start Chrome with CDP:" -ForegroundColor Yellow
 Write-Host "  $chromeBat"
