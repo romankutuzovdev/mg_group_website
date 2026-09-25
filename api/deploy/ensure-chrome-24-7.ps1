@@ -137,11 +137,33 @@ $keepSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopI
 Register-ScheduledTask -TaskName $taskKeep -Action $keepAction -Trigger $keepTrig `
   -Settings $keepSettings -Principal $principal -Force | Out-Null
 
-if (-not (Test-WatchdogRunning)) {
-  Start-WatchdogNow
-} else {
-  Write-Host "==> watchdog already running"
+Write-Host "==> FORCE visible Chrome restart (kill old CDP / invisible Chrome)"
+# Old watchdog may hold CDP without a desktop window - always recycle when run by hand
+Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue | ForEach-Object {
+  if ($_.CommandLine -and $_.CommandLine -match 'chrome-cdp-watchdog\.ps1') {
+    try { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } catch {}
+  }
 }
+Get-Process chrome -ErrorAction SilentlyContinue | ForEach-Object {
+  try { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue } catch {}
+}
+try {
+  $lines = netstat -ano | Select-String ":$Port "
+  foreach ($line in $lines) {
+    if ($line -notmatch "LISTENING") { continue }
+    $parts = ($line.ToString() -split "\s+") | Where-Object { $_ -ne "" }
+    $procId = $parts[-1]
+    if ($procId -and $procId -notmatch '^(0|4)$') {
+      & taskkill /F /PID $procId 2>$null | Out-Null
+    }
+  }
+} catch {}
+foreach ($lockName in @("SingletonLock", "SingletonCookie", "SingletonSocket", "lockfile")) {
+  $p = Join-Path $profileDir $lockName
+  if (Test-Path $p) { Remove-Item $p -Force -ErrorAction SilentlyContinue }
+}
+Start-Sleep -Seconds 2
+Start-WatchdogNow
 
 $ok = $false
 for ($i = 0; $i -lt 30; $i++) {
@@ -149,9 +171,10 @@ for ($i = 0; $i -lt 30; $i++) {
   if (Test-Cdp) { $ok = $true; break }
 }
 if ($ok) {
-  Write-Host "CDP OK on :$Port" -ForegroundColor Green
+  Write-Host "CDP OK on :$Port - Chrome window should be on THIS desktop" -ForegroundColor Green
 } else {
-  Write-Host "CDP not ready yet - check Chrome window" -ForegroundColor Yellow
+  Write-Host "CDP still down. Are you in the interactive AnyDesk desktop (not RDP Session 0)?" -ForegroundColor Red
+  Write-Host "  Manual: & `"$env:ProgramFiles\Google\Chrome\Application\chrome.exe`" --remote-debugging-port=$Port --user-data-dir=`"$profileDir`" --profile-directory=Default --start-maximized"
 }
 
 Write-Host "==> restart mg-api + start scrapers"
