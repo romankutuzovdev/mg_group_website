@@ -4,8 +4,13 @@
 #
 # Optional env:
 #   APP_DIR=C:\mg-api
-#   NEXT_PUBLIC_API_URL=http://91.149.133.54
+#   API_URL=http://127.0.0.1          (SSG only - fetch catalog during build)
 #   SERVICE_NAME=mg-api
+#   SKIP_SERVICE_RESTART=1
+#
+# Do NOT set NEXT_PUBLIC_API_URL to http://IP - that causes Mixed Content on
+# https://mg-group.by (browser treats mg-group.by and 91.149.x.x as different origins).
+# Client JS always uses same-origin /api/v1/...
 
 $ErrorActionPreference = "Stop"
 
@@ -17,7 +22,8 @@ function Refresh-Path {
 
 $AppDir = if ($env:APP_DIR) { $env:APP_DIR } else { "C:\mg-api" }
 $ServiceName = if ($env:SERVICE_NAME) { $env:SERVICE_NAME } else { "mg-api" }
-$ApiUrl = if ($env:NEXT_PUBLIC_API_URL) { $env:NEXT_PUBLIC_API_URL } else { "http://91.149.133.54" }
+# Build-time fetch only (Node on this machine). Prefer loopback.
+$ApiUrl = if ($env:API_URL) { $env:API_URL } else { "http://127.0.0.1" }
 
 Refresh-Path
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
@@ -36,8 +42,9 @@ Set-Location $AppDir
 Write-Host "==> npm ci"
 npm ci
 
-Write-Host "==> next build (API=$ApiUrl)"
-$env:NEXT_PUBLIC_API_URL = $ApiUrl
+Write-Host "==> next build (SSG API_URL=$ApiUrl; browser = same-origin /api)"
+$env:API_URL = $ApiUrl
+Remove-Item Env:NEXT_PUBLIC_API_URL -ErrorAction SilentlyContinue
 $env:SEO_AUCTION_SSG_LIMIT = "0"
 $env:SEO_AUCTION_SITEMAP_LIMIT = if ($env:SEO_AUCTION_SITEMAP_LIMIT) { $env:SEO_AUCTION_SITEMAP_LIMIT } else { "500" }
 npm run build
@@ -64,7 +71,7 @@ if ($env:SKIP_SERVICE_RESTART -eq "1") {
 }
 
 Write-Host ""
-Write-Host "Open site:  $ApiUrl/" -ForegroundColor Green
-Write-Host "Cabinet:    $ApiUrl/cabinet/" -ForegroundColor Green
-Write-Host "API health: $ApiUrl/health" -ForegroundColor Green
+Write-Host "Open site:  https://mg-group.by/  (or http://91.149.133.54/)" -ForegroundColor Green
+Write-Host "Cabinet:    https://mg-group.by/cabinet/" -ForegroundColor Green
+Write-Host "API must be same host: /api/v1/... not http://IP/..." -ForegroundColor Green
 Write-Host "Done."
