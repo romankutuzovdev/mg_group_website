@@ -1,34 +1,30 @@
 /**
  * Backend base URL.
  *
- * Site + API live on the Windows server (e.g. http://91.149.133.54).
- * Browser always calls that API origin (baked at build via NEXT_PUBLIC_API_URL).
+ * Site + API are served together from the Windows server (uvicorn).
+ * In the browser always use same-origin `/api/v1/*` — works for both
+ * http://91.149.133.54 and https://mg-group.by (CF Flexible → origin HTTP).
+ * Node SSG / scripts still use NEXT_PUBLIC_API_URL / API_URL.
  */
 const DEFAULT_API = "http://91.149.133.54";
 
 export function getApiBaseUrl(): string {
-  const fromEnv = (
-    process.env.NEXT_PUBLIC_API_URL?.trim() ||
-    process.env.API_URL?.trim() ||
-    ""
-  ).replace(/\/$/, "");
-
   if (typeof window !== "undefined") {
-    // Same host as the API (IP or hostname) → relative /api/v1 (no CORS).
-    const host = window.location.hostname;
-    if (host === "91.149.133.54" || host === "127.0.0.1" || host === "localhost") {
-      return "";
-    }
-    return fromEnv || DEFAULT_API;
+    return "";
   }
-
-  return fromEnv || DEFAULT_API;
+  return (
+    process.env.API_URL?.trim() ||
+    process.env.NEXT_PUBLIC_API_URL?.trim() ||
+    DEFAULT_API
+  ).replace(/\/$/, "");
 }
 
 export function isApiEnabled(): boolean {
-  return getApiBaseUrl().length > 0 || (
-    typeof window !== "undefined" &&
-    ["91.149.133.54", "127.0.0.1", "localhost"].includes(window.location.hostname)
+  if (typeof window !== "undefined") return true;
+  return Boolean(
+    process.env.API_URL?.trim() ||
+      process.env.NEXT_PUBLIC_API_URL?.trim() ||
+      DEFAULT_API,
   );
 }
 
