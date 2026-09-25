@@ -78,10 +78,12 @@ function Start-ChromeCdp([string]$ChromeExe, [int]$Port, [string]$Profile, [bool
   $args.Add("--no-first-run")
   $args.Add("--no-default-browser-check")
   $args.Add("--disable-dev-shm-usage")
-  $args.Add("--disable-background-networking")
+  # Keep networking so chrome://extensions / updates can work
   $args.Add("--disable-features=Translate,BackForwardCache")
   $args.Add("--enable-extensions")
   $args.Add("--disable-extensions-file-access-check")
+  # Allow developer mode / unpacked (Web Store "Add" is often blocked under CDP)
+  $args.Add("--allow-legacy-extension-manifests")
 
   # Unpacked extensions from api\data\chrome-extensions\<name>\manifest.json
   $extRoot = Join-Path (Split-Path $Profile -Parent) "chrome-extensions"
