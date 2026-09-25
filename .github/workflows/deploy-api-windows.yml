@@ -1,10 +1,13 @@
 # Деплой MG.GROUP API на Windows Server при push в main.
 # Secrets (GitHub → Settings → Secrets and variables → Actions):
-#   SSH_HOST         — IP или домен Windows Server
+#   SSH_HOST         — IP или домен Windows Server (например 91.149.133.54)
 #   SSH_USER         — например Administrator
 #   SSH_PRIVATE_KEY  — приватный ключ (весь файл BEGIN/END)
 #   SSH_PORT         — опционально, по умолчанию 22
 #   APP_DIR          — опционально, по умолчанию C:\mg-api
+#
+# Без SSH_HOST job пропускается (не краснеет CI). После добавления секретов
+# push в api/** снова будет деплоить автоматически.
 #
 # Один раз на сервере:
 #   git clone https://github.com/romankutuzovdev/mg_group_website.git C:\mg-api
@@ -23,7 +26,22 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Не вызывать appleboy без host — иначе "Error: missing server host"
+    if: ${{ secrets.SSH_HOST != '' }}
     steps:
+      - name: Require SSH secrets
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          missing=0
+          if [ -z "$SSH_USER" ]; then echo "Missing secret: SSH_USER"; missing=1; fi
+          if [ -z "$SSH_PRIVATE_KEY" ]; then echo "Missing secret: SSH_PRIVATE_KEY"; missing=1; fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Add SSH_HOST, SSH_USER, SSH_PRIVATE_KEY in repo Settings → Secrets → Actions"
+            exit 1
+          fi
+
       - name: Deploy over SSH (Windows)
         uses: appleboy/ssh-action@v1.2.0
         with:
