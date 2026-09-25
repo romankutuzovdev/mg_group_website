@@ -1,10 +1,22 @@
 /** @type {import('next').NextConfig} */
+const isVercel = process.env.VERCEL === "1";
+
 const nextConfig = {
-  output: 'export',
+  // Windows/Cloudflare static export. On Vercel use Next runtime so /api rewrites work
+  // (trailingSlash + static out/ was 308→/api/.../ → HTML 404, empty catalog).
+  ...(isVercel ? {} : { output: "export" }),
   trailingSlash: true,
-  // Keep /api/* without forced trailing slash so Vercel rewrites hit Windows API
-  // (otherwise /api/... → /api/.../ → static HTML 404 and Telegram login breaks).
   skipTrailingSlashRedirect: true,
+  async rewrites() {
+    if (!isVercel) return [];
+    const upstream = "http://91.149.133.54.nip.io";
+    return [
+      { source: "/api/:path*/", destination: `${upstream}/api/:path*` },
+      { source: "/api/:path*", destination: `${upstream}/api/:path*` },
+      { source: "/auctions/:slug/", destination: `${upstream}/auctions/:slug/` },
+      { source: "/auctions/:slug", destination: `${upstream}/auctions/:slug/` },
+    ];
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },

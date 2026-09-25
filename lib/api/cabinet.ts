@@ -122,8 +122,11 @@ async function cabinetFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!isApiEnabled()) {
     throw new ApiError("API URL is not configured (NEXT_PUBLIC_API_URL)", 0);
   }
+  const [pathname, query = ""] = path.split("?");
+  const cleanPath = pathname.replace(/\/+$/, "") || "/";
+  const url = apiUrl(query ? `${cleanPath}?${query}` : cleanPath);
   const token = getCabinetToken();
-  const res = await fetch(apiUrl(path), {
+  const res = await fetch(url, {
     ...init,
     headers: {
       Accept: "application/json",
@@ -136,7 +139,7 @@ async function cabinetFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new ApiError(`API ${res.status}: ${path}`, res.status, text);
+    throw new ApiError(`API ${res.status}: ${cleanPath}`, res.status, text);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

@@ -16,7 +16,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!isApiEnabled()) {
     throw new ApiError("API URL is not configured (NEXT_PUBLIC_API_URL)", 0);
   }
-  const res = await fetch(apiUrl(path), {
+  // Never hit /api/.../ — Vercel+trailingSlash would 404 HTML instead of proxying.
+  const [pathname, query = ""] = path.split("?");
+  const cleanPath = pathname.replace(/\/+$/, "") || "/";
+  const url = apiUrl(query ? `${cleanPath}?${query}` : cleanPath);
+  const res = await fetch(url, {
     ...init,
     headers: {
       Accept: "application/json",
@@ -26,7 +30,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new ApiError(`API ${res.status}: ${path}`, res.status, text);
+    throw new ApiError(`API ${res.status}: ${cleanPath}`, res.status, text);
   }
   return (await res.json()) as T;
 }
