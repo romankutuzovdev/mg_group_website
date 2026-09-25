@@ -62,5 +62,7 @@ jobs:
                 exit 1
               };
               $env:APP_DIR = $AppDir;
+              $env:SKIP_WEBSITE = '1';
+              $env:SKIP_CHROME = '0';
               & (Join-Path $AppDir 'api\deploy\update-from-git.ps1')
             "

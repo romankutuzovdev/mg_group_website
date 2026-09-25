@@ -80,6 +80,54 @@ function Start-ChromeCdp([string]$ChromeExe, [int]$Port, [string]$Profile, [bool
   $args.Add("--disable-dev-shm-usage")
   $args.Add("--disable-background-networking")
   $args.Add("--disable-features=Translate,BackForwardCache")
+  $args.Add("--enable-extensions")
+  $args.Add("--disable-extensions-file-access-check")
+
+  # Unpacked extensions from api\data\chrome-extensions\<name>\manifest.json
+  $extRoot = Join-Path (Split-Path $Profile -Parent) "chrome-extensions"
+  if (Test-Path $extRoot) {
+    $dirs = Get-ChildItem -Path $extRoot -Directory -ErrorAction SilentlyContinue |
+      Where-Object { Test-Path (Join-Path $_.FullName "manifest.json") } |
+      ForEach-Object { $_.FullName }
+    if ($dirs -and $dirs.Count -gt 0) {
+      $joined = [string]::Join(",", $dirs)
+      $args.Add("--load-extension=$joined")
+      Write-Host "  load-extension: $joined"
+    }
+  }
+
+  # Force-enable extensions already installed in the profile
+  $prefs = Join-Path $Profile "Default\Preferences"
+  if (Test-Path $prefs) {
+    try {
+      $json = Get-Content -Raw -Path $prefs -Encoding UTF8 | ConvertFrom-Json
+      $changed = $false
+      if ($json.extensions -and $json.extensions.settings) {
+        foreach ($prop in $json.extensions.settings.PSObject.Properties) {
+          $meta = $prop.Value
+          if (-not $meta) { continue }
+          if ($meta.state -ne 1) { $meta.state = 1; $changed = $true }
+          if ($meta.disable_reasons) { $meta.disable_reasons = 0; $changed = $true }
+        }
+      }
+      if ($json.extensions) {
+        if (-not $json.extensions.ui) {
+          $json.extensions | Add-Member -NotePropertyName ui -NotePropertyValue ([pscustomobject]@{ developer_mode = $true }) -Force
+          $changed = $true
+        } elseif (-not $json.extensions.ui.developer_mode) {
+          $json.extensions.ui.developer_mode = $true
+          $changed = $true
+        }
+      }
+      if ($changed) {
+        $json | ConvertTo-Json -Depth 100 -Compress | Set-Content -Path $prefs -Encoding UTF8
+        Write-Host "  extensions re-enabled in Preferences"
+      }
+    } catch {
+      Write-Host "  prefs patch skipped: $_"
+    }
+  }
+
   $args.Add("about:blank")
 
   if ($IsHeadless) {

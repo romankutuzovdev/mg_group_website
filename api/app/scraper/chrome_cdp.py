@@ -7,6 +7,7 @@ do not Log off Windows. Profile: api/data/chrome-profile.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
@@ -110,6 +111,81 @@ def _clear_profile_locks(user_data: Path) -> None:
             pass
 
 
+def _force_enable_extensions(user_data: Path) -> int:
+    """Flip every installed extension to enabled in Default/Preferences."""
+    prefs_path = user_data / "Default" / "Preferences"
+    if not prefs_path.is_file():
+        return 0
+    try:
+        data = json.loads(prefs_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning("cannot read Chrome Preferences: %s", exc)
+        return 0
+
+    settings = (
+        ((data.get("extensions") or {}).get("settings"))
+        if isinstance(data.get("extensions"), dict)
+        else None
+    )
+    if not isinstance(settings, dict):
+        return 0
+
+    changed = 0
+    for _ext_id, meta in settings.items():
+        if not isinstance(meta, dict):
+            continue
+        if meta.get("location") in (5, 8):
+            continue
+        if meta.get("state") != 1:
+            meta["state"] = 1
+            changed += 1
+        if meta.get("disable_reasons"):
+            meta["disable_reasons"] = 0
+            changed += 1
+
+    ext_root = data.setdefault("extensions", {})
+    if isinstance(ext_root, dict):
+        ui = ext_root.setdefault("ui", {})
+        if isinstance(ui, dict) and not ui.get("developer_mode"):
+            ui["developer_mode"] = True
+            changed += 1
+
+    if not changed:
+        return 0
+    try:
+        bak = prefs_path.with_suffix(".Preferences.bak-mg")
+        if not bak.exists():
+            shutil.copy2(prefs_path, bak)
+        prefs_path.write_text(
+            json.dumps(data, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
+        logger.info("re-enabled Chrome extension flag(s): %s", changed)
+    except Exception as exc:
+        logger.warning("cannot write Chrome Preferences: %s", exc)
+        return 0
+    return changed
+
+
+def _extension_load_paths() -> list[str]:
+    raw = (os.environ.get("SCRAPER_CHROME_LOAD_EXTENSION") or "").strip()
+    if not raw:
+        default_dir = _user_data_dir().parent / "chrome-extensions"
+        if default_dir.is_dir():
+            return [
+                str(p.resolve())
+                for p in default_dir.iterdir()
+                if p.is_dir() and (p / "manifest.json").is_file()
+            ]
+        return []
+    out: list[str] = []
+    for part in raw.split(","):
+        p = part.strip().strip('"')
+        if p and Path(p).is_dir():
+            out.append(str(Path(p).resolve()))
+    return out
+
+
 def _kill_listeners_on_port(port: int) -> None:
     """Best-effort: free a stuck CDP port (Windows / Unix). Never raises."""
     try:
@@ -158,6 +234,7 @@ def _launch_chrome(port: int, *, headless: bool) -> None:
     user_data = _user_data_dir()
     user_data.mkdir(parents=True, exist_ok=True)
     _clear_profile_locks(user_data)
+    _force_enable_extensions(user_data)
 
     args = [
         str(exe),
@@ -169,7 +246,17 @@ def _launch_chrome(port: int, *, headless: bool) -> None:
         "--disable-dev-shm-usage",
         "--disable-background-networking",
         "--disable-features=Translate,BackForwardCache",
+        "--enable-extensions",
+        "--disable-extensions-file-access-check",
     ]
+    ext_paths = _extension_load_paths()
+    if ext_paths:
+        joined = ",".join(ext_paths)
+        # load-extension ADDS unpacked addons; do NOT use disable-extensions-except
+        # or Chrome Web Store extensions already in the profile stay disabled.
+        args.append(f"--load-extension={joined}")
+        logger.info("loading unpacked Chrome extensions: %s", joined)
+
     if headless:
         args.extend(
             [
@@ -179,6 +266,8 @@ def _launch_chrome(port: int, *, headless: bool) -> None:
                 "--no-sandbox",
             ]
         )
+    else:
+        args.extend(["--start-maximized", "--window-size=1600,1000"])
     args.append("about:blank")
 
     logger.info(
