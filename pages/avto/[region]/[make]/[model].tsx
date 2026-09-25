@@ -15,11 +15,13 @@ import { buildSeoInventory } from "@/lib/auctions/seo-inventory";
 import {
   catalogPath,
   getMake,
+  getMakesForRegion,
   getModel,
   getRegion,
   makeInRegion,
   modelPageDescription,
   modelPageTitle,
+  REGION_ORDER,
   type CatalogMake,
   type CatalogModel,
   type CatalogRegion,
@@ -166,13 +168,27 @@ export default function AvtoModelPage({
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  const { modelPaths } = await buildSeoInventory();
-  return {
-    paths: modelPaths.map((p) => ({
-      params: { region: p.region, make: p.make, model: p.model },
-    })),
-    fallback: false,
-  };
+  // Prefer live inventory; on Vercel always allow missing model URLs (blocking).
+  // Static export (Windows) must list every catalog model so links never 404.
+  const isVercel = process.env.VERCEL === "1";
+  if (isVercel) {
+    const { modelPaths } = await buildSeoInventory();
+    return {
+      paths: modelPaths.map((p) => ({
+        params: { region: p.region, make: p.make, model: p.model },
+      })),
+      fallback: "blocking",
+    };
+  }
+
+  const paths = REGION_ORDER.flatMap((region) =>
+    getMakesForRegion(region).flatMap((make) =>
+      make.models.map((model) => ({
+        params: { region, make: make.slug, model: model.slug },
+      })),
+    ),
+  );
+  return { paths, fallback: false };
 };
 
 export const getStaticProps: GetStaticProps<Props> = async (ctx) => {

@@ -13,14 +13,15 @@ import {
 } from "@/components/catalog/seo";
 import { CityNavLinks, SeoCta, SeoFaq } from "@/components/seo/seo-blocks";
 import { PageShell } from "@/components/layout/page-shell";
-import { buildSeoInventory } from "@/lib/auctions/seo-inventory";
 import {
   catalogPath,
   getMake,
+  getMakesForRegion,
   getRegion,
   makeInRegion,
   makePageDescription,
   makePageTitle,
+  REGION_ORDER,
   type CatalogMake,
   type CatalogRegion,
   type CatalogRegionSlug,
@@ -191,12 +192,17 @@ export default function AvtoMakePage({
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  const { makePaths } = await buildSeoInventory();
-  return {
-    paths: makePaths.map((p) => ({
-      params: { region: p.region, make: p.make },
+  // Always emit every catalog make×region. Paths keyed only on live lots at build
+  // time caused /avto/usa/tesla/ → 404 on Vercel when API was empty during SSG.
+  const paths = REGION_ORDER.flatMap((region) =>
+    getMakesForRegion(region).map((make) => ({
+      params: { region, make: make.slug },
     })),
-    fallback: false,
+  );
+  return {
+    paths,
+    // Vercel (no static export): allow on-demand pages; Windows export requires false.
+    fallback: process.env.VERCEL === "1" ? "blocking" : false,
   };
 };
 
