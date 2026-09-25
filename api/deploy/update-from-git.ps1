@@ -56,9 +56,28 @@ if (-not (Test-Path $apiDir)) {
 Set-Location $AppDir
 
 Write-Host "==> git fetch/pull ($Branch)"
+$scriptPath = $MyInvocation.MyCommand.Path
+$scriptHashBefore = $null
+if ($scriptPath -and (Test-Path $scriptPath)) {
+  $scriptHashBefore = (Get-FileHash -Path $scriptPath -Algorithm SHA256).Hash
+}
 git fetch --all --prune
 git checkout $Branch
 git reset --hard "origin/$Branch"
+
+# Re-launch if this script itself changed (PowerShell keeps the old copy in memory)
+if ($scriptPath -and (Test-Path $scriptPath) -and $scriptHashBefore) {
+  $scriptHashAfter = (Get-FileHash -Path $scriptPath -Algorithm SHA256).Hash
+  if ($scriptHashAfter -ne $scriptHashBefore -and -not $env:MG_UPDATE_REEXEC) {
+    Write-Host "==> update-from-git.ps1 changed on pull - re-executing fresh copy"
+    $env:MG_UPDATE_REEXEC = "1"
+    $argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath) + $args
+    $p = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+      -ArgumentList $argList -WorkingDirectory $AppDir -Wait -PassThru -NoNewWindow
+    exit $p.ExitCode
+  }
+}
+Remove-Item Env:MG_UPDATE_REEXEC -ErrorAction SilentlyContinue
 
 # Keep data; patch required .env keys for headed Chrome + catalog scrapers
 $envFile = Join-Path $apiDir ".env"
