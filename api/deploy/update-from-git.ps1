@@ -40,6 +40,12 @@ function Test-Cdp([int]$Port) {
 $AppDir = if ($env:APP_DIR) { $env:APP_DIR } else { "C:\mg-api" }
 $Branch = if ($env:BRANCH) { $env:BRANCH } else { "main" }
 $Port = if ($env:API_PORT) { [int]$env:API_PORT } else { 80 }
+# If Caddy HTTPS front-end is installed, keep uvicorn on loopback:8080
+$behindCaddy = Join-Path (Join-Path $AppDir "api\deploy") ".behind-caddy"
+if ((Test-Path $behindCaddy) -and -not $env:API_PORT) {
+  $Port = 8080
+  $env:MG_BEHIND_CADDY = "1"
+}
 $ServiceName = if ($env:SERVICE_NAME) { $env:SERVICE_NAME } else { "mg-api" }
 $CdpPort = 9223
 # CI: skip website by default (set SKIP_WEBSITE=0 to force build)
@@ -228,7 +234,8 @@ if ($svc) {
   $nssmExe = Join-Path $apiDir "deploy\nssm.exe"
   if (Test-Path $nssmExe) {
     Write-Host "==> NSSM: port $Port"
-    & $nssmExe set $ServiceName AppParameters "app.main:app --host 0.0.0.0 --port $Port" | Out-Null
+    $bindHost = if ($env:MG_BEHIND_CADDY -eq "1" -or (Test-Path $behindCaddy)) { "127.0.0.1" } else { "0.0.0.0" }
+    & $nssmExe set $ServiceName AppParameters "app.main:app --host $bindHost --port $Port" | Out-Null
     & $nssmExe set $ServiceName AppEnvironmentExtra "PLAYWRIGHT_BROWSERS_PATH=$pwBrowsers" | Out-Null
   }
   Write-Host "==> restart $ServiceName"
