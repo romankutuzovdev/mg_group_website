@@ -101,14 +101,43 @@ class LotStore:
         with self._lock:
             return self._by_slug.get(slug)
 
+    def _find_alias_locked(self, lot: AuctionLot) -> AuctionLot | None:
+        """Same auction lot under an old id (usa-123 vs usa-copart-123)."""
+        existing = self._by_id.get(lot.id)
+        if existing:
+            return existing
+        ln = (lot.lotNumber or "").strip()
+        if not ln:
+            return None
+        for other in self._by_id.values():
+            if other.source != lot.source:
+                continue
+            if (other.lotNumber or "").strip() != ln:
+                continue
+            if other.region != lot.region:
+                continue
+            return other
+        return None
+
+    def _upsert_locked(self, lot: AuctionLot) -> tuple[AuctionLot, bool]:
+        """Returns (merged, is_new). Must be called with lock held."""
+        old = self._find_alias_locked(lot)
+        is_new = old is None
+        # Collapse alias into the incoming canonical id
+        if old is not None and old.id != lot.id:
+            self._by_id.pop(old.id, None)
+            if old.slug != lot.slug:
+                self._by_slug.pop(old.slug, None)
+        merged = merge_lot(old, lot)
+        if old and old.slug != merged.slug:
+            self._by_slug.pop(old.slug, None)
+        self._by_id[merged.id] = merged
+        self._by_slug[merged.slug] = merged
+        return merged, is_new
+
     def upsert(self, lot: AuctionLot) -> AuctionLot:
         with self._lock:
-            old = self._by_id.get(lot.id)
-            merged = merge_lot(old, lot)
-            if old and old.slug != merged.slug:
-                self._by_slug.pop(old.slug, None)
-            self._by_id[merged.id] = merged
-            self._by_slug[merged.slug] = merged
+            merged, _ = self._upsert_locked(lot)
             return merged
 
     def upsert_many(self, lots: list[AuctionLot]) -> tuple[int, int]:
@@ -116,14 +145,9 @@ class LotStore:
         new_count = 0
         with self._lock:
             for lot in lots:
-                if lot.id not in self._by_id:
+                _, is_new = self._upsert_locked(lot)
+                if is_new:
                     new_count += 1
-                old = self._by_id.get(lot.id)
-                merged = merge_lot(old, lot)
-                if old and old.slug != merged.slug:
-                    self._by_slug.pop(old.slug, None)
-                self._by_id[merged.id] = merged
-                self._by_slug[merged.slug] = merged
         return len(lots), new_count
 
     def update_photos(

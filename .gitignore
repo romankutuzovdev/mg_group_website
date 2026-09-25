@@ -35,6 +35,7 @@ api/data/*.db-journal
 api/data/*.db-wal
 api/data/*.db-shm
 api/data/uploads/
+api/data/chrome-profile/
 api/data/*.log
 api/data/service-*.log
 

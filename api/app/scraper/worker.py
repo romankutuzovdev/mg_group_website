@@ -98,6 +98,21 @@ class OrchestratorStatus:
     started_at: str | None = None
 
 
+def _is_browser_dead_error(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    needles = (
+        "connection closed",
+        "target closed",
+        "browser has been closed",
+        "browser closed",
+        "protocol error",
+        "session closed",
+        "websocket",
+        "driven closed",
+    )
+    return any(n in msg for n in needles)
+
+
 class SourceAgent:
     """One continuous scraper loop — owns a permanent tab in the shared Chrome."""
 
@@ -117,6 +132,7 @@ class SourceAgent:
         self._stop = asyncio.Event()
         self._task: asyncio.Task | None = None
         self._page: Page | None = None
+        self._browser_dead = asyncio.Event()
 
     async def attach_tab(self, browser: Browser) -> Page:
         """Open (or reuse) this agent's tab in the shared Chrome window."""
@@ -252,6 +268,11 @@ class SourceAgent:
             self.status.last_error = str(exc)
             stats["error"] = str(exc)
             logger.exception("agent %s failed: %s", self.name, exc)
+            if _is_browser_dead_error(exc):
+                self._page = None
+                self.status.tab_open = False
+                self._browser_dead.set()
+                logger.warning("agent %s: Chrome/CDP dead — requesting reconnect", self.name)
         finally:
             if own_temp_tab:
                 await self.detach_tab()
@@ -263,6 +284,8 @@ class SourceAgent:
 
     async def _loop(self, browser: Browser) -> None:
         while not self._stop.is_set():
+            if self._browser_dead.is_set():
+                break
             # Recreate tab if Chrome closed it
             if self._page is None or self._page.is_closed():
                 try:
@@ -270,7 +293,14 @@ class SourceAgent:
                 except Exception as exc:
                     self.status.last_error = f"tab_reopen: {exc}"
                     logger.exception("agent %s tab reopen failed", self.name)
+                    if _is_browser_dead_error(exc):
+                        self._browser_dead.set()
+                        break
+                    await asyncio.sleep(10)
+                    continue
             await self.run_once(browser)
+            if self._browser_dead.is_set():
+                break
             try:
                 await asyncio.wait_for(
                     self._stop.wait(),
@@ -419,6 +449,9 @@ class MultiAgentOrchestrator:
                 pw,
                 headless=settings.scraper_headless,
                 cdp_url=settings.scraper_cdp_url or None,
+                cdp_autostart=settings.scraper_cdp_autostart,
+                cdp_fallback_launch=settings.scraper_cdp_fallback_launch,
+                cdp_headless=settings.scraper_cdp_headless,
             )
             try:
                 ctx = await get_shared_context(browser)
@@ -433,7 +466,8 @@ class MultiAgentOrchestrator:
                     try:
                         results[name] = await agent.run_once(browser, page=tab)
                     finally:
-                        await close_agent_tab(tab)
+                        # Keep CDP tabs; only close if we launched Chromium ourselves
+                        await close_agent_tab(tab, force=not getattr(browser, "_mg_via_cdp", False))
                 return {"mode": "run_once", "shared_chrome": True, "results": results}
             finally:
                 await close_browser(browser)
@@ -446,6 +480,9 @@ class MultiAgentOrchestrator:
                 pw,
                 headless=settings.scraper_headless,
                 cdp_url=settings.scraper_cdp_url or None,
+                cdp_autostart=settings.scraper_cdp_autostart,
+                cdp_fallback_launch=settings.scraper_cdp_fallback_launch,
+                cdp_headless=settings.scraper_cdp_headless,
             )
             try:
                 agent = PhotoEnrichmentAgent()
@@ -459,53 +496,105 @@ class MultiAgentOrchestrator:
                 await close_browser(browser)
 
     async def _supervise(self) -> None:
+        """Keep Chrome + agents alive. On CDP death — restart Chrome, never kill API."""
         settings = get_settings()
-        try:
-            self._pw = await async_playwright().start()
-            self._browser = await launch_chromium(
-                self._pw,
-                headless=settings.scraper_headless,
-                cdp_url=settings.scraper_cdp_url or None,
-            )
-            via_cdp = bool(getattr(self._browser, "_mg_via_cdp", False))
-            self.status.browser_mode = "cdp" if via_cdp else "launch"
-            self.status.shared_chrome = True
-            self._agents = self._build_agents()
-            self.status.agents = {n: a.status for n, a in self._agents.items()}
+        backoff = 5.0
+        while not self._stop.is_set():
+            try:
+                self._pw = await async_playwright().start()
+                self._browser = await launch_chromium(
+                    self._pw,
+                    headless=settings.scraper_headless,
+                    cdp_url=settings.scraper_cdp_url or None,
+                    cdp_autostart=settings.scraper_cdp_autostart,
+                    cdp_fallback_launch=settings.scraper_cdp_fallback_launch,
+                    cdp_headless=settings.scraper_cdp_headless,
+                )
+                via_cdp = bool(getattr(self._browser, "_mg_via_cdp", False))
+                self.status.browser_mode = "cdp" if via_cdp else "launch"
+                self.status.shared_chrome = True
+                self._agents = self._build_agents()
+                self.status.agents = {n: a.status for n, a in self._agents.items()}
 
-            # Open all agent tabs in the same Chrome window first, then start loops.
-            pruned = lot_store.prune_ended()
-            if pruned and settings.scraper_persist:
-                lot_store.persist()
-                logger.info("startup prune: removed %s ended lots", pruned)
+                pruned = lot_store.prune_ended()
+                if pruned and settings.scraper_persist:
+                    lot_store.persist()
+                    logger.info("startup prune: removed %s ended lots", pruned)
 
-            for agent in self._agents.values():
-                await agent.attach_tab(self._browser)
-            for agent in self._agents.values():
-                await agent.start(self._browser)
+                for i, agent in enumerate(self._agents.values()):
+                    agent._browser_dead = asyncio.Event()
+                    await agent.attach_tab(self._browser)
+                    # Stagger first navigations — parallel goto kills headless Chrome
+                    await asyncio.sleep(2.0 + i * 1.5)
+                for i, agent in enumerate(self._agents.values()):
+                    await agent.start(self._browser)
+                    await asyncio.sleep(3.0)
 
-            if settings.scraper_photos_enabled:
-                self._photo_agent = PhotoEnrichmentAgent()
-                await self._photo_agent.attach_tab(self._browser)
-                await self._photo_agent.start(self._browser)
-                logger.info("photo enricher started (lot cards → full galleries)")
+                if settings.scraper_photos_enabled:
+                    self._photo_agent = PhotoEnrichmentAgent()
+                    await asyncio.sleep(5.0)
+                    await self._photo_agent.attach_tab(self._browser)
+                    await self._photo_agent.start(self._browser)
+                    logger.info("photo enricher started (lot cards → full galleries)")
 
-            logger.info(
-                "shared Chrome ready mode=%s tabs=%s photos=%s",
-                self.status.browser_mode,
-                list(self._agents.keys()),
-                bool(self._photo_agent),
-            )
-            await self._stop.wait()
-        except Exception as exc:
-            logger.exception("supervisor failed: %s", exc)
-        finally:
-            if self._photo_agent:
-                await self._photo_agent.stop()
-            for agent in self._agents.values():
-                await agent.stop()
-            await self._close_browser()
-            self.status.running = False
+                logger.info(
+                    "shared Chrome ready mode=%s tabs=%s photos=%s",
+                    self.status.browser_mode,
+                    list(self._agents.keys()),
+                    bool(self._photo_agent),
+                )
+                backoff = 5.0
+
+                # Stay until stop, CDP death, or an agent reports browser dead
+                while not self._stop.is_set():
+                    await asyncio.sleep(8)
+                    if any(a._browser_dead.is_set() for a in self._agents.values()):
+                        logger.warning("agent reported dead Chrome — reconnecting")
+                        break
+                    browser = self._browser
+                    if browser is None:
+                        break
+                    try:
+                        _ = browser.contexts
+                        if via_cdp and settings.scraper_cdp_url:
+                            from app.scraper.chrome_cdp import cdp_responsive
+
+                            if not cdp_responsive(settings.scraper_cdp_url, timeout=1.0):
+                                logger.warning("CDP port died — reconnecting Chrome")
+                                break
+                    except Exception as exc:
+                        logger.warning("browser liveness failed: %s — reconnecting", exc)
+                        break
+
+            except Exception as exc:
+                logger.exception("supervisor session failed (will retry): %s", exc)
+            finally:
+                if self._photo_agent:
+                    try:
+                        await self._photo_agent.stop()
+                    except Exception:
+                        pass
+                    self._photo_agent = None
+                for agent in list(self._agents.values()):
+                    try:
+                        await agent.stop()
+                    except Exception:
+                        pass
+                self._agents = {}
+                await self._close_browser()
+
+            if self._stop.is_set():
+                break
+            logger.info("supervisor retry in %.0fs", backoff)
+            try:
+                await asyncio.wait_for(self._stop.wait(), timeout=backoff)
+                break
+            except asyncio.TimeoutError:
+                pass
+            backoff = min(120.0, backoff * 1.5)
+
+        self.status.running = False
+        logger.info("multi-agent scraper supervisor stopped")
 
     async def _close_browser(self) -> None:
         if self._browser is not None:
@@ -531,7 +620,10 @@ def start_scraper_in_background() -> None:
 
     async def _boot() -> None:
         await asyncio.sleep(3)
-        await scraper_worker.start()
+        try:
+            await scraper_worker.start()
+        except Exception as exc:
+            logger.exception("scraper boot failed (API stays up): %s", exc)
 
     try:
         loop = asyncio.get_running_loop()
@@ -539,6 +631,9 @@ def start_scraper_in_background() -> None:
     except RuntimeError:
 
         def _thread() -> None:
-            asyncio.run(scraper_worker.start())
+            try:
+                asyncio.run(scraper_worker.start())
+            except Exception as exc:
+                logger.exception("scraper thread failed (API stays up): %s", exc)
 
         threading.Thread(target=_thread, name="mg-scraper-boot", daemon=True).start()

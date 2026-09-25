@@ -67,6 +67,18 @@ $uploadsDir = Join-Path $dataDir "uploads"
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 New-Item -ItemType Directory -Force -Path $uploadsDir | Out-Null
 
+Write-Host "==> ensure Chrome CDP (headless) for scrapers"
+$chromeBat = Join-Path $apiDir "scripts\start-chrome-cdp.bat"
+# Prefer Python autostart after service restart; also kick bat if present
+if (Test-Path $chromeBat) {
+  try {
+    $env:MG_CHROME_HEADLESS = "1"
+    Start-Process -FilePath $chromeBat -WindowStyle Hidden | Out-Null
+  } catch {
+    Write-Host "  Chrome bat start skipped: $_" -ForegroundColor Yellow
+  }
+}
+
 $svc = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($svc) {
   $nssmExe = Join-Path $apiDir "deploy\nssm.exe"
@@ -76,7 +88,7 @@ if ($svc) {
   }
   Write-Host "==> restart $ServiceName"
   Restart-Service -Name $ServiceName -Force
-  Start-Sleep -Seconds 4
+  Start-Sleep -Seconds 6
   Get-Service -Name $ServiceName | Format-List Name, Status, StartType
 } else {
   Write-Host "==> service $ServiceName not found - start uvicorn manually" -ForegroundColor Yellow

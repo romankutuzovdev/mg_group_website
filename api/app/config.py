@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     # Windows: run api/scripts/start-chrome-cdp.bat → SCRAPER_CDP_URL=http://127.0.0.1:9223
     # macOS:   run api/scripts/start-chrome-cdp.sh
     scraper_cdp_url: str = ""
+    # If CDP URL set but Chrome is down — start it automatically before attach
+    scraper_cdp_autostart: bool = True
+    # Headless CDP (required for NSSM / Windows Service). Set false for interactive login.
+    scraper_cdp_headless: bool = True
+    # If CDP fails after retries, fall back to Playwright launch (usually bot-walled)
+    scraper_cdp_fallback_launch: bool = False
     scraper_manheim_bearer_token: str = ""
     # Optional KR egress note for Encar (use KR proxy Chrome profile / VPN with CDP)
     scraper_encar_note: str = ""

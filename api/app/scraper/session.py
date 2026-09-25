@@ -42,7 +42,14 @@ class TabSession:
 
         if browser is None:
             self.pw = await async_playwright().start()
-            self.browser = await launch_chromium(self.pw, headless=headless, cdp_url=cdp_url)
+            self.browser = await launch_chromium(
+                self.pw,
+                headless=headless,
+                cdp_url=cdp_url,
+                cdp_autostart=True,
+                cdp_fallback_launch=False,
+                cdp_headless=True,
+            )
             self.own_browser = True
         else:
             self.browser = browser

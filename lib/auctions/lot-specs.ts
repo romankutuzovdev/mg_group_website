@@ -6,7 +6,9 @@ function blank(value: string | undefined | null): boolean {
   return !value || EMPTY.has(String(value).trim().toLowerCase());
 }
 
-function blobOf(lot: Pick<AuctionLot, "make" | "model" | "engine" | "bodyStyle" | "fuel" | "drive" | "transmission">) {
+function blobOf(
+  lot: Partial<Pick<AuctionLot, "make" | "model" | "engine" | "bodyStyle" | "fuel" | "drive" | "transmission">>,
+) {
   return [lot.make, lot.model, lot.engine, lot.bodyStyle, lot.fuel, lot.drive, lot.transmission]
     .filter(Boolean)
     .join(" ")

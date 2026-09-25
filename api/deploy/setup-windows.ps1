@@ -188,6 +188,15 @@ SCRAPER_PHOTOS_ENABLED=true
 if (-not ((Get-Content $envFile -Raw) -match '(?m)^SCRAPER_CDP_URL=')) {
   Set-EnvValue $envFile "SCRAPER_CDP_URL" "http://127.0.0.1:9223"
 }
+if (-not ((Get-Content $envFile -Raw) -match '(?m)^SCRAPER_CDP_AUTOSTART=')) {
+  Set-EnvValue $envFile "SCRAPER_CDP_AUTOSTART" "true"
+}
+if (-not ((Get-Content $envFile -Raw) -match '(?m)^SCRAPER_CDP_HEADLESS=')) {
+  Set-EnvValue $envFile "SCRAPER_CDP_HEADLESS" "true"
+}
+if (-not ((Get-Content $envFile -Raw) -match '(?m)^SCRAPER_CDP_FALLBACK_LAUNCH=')) {
+  Set-EnvValue $envFile "SCRAPER_CDP_FALLBACK_LAUNCH" "false"
+}
 if (-not ((Get-Content $envFile -Raw) -match '(?m)^SCRAPER_HEADLESS=')) {
   Set-EnvValue $envFile "SCRAPER_HEADLESS" "false"
 }

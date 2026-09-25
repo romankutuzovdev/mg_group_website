@@ -12,6 +12,7 @@ import { DealPaymentStatus, paymentProgressLabel } from "@/components/cabinet/de
 import { DealClosingStages } from "@/components/cabinet/deal-closing-stages";
 import { AdminDealsPanel } from "@/components/cabinet/admin-deals-panel";
 import { PurchasedCarsAdmin } from "@/components/cabinet/purchased-cars-admin";
+import { CabinetCalculator } from "@/components/cabinet/cabinet-calculator";
 import { FavoriteButton } from "@/components/auctions/favorite-button";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
@@ -28,7 +29,6 @@ import {
   fetchMyDeals,
   fetchTelegramAuthConfig,
   getCabinetToken,
-  loginDev,
   loginWithTelegram,
   setCabinetToken,
 } from "@/lib/api/cabinet";
@@ -68,7 +68,19 @@ function dealProgress(deal: Deal) {
   };
 }
 
-type Tab = "deals" | "favorites" | "manager";
+type Tab = "deals" | "favorites" | "calc" | "manager";
+
+const TAB_IDS: Tab[] = ["deals", "favorites", "calc", "manager"];
+
+function tabFromQuery(raw: string | null): Tab | null {
+  if (!raw) return null;
+  const v = raw.trim().toLowerCase();
+  if (v === "calculator" || v === "calc" || v === "просчет" || v === "просчёт") return "calc";
+  if (v === "favorites" || v === "fav" || v === "избранное") return "favorites";
+  if (v === "manager" || v === "admin" || v === "менеджер") return "manager";
+  if (v === "deals" || v === "сделки") return "deals";
+  return TAB_IDS.includes(v as Tab) ? (v as Tab) : null;
+}
 
 function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   const [user, setUser] = useState<CabinetUser | null>(null);
@@ -81,9 +93,28 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   const [error, setError] = useState<string | null>(null);
   const [botUsername, setBotUsername] = useState("");
   const [authEnabled, setAuthEnabled] = useState(false);
-  const [devEnabled, setDevEnabled] = useState(false);
-  const [devLoading, setDevLoading] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
+
+  // Deep-link: /cabinet/?tab=calc opens the calculator tab after login
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = tabFromQuery(params.get("tab") || params.get("view"));
+    if (fromQuery) setTab(fromQuery);
+  }, []);
+
+  const selectTab = useCallback((next: Tab) => {
+    setTab(next);
+    setView("list");
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", next);
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const loadDeals = useCallback(async () => {
     const items = await fetchMyDeals();
@@ -107,7 +138,6 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
       const cfg = await fetchTelegramAuthConfig();
       setBotUsername(cfg.bot_username);
       setAuthEnabled(cfg.enabled);
-      setDevEnabled(Boolean(cfg.dev_enabled));
 
       const token = getCabinetToken();
       if (!token) {
@@ -198,32 +228,6 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     setView("list");
   };
 
-  const enterAsDev = async (role: "manager" | "client") => {
-    setError(null);
-    setDevLoading(true);
-    setLoading(true);
-    try {
-      const res = await loginDev(role);
-      setUser(res.user);
-      setTab("deals");
-      setView("list");
-      setSelected(null);
-      resetFavoritesCache();
-      await Promise.all([loadDeals(), loadFavorites()]);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : role === "client"
-            ? "Не удалось войти как клиент"
-            : "Не удалось войти как менеджер",
-      );
-    } finally {
-      setDevLoading(false);
-      setLoading(false);
-    }
-  };
-
   return (
     <PageShell bare>
       {error ? (
@@ -242,32 +246,9 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
           <div className="mt-4 flex min-h-[40px] items-center justify-center" ref={widgetRef} />
           {!authEnabled ? (
             <p className="mt-3 text-xs text-text-muted">
-              Виджет недоступен: задайте TELEGRAM_BOT_TOKEN и TELEGRAM_BOT_USERNAME на API.
+              Виджет недоступен: на API задайте TELEGRAM_BOT_TOKEN и TELEGRAM_BOT_USERNAME,
+              в BotFather укажите Domain сайта.
             </p>
-          ) : null}
-          {devEnabled ? (
-            <div className="mt-5 space-y-2 border-t border-border pt-4">
-              <p className="mb-1 text-xs text-text-muted">Локальный тестовый вход</p>
-              <button
-                type="button"
-                onClick={() => void enterAsDev("client")}
-                disabled={devLoading}
-                className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent/90 disabled:opacity-60"
-              >
-                {devLoading ? "Вход…" : "Войти как клиент"}
-              </button>
-              <button
-                type="button"
-                onClick={() => void enterAsDev("manager")}
-                disabled={devLoading}
-                className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-60"
-              >
-                {devLoading ? "Вход…" : "Войти как менеджер"}
-              </button>
-              <p className="mt-2 text-[11px] text-text-muted">
-                Клиент — обычный кабинет со сделками. Менеджер — вкладка админки.
-              </p>
-            </div>
           ) : null}
           <p className="mt-4 text-xs text-text-muted">
             Нет сделки?{" "}
@@ -330,6 +311,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                       id: "favorites" as const,
                       label: `Избранное${favorites.length ? ` (${favorites.length})` : ""}`,
                     },
+                    { id: "calc" as const, label: "Калькулятор" },
                     ...(user.is_admin
                       ? [{ id: "manager" as const, label: "Менеджер" }]
                       : []),
@@ -338,7 +320,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setTab(t.id)}
+                    onClick={() => selectTab(t.id)}
                     className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
                       tab === t.id
                         ? "bg-white text-zinc-900 shadow-sm"
@@ -525,6 +507,8 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                 )}
               </div>
               ) : null}
+
+              {tab === "calc" ? <CabinetCalculator /> : null}
 
               {tab === "manager" && user.is_admin ? (
                 <div className="space-y-6">

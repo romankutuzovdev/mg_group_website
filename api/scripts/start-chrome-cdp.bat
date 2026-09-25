@@ -1,14 +1,16 @@
 @echo off
 REM Start ONE Google Chrome with remote debugging for MG.GROUP scrapers.
-REM All agents (Copart / IAAI / Copart UK / Manheim / SalvageMarket) attach
-REM to this Chrome and open separate tabs in the same window.
+REM Under Windows Service / NSSM use headless (set MG_CHROME_HEADLESS=1, default on).
+REM Agents reuse labeled tabs after API restart.
 
 set PORT=9223
-set PROFILE=%LOCALAPPDATA%\mg-group-chrome-scraper
-
+set PROFILE=%~dp0..\data\chrome-profile
 if not exist "%PROFILE%" mkdir "%PROFILE%"
 
-REM Prefer installed Google Chrome
+set HEADLESS=1
+if /I "%MG_CHROME_HEADLESS%"=="0" set HEADLESS=0
+if /I "%MG_CHROME_HEADLESS%"=="false" set HEADLESS=0
+
 set CHROME=
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" set CHROME=%ProgramFiles%\Google\Chrome\Application\chrome.exe
 if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" set CHROME=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe
@@ -19,18 +21,37 @@ if "%CHROME%"=="" (
   exit /b 1
 )
 
-echo Starting Chrome on CDP port %PORT% ...
+curl -s -m 2 "http://127.0.0.1:%PORT%/json/version" >nul 2>&1
+if not errorlevel 1 (
+  echo Chrome CDP already running on port %PORT%.
+  exit /b 0
+)
+
+echo Starting Chrome CDP port %PORT% headless=%HEADLESS%
 echo Profile: %PROFILE%
-echo Then set in api\.env:
-echo   SCRAPER_CDP_URL=http://127.0.0.1:%PORT%
-echo   SCRAPER_HEADLESS=false
-echo Log into IAAI / Manheim / Copart UK in this Chrome if challenged, then start the API.
 
-start "" "%CHROME%" ^
-  --remote-debugging-port=%PORT% ^
-  --user-data-dir="%PROFILE%" ^
-  --no-first-run ^
-  --no-default-browser-check ^
-  about:blank
+if "%HEADLESS%"=="1" (
+  start "" "%CHROME%" ^
+    --headless=new ^
+    --disable-gpu ^
+    --window-size=1920,1080 ^
+    --no-sandbox ^
+    --remote-debugging-port=%PORT% ^
+    --remote-allow-origins=* ^
+    --user-data-dir="%PROFILE%" ^
+    --no-first-run ^
+    --no-default-browser-check ^
+    --disable-dev-shm-usage ^
+    about:blank
+) else (
+  start "" "%CHROME%" ^
+    --remote-debugging-port=%PORT% ^
+    --remote-allow-origins=* ^
+    --user-data-dir="%PROFILE%" ^
+    --no-first-run ^
+    --no-default-browser-check ^
+    --disable-dev-shm-usage ^
+    about:blank
+)
 
-echo Chrome started. Leave this window open while scrapers run.
+echo Chrome started. API will attach via SCRAPER_CDP_URL=http://127.0.0.1:%PORT%
