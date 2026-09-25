@@ -153,7 +153,9 @@ export function AuctionsCatalog({
       setApiLoading(true);
       fetchAllLots(100)
         .then((items) => {
-          if (!cancelled && items.length) setLots(applyRegion(items));
+          if (cancelled) return;
+          // Always apply live API snapshot (even if region filter yields [])
+          setLots(applyRegion(items));
         })
         .catch(() => {
           /* keep SSG / props snapshot */

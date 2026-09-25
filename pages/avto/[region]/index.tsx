@@ -154,40 +154,13 @@ export default function AvtoRegionPage({
           <CatalogSection
             id="lots"
             title={`Актуальные лоты из ${region.nameGenitive}`}
-            subtitle={
-              hasLots
-                ? "Текущая ставка и ориентир стоимости под ключ."
-                : "Пока нет спарсенных лотов — подберём авто под заказ по марке или через просчёт."
-            }
+            subtitle="Живые лоты с API: ставка и ориентир стоимости под ключ. Обновляются автоматически."
           >
-            {hasLots ? (
-              <AuctionsCatalog
-                lots={lots}
-                region={catalogRegion}
-                pricingMode={pricingMode}
-              />
-            ) : (
-              <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-5 py-10 text-center">
-                <p className="text-sm text-zinc-600">
-                  Каталог марок выше работает как витрина под заказ. Когда появятся лоты{" "}
-                  {region.nameGenitive}, они отобразятся здесь со ставкой и просчётом — как для США.
-                </p>
-                <div className="mt-5 flex flex-wrap justify-center gap-3">
-                  <a
-                    href="#makes"
-                    className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#1B5E20] px-6 text-sm font-medium text-white hover:bg-[#0D3F10]"
-                  >
-                    Выбрать марку
-                  </a>
-                  <a
-                    href="/calculator/"
-                    className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-900 hover:border-zinc-500"
-                  >
-                    Просчёт
-                  </a>
-                </div>
-              </div>
-            )}
+            <AuctionsCatalog
+              lots={lots}
+              region={catalogRegion}
+              pricingMode={pricingMode}
+            />
           </CatalogSection>
 
           <CityNavLinks cities={CITIES} hrefFor={(s) => cityPath(s, region.slug)} />

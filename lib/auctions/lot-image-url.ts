@@ -23,7 +23,7 @@ export function proxyLotImageUrl(url: string): string {
   return `/api/lot-image?${qs}`;
 }
 
-/** Real auction photo: local file, Bid.cars, or Copart CDN. */
+/** Real auction photo: local file, Bid.cars, Copart/IAAI/Encar CDN, or any https image. */
 export function isRealLotPhotoUrl(url: string | undefined | null): boolean {
   const trimmed = url?.trim();
   if (!trimmed) return false;
@@ -32,6 +32,16 @@ export function isRealLotPhotoUrl(url: string | undefined | null): boolean {
   if (isCopartCdnUrl(trimmed)) return true;
   if (trimmed.startsWith("/api/lot-image")) return true;
   if (/unsplash\.com/i.test(trimmed)) return false;
+  // IAAI / Anvis / Encar / generic auction hosts
+  if (/^https?:\/\//i.test(trimmed)) {
+    if (/iaai\.com|anvis\.|vis\.iaai|encar\.com|manheim\.com|cloudfront\.net|amazonaws\.com/i.test(trimmed)) {
+      return true;
+    }
+    // Any absolute https image path (scrapers often use CDN URLs we do not enumerate)
+    if (/\.(jpe?g|png|webp|gif)(\?|$)/i.test(trimmed) || /\/image|\/photo|\/pic/i.test(trimmed)) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -56,5 +66,7 @@ export function resolveLotImageUrl(
     return trimmed;
   }
   if (/unsplash\.com/i.test(trimmed)) return LOT_IMAGE_FALLBACK;
+  // Keep absolute http(s) auction images (IAAI, Encar, …)
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
   return LOT_IMAGE_FALLBACK;
 }
