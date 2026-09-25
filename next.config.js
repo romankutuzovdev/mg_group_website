@@ -2,6 +2,9 @@
 const nextConfig = {
   output: 'export',
   trailingSlash: true,
+  // Keep /api/* without forced trailing slash so Vercel rewrites hit Windows API
+  // (otherwise /api/... → /api/.../ → static HTML 404 and Telegram login breaks).
+  skipTrailingSlashRedirect: true,
   eslint: {
     ignoreDuringBuilds: true,
   },

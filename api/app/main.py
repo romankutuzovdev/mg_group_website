@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
@@ -73,6 +74,26 @@ def create_app() -> FastAPI:
     # Dynamic lot HTML + image proxy (before StaticFiles)
     app.include_router(auction_pages.router)
     app.include_router(lot_image.router)
+
+    @app.api_route(
+        f"{prefix}/{{full_path:path}}/",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+        include_in_schema=False,
+    )
+    async def _api_strip_trailing_slash(full_path: str, request: Request):
+        """StaticFiles would 404 /api/.../ — redirect to the real route without slash."""
+        target = f"{prefix}/{full_path}".rstrip("/")
+        if request.url.query:
+            target = f"{target}?{request.url.query}"
+        return RedirectResponse(url=target, status_code=307)
+
+    @app.api_route(
+        "/api/{full_path:path}",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+        include_in_schema=False,
+    )
+    async def _api_unknown(full_path: str):
+        return JSONResponse({"detail": f"Not Found: /api/{full_path}"}, status_code=404)
 
     # Website (Next static export) — same origin as API on Windows (e.g. http://IP/)
     web_root = Path(settings.web_root).expanduser() if settings.web_root.strip() else None
