@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     app_name: str = "MG.GROUP API"
     api_prefix: str = "/api/v1"
     cors_origins: str = "*"
+    # Next.js static export (`out/`). Empty = do not serve the website.
+    # Default: <repo>/out next to api/
+    web_root: str = str(REPO_ROOT / "out")
     lots_json_path: str = str(DEFAULT_LOTS_PATH)
     ingest_api_key: str = ""
     default_fx_gbp_usd: float = 1.29

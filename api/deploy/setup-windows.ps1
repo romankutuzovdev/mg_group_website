@@ -274,13 +274,18 @@ Write-Host " AppDir:      $AppDir"
 Write-Host " API dir:     $apiDir"
 Write-Host " Health:      http://127.0.0.1:$Port/health"
 Write-Host " Docs:        http://127.0.0.1:$Port/docs"
+Write-Host " Site:        http://127.0.0.1:$Port/   (after deploy-website.ps1)"
 Write-Host " Logs:        $dataDir\service-out.log / service-err.log"
 Write-Host " .env:        $envFile  (fill Telegram / JWT / scraper)"
 Write-Host " Chrome CDP:  $chromeBat"
-Write-Host " Update:      powershell -ExecutionPolicy Bypass -File $(Join-Path $deployDir 'update-from-git.ps1')"
+Write-Host " Update API:  powershell -ExecutionPolicy Bypass -File $(Join-Path $deployDir 'update-from-git.ps1')"
+Write-Host " Build site:  powershell -ExecutionPolicy Bypass -File $(Join-Path $deployDir 'deploy-website.ps1')"
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "IMPORTANT: AnyDesk disconnect kills GUI Chrome." -ForegroundColor Yellow
 Write-Host "Install headless Chrome as a Windows service (survives disconnect):" -ForegroundColor Yellow
 Write-Host "  powershell -ExecutionPolicy Bypass -File $chromeInstall"
 Write-Host "Keep in api\.env: SCRAPER_CDP_HEADLESS=true  SCRAPER_CDP_URL=http://127.0.0.1:9223"
+Write-Host ""
+Write-Host "Website: install Node 20 LTS, then run deploy-website.ps1" -ForegroundColor Yellow
+Write-Host "Open: http://91.149.133.54/  and  http://91.149.133.54/cabinet/" -ForegroundColor Yellow

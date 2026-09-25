@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.config import get_settings
@@ -66,6 +68,15 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix=prefix)
     app.include_router(cabinet.router, prefix=prefix)
     app.include_router(purchased_cars.router, prefix=prefix)
+
+    # Website (Next static export) — same origin as API on Windows (e.g. http://IP/)
+    web_root = Path(settings.web_root).expanduser() if settings.web_root.strip() else None
+    if web_root and web_root.is_dir():
+        print(f"[mg-api] serving website from {web_root}")
+        app.mount("/", StaticFiles(directory=str(web_root), html=True), name="site")
+    else:
+        print(f"[mg-api] website not mounted (web_root={settings.web_root!r})")
+
     return app
 
 

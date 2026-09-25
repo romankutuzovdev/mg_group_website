@@ -1,33 +1,34 @@
 /**
  * Backend base URL.
  *
- * - Browser on HTTPS (mg-group.by / pages.dev): same-origin `/api/v1/*`
- *   via Cloudflare Pages Function → Windows API.
- * - Browser on HTTP (local next): `NEXT_PUBLIC_API_URL` direct to Windows API.
- * - Node SSG / scripts: `API_URL` or `NEXT_PUBLIC_API_URL`.
+ * Site + API live on the Windows server (e.g. http://91.149.133.54).
+ * Browser always calls that API origin (baked at build via NEXT_PUBLIC_API_URL).
  */
+const DEFAULT_API = "http://91.149.133.54";
+
 export function getApiBaseUrl(): string {
-  if (typeof window !== "undefined") {
-    if (window.location.protocol === "https:") {
-      // Pages Function at /api/v1/* (see functions/api/v1/[[path]].js)
-      return "";
-    }
-    return (process.env.NEXT_PUBLIC_API_URL?.trim() || "").replace(/\/$/, "");
-  }
-  return (
-    process.env.API_URL?.trim() ||
+  const fromEnv = (
     process.env.NEXT_PUBLIC_API_URL?.trim() ||
+    process.env.API_URL?.trim() ||
     ""
   ).replace(/\/$/, "");
+
+  if (typeof window !== "undefined") {
+    // Same host as the API (IP or hostname) → relative /api/v1 (no CORS).
+    const host = window.location.hostname;
+    if (host === "91.149.133.54" || host === "127.0.0.1" || host === "localhost") {
+      return "";
+    }
+    return fromEnv || DEFAULT_API;
+  }
+
+  return fromEnv || DEFAULT_API;
 }
 
 export function isApiEnabled(): boolean {
-  if (typeof window !== "undefined") {
-    if (window.location.protocol === "https:") return true;
-    return Boolean(process.env.NEXT_PUBLIC_API_URL?.trim());
-  }
-  return Boolean(
-    process.env.API_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim(),
+  return getApiBaseUrl().length > 0 || (
+    typeof window !== "undefined" &&
+    ["91.149.133.54", "127.0.0.1", "localhost"].includes(window.location.hostname)
   );
 }
 

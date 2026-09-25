@@ -101,6 +101,25 @@ if ($chromeSvc) {
   }
 }
 
+# Rebuild website before restarting API (same process serves out/)
+if ($env:SKIP_WEBSITE -ne "1") {
+  $deployWebsite = Join-Path $apiDir "deploy\deploy-website.ps1"
+  Refresh-Path
+  if ((Test-Path $deployWebsite) -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host "==> rebuild website (no service restart yet)"
+    try {
+      $env:SKIP_SERVICE_RESTART = "1"
+      powershell -ExecutionPolicy Bypass -File $deployWebsite
+    } catch {
+      Write-Host "  Website build failed: $_" -ForegroundColor Yellow
+      Write-Host "  Run later: powershell -ExecutionPolicy Bypass -File $deployWebsite"
+    }
+  } else {
+    Write-Host "==> website build skipped (no Node or no deploy-website.ps1)" -ForegroundColor Yellow
+    Write-Host "  Install Node 20 LTS, then: powershell -ExecutionPolicy Bypass -File $(Join-Path $apiDir 'deploy\deploy-website.ps1')"
+  }
+}
+
 $svc = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($svc) {
   $nssmExe = Join-Path $apiDir "deploy\nssm.exe"
@@ -125,4 +144,4 @@ try {
   Write-Host "  Health not ready yet ($healthUrl): $_" -ForegroundColor Yellow
 }
 
-Write-Host "Done."
+Write-Host "Done. Site: http://91.149.133.54/  Cabinet: http://91.149.133.54/cabinet/"
