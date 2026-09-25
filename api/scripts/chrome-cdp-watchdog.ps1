@@ -13,7 +13,7 @@ param(
   [int]$Port = 9223,
   [string]$ProfileDir = "",
   [string]$ProfileName = "Default",
-  [int]$CheckSeconds = 5,
+  [int]$CheckSeconds = 3,
   [int]$Headless = 0
 )
 
