@@ -2,3 +2,16 @@
 name = "multiglobalgroup-website"
 compatibility_date = "2025-09-01"
 pages_build_output_dir = "out"
+
+# Pages Functions env (context.env.API_URL).
+# Hostname required — Workers cannot fetch raw IPs (error 1003).
+# nip.io → 91.149.133.54 without touching the mg-group.by DNS zone.
+[vars]
+API_URL = "http://91.149.133.54.nip.io"
+
+# Optional later (in the Cloudflare account that OWNS zone mg-group.by):
+# 1) DNS A api → 91.149.133.54, Proxy = DNS only (grey cloud)
+# 2) Delete Worker/Route that sends /api* to api.mg-group.by
+# 3) Custom domain mg-group.by → this Pages project
+# Then you can set API_URL = "http://api.mg-group.by" and
+# NEXT_PUBLIC_PAGES_ORIGIN empty (same-origin /api).
