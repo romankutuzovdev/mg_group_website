@@ -16,9 +16,10 @@ const ROOT = join(__dirname, "..");
 const CATALOG_PATH = join(ROOT, "lib/catalog/generated.json");
 const LOTS_CACHE_PATH = join(ROOT, ".cache", "catalog-lots.json");
 const LOTS_API = (
-  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.API_URL ||
   process.env.SITEMAP_API_URL ||
-  "http://91.149.133.54"
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1"
 ).replace(/\/$/, "");
 
 const MAKE_ALIASES = {

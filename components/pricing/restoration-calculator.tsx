@@ -91,12 +91,13 @@ export function RestorationCalculator() {
       if (lot.bid != null && Number(lot.bid) > 0) setBidText(String(Math.round(Number(lot.bid))));
       if (lot.year) setYearText(String(lot.year));
       if (lot.title) {
+        const titleLow = String(lot.title).toLowerCase();
         const match = TITLE_OPTIONS.find(
           (t) =>
-            t.code.toLowerCase().includes(String(lot.title).toLowerCase()) ||
-            String(lot.title).toLowerCase().includes(t.code.toLowerCase().slice(0, 12)),
+            t.name.toLowerCase().includes(titleLow) ||
+            titleLow.includes(t.name.toLowerCase().slice(0, 12)),
         );
-        if (match) setTitleCode(match.code);
+        if (match) setTitleCode(match.name);
       }
       const yard = matchYard(auction, lot.location || undefined);
       if (yard) {

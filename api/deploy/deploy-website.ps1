@@ -48,10 +48,24 @@ Remove-Item Env:NEXT_PUBLIC_API_URL -ErrorAction SilentlyContinue
 $env:SEO_AUCTION_SSG_LIMIT = "0"
 $env:SEO_AUCTION_SITEMAP_LIMIT = if ($env:SEO_AUCTION_SITEMAP_LIMIT) { $env:SEO_AUCTION_SITEMAP_LIMIT } else { "500" }
 npm run build
+if ($LASTEXITCODE -ne 0) {
+  throw "next build failed (exit $LASTEXITCODE) - refusing to deploy stale out/"
+}
 
 $outDir = Join-Path $AppDir "out"
 if (-not (Test-Path (Join-Path $outDir "index.html"))) {
   throw "Build failed: $outDir\index.html missing"
+}
+
+# Safety: never leave absolute http://IP in client bundles (Mixed Content on https://mg-group.by)
+$ipHits = Select-String -Path (Join-Path $outDir "_next\static\**\*.js") -Pattern "http://91\.149\.133\.54" -ErrorAction SilentlyContinue
+if ($ipHits) {
+  Write-Host "==> stripping http://91.149... from out/ (Mixed Content guard)" -ForegroundColor Yellow
+  Get-ChildItem $outDir -Recurse -Include *.js,*.html,*.json -File | ForEach-Object {
+    $t = [IO.File]::ReadAllText($_.FullName)
+    $n = $t.Replace("http://91.149.133.54", "").Replace("http://91.149.133.54.nip.io", "")
+    if ($n -ne $t) { [IO.File]::WriteAllText($_.FullName, $n) }
+  }
 }
 
 Write-Host "==> out ready: $outDir"
