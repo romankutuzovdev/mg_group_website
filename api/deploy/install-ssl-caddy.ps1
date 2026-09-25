@@ -166,14 +166,58 @@ $hostLine {
 	reverse_proxy 127.0.0.1:$BackendPort
 }
 "@
-# Caddyfile must be UTF-8 without weird dashes
-[System.IO.File]::WriteAllText($caddyfile, $cf)
+# UTF-8 without BOM (BOM breaks Caddy parse on Windows)
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($caddyfile, $cf, $utf8NoBom)
+Write-Host "Caddyfile:"
+Get-Content $caddyfile | ForEach-Object { Write-Host "  $_" }
 
 Write-Host "==> firewall 80/443"
 foreach ($port in @(80, 443)) {
   $rule = "MG-Caddy-$port"
   if (-not (Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue)) {
     New-NetFirewallRule -DisplayName $rule -Direction Inbound -Protocol TCP -LocalPort $port -Action Allow | Out-Null
+  }
+}
+
+function Show-PortOwner([int]$Port) {
+  Write-Host "Port $Port listeners:"
+  try {
+    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+      ForEach-Object {
+        $p = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue
+        Write-Host ("  PID {0} {1}" -f $_.OwningProcess, $(if ($p) { $p.ProcessName } else { "?" }))
+      }
+  } catch {
+    netstat -ano | Select-String ":$Port\s" | ForEach-Object { Write-Host "  $_" }
+  }
+}
+
+Write-Host "==> check ports 80/443 free (or already Caddy)"
+foreach ($port in @(80, 443)) {
+  $busy = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+  if ($busy) {
+    Show-PortOwner $port
+    $names = @()
+    foreach ($c in $busy) {
+      $proc = Get-Process -Id $c.OwningProcess -ErrorAction SilentlyContinue
+      if ($proc) { $names += $proc.ProcessName }
+    }
+    $unique = $names | Select-Object -Unique
+    if ($unique -notcontains "caddy") {
+      Write-Host "WARNING: port $port is in use by: $($unique -join ', ')" -ForegroundColor Yellow
+      Write-Host "Stop IIS / http.sys / other web servers, or Caddy cannot bind." -ForegroundColor Yellow
+    }
+  }
+}
+
+# Stop IIS / World Wide Web if present (common on Windows Server)
+foreach ($svcName in @("W3SVC", "WAS")) {
+  $s = Get-Service -Name $svcName -ErrorAction SilentlyContinue
+  if ($s -and $s.Status -eq "Running") {
+    Write-Host "==> stop IIS service $svcName (frees :80/:443)"
+    Stop-Service -Name $svcName -Force -ErrorAction SilentlyContinue
+    & sc.exe config $svcName start= disabled | Out-Null
   }
 }
 
@@ -199,6 +243,27 @@ try {
   Write-Host "WARNING: backend health check failed on :$BackendPort - $_" -ForegroundColor Yellow
 }
 
+# Data dir for certs (SYSTEM account has no useful HOME)
+$dataDir = Join-Path $caddyDir "data"
+$configDir = Join-Path $caddyDir "config"
+New-Item -ItemType Directory -Force -Path $dataDir, $configDir | Out-Null
+
+Write-Host "==> validate Caddyfile"
+$prev = Get-Location
+try {
+  Set-Location $caddyDir
+  $env:HOME = $caddyDir
+  $env:XDG_DATA_HOME = $dataDir
+  $env:XDG_CONFIG_HOME = $configDir
+  & $caddyExe version
+  & $caddyExe validate --config $caddyfile --adapter caddyfile
+  if ($LASTEXITCODE -ne 0) {
+    throw "caddy validate failed (exit $LASTEXITCODE). Fix Caddyfile above."
+  }
+} finally {
+  Set-Location $prev
+}
+
 Write-Host "==> install / restart Caddy service $CaddyService"
 $existing = Get-Service -Name $CaddyService -ErrorAction SilentlyContinue
 if ($existing) {
@@ -208,21 +273,50 @@ if ($existing) {
   Start-Sleep -Seconds 1
 }
 
+$outLog = Join-Path $caddyDir "caddy-out.log"
+$errLog = Join-Path $caddyDir "caddy-err.log"
+# Relative Caddyfile + AppDirectory avoids NSSM quoting bugs with C:\ paths
 & $nssm install $CaddyService $caddyExe
-& $nssm set $CaddyService AppParameters "run --config `"$caddyfile`" --adapter caddyfile"
 & $nssm set $CaddyService AppDirectory $caddyDir
+& $nssm set $CaddyService AppParameters "run --config Caddyfile --adapter caddyfile"
+& $nssm set $CaddyService AppEnvironmentExtra "HOME=$caddyDir" "XDG_DATA_HOME=$dataDir" "XDG_CONFIG_HOME=$configDir"
 & $nssm set $CaddyService DisplayName "MG.GROUP Caddy HTTPS"
 & $nssm set $CaddyService Description "Let's Encrypt HTTPS reverse proxy to mg-api on 127.0.0.1:$BackendPort"
 & $nssm set $CaddyService Start SERVICE_AUTO_START
-& $nssm set $CaddyService AppStdout (Join-Path $caddyDir "caddy-out.log")
-& $nssm set $CaddyService AppStderr (Join-Path $caddyDir "caddy-err.log")
+& $nssm set $CaddyService ObjectName LocalSystem
+& $nssm set $CaddyService AppStdout $outLog
+& $nssm set $CaddyService AppStderr $errLog
 & $nssm set $CaddyService AppRotateFiles 1
 & $nssm set $CaddyService AppExit Default Restart
 & $nssm set $CaddyService AppRestartDelay 3000
+# Give ACME a few seconds before NSSM treats exit as failure on first boot
+& $nssm set $CaddyService AppThrottle 5000
 
-Start-Service -Name $CaddyService
-Start-Sleep -Seconds 4
+Write-Host "==> start $CaddyService"
+try {
+  Start-Service -Name $CaddyService
+} catch {
+  Write-Host "Start-Service failed: $_" -ForegroundColor Red
+}
+Start-Sleep -Seconds 5
+$st = Get-Service $CaddyService
 Get-Service $CaddyService | Format-List Name, Status, StartType
+
+if ($st.Status -ne "Running") {
+  Write-Host ""
+  Write-Host "Caddy did not stay running. Diagnostics:" -ForegroundColor Red
+  Show-PortOwner 80
+  Show-PortOwner 443
+  Write-Host "--- caddy-err.log ---"
+  if (Test-Path $errLog) { Get-Content $errLog -Tail 60 } else { Write-Host "(no err log yet)" }
+  Write-Host "--- caddy-out.log ---"
+  if (Test-Path $outLog) { Get-Content $outLog -Tail 40 } else { Write-Host "(no out log yet)" }
+  Write-Host "--- manual test (Ctrl+C to stop) ---"
+  Write-Host "  cd $caddyDir"
+  Write-Host "  `$env:HOME='$caddyDir'; `$env:XDG_DATA_HOME='$dataDir'"
+  Write-Host "  .\caddy.exe run --config Caddyfile --adapter caddyfile"
+  throw "mg-caddy failed to start. Fix errors above, then re-run this script."
+}
 
 # Marker so update-from-git keeps backend on 8080
 @"
@@ -237,12 +331,12 @@ Write-Host "============================================" -ForegroundColor Green
 Write-Host " HTTPS install done"
 Write-Host " Open:  https://$Domain/"
 Write-Host " API:   https://$Domain/api/v1/lots"
-Write-Host " Logs:  $caddyDir\caddy-err.log"
+Write-Host " Logs:  $errLog"
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "If cert fails: check DNS A=$Domain -> this IP, firewall 80/443, wait 1-2 min, then:"
 Write-Host "  Restart-Service $CaddyService"
-Write-Host "  Get-Content $caddyDir\caddy-err.log -Tail 40"
+Write-Host "  Get-Content $errLog -Tail 40"
 Write-Host ""
 Write-Host "Test:"
 Write-Host "  Invoke-WebRequest https://$Domain/health -UseBasicParsing"
