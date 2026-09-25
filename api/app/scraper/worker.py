@@ -505,11 +505,11 @@ class MultiAgentOrchestrator:
                 if force_chrome and settings.scraper_cdp_url:
                     from app.scraper.chrome_cdp import ensure_chrome_cdp
 
-                    logger.warning("forcing headless Chrome CDP relaunch after disconnect/death")
+                    logger.warning("forcing Chrome CDP relaunch after disconnect/death")
                     ensure_chrome_cdp(
                         settings.scraper_cdp_url,
                         autostart=True,
-                        headless=True,  # always headless after crash — survives AnyDesk
+                        headless=settings.scraper_cdp_headless,
                         force_restart=True,
                         wait_seconds=45.0,
                     )

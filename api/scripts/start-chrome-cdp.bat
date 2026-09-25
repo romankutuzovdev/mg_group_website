@@ -7,9 +7,9 @@ set PORT=9223
 set PROFILE=%~dp0..\data\chrome-profile
 if not exist "%PROFILE%" mkdir "%PROFILE%"
 
-set HEADLESS=1
-if /I "%MG_CHROME_HEADLESS%"=="0" set HEADLESS=0
-if /I "%MG_CHROME_HEADLESS%"=="false" set HEADLESS=0
+set HEADLESS=0
+if /I "%MG_CHROME_HEADLESS%"=="1" set HEADLESS=1
+if /I "%MG_CHROME_HEADLESS%"=="true" set HEADLESS=1
 
 set CHROME=
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" set CHROME=%ProgramFiles%\Google\Chrome\Application\chrome.exe

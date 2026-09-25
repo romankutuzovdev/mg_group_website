@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.data import static_content as sc
@@ -11,9 +11,14 @@ from app.data.store import lot_store
 from app.models.leads import QuoteRequest, WeightPriceRequest
 from app.models.lots import AuctionLot
 from app.services.customs_by import calculate_customs_by
+from app.services.lot_lookup import fetch_lot_from_url
 from app.services.pricing import price_by_weight, quote_copart_uk, quote_iaai_usa
 
 router = APIRouter(prefix="/pricing", tags=["pricing"])
+
+
+class LotFromUrlRequest(BaseModel):
+    url: str = Field(..., min_length=12, max_length=2000)
 
 
 class CustomsByRequest(BaseModel):
@@ -76,6 +81,23 @@ def calc_weight(body: WeightPriceRequest) -> dict:
         "price_usd": price_by_weight(body.origin, body.kg),
         "formula": sc.WEIGHT_FORMULA[body.origin],
     }
+
+
+@router.post("/lot-from-url")
+async def lot_from_url(body: LotFromUrlRequest) -> dict:
+    """Open lot URL in Chrome (CDP) and return fields for the calculator.
+
+    Chrome must run headed via ``mg-chrome-cdp`` / scheduled task (Autologon).
+    """
+    try:
+        return await fetch_lot_from_url(body.url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Не удалось открыть лот в Chrome: {exc}",
+        ) from exc
 
 
 @router.post("/quote")

@@ -37,16 +37,16 @@ class Settings(BaseSettings):
     scraper_max_pages_encar: int = 5
     scraper_page_size: int = 100
     scraper_timeout_ms: int = 60000
-    scraper_headless: bool = True
+    scraper_headless: bool = False
     scraper_persist: bool = True
     # Attach to ONE Google Chrome with remote debugging (all agents = tabs)
     # Windows: run api/scripts/start-chrome-cdp.bat → SCRAPER_CDP_URL=http://127.0.0.1:9223
     # macOS:   run api/scripts/start-chrome-cdp.sh
-    scraper_cdp_url: str = ""
+    scraper_cdp_url: str = "http://127.0.0.1:9223"
     # If CDP URL set but Chrome is down — start it automatically before attach
     scraper_cdp_autostart: bool = True
-    # Headless CDP (required for NSSM / Windows Service). Set false for interactive login.
-    scraper_cdp_headless: bool = True
+    # HEADED Chrome (visible). Required for Copart/IAAI; use Autologon + AnyDesk disconnect.
+    scraper_cdp_headless: bool = False
     # If CDP fails after retries, fall back to Playwright launch (usually bot-walled)
     scraper_cdp_fallback_launch: bool = False
     scraper_manheim_bearer_token: str = ""

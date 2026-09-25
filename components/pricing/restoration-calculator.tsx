@@ -12,6 +12,8 @@ import {
 } from "@/lib/pricing/restoration-quote";
 import { listTitleTariffs } from "@/lib/pricing/usa-title";
 import { listYards, type VehicleSize } from "@/lib/pricing/usa-delivery";
+import { fetchLotFromUrl } from "@/lib/api/client";
+import { isApiEnabled } from "@/lib/api/config";
 
 function usd(n: number, digits = 0) {
   return `$${n.toLocaleString("en-US", {
@@ -24,6 +26,18 @@ function byn(n: number) {
   return `${n.toLocaleString("ru-RU", { maximumFractionDigits: 0 })} BYN`;
 }
 
+function matchYard(platform: "iaai" | "copart", location: string | null | undefined): string | null {
+  if (!location) return null;
+  const yards = listYards(platform);
+  const low = location.toLowerCase();
+  const exact = yards.find((y) => y.toLowerCase() === low);
+  if (exact) return exact;
+  const partial = yards.find(
+    (y) => y.toLowerCase().includes(low) || low.includes(y.toLowerCase().split(" - ")[0] || ""),
+  );
+  return partial || null;
+}
+
 const TITLE_OPTIONS = listTitleTariffs();
 const IAAI_YARDS = listYards("iaai");
 const COPART_YARDS = listYards("copart");
@@ -32,6 +46,10 @@ const DEFAULT_COPART =
   COPART_YARDS.find((y) => y.startsWith("HOUSTON - ")) || COPART_YARDS[0] || "";
 
 export function RestorationCalculator() {
+  const [lotUrl, setLotUrl] = useState("");
+  const [lotLoading, setLotLoading] = useState(false);
+  const [lotError, setLotError] = useState<string | null>(null);
+  const [lotMeta, setLotMeta] = useState<string | null>(null);
   const [bidText, setBidText] = useState("8000");
   const [feesOverride, setFeesOverride] = useState("");
   const [platform, setPlatform] = useState<"iaai" | "copart">("iaai");
@@ -47,6 +65,56 @@ export function RestorationCalculator() {
   const [customs, setCustoms] = useState<CustomsByResult | null>(null);
 
   const onCustoms = useCallback((r: CustomsByResult | null) => setCustoms(r), []);
+
+  const loadFromUrl = useCallback(async () => {
+    const url = lotUrl.trim();
+    if (!url) {
+      setLotError("Вставьте ссылку Copart / Bid.cars / IAAI");
+      return;
+    }
+    if (!isApiEnabled()) {
+      setLotError("API недоступен");
+      return;
+    }
+    setLotLoading(true);
+    setLotError(null);
+    setLotMeta(null);
+    try {
+      const lot = await fetchLotFromUrl(url);
+      const auction =
+        lot.auction_platform === "copart" || lot.auction_platform === "iaai"
+          ? lot.auction_platform
+          : lot.source === "copart"
+            ? "copart"
+            : "iaai";
+      setPlatform(auction);
+      if (lot.bid != null && Number(lot.bid) > 0) setBidText(String(Math.round(Number(lot.bid))));
+      if (lot.year) setYearText(String(lot.year));
+      if (lot.title) {
+        const match = TITLE_OPTIONS.find(
+          (t) =>
+            t.code.toLowerCase().includes(String(lot.title).toLowerCase()) ||
+            String(lot.title).toLowerCase().includes(t.code.toLowerCase().slice(0, 12)),
+        );
+        if (match) setTitleCode(match.code);
+      }
+      const yard = matchYard(auction, lot.location || undefined);
+      if (yard) {
+        setLocation(yard);
+        setYardFilter("");
+      }
+      const label = [lot.year, lot.make, lot.model, lot.lotNumber && `#${lot.lotNumber}`]
+        .filter(Boolean)
+        .join(" ");
+      setLotMeta(
+        `${label || "Лот загружен"} · Chrome CDP (${lot.via || "headless"})`,
+      );
+    } catch (err) {
+      setLotError(err instanceof Error ? err.message : "Не удалось открыть лот");
+    } finally {
+      setLotLoading(false);
+    }
+  }, [lotUrl]);
 
   const bid = Number(bidText) || 0;
   const autoFees = estimateIaaiAuctionFeesUsd(bid);
@@ -100,8 +168,9 @@ export function RestorationCalculator() {
   return (
     <div className="space-y-8">
       <p className="max-w-3xl text-sm text-text-secondary">
-        Просчёт авто: ставка + аукционный сбор, Title, доставка по прайсу
-        (Klaipeda / Poti), комиссия 3.5%, диспетчинг $250 и растаможка РБ.
+        Просчёт авто: вставьте ссылку Copart / Bid.cars — сервер откроет лот в
+        headless Google Chrome (не падает при отключении AnyDesk), подтянет ставку
+        и площадку. Дальше: сборы, Title, доставка и растаможка РБ.
       </p>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
@@ -109,6 +178,44 @@ export function RestorationCalculator() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
             Просчёт авто
           </p>
+
+          <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted sm:col-span-2">
+            Ссылка на лот (Copart / Bid.cars / IAAI)
+            <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+              <input
+                type="url"
+                value={lotUrl}
+                onChange={(e) => setLotUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void loadFromUrl();
+                  }
+                }}
+                placeholder="https://www.copart.com/lot/… или https://bid.cars/…"
+                className="w-full flex-1 rounded-lg border border-border px-3 py-2 text-sm text-text-primary"
+              />
+              <button
+                type="button"
+                onClick={() => void loadFromUrl()}
+                disabled={lotLoading}
+                className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {lotLoading ? "Открываем Chrome…" : "Подтянуть из Chrome"}
+              </button>
+            </div>
+            {lotError ? (
+              <p className="mt-1.5 text-xs font-normal normal-case tracking-normal text-red-600">
+                {lotError}
+              </p>
+            ) : null}
+            {lotMeta ? (
+              <p className="mt-1.5 text-xs font-normal normal-case tracking-normal text-emerald-700">
+                {lotMeta}
+              </p>
+            ) : null}
+          </label>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
               Ставка, USD

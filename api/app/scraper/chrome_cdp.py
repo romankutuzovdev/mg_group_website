@@ -1,8 +1,8 @@
 """Ensure Google Chrome is listening on the scraper CDP port.
 
-Under Windows NSSM the API runs as a service — GUI Chrome often cannot start.
-We therefore prefer headless CDP (``--headless=new``) with a fixed profile under
-``api/data/chrome-profile``. Playwright attaches via SCRAPER_CDP_URL.
+Copart/IAAI need a real HEADED Chrome window (not --headless=new).
+Keep it alive with chrome-cdp-watchdog.ps1 + Autologon: disconnect AnyDesk,
+do not Log off Windows. Profile: api/data/chrome-profile.
 """
 
 from __future__ import annotations
@@ -192,15 +192,15 @@ def _launch_chrome(port: int, *, headless: bool) -> None:
         "stderr": subprocess.DEVNULL,
     }
     if os.name == "nt":
-        # Detach from interactive desktop so Chrome survives AnyDesk / RDP logout.
         flags = 0
         flags |= getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
         flags |= getattr(subprocess, "DETACHED_PROCESS", 0)
-        flags |= getattr(subprocess, "CREATE_NO_WINDOW", 0)
         flags |= getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0x01000000)
+        # CREATE_NO_WINDOW hides GUI - only for headless
+        if headless:
+            flags |= getattr(subprocess, "CREATE_NO_WINDOW", 0)
         kwargs["creationflags"] = flags
         kwargs["close_fds"] = True
-        # Avoid inheriting the console of the parent service / session
         kwargs["stdin"] = subprocess.DEVNULL
     else:
         kwargs["start_new_session"] = True
@@ -212,13 +212,13 @@ def ensure_chrome_cdp(
     cdp_url: str,
     *,
     autostart: bool = True,
-    headless: bool = True,
+    headless: bool = False,
     wait_seconds: float = 60.0,
     force_restart: bool = False,
 ) -> bool:
     """Make sure CDP endpoint responds. Returns True if ready for Playwright.
 
-    Defaults to headless Chrome — required for NSSM / Windows Service.
+    Default is HEADED Chrome (visible). Use install-chrome-cdp-service.ps1 + Autologon.
     Never raises: failures are logged and return False so the API stays up.
     """
     url = (cdp_url or "").strip()

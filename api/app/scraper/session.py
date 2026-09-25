@@ -41,14 +41,17 @@ class TabSession:
             return page
 
         if browser is None:
+            from app.config import get_settings
+
+            settings = get_settings()
             self.pw = await async_playwright().start()
             self.browser = await launch_chromium(
                 self.pw,
                 headless=headless,
-                cdp_url=cdp_url,
-                cdp_autostart=True,
-                cdp_fallback_launch=False,
-                cdp_headless=True,
+                cdp_url=cdp_url or settings.scraper_cdp_url or None,
+                cdp_autostart=settings.scraper_cdp_autostart,
+                cdp_fallback_launch=settings.scraper_cdp_fallback_launch,
+                cdp_headless=settings.scraper_cdp_headless,
             )
             self.own_browser = True
         else:

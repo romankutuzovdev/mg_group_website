@@ -246,6 +246,31 @@ export async function fetchQuote(body: QuoteRequestBody): Promise<{ region: stri
   });
 }
 
+export type LotFromUrlResponse = {
+  ok: boolean;
+  url: string;
+  source: string;
+  auction_platform: "copart" | "iaai" | string;
+  lotNumber?: string | null;
+  bid?: number | null;
+  year?: number | null;
+  make?: string | null;
+  model?: string | null;
+  title?: string | null;
+  location?: string | null;
+  odometer?: number | null;
+  images?: string[];
+  via?: string;
+  cdp?: string;
+};
+
+export async function fetchLotFromUrl(url: string): Promise<LotFromUrlResponse> {
+  return apiFetch("/api/v1/pricing/lot-from-url", {
+    method: "POST",
+    body: JSON.stringify({ url }),
+  });
+}
+
 export async function fetchHealth(): Promise<{ status: string; lots: number }> {
   return apiFetch("/health");
 }

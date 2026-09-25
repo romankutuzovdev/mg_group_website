@@ -192,7 +192,7 @@ if (-not ((Get-Content $envFile -Raw) -match '(?m)^SCRAPER_CDP_AUTOSTART=')) {
   Set-EnvValue $envFile "SCRAPER_CDP_AUTOSTART" "true"
 }
 if (-not ((Get-Content $envFile -Raw) -match '(?m)^SCRAPER_CDP_HEADLESS=')) {
-  Set-EnvValue $envFile "SCRAPER_CDP_HEADLESS" "true"
+  Set-EnvValue $envFile "SCRAPER_CDP_HEADLESS" "false"
 }
 if (-not ((Get-Content $envFile -Raw) -match '(?m)^SCRAPER_CDP_FALLBACK_LAUNCH=')) {
   Set-EnvValue $envFile "SCRAPER_CDP_FALLBACK_LAUNCH" "false"
@@ -283,9 +283,10 @@ Write-Host " Build site:  powershell -ExecutionPolicy Bypass -File $(Join-Path $
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "IMPORTANT: AnyDesk disconnect kills GUI Chrome." -ForegroundColor Yellow
-Write-Host "Install headless Chrome as a Windows service (survives disconnect):" -ForegroundColor Yellow
+Write-Host "Chrome CDP (HEADED - visible window, survives AnyDesk disconnect):" -ForegroundColor Yellow
 Write-Host "  powershell -ExecutionPolicy Bypass -File $chromeInstall"
-Write-Host "Keep in api\.env: SCRAPER_CDP_HEADLESS=true  SCRAPER_CDP_URL=http://127.0.0.1:9223"
+Write-Host "Keep in api\.env: SCRAPER_CDP_HEADLESS=false  SCRAPER_CDP_URL=http://127.0.0.1:9223"
+Write-Host "AnyDesk: only Disconnect - never Log off. Enable Autologon for this Windows user."
 Write-Host ""
 Write-Host "Website: install Node 20 LTS, then run deploy-website.ps1" -ForegroundColor Yellow
 Write-Host "Open: http://91.149.133.54/  and  http://91.149.133.54/cabinet/" -ForegroundColor Yellow

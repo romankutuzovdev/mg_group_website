@@ -93,7 +93,7 @@ if ($chromeSvc) {
   $chromeBat = Join-Path $apiDir "scripts\start-chrome-cdp.bat"
   if (Test-Path $chromeBat) {
     try {
-      $env:MG_CHROME_HEADLESS = "1"
+      $env:MG_CHROME_HEADLESS = "0"
       Start-Process -FilePath $chromeBat -WindowStyle Hidden | Out-Null
     } catch {
       Write-Host "  Chrome bat start skipped: $_" -ForegroundColor Yellow
