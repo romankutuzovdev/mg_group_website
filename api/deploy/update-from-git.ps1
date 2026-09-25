@@ -4,8 +4,8 @@ $ErrorActionPreference = "Stop"
 
 $AppDir = if ($env:APP_DIR) { $env:APP_DIR } else { "C:\mg-api" }
 $Branch = if ($env:BRANCH) { $env:BRANCH } else { "main" }
+$Port = if ($env:API_PORT) { [int]$env:API_PORT } else { 80 }
 $ServiceName = if ($env:SERVICE_NAME) { $env:SERVICE_NAME } else { "mg-api" }
-$Port = if ($env:API_PORT) { [int]$env:API_PORT } else { 8000 }
 
 $apiDir = Join-Path $AppDir "api"
 if (-not (Test-Path (Join-Path $AppDir ".git"))) {
@@ -46,6 +46,11 @@ New-Item -ItemType Directory -Force -Path $uploadsDir | Out-Null
 
 $svc = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($svc) {
+  $nssmExe = Join-Path $apiDir "deploy\nssm.exe"
+  if (Test-Path $nssmExe) {
+    Write-Host "==> NSSM: port $Port"
+    & $nssmExe set $ServiceName AppParameters "app.main:app --host 0.0.0.0 --port $Port" | Out-Null
+  }
   Write-Host "==> restart $ServiceName"
   Restart-Service -Name $ServiceName -Force
   Start-Sleep -Seconds 4

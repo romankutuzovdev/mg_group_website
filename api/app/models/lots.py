@@ -56,6 +56,8 @@ class AuctionLot(BaseModel):
     weightKg: float | None = None
     lotUrl: str | None = None
     imageUrls: list[str] | None = None
+    # ISO timestamp when gallery was fetched from lot detail page
+    photosEnrichedAt: str | None = None
 
 
 class LotListResponse(BaseModel):

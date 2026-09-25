@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     scraper_prune_ended: bool = True
     scraper_auction_grace_hours: float = 3
 
+    # Photo enricher — visits every lot card, collects full galleries, nonstop daily
+    scraper_photos_enabled: bool = True
+    scraper_photo_batch_size: int = 25  # lots per cycle before status tick
+    scraper_photo_delay_seconds: float = 2.5  # pause between lot pages
+    scraper_photo_idle_seconds: int = 300  # when queue empty, wait then re-check
+
     # Cabinet (Telegram Login Widget + JWT)
     telegram_bot_token: str = ""
     telegram_bot_username: str = ""

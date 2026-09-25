@@ -11,7 +11,7 @@ param(
   [string]$RepoUrl = "https://github.com/romankutuzovdev/mg_group_website.git",
   [string]$AppDir = "C:\mg-api",
   [string]$ServiceName = "mg-api",
-  [int]$Port = 8000,
+  [int]$Port = 80,
   [switch]$SkipService
 )
 

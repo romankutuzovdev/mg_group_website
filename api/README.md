@@ -152,9 +152,26 @@ curl http://127.0.0.1:8000/api/v1/scraper/status
 curl -X POST 'http://127.0.0.1:8000/api/v1/scraper/run-once?sources=all'
 curl -X POST http://127.0.0.1:8000/api/v1/scraper/start
 curl -X POST http://127.0.0.1:8000/api/v1/scraper/stop
+curl -X POST 'http://127.0.0.1:8000/api/v1/scraper/photos/run-once?limit=25'
 ```
 
-В `status` смотрите `browser_mode: cdp`, `shared_chrome: true`, у каждого агента `tab_open: true`.
+В `status` смотрите `browser_mode: cdp`, `shared_chrome: true`, у каждого агента `tab_open: true`, плюс блок `photos` (очередь галерей).
+
+### Фото с карточек лотов (нонстоп)
+
+Отдельная вкладка Chrome (`photos`) обходит **каждую** карточку из каталога (`lotUrl`), собирает все фотографии и пишет в `imageUrls` / `imageUrl`.
+
+- Включено по умолчанию: `SCRAPER_PHOTOS_ENABLED=true`
+- Между лотами пауза `SCRAPER_PHOTO_DELAY_SECONDS` (по умолчанию 2.5 с)
+- Когда очередь пуста — ждёт `SCRAPER_PHOTO_IDLE_SECONDS`, затем снова берёт новые лоты / следующий UTC-день
+- List-парсеры **не затирают** уже собранную галерею (merge upsert)
+
+```env
+SCRAPER_PHOTOS_ENABLED=true
+SCRAPER_PHOTO_BATCH_SIZE=25
+SCRAPER_PHOTO_DELAY_SECONDS=2.5
+SCRAPER_PHOTO_IDLE_SECONDS=300
+```
 
 ### Очистка закончившихся аукционов
 
@@ -208,8 +225,8 @@ powershell -ExecutionPolicy Bypass -File C:\mg-api\api\deploy\install-windows.ps
 1. Ставит venv + зависимости + Playwright Chromium в `C:\mg-api\api\.venv`
 2. Создаёт `api\data` / `api\data\uploads` (`cabinet.db` появится при первом старте)
 3. Копирует `.env.example` → `api\.env`, если файла ещё нет
-4. Регистрирует NSSM-службу **mg-api** (uvicorn `:8000`)
-5. Открывает firewall TCP 8000
+4. Регистрирует NSSM-службу **mg-api** (uvicorn `:80`)
+5. Открывает firewall TCP 80
 
 Заполните `C:\mg-api\api\.env` (Telegram, JWT, scraper). Для наполнения каталога лотов запустите Chrome с CDP:
 
@@ -240,4 +257,4 @@ Workflow: [`.github/workflows/deploy-api-windows.yml`](../.github/workflows/depl
 powershell -ExecutionPolicy Bypass -File C:\mg-api\api\deploy\update-from-git.ps1
 ```
 
-Скрипт **не трогает** `api\.env`, `api\data\cabinet.db`, `api\data\uploads` и существующий `generated-lots.json` — только код, зависимости и рестарт службы. Health: `http://127.0.0.1:8000/health`.
+Скрипт **не трогает** `api\.env`, `api\data\cabinet.db`, `api\data\uploads` и существующий `generated-lots.json` — только код, зависимости и рестарт службы. Health: `http://127.0.0.1/health` (порт **80**).

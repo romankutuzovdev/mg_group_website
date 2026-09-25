@@ -51,3 +51,11 @@ async def scraper_run_once(
 ) -> dict:
     """One crawl cycle in shared Chrome tabs (newly listed)."""
     return await scraper_worker.run_once(sources=sources)
+
+
+@router.post("/photos/run-once", dependencies=[Depends(_require_key)])
+async def scraper_photos_run_once(
+    limit: int = Query(25, ge=1, le=200),
+) -> dict:
+    """Visit up to `limit` lot detail pages and collect full photo galleries."""
+    return await scraper_worker.run_photos_once(limit=limit)

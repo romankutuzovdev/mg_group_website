@@ -42,6 +42,7 @@ from app.scraper.mapper import (
     map_salvage_market_row,
     map_encar_row,
 )
+from app.scraper.photo_enricher import PhotoEnrichmentAgent
 
 logger = logging.getLogger("mg.scraper")
 
@@ -287,6 +288,7 @@ class MultiAgentOrchestrator:
     def __init__(self) -> None:
         self.status = OrchestratorStatus()
         self._agents: dict[str, SourceAgent] = {}
+        self._photo_agent: PhotoEnrichmentAgent | None = None
         self._lock = asyncio.Lock()
         self._browser: Browser | None = None
         self._pw = None
@@ -345,6 +347,7 @@ class MultiAgentOrchestrator:
             }
             for name, a in self._agents.items()
         }
+        photos = self._photo_agent.snapshot() if self._photo_agent else None
         return {
             "running": self.status.running,
             "enabled": self.status.enabled,
@@ -356,6 +359,8 @@ class MultiAgentOrchestrator:
             "sources": settings.scraper_sources,
             "cdp_url": settings.scraper_cdp_url or None,
             "agents": agents,
+            "photos": photos,
+            "photos_enabled": settings.scraper_photos_enabled,
             "mode": "multi_agent_one_chrome_tabs",
             "cycles": sum(a.status.cycles for a in self._agents.values()),
             "total_new": sum(a.status.total_new for a in self._agents.values()),
@@ -388,6 +393,8 @@ class MultiAgentOrchestrator:
             self._stop.set()
             for agent in self._agents.values():
                 await agent.stop()
+            if self._photo_agent:
+                await self._photo_agent.stop()
             task = self._supervisor
         if task:
             try:
@@ -431,6 +438,26 @@ class MultiAgentOrchestrator:
             finally:
                 await close_browser(browser)
 
+    async def run_photos_once(self, *, limit: int = 25) -> dict[str, Any]:
+        """One-shot photo enrichment batch (separate Chrome attach)."""
+        settings = get_settings()
+        async with async_playwright() as pw:
+            browser = await launch_chromium(
+                pw,
+                headless=settings.scraper_headless,
+                cdp_url=settings.scraper_cdp_url or None,
+            )
+            try:
+                agent = PhotoEnrichmentAgent()
+                await agent.attach_tab(browser)
+                try:
+                    result = await agent.run_batch(browser, limit=limit)
+                finally:
+                    await agent.detach_tab()
+                return {"mode": "photos_run_once", "result": result}
+            finally:
+                await close_browser(browser)
+
     async def _supervise(self) -> None:
         settings = get_settings()
         try:
@@ -457,15 +484,24 @@ class MultiAgentOrchestrator:
             for agent in self._agents.values():
                 await agent.start(self._browser)
 
+            if settings.scraper_photos_enabled:
+                self._photo_agent = PhotoEnrichmentAgent()
+                await self._photo_agent.attach_tab(self._browser)
+                await self._photo_agent.start(self._browser)
+                logger.info("photo enricher started (lot cards → full galleries)")
+
             logger.info(
-                "shared Chrome ready mode=%s tabs=%s",
+                "shared Chrome ready mode=%s tabs=%s photos=%s",
                 self.status.browser_mode,
                 list(self._agents.keys()),
+                bool(self._photo_agent),
             )
             await self._stop.wait()
         except Exception as exc:
             logger.exception("supervisor failed: %s", exc)
         finally:
+            if self._photo_agent:
+                await self._photo_agent.stop()
             for agent in self._agents.values():
                 await agent.stop()
             await self._close_browser()

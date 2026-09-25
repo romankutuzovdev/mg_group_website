@@ -11,6 +11,55 @@ from app.models.lots import AuctionLot
 from app.services.auction_date import is_auction_ended
 
 
+def _dedupe_urls(urls: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for u in urls:
+        u = (u or "").strip()
+        if not u or not u.startswith("http"):
+            continue
+        if u in seen:
+            continue
+        seen.add(u)
+        out.append(u)
+    return out
+
+
+def merge_lot(old: AuctionLot | None, new: AuctionLot) -> AuctionLot:
+    """Merge upsert so list scrapes never wipe a richer photo gallery."""
+    if old is None:
+        return new
+
+    data = new.model_dump()
+    old_imgs = _dedupe_urls(list(old.imageUrls or []) + ([old.imageUrl] if old.imageUrl else []))
+    new_imgs = _dedupe_urls(list(new.imageUrls or []) + ([new.imageUrl] if new.imageUrl else []))
+
+    if len(old_imgs) > len(new_imgs):
+        merged = _dedupe_urls(old_imgs + new_imgs)
+        data["imageUrls"] = merged
+        data["imageUrl"] = merged[0] if merged else (new.imageUrl or old.imageUrl)
+    elif len(new_imgs) > len(old_imgs):
+        data["imageUrls"] = new_imgs
+        data["imageUrl"] = new_imgs[0] if new_imgs else new.imageUrl
+    else:
+        merged = _dedupe_urls(old_imgs + new_imgs)
+        if merged:
+            data["imageUrls"] = merged
+            data["imageUrl"] = merged[0]
+
+    # Keep enrichment stamp unless the new lot brings a fresher one
+    if old.photosEnrichedAt and not new.photosEnrichedAt:
+        data["photosEnrichedAt"] = old.photosEnrichedAt
+    elif new.photosEnrichedAt:
+        data["photosEnrichedAt"] = new.photosEnrichedAt
+
+    # Prefer existing lotUrl if new is empty
+    if old.lotUrl and not new.lotUrl:
+        data["lotUrl"] = old.lotUrl
+
+    return AuctionLot.model_validate(data)
+
+
 class LotStore:
     """In-memory lot catalog. Seeded from generated-lots.json; scrapers upsert here."""
 
@@ -55,11 +104,12 @@ class LotStore:
     def upsert(self, lot: AuctionLot) -> AuctionLot:
         with self._lock:
             old = self._by_id.get(lot.id)
-            if old and old.slug != lot.slug:
+            merged = merge_lot(old, lot)
+            if old and old.slug != merged.slug:
                 self._by_slug.pop(old.slug, None)
-            self._by_id[lot.id] = lot
-            self._by_slug[lot.slug] = lot
-            return lot
+            self._by_id[merged.id] = merged
+            self._by_slug[merged.slug] = merged
+            return merged
 
     def upsert_many(self, lots: list[AuctionLot]) -> tuple[int, int]:
         """Returns (upserted_total, newly_added)."""
@@ -69,11 +119,36 @@ class LotStore:
                 if lot.id not in self._by_id:
                     new_count += 1
                 old = self._by_id.get(lot.id)
-                if old and old.slug != lot.slug:
+                merged = merge_lot(old, lot)
+                if old and old.slug != merged.slug:
                     self._by_slug.pop(old.slug, None)
-                self._by_id[lot.id] = lot
-                self._by_slug[lot.slug] = lot
+                self._by_id[merged.id] = merged
+                self._by_slug[merged.slug] = merged
         return len(lots), new_count
+
+    def update_photos(
+        self,
+        lot_id: str,
+        image_urls: list[str],
+        *,
+        enriched_at: str | None = None,
+    ) -> AuctionLot | None:
+        """Replace gallery for one lot (used by photo enricher)."""
+        urls = _dedupe_urls(image_urls)
+        if not urls:
+            return None
+        with self._lock:
+            old = self._by_id.get(lot_id)
+            if not old:
+                return None
+            data = old.model_dump()
+            data["imageUrls"] = urls
+            data["imageUrl"] = urls[0]
+            data["photosEnrichedAt"] = enriched_at or datetime.now(timezone.utc).isoformat()
+            lot = AuctionLot.model_validate(data)
+            self._by_id[lot.id] = lot
+            self._by_slug[lot.slug] = lot
+            return lot
 
     def delete(self, lot_id: str) -> bool:
         with self._lock:

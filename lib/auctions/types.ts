@@ -71,6 +71,7 @@ export type AuctionLot = {
   /** External auction / aggregator URL */
   lotUrl?: string;
   imageUrls?: string[];
+  photosEnrichedAt?: string;
   /** Seeded / placeholder inventory — keep noindex until real feed */
   _demo?: boolean;
 };
