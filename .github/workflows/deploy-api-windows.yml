@@ -6,8 +6,8 @@
 #   SSH_PORT         — опционально, по умолчанию 22
 #   APP_DIR          — опционально, по умолчанию C:\mg-api
 #
-# Без SSH_HOST job пропускается (не краснеет CI). После добавления секретов
-# push в api/** снова будет деплоить автоматически.
+# Без SSH_HOST шаг деплоя пропускается (CI зелёный). Secrets нельзя проверять
+# в jobs.*.if — только внутри steps (ограничение GitHub Actions).
 #
 # Один раз на сервере:
 #   git clone https://github.com/romankutuzovdev/mg_group_website.git C:\mg-api
@@ -26,23 +26,23 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Не вызывать appleboy без host — иначе "Error: missing server host"
-    if: ${{ secrets.SSH_HOST != '' }}
     steps:
-      - name: Require SSH secrets
+      - name: Check SSH secrets
+        id: cfg
         env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          missing=0
-          if [ -z "$SSH_USER" ]; then echo "Missing secret: SSH_USER"; missing=1; fi
-          if [ -z "$SSH_PRIVATE_KEY" ]; then echo "Missing secret: SSH_PRIVATE_KEY"; missing=1; fi
-          if [ "$missing" -ne 0 ]; then
-            echo "::error::Add SSH_HOST, SSH_USER, SSH_PRIVATE_KEY in repo Settings → Secrets → Actions"
-            exit 1
+          if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ -z "$SSH_PRIVATE_KEY" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "SSH secrets not set — skipping Windows deploy (add SSH_HOST, SSH_USER, SSH_PRIVATE_KEY)."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Deploy over SSH (Windows)
+        if: steps.cfg.outputs.configured == 'true'
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
