@@ -14,7 +14,7 @@ from app.models.lots import (
     LotListResponse,
     LotMetaResponse,
 )
-from app.services.auction_date import active_lots, is_auction_ended
+from app.services.auction_date import active_lots
 from app.services.filter_lots import LotFilters, filter_lots, unique_sorted
 
 router = APIRouter(prefix="/lots", tags=["lots"])
@@ -157,14 +157,10 @@ def lots_meta() -> LotMetaResponse:
 
 @router.get("/{slug}", response_model=AuctionLot)
 def get_lot(slug: str) -> AuctionLot:
+    """Lot detail — include ended lots so /auctions/{{slug}} can show closed state."""
     lot = lot_store.get_by_slug(slug) or lot_store.get_by_id(slug)
     if not lot:
         raise HTTPException(status_code=404, detail="Lot not found")
-    settings = get_settings()
-    if settings.scraper_prune_ended and is_auction_ended(
-        lot, grace_hours=settings.scraper_auction_grace_hours
-    ):
-        raise HTTPException(status_code=404, detail="Lot auction ended")
     return lot
 
 

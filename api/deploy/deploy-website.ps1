@@ -45,8 +45,8 @@ npm ci
 Write-Host "==> next build (SSG API_URL=$ApiUrl; browser = same-origin /api)"
 $env:API_URL = $ApiUrl
 Remove-Item Env:NEXT_PUBLIC_API_URL -ErrorAction SilentlyContinue
-$env:SEO_AUCTION_SSG_LIMIT = "0"
-$env:SEO_AUCTION_SITEMAP_LIMIT = if ($env:SEO_AUCTION_SITEMAP_LIMIT) { $env:SEO_AUCTION_SITEMAP_LIMIT } else { "500" }
+$env:SEO_AUCTION_SSG_LIMIT = if ($env:SEO_AUCTION_SSG_LIMIT) { $env:SEO_AUCTION_SSG_LIMIT } else { "2500" }
+$env:SEO_AUCTION_SITEMAP_LIMIT = if ($env:SEO_AUCTION_SITEMAP_LIMIT) { $env:SEO_AUCTION_SITEMAP_LIMIT } else { "5000" }
 npm run build
 if ($LASTEXITCODE -ne 0) {
   throw "next build failed (exit $LASTEXITCODE) - refusing to deploy stale out/"

@@ -61,8 +61,7 @@ export function resolveLotImageUrl(
       process.env.NODE_ENV === "production" ||
       Boolean(imageProxyBase()) ||
       process.env.NEXT_PUBLIC_FORCE_IMAGE_PROXY === "1";
-    if (useProxy && (isAuctionCdnUrl(trimmed) || isCopartCdnUrl(trimmed) || true)) {
-      // Proxy all absolute images in production so Windows matches local UX
+    if (useProxy) {
       return proxyLotImageUrl(trimmed);
     }
     return trimmed;
