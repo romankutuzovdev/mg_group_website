@@ -5,7 +5,7 @@
 #   powershell -ExecutionPolicy Bypass -File api\deploy\install-chrome-cdp-service.ps1
 
 param(
-  [string]$AppDir = "C:\mg_group_website",
+  [string]$AppDir = "C:\mg-api",
   [string]$ServiceName = "mg-chrome-cdp",
   [int]$Port = 9223
 )
@@ -49,7 +49,7 @@ $profileDir = Join-Path $apiDir "data\chrome-profile"
 $dataDir = Join-Path $apiDir "data"
 
 if (-not (Test-Path $watchdog)) {
-  throw "Missing $watchdog — pull latest repo first."
+  throw "Missing $watchdog - pull latest repo first."
 }
 New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null

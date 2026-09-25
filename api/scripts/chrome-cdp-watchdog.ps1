@@ -1,5 +1,5 @@
 # Watchdog: keep headless Chrome CDP alive outside AnyDesk / RDP sessions.
-# Installed as Windows service `mg-chrome-cdp` (NSSM) — Session 0 / LOCAL SYSTEM.
+# Installed as Windows service `mg-chrome-cdp` (NSSM) - Session 0 / LOCAL SYSTEM.
 # Do NOT run interactive (visible) Chrome for scrapers if you disconnect remote desktop.
 
 param(
@@ -91,7 +91,7 @@ Write-Host "mg-chrome-cdp watchdog: port=$Port profile=$ProfileDir chrome=$chrom
 
 while ($true) {
   if (-not (Test-Cdp $Port)) {
-    Write-Host "$(Get-Date -Format o) CDP down — restarting headless Chrome"
+    Write-Host "$(Get-Date -Format o) CDP down - restarting headless Chrome"
     Stop-PortListeners $Port
     Start-Sleep -Seconds 1
     try {

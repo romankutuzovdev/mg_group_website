@@ -59,7 +59,7 @@ if ($env:SKIP_SERVICE_RESTART -eq "1") {
     Start-Sleep -Seconds 4
     Get-Service -Name $ServiceName | Format-List Name, Status
   } else {
-    Write-Host "Service $ServiceName not found — start uvicorn manually." -ForegroundColor Yellow
+    Write-Host "Service $ServiceName not found - start uvicorn manually." -ForegroundColor Yellow
   }
 }
 
