@@ -1,8 +1,9 @@
 """Ensure Google Chrome is listening on the scraper CDP port.
 
-Copart/IAAI need a real HEADED Chrome window (not --headless=new).
-Keep it alive with chrome-cdp-watchdog.ps1 + Autologon: disconnect AnyDesk,
-do not Log off Windows. Profile: api/data/chrome-profile.
+Uses the interactive user's real Chrome profile by default
+(%LOCALAPPDATA%\\Google\\Chrome\\User Data) so Web Store extensions and
+auction logins are the same as normal browsing. Prefer chrome-cdp-watchdog.ps1
+in an AnyDesk session — do not Log off Windows.
 """
 
 from __future__ import annotations
@@ -21,9 +22,18 @@ from urllib.parse import urlparse
 
 logger = logging.getLogger("mg.scraper.chrome_cdp")
 
-# Stable path even when NSSM runs as LOCAL SYSTEM (LOCALAPPDATA is useless there).
 _API_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_PROFILE = _API_ROOT / "data" / "chrome-profile"
+
+
+def _default_user_chrome_profile() -> Path:
+    local = os.environ.get("LOCALAPPDATA", "").strip()
+    if local:
+        return Path(local) / "Google" / "Chrome" / "User Data"
+    # Fallback only when LOCALAPPDATA missing (e.g. odd service account)
+    return _API_ROOT / "data" / "chrome-profile"
+
+
+DEFAULT_PROFILE = _default_user_chrome_profile()
 
 
 def _parse_cdp_port(cdp_url: str) -> int | None:
@@ -234,17 +244,25 @@ def _launch_chrome(port: int, *, headless: bool) -> None:
     user_data = _user_data_dir()
     user_data.mkdir(parents=True, exist_ok=True)
     _clear_profile_locks(user_data)
-    _force_enable_extensions(user_data)
+    # Do not rewrite Preferences on the user's real Chrome profile unless forced
+    if (os.environ.get("SCRAPER_CHROME_FORCE_ENABLE_EXTENSIONS") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }:
+        _force_enable_extensions(user_data)
+
+    profile_dir_name = (os.environ.get("SCRAPER_CHROME_PROFILE_DIRECTORY") or "Default").strip() or "Default"
 
     args = [
         str(exe),
         f"--remote-debugging-port={port}",
         "--remote-allow-origins=*",
         f"--user-data-dir={str(user_data)}",
+        f"--profile-directory={profile_dir_name}",
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-dev-shm-usage",
-        "--disable-background-networking",
         "--disable-features=Translate,BackForwardCache",
         "--enable-extensions",
         "--disable-extensions-file-access-check",

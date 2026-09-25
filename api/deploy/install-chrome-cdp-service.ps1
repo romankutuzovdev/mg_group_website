@@ -65,23 +65,33 @@ Assert-Admin
 $apiDir = Join-Path $AppDir "api"
 $deployDir = Join-Path $apiDir "deploy"
 $watchdog = Join-Path $apiDir "scripts\chrome-cdp-watchdog.ps1"
-$profileDir = Join-Path $apiDir "data\chrome-profile"
 $dataDir = Join-Path $apiDir "data"
+$userChrome = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data"
+$profileDir = if ($env:SCRAPER_CHROME_USER_DATA) {
+  $env:SCRAPER_CHROME_USER_DATA
+} elseif (Test-Path $userChrome) {
+  $userChrome
+} else {
+  Join-Path $apiDir "data\chrome-profile"
+}
 $envFile = Join-Path $apiDir ".env"
 $taskName = "MG-Chrome-CDP"
 
 if (-not (Test-Path $watchdog)) {
   throw "Missing $watchdog - pull latest repo first."
 }
-New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+if (-not (Test-Path $profileDir)) {
+  New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+}
 
-# API must attach to headed Chrome
+# API must attach to headed Chrome (YOUR default profile)
 if (Test-Path $envFile) {
   Set-EnvValue $envFile "SCRAPER_CDP_URL" "http://127.0.0.1:$Port"
   Set-EnvValue $envFile "SCRAPER_CDP_HEADLESS" "false"
   Set-EnvValue $envFile "SCRAPER_CDP_AUTOSTART" "true"
   Set-EnvValue $envFile "SCRAPER_CDP_FALLBACK_LAUNCH" "false"
+  Set-EnvValue $envFile "SCRAPER_CHROME_USER_DATA" $profileDir
 }
 
 # Keep Terminal/AnyDesk session after disconnect (no forced logoff)

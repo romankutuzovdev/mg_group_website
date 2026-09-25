@@ -12,7 +12,8 @@ param(
 $ErrorActionPreference = "Continue"
 $apiDir = Join-Path $AppDir "api"
 $watchdog = Join-Path $apiDir "scripts\chrome-cdp-watchdog.ps1"
-$profileDir = Join-Path $apiDir "data\chrome-profile"
+# Empty = user's real Chrome (%LOCALAPPDATA%\Google\Chrome\User Data)
+$profileDir = if ($env:SCRAPER_CHROME_USER_DATA) { $env:SCRAPER_CHROME_USER_DATA } else { "" }
 $psExe = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 
 if (-not (Test-Path $watchdog)) {
@@ -45,14 +46,26 @@ try {
   }
 } catch {}
 
-# Drop stale profile locks (Chrome left after crash)
-foreach ($lockName in @("SingletonLock", "SingletonCookie", "SingletonSocket", "lockfile")) {
-  $p = Join-Path $profileDir $lockName
-  if (Test-Path $p) { Remove-Item $p -Force -ErrorAction SilentlyContinue }
+# Drop stale profile locks only when we know the profile path
+if ($profileDir) {
+  foreach ($lockName in @("SingletonLock", "SingletonCookie", "SingletonSocket", "lockfile")) {
+    $p = Join-Path $profileDir $lockName
+    if (Test-Path $p) { Remove-Item $p -Force -ErrorAction SilentlyContinue }
+  }
 }
 
-Write-Host "==> start headed watchdog in interactive session"
-$watchdogArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$watchdog`" -Port $Port -ProfileDir `"$profileDir`" -Headless 0"
+Write-Host "==> start YOUR Google Chrome (default profile) with CDP"
+# Close any Chrome using the default profile so we can attach remote debugging
+Get-Process chrome -ErrorAction SilentlyContinue | ForEach-Object {
+  try { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue } catch {}
+}
+Start-Sleep -Seconds 2
+
+$watchdogArgs = if ($profileDir) {
+  "-NoProfile -ExecutionPolicy Bypass -File `"$watchdog`" -Port $Port -ProfileDir `"$profileDir`" -Headless 0"
+} else {
+  "-NoProfile -ExecutionPolicy Bypass -File `"$watchdog`" -Port $Port -Headless 0"
+}
 Start-Process -FilePath $psExe -ArgumentList $watchdogArgs -WorkingDirectory $apiDir -WindowStyle Minimized
 
 $ok = $false

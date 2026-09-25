@@ -93,6 +93,10 @@ if (Test-Path $envFile) {
   Set-EnvValue $envFile "SCRAPER_CDP_HEADLESS" "false"
   Set-EnvValue $envFile "SCRAPER_CDP_FALLBACK_LAUNCH" "false"
   Set-EnvValue $envFile "SCRAPER_SOURCES" "copart,iaai,copart_uk,manheim,salvage_market,encar"
+  $userChrome = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data"
+  if (Test-Path $userChrome) {
+    Set-EnvValue $envFile "SCRAPER_CHROME_USER_DATA" $userChrome
+  }
 }
 
 Write-Host "==> Python deps"
@@ -130,9 +134,17 @@ $env:PLAYWRIGHT_BROWSERS_PATH = $pwBrowsers
 $dataDir = Join-Path $apiDir "data"
 $uploadsDir = Join-Path $dataDir "uploads"
 $profileDir = Join-Path $dataDir "chrome-profile"
+$userChrome = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data"
+if (-not $env:SCRAPER_CHROME_USER_DATA -and (Test-Path $userChrome)) {
+  $profileDir = $userChrome
+} elseif ($env:SCRAPER_CHROME_USER_DATA) {
+  $profileDir = $env:SCRAPER_CHROME_USER_DATA
+}
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 New-Item -ItemType Directory -Force -Path $uploadsDir | Out-Null
-New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+if ($profileDir -and $profileDir -notmatch 'Google\\Chrome\\User Data') {
+  New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+}
 
 if ($env:SKIP_CHROME -ne "1") {
   Write-Host "==> ensure HEADED Chrome CDP (tabs for scrapers)"
