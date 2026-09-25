@@ -62,6 +62,22 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Stale DNS may still hit this Windows box for mg-group.by over HTTP.
+    # Send browsers to Vercel HTTPS; leave IP / nip.io hosts alone (API proxy).
+    _canonical = "https://www.mg-group.by"
+    _redirect_hosts = {"mg-group.by", "www.mg-group.by"}
+
+    @app.middleware("http")
+    async def redirect_domain_to_vercel_https(request: Request, call_next):
+        host = (request.headers.get("host") or "").split(":")[0].strip().lower()
+        if host in _redirect_hosts:
+            path = request.url.path or "/"
+            target = f"{_canonical}{path}"
+            if request.url.query:
+                target = f"{target}?{request.url.query}"
+            return RedirectResponse(url=target, status_code=308)
+        return await call_next(request)
+
     prefix = settings.api_prefix
     app.include_router(health.router)
     app.include_router(lots.router, prefix=prefix)
