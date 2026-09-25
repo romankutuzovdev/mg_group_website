@@ -71,18 +71,85 @@ try {
 
 New-Item -ItemType Directory -Force -Path $caddyDir | Out-Null
 
-if (-not (Test-Path $caddyExe)) {
-  Write-Host "==> download Caddy (windows amd64)"
-  $zip = Join-Path $env:TEMP "caddy-windows-amd64.zip"
-  # Official release asset naming varies; use caddyserver download API
-  $url = "https://caddyserver.com/api/download?os=windows&arch=amd64"
-  Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-  Expand-Archive -Path $zip -DestinationPath $caddyDir -Force
-  if (-not (Test-Path $caddyExe)) {
-    $found = Get-ChildItem -Path $caddyDir -Recurse -Filter "caddy.exe" | Select-Object -First 1
-    if (-not $found) { throw "caddy.exe not found after download" }
-    Copy-Item $found.FullName $caddyExe -Force
+function Install-CaddyExe {
+  param([string]$DestExe, [string]$DestDir)
+
+  # Prefer GitHub release ZIP (plain Deflate). The caddyserver.com/api/download
+  # build often produces archives that Expand-Archive rejects
+  # ("spanned/split archives not supported" / "составные архивы не поддерживаются").
+  $version = "2.11.4"
+  $zipName = "caddy_${version}_windows_amd64.zip"
+  $urls = [System.Collections.Generic.List[string]]::new()
+  $urls.Add("https://github.com/caddyserver/caddy/releases/download/v$version/$zipName")
+  try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/caddyserver/caddy/releases/latest" -Headers @{ "User-Agent" = "mg-group-ssl" }
+    $asset = $rel.assets | Where-Object { $_.name -match 'windows_amd64\.zip$' -and $_.name -notmatch '\.sig$' } | Select-Object -First 1
+    if ($asset -and $asset.browser_download_url) {
+      $urls.Insert(0, [string]$asset.browser_download_url)
+    }
+  } catch {
+    Write-Host "  (latest release lookup skipped: $_)" -ForegroundColor DarkGray
   }
+
+  $zip = Join-Path $env:TEMP "caddy-windows-amd64.zip"
+  $ok = $false
+  foreach ($url in $urls) {
+    Write-Host "==> download Caddy: $url"
+    try {
+      if (Test-Path $zip) { Remove-Item $zip -Force }
+      # TLS 1.2 + long timeout; avoid partial HTML/error bodies
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing -TimeoutSec 300
+      $len = (Get-Item $zip).Length
+      if ($len -lt 1MB) {
+        Write-Host "  skip: file too small ($len bytes) - not a real release zip" -ForegroundColor Yellow
+        continue
+      }
+      $fs = [IO.File]::OpenRead($zip)
+      try {
+        $b0 = $fs.ReadByte(); $b1 = $fs.ReadByte()
+      } finally { $fs.Close() }
+      if ($b0 -ne 0x50 -or $b1 -ne 0x4B) {
+        Write-Host "  skip: not a ZIP (missing PK header)" -ForegroundColor Yellow
+        continue
+      }
+      $ok = $true
+      break
+    } catch {
+      Write-Host "  download failed: $_" -ForegroundColor Yellow
+    }
+  }
+  if (-not $ok) {
+    throw "Could not download a valid Caddy windows_amd64.zip from GitHub."
+  }
+
+  $extract = Join-Path $env:TEMP ("caddy-extract-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Force -Path $extract | Out-Null
+  try {
+    # tar.exe (Win10+) handles more ZIP variants than Expand-Archive
+    $tar = Get-Command tar.exe -ErrorAction SilentlyContinue
+    if ($tar) {
+      & tar.exe -xf $zip -C $extract
+      if ($LASTEXITCODE -ne 0) { throw "tar extract failed ($LASTEXITCODE)" }
+    } else {
+      Expand-Archive -Path $zip -DestinationPath $extract -Force
+    }
+    $found = Get-ChildItem -Path $extract -Recurse -Filter "caddy.exe" | Select-Object -First 1
+    if (-not $found) { throw "caddy.exe missing inside $zip" }
+    Copy-Item $found.FullName $DestExe -Force
+  } finally {
+    Remove-Item $extract -Recurse -Force -ErrorAction SilentlyContinue
+  }
+
+  if (-not (Test-Path $DestExe)) {
+    throw "caddy.exe not installed at $DestExe"
+  }
+  Write-Host "==> caddy.exe ready: $DestExe ($((Get-Item $DestExe).Length) bytes)"
+}
+
+if (-not (Test-Path $caddyExe)) {
+  Install-CaddyExe -DestExe $caddyExe -DestDir $caddyDir
 }
 
 Write-Host "==> write Caddyfile"
