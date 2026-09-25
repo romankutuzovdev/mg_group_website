@@ -31,8 +31,10 @@ jobs:
 
       - name: Build
         env:
-          # Live catalog from Windows API → SSG catalog + sitemap; lots via CF Function
-          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://91.149.133.54' }}
+          # Server-only for SSG (catalog/sitemap). Never NEXT_PUBLIC_* with http://
+          # or the browser on https://mg-group.by will Mixed-Content-block the API.
+          # Client always uses same-origin /api/v1 → Pages Function → Windows API.
+          API_URL: ${{ vars.API_URL || 'http://91.149.133.54' }}
           SEO_AUCTION_SSG_LIMIT: "0"
           SEO_AUCTION_SITEMAP_LIMIT: "5000"
         run: npm run build

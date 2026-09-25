@@ -1,22 +1,28 @@
 /**
  * Backend base URL.
  *
- * Site + API are served together from the Windows server (uvicorn).
- * In the browser always use same-origin `/api/v1/*` — works for both
- * http://91.149.133.54 and https://mg-group.by (CF Flexible → origin HTTP).
- * Node SSG / scripts still use NEXT_PUBLIC_API_URL / API_URL.
+ * Browser: always same-origin "" so https://mg-group.by calls /api/v1/*
+ * (Pages Function or uvicorn StaticFiles) — never http:// IP (Mixed Content).
+ * Node SSG: API_URL only (do not set NEXT_PUBLIC_API_URL to http://).
  */
-const DEFAULT_API = "http://91.149.133.54";
+const DEFAULT_API = "http://127.0.0.1";
 
 export function getApiBaseUrl(): string {
+  // Browser / hydrated client: same-origin only
   if (typeof window !== "undefined") {
     return "";
   }
-  return (
+  const fromEnv = (
     process.env.API_URL?.trim() ||
     process.env.NEXT_PUBLIC_API_URL?.trim() ||
     DEFAULT_API
   ).replace(/\/$/, "");
+  // Guard: never hand an http:// absolute URL to code that might run in HTTPS pages
+  if (/^http:\/\//i.test(fromEnv) && process.env.NODE_ENV === "production") {
+    // SSG on CI is fine with http:// to the Windows box
+    return fromEnv;
+  }
+  return fromEnv;
 }
 
 export function isApiEnabled(): boolean {
