@@ -134,8 +134,13 @@ class SourceAgent:
         self._page: Page | None = None
         self._browser_dead = asyncio.Event()
 
-    async def attach_tab(self, browser: Browser) -> Page:
-        """Open (or reuse) this agent's tab in the shared Chrome window."""
+    async def attach_tab(self, browser: Browser, *, warm: bool = False) -> Page:
+        """Open (or reuse) this agent's tab in the shared Chrome window.
+
+        ``warm=False`` (default): open blank tab quickly so the agent loop can start.
+        Scrapers navigate themselves. Warming all auction URLs at attach blocks startup
+        for minutes behind Copart/IAAI bot walls.
+        """
         if self._page is not None and not self._page.is_closed():
             self.status.tab_open = True
             return self._page
@@ -143,7 +148,7 @@ class SourceAgent:
         self._page = await open_agent_tab(
             ctx,
             label=self.name,
-            url=AGENT_WARM_URLS.get(self.name),
+            url=AGENT_WARM_URLS.get(self.name) if warm else None,
         )
         self.status.tab_open = True
         return self._page
@@ -537,12 +542,15 @@ class MultiAgentOrchestrator:
 
                 for i, agent in enumerate(self._agents.values()):
                     agent._browser_dead = asyncio.Event()
-                    await agent.attach_tab(self._browser)
-                    # Stagger first navigations — parallel goto kills headless Chrome
-                    await asyncio.sleep(2.0 + i * 1.5)
+                    await agent.attach_tab(self._browser, warm=False)
+                    await asyncio.sleep(0.4)
                 for i, agent in enumerate(self._agents.values()):
                     await agent.start(self._browser)
-                    await asyncio.sleep(3.0)
+                    await asyncio.sleep(0.8)
+                logger.info(
+                    "agents started: %s — first scrape cycles running in Chrome tabs",
+                    ", ".join(self._agents.keys()),
+                )
 
                 if settings.scraper_photos_enabled:
                     self._photo_agent = PhotoEnrichmentAgent()
