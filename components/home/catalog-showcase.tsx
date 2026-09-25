@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { LinkButton } from "@/components/site/button";
-import { getCatalogLots } from "@/lib/auctions/repository";
-import type { AuctionRegion } from "@/lib/auctions/types";
+import type { AuctionLot, AuctionRegion } from "@/lib/auctions/types";
 import { REGION_LABELS } from "@/lib/auctions/types";
 import { getMakesForRegion } from "@/lib/catalog";
 
@@ -18,12 +17,18 @@ const TABS: RegionTab[] = [
   { id: "uk", href: "/avto/uk/", label: REGION_LABELS.uk },
 ];
 
-type MakeBucket = {
+export type ShowcaseMakeBucket = {
   make: string;
   count: number;
   minBid: number;
   currency: "USD" | "GBP" | "KRW";
   href: string;
+};
+
+export type CatalogShowcaseData = {
+  total: number;
+  counts: Record<AuctionRegion, number>;
+  topMakesUsa: ShowcaseMakeBucket[];
 };
 
 function makeHref(region: AuctionRegion, makeName: string) {
@@ -42,10 +47,18 @@ function formatMoney(amount: number, currency: string) {
   }).format(amount);
 }
 
-function topMakes(region: AuctionRegion, limit = 8): MakeBucket[] {
-  const byMake = new Map<string, MakeBucket>();
-  for (const lot of getCatalogLots()) {
-    if (lot.region !== region) continue;
+export function buildCatalogShowcaseData(lots: AuctionLot[]): CatalogShowcaseData {
+  const counts = {
+    usa: 0,
+    china: 0,
+    korea: 0,
+    uk: 0,
+  } as Record<AuctionRegion, number>;
+  const byMake = new Map<string, ShowcaseMakeBucket>();
+
+  for (const lot of lots) {
+    if (lot.region in counts) counts[lot.region] += 1;
+    if (lot.region !== "usa") continue;
     const key = lot.make.trim().toLowerCase();
     if (!key) continue;
     const existing = byMake.get(key);
@@ -55,7 +68,7 @@ function topMakes(region: AuctionRegion, limit = 8): MakeBucket[] {
         count: 1,
         minBid: lot.currentBid,
         currency: lot.currency,
-        href: makeHref(region, lot.make),
+        href: makeHref("usa", lot.make),
       });
     } else {
       existing.count += 1;
@@ -65,20 +78,20 @@ function topMakes(region: AuctionRegion, limit = 8): MakeBucket[] {
       }
     }
   }
-  return [...byMake.values()].sort((a, b) => b.count - a.count).slice(0, limit);
+
+  return {
+    total: lots.length,
+    counts,
+    topMakesUsa: [...byMake.values()].sort((a, b) => b.count - a.count).slice(0, 8),
+  };
 }
 
-export function CatalogShowcase() {
-  const lots = getCatalogLots();
-  const total = lots.length;
-  const counts = TABS.reduce(
-    (acc, tab) => {
-      acc[tab.id] = lots.filter((l) => l.region === tab.id).length;
-      return acc;
-    },
-    {} as Record<AuctionRegion, number>,
-  );
-  const buckets = topMakes("usa", 8);
+export function CatalogShowcase({
+  data = { total: 0, counts: { usa: 0, china: 0, korea: 0, uk: 0 }, topMakesUsa: [] },
+}: {
+  data?: CatalogShowcaseData;
+}) {
+  const { total, counts, topMakesUsa: buckets } = data;
 
   return (
     <section id="catalog-showcase" className="border-t border-border bg-white py-14 md:py-20">
@@ -116,7 +129,7 @@ export function CatalogShowcase() {
             >
               <p className="text-sm font-semibold text-zinc-900">{tab.label}</p>
               <p className="mt-1 font-display text-2xl font-bold tabular-nums text-[#0D3F10]">
-                {counts[tab.id].toLocaleString("ru-RU")}
+                {(counts[tab.id] || 0).toLocaleString("ru-RU")}
               </p>
               <p className="mt-0.5 text-[11px] text-zinc-500">лотов в каталоге</p>
             </Link>

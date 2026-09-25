@@ -61,7 +61,7 @@ def merge_lot(old: AuctionLot | None, new: AuctionLot) -> AuctionLot:
 
 
 class LotStore:
-    """In-memory lot catalog. Seeded from generated-lots.json; scrapers upsert here."""
+    """In-memory lot catalog. Seeded from api/data/lots.json; scrapers upsert here."""
 
     def __init__(self) -> None:
         self._lock = threading.RLock()

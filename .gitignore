@@ -36,8 +36,12 @@ api/data/*.db-wal
 api/data/*.db-shm
 api/data/uploads/
 api/data/chrome-profile/
+api/data/lots.json
 api/data/*.log
 api/data/service-*.log
+
+# Legacy lot dump (catalog comes from API)
+lib/auctions/generated-lots.json
 
 # NSSM binary downloaded by setup-windows.ps1
 api/deploy/nssm.exe

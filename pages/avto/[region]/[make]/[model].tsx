@@ -11,8 +11,8 @@ import {
 } from "@/components/catalog/seo";
 import { CityNavLinks, SeoCta, SeoFaq } from "@/components/seo/seo-blocks";
 import { PageShell } from "@/components/layout/page-shell";
+import { buildSeoInventory } from "@/lib/auctions/seo-inventory";
 import {
-  allCatalogPaths,
   catalogPath,
   getMake,
   getModel,
@@ -165,14 +165,15 @@ export default function AvtoModelPage({
   );
 }
 
-export const getStaticPaths: GetStaticPaths = async () => ({
-  paths: allCatalogPaths()
-    .filter((p) => p.make && p.model)
-    .map((p) => ({
-      params: { region: p.region, make: p.make!, model: p.model! },
+export const getStaticPaths: GetStaticPaths = async () => {
+  const { modelPaths } = await buildSeoInventory();
+  return {
+    paths: modelPaths.map((p) => ({
+      params: { region: p.region, make: p.make, model: p.model },
     })),
-  fallback: false,
-});
+    fallback: false,
+  };
+};
 
 export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
   const region = getRegion(ctx.params?.region as string);

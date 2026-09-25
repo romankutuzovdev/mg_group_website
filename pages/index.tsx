@@ -2,7 +2,8 @@ import { GetStaticProps } from "next";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
 import type { AuctionLot } from "@/lib/auctions/types";
-import { loadFeaturedLiveLots } from "@/lib/auctions/repository";
+import { loadCatalogLots, loadFeaturedLiveLots } from "@/lib/auctions/repository";
+import { pickDiverseAuctionLotsFrom } from "@/lib/auctions/example-picks";
 import Hero from "@/components/Hero";
 import Benefits from "@/components/Benefits";
 import CarFinder from "@/components/CarFinder";
@@ -10,7 +11,11 @@ import Parts from "@/components/Parts";
 import SEO from "@/components/SEO";
 import { PartnersTicker } from "@/components/home/partners-ticker";
 import { StatsBar } from "@/components/home/stats-bar";
-import { CatalogShowcase } from "@/components/home/catalog-showcase";
+import {
+  CatalogShowcase,
+  buildCatalogShowcaseData,
+  type CatalogShowcaseData,
+} from "@/components/home/catalog-showcase";
 import { LiveAuctions } from "@/components/home/live-auctions";
 import { Services } from "@/components/home/services";
 import { PopularModels } from "@/components/home/popular-models";
@@ -23,18 +28,20 @@ import { CtaSection } from "@/components/home/cta-section";
 interface HomeProps {
   dictionary: Dictionary;
   featuredLots: AuctionLot[];
+  showcase: CatalogShowcaseData;
+  popularLots: AuctionLot[];
 }
 
-export default function Home({ dictionary, featuredLots }: HomeProps) {
+export default function Home({ dictionary, featuredLots, showcase, popularLots }: HomeProps) {
   return (
     <>
       <SEO dictionary={dictionary} lang="ru" />
       <Hero dictionary={dictionary} />
       <PartnersTicker />
       <StatsBar />
-      <CatalogShowcase />
+      <CatalogShowcase data={showcase} />
       <LiveAuctions initialLots={featuredLots} />
-      <PopularModels />
+      <PopularModels lots={popularLots} />
       <Benefits dictionary={dictionary} />
       <Services />
       <Parts dictionary={dictionary} />
@@ -50,12 +57,17 @@ export default function Home({ dictionary, featuredLots }: HomeProps) {
 
 export const getStaticProps: GetStaticProps = async () => {
   const dictionary = getDictionary();
-  const featuredLots = await loadFeaturedLiveLots(4);
+  const [featuredLots, catalogLots] = await Promise.all([
+    loadFeaturedLiveLots(4),
+    loadCatalogLots(),
+  ]);
 
   return {
     props: {
       dictionary,
       featuredLots,
+      showcase: buildCatalogShowcaseData(catalogLots),
+      popularLots: pickDiverseAuctionLotsFrom(catalogLots, 6),
     },
   };
 };

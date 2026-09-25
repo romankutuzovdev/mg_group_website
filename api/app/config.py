@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 API_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_LOTS_PATH = REPO_ROOT / "lib" / "auctions" / "generated-lots.json"
+DEFAULT_LOTS_PATH = API_ROOT / "data" / "lots.json"
 DEFAULT_CABINET_DB = API_ROOT / "data" / "cabinet.db"
 DEFAULT_UPLOADS_DIR = API_ROOT / "data" / "uploads"
 

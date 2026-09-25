@@ -28,7 +28,7 @@ git fetch --all --prune
 git checkout $Branch
 git reset --hard "origin/$Branch"
 
-# Do NOT touch: api\.env, api\data\cabinet.db, api\data\uploads, lib\auctions\generated-lots.json
+# Do NOT touch: api\.env, api\data\cabinet.db, api\data\uploads, api\data\lots.json
 
 Write-Host "==> Python deps"
 Refresh-Path

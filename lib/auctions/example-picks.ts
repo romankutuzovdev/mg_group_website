@@ -26,13 +26,13 @@ export function hashSeed(s: string): number {
 }
 
 /** Разнообразные лоты из каталога США/UK (по одной марке), стабильный порядок. */
-export function pickDiverseAuctionLots(limit = 9): AuctionLot[] {
-  const lots = getCatalogLots().filter(
+export function pickDiverseAuctionLotsFrom(lots: AuctionLot[], limit = 9): AuctionLot[] {
+  const filtered = lots.filter(
     (l) => (l.region === "usa" || l.region === "uk") && l.imageUrl && l.currentBid > 0,
   );
-  if (!lots.length) return [];
+  if (!filtered.length) return [];
 
-  const ranked = [...lots].sort((a, b) => (b.currentBid || 0) - (a.currentBid || 0));
+  const ranked = [...filtered].sort((a, b) => (b.currentBid || 0) - (a.currentBid || 0));
   const byMake = new Map<string, AuctionLot>();
 
   for (const make of PRIORITY_MAKES) {
@@ -48,6 +48,11 @@ export function pickDiverseAuctionLots(limit = 9): AuctionLot[] {
   const picked = Array.from(byMake.values()).slice(0, limit);
   picked.sort((a, b) => hashSeed(a.id) - hashSeed(b.id));
   return picked;
+}
+
+/** @deprecated Prefer pickDiverseAuctionLotsFrom(lots) with API data */
+export function pickDiverseAuctionLots(limit = 9): AuctionLot[] {
+  return pickDiverseAuctionLotsFrom(getCatalogLots(), limit);
 }
 
 export function safeTurnkey(lot: AuctionLot) {

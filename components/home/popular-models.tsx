@@ -1,10 +1,11 @@
 import { LotCard } from "@/components/auctions/lot-card";
 import { LinkButton } from "@/components/site/button";
-import { pickDiverseAuctionLots } from "@/lib/auctions/example-picks";
+import type { AuctionLot } from "@/lib/auctions/types";
+import { pickDiverseAuctionLotsFrom } from "@/lib/auctions/example-picks";
 
-export function PopularModels() {
-  const lots = pickDiverseAuctionLots(6);
-  if (lots.length === 0) return null;
+export function PopularModels({ lots = [] }: { lots?: AuctionLot[] }) {
+  const picked = pickDiverseAuctionLotsFrom(lots, 6);
+  if (picked.length === 0) return null;
 
   return (
     <section className="bg-bg-base py-14 md:py-24">
@@ -29,7 +30,7 @@ export function PopularModels() {
         </div>
 
         <div className="lots-mobile-scroller -mx-4 mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:mt-12 sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 lg:gap-6">
-          {lots.map((lot) => (
+          {picked.map((lot) => (
             <div
               key={lot.id}
               className="w-[min(100%,20.5rem)] shrink-0 snap-center sm:w-auto sm:min-w-0"

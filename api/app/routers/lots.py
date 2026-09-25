@@ -198,7 +198,7 @@ def delete_lot(lot_id: str) -> dict[str, bool]:
 
 @router.post("/prune-ended", dependencies=[Depends(_require_ingest_key)])
 def prune_ended_lots() -> dict[str, int]:
-    """Remove lots whose auction date has passed; rewrite generated-lots.json."""
+    """Remove lots whose auction date has passed; rewrite api/data/lots.json."""
     settings = get_settings()
     removed = lot_store.prune_ended()
     persisted = 0

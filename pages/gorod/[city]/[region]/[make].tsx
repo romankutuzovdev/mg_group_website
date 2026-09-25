@@ -25,7 +25,6 @@ import {
   cityMakeH1,
   cityMakeTitle,
 } from "@/lib/seo/copy";
-import { allCityRegionMakeParams } from "@/lib/seo/paths";
 import { getDictionary } from "@/lib/dictionary";
 
 type Props = {
@@ -111,12 +110,16 @@ export default function GorodMakePage({ city, region, make }: Props) {
   );
 }
 
-export const getStaticPaths: GetStaticPaths = async () => ({
-  paths: allCityRegionMakeParams().map((p) => ({
-    params: { city: p.city, region: p.region, make: p.make },
-  })),
-  fallback: false,
-});
+export const getStaticPaths: GetStaticPaths = async () => {
+  const { allCityRegionMakeParamsAsync } = await import("@/lib/seo/paths");
+  const params = await allCityRegionMakeParamsAsync();
+  return {
+    paths: params.map((p) => ({
+      params: { city: p.city, region: p.region, make: p.make },
+    })),
+    fallback: false,
+  };
+};
 
 export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
   const city = getCity(ctx.params?.city as string);

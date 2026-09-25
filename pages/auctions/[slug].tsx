@@ -11,7 +11,8 @@ import { AnchorButton, LinkButton } from "@/components/site/button";
 import { absoluteUrl } from "@/lib/catalog";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
-import { loadAllSlugs, loadLotBySlug } from "@/lib/auctions/repository";
+import { loadLotBySlug } from "@/lib/auctions/repository";
+import { buildSeoInventory } from "@/lib/auctions/seo-inventory";
 import type { AuctionLot } from "@/lib/auctions/types";
 import {
   CLOSED_AUCTION_HINT,
@@ -282,9 +283,9 @@ export default function LotDetailPage({ dictionary, lot }: Props) {
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  const slugs = await loadAllSlugs();
+  const { auctionSlugs } = await buildSeoInventory();
   return {
-    paths: slugs.map((slug) => ({ params: { slug } })),
+    paths: auctionSlugs.map((slug) => ({ params: { slug } })),
     fallback: false,
   };
 };
