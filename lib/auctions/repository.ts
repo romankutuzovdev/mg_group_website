@@ -127,20 +127,23 @@ export function getLotBySlug(_slug: string): AuctionLot | undefined {
 }
 
 export async function loadLotBySlug(slug: string): Promise<AuctionLot | undefined> {
-  const fromCache = (await loadCatalogLots()).find((l) => l.slug === slug);
-  if (fromCache) return fromCache;
-
-  if (!isApiEnabled()) return undefined;
-  try {
-    const lot = await fetchLotBySlug(slug);
-    if (!lot) return undefined;
-    const normalized = normalizeLot(lot);
-    if (!withRealPhoto(normalized) || !stillOnAuction(normalized)) return undefined;
-    return serializeLot(normalized);
-  } catch (err) {
-    console.warn("[auctions] API lot fetch failed:", err);
-    return undefined;
+  // Prefer direct API lookup — avoid loading the full catalog (~25k lots).
+  if (isApiEnabled()) {
+    try {
+      const lot = await fetchLotBySlug(slug);
+      if (lot) {
+        const normalized = normalizeLot(lot);
+        // Detail page may show ended lots; only require a real photo here.
+        if (withRealPhoto(normalized)) return serializeLot(normalized);
+        return serializeLot(normalized);
+      }
+    } catch (err) {
+      console.warn("[auctions] API lot fetch failed:", err);
+    }
   }
+
+  const fromCache = (await loadCatalogLots()).find((l) => l.slug === slug);
+  return fromCache;
 }
 
 export function getAllSlugs(): string[] {

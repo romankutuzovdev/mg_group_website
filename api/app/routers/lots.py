@@ -111,6 +111,8 @@ def list_lots(
         counts={
             "usa": sum(1 for x in items if x.region == "usa"),
             "uk": sum(1 for x in items if x.region == "uk"),
+            "korea": sum(1 for x in items if x.region == "korea"),
+            "china": sum(1 for x in items if x.region == "china"),
         },
     )
 
@@ -134,19 +136,43 @@ def featured_lots(limit: int = Query(4, ge=1, le=24)) -> list[AuctionLot]:
 
 
 @router.get("/meta", response_model=LotMetaResponse)
-def lots_meta() -> LotMetaResponse:
+def lots_meta(make: str | None = None, region: str | None = None) -> LotMetaResponse:
     lots = _catalog_lots()
+    if region:
+        r = region.strip().lower()
+        lots = [l for l in lots if (l.region or "").lower() == r]
+    make_key = (make or "").strip().lower()
+    model_pool = (
+        [l for l in lots if (l.make or "").lower() == make_key] if make_key else lots
+    )
     return LotMetaResponse(
         makes=unique_sorted([l.make for l in lots]),
-        models=unique_sorted([l.model for l in lots]),
+        models=unique_sorted([l.model for l in model_pool]),
         sources=unique_sorted([l.source for l in lots]),
         regions=unique_sorted([l.region for l in lots]),
         damages=unique_sorted([l.primaryDamage for l in lots]),
-        body_styles=unique_sorted([l.bodyStyle for l in lots]),
+        body_styles=unique_sorted(
+            [l.bodyStyle for l in lots if l.bodyStyle and "LOTFEATURE" not in (l.bodyStyle or "").upper()]
+        ),
+        fuels=unique_sorted(
+            [l.fuel for l in lots if l.fuel and l.fuel != "—"]
+        ),
+        transmissions=unique_sorted(
+            [
+                l.transmission
+                for l in lots
+                if l.transmission and l.transmission not in {"—", "Na"}
+            ]
+        ),
+        drives=unique_sorted(
+            [l.drive for l in lots if l.drive and l.drive != "—"]
+        ),
         total=len(lots),
         counts_by_region={
             "usa": sum(1 for l in lots if l.region == "usa"),
             "uk": sum(1 for l in lots if l.region == "uk"),
+            "korea": sum(1 for l in lots if l.region == "korea"),
+            "china": sum(1 for l in lots if l.region == "china"),
         },
         counts_by_source={
             src: sum(1 for l in lots if l.source == src)

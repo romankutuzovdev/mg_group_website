@@ -5,9 +5,11 @@ import { LotCard } from "./lot-card";
 export function LotGrid({
   lots,
   pricingMode,
+  onLotNavigate,
 }: {
   lots: AuctionLot[];
   pricingMode?: LotPricingMode;
+  onLotNavigate?: (slug: string) => void;
 }) {
   if (lots.length === 0) {
     return (
@@ -21,7 +23,12 @@ export function LotGrid({
   return (
     <div className="grid content-start gap-3 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
       {lots.map((lot) => (
-        <LotCard key={lot.id} lot={lot} pricingMode={pricingMode} />
+        <LotCard
+          key={lot.id}
+          lot={lot}
+          pricingMode={pricingMode}
+          onNavigate={onLotNavigate}
+        />
       ))}
     </div>
   );

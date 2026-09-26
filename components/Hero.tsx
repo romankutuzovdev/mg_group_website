@@ -57,7 +57,7 @@ const Hero = ({ dictionary }: HeroProps) => {
       <div className="absolute inset-0 z-0">
         <Image
           src={bgImage}
-          alt=""
+          alt="Авто под заказ из США, Китая и Кореи — MG.GROUP"
           fill
           priority
           className="object-cover"

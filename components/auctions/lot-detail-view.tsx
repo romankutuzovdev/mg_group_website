@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import SEO from "@/components/SEO";
 import { LotDamageMap } from "@/components/auctions/lot-damage-map";
 import { LotImage } from "@/components/auctions/lot-image";
 import { ManagerLotSource } from "@/components/auctions/manager-lot-source";
 import { LotCalculatorPanel } from "@/components/pricing/lot-calculator-panel";
 import { AnchorButton, LinkButton } from "@/components/site/button";
+import { CatalogBreadcrumbs } from "@/components/catalog/breadcrumbs";
+import { breadcrumbJsonLd } from "@/components/catalog/seo";
 import { absoluteUrl } from "@/lib/catalog";
 import type { Dictionary } from "@/lib/dictionary";
 import type { AuctionLot } from "@/lib/auctions/types";
@@ -17,6 +20,7 @@ import {
   isClosedAuction,
   REGION_LABELS,
 } from "@/lib/auctions/types";
+import { isAuctionEnded } from "@/lib/auctions/filter-lots";
 import { formatOdometerKm } from "@/lib/auctions/odometer";
 import {
   formatDriveRu,
@@ -61,6 +65,10 @@ function lotVehicleJsonLd(lot: AuctionLot, path: string) {
   const image = resolveLotDisplayImage(lot);
   const imageAbs =
     image.startsWith("http") ? image : absoluteUrl(image || "/logo.png");
+  const ended = isAuctionEnded(lot);
+  const availability = ended
+    ? "https://schema.org/SoldOut"
+    : "https://schema.org/InStock";
 
   return {
     "@context": "https://schema.org",
@@ -83,7 +91,7 @@ function lotVehicleJsonLd(lot: AuctionLot, path: string) {
       url,
       priceCurrency: lot.currency,
       price: lot.currentBid,
-      availability: "https://schema.org/InStock",
+      availability,
       ...(lot.auctionDate
         ? { priceValidUntil: lot.auctionDate.slice(0, 10) }
         : {}),
@@ -91,11 +99,15 @@ function lotVehicleJsonLd(lot: AuctionLot, path: string) {
   };
 }
 
+function catalogPathOnly(region: AuctionLot["region"]) {
+  if (region === "usa") return "/avto/usa/";
+  if (region === "korea") return "/avto/korea/";
+  if (region === "china") return "/avto/china/";
+  return "/mashinokomplekt/uk/";
+}
+
 function catalogHref(region: AuctionLot["region"]) {
-  if (region === "usa") return "/avto/usa/#lots";
-  if (region === "korea") return "/avto/korea/#lots";
-  if (region === "china") return "/avto/china/#lots";
-  return "/mashinokomplekt/uk/#lots";
+  return `${catalogPathOnly(region)}#lots`;
 }
 
 function catalogLabel(region: AuctionLot["region"]) {
@@ -105,6 +117,11 @@ function catalogLabel(region: AuctionLot["region"]) {
   return "← К комплектам из Англии";
 }
 
+function regionCrumbLabel(region: AuctionLot["region"]) {
+  if (region === "uk") return "Комплекты из Англии";
+  return REGION_LABELS[region];
+}
+
 export function LotDetailView({
   dictionary,
   lot,
@@ -112,7 +129,9 @@ export function LotDetailView({
   dictionary: Dictionary;
   lot: AuctionLot;
 }) {
+  const router = useRouter();
   const lotPath = `/auctions/${lot.slug}/`;
+  const backHref = catalogHref(lot.region);
   const photos = useMemo(() => {
     const raw = [
       lot.imageUrl,
@@ -130,6 +149,20 @@ export function LotDetailView({
   }, [lot.slug]);
 
   const mainSrc = photos[active] || resolveLotDisplayImage(lot);
+  const ended = isAuctionEnded(lot);
+  const isDemo = Boolean(lot._demo);
+  const shouldNoindex = ended || isDemo;
+  const regionPath = catalogPathOnly(lot.region);
+  const crumbName = `${lot.year} ${lot.make} ${lot.model}`;
+
+  const goBackToCatalog = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    void router.push(backHref);
+  };
 
   return (
     <>
@@ -145,13 +178,36 @@ export function LotDetailView({
         lang="ru"
         path={lotPath}
         image={lot.imageUrl || undefined}
-        jsonLd={lotVehicleJsonLd(lot, lotPath)}
+        noindex={shouldNoindex}
+        jsonLd={[
+          breadcrumbJsonLd([
+            { name: "Главная", path: "/" },
+            {
+              name: lot.region === "uk" ? "Машинокомплекты" : "Каталог авто",
+              path: lot.region === "uk" ? "/mashinokomplekt/" : "/avto/",
+            },
+            { name: regionCrumbLabel(lot.region), path: regionPath },
+            { name: crumbName, path: lotPath },
+          ]),
+          lotVehicleJsonLd(lot, lotPath),
+        ]}
       />
       <div className="pt-16">
         <div className="border-b border-border bg-bg-elevated">
           <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            <CatalogBreadcrumbs
+              items={[
+                {
+                  href: lot.region === "uk" ? "/mashinokomplekt/" : "/avto/",
+                  label: lot.region === "uk" ? "Машинокомплекты" : "Каталог авто",
+                },
+                { href: regionPath, label: regionCrumbLabel(lot.region) },
+                { label: crumbName },
+              ]}
+            />
             <Link
-              href={catalogHref(lot.region)}
+              href={backHref}
+              onClick={goBackToCatalog}
               className="inline-flex items-center gap-1 text-sm text-text-secondary transition hover:text-accent-dark"
             >
               {catalogLabel(lot.region)}

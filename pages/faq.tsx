@@ -42,16 +42,13 @@ export default function FaqPage({ dictionary }: Props) {
           },
         }}
         lang="ru"
+        path="/faq/"
+        jsonLd={faqJsonLd()}
       />
       <PageShell
         title="FAQ"
         description="Ответы на частые вопросы о машинокомплектах, гарантиях, оплате и работе с MG.GROUP."
       >
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd()) }}
-        />
-
         <FaqAccordion />
 
         <div className="relative mt-16 overflow-hidden rounded-2xl border border-accent/20 bg-bg-elevated p-8 md:p-12">

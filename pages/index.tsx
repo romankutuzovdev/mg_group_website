@@ -9,6 +9,7 @@ import Benefits from "@/components/Benefits";
 import CarFinder from "@/components/CarFinder";
 import Parts from "@/components/Parts";
 import SEO from "@/components/SEO";
+import { organizationJsonLd } from "@/components/catalog/seo";
 import { PartnersTicker } from "@/components/home/partners-ticker";
 import { StatsBar } from "@/components/home/stats-bar";
 import {
@@ -35,7 +36,7 @@ interface HomeProps {
 export default function Home({ dictionary, featuredLots, showcase, popularLots }: HomeProps) {
   return (
     <>
-      <SEO dictionary={dictionary} lang="ru" />
+      <SEO dictionary={dictionary} lang="ru" path="/" jsonLd={organizationJsonLd()} />
       <Hero dictionary={dictionary} />
       <PartnersTicker />
       <StatsBar />

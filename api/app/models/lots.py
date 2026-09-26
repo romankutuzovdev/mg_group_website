@@ -82,6 +82,9 @@ class LotMetaResponse(BaseModel):
     regions: list[str]
     damages: list[str]
     body_styles: list[str]
+    fuels: list[str] = Field(default_factory=list)
+    transmissions: list[str] = Field(default_factory=list)
+    drives: list[str] = Field(default_factory=list)
     total: int
     counts_by_region: dict[str, int]
     counts_by_source: dict[str, int]

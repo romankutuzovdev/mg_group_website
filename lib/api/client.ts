@@ -55,6 +55,12 @@ export type LotQuery = {
   priceMax?: number;
   body?: string;
   damage?: string;
+  drive?: string;
+  trans?: string;
+  fuel?: string;
+  mileageMax?: number;
+  engMin?: number;
+  engMax?: number;
   region?: string;
   tab?: string;
   run?: boolean;
@@ -80,6 +86,12 @@ function toSearchParams(query: LotQuery): string {
   set("priceMax", query.priceMax);
   set("body", query.body);
   set("damage", query.damage);
+  set("drive", query.drive);
+  set("trans", query.trans);
+  set("fuel", query.fuel);
+  set("mileageMax", query.mileageMax);
+  set("engMin", query.engMin);
+  set("engMax", query.engMax);
   set("region", query.region);
   set("tab", query.tab);
   set("page", query.page);
@@ -122,13 +134,30 @@ export async function fetchLotBySlug(slug: string): Promise<AuctionLot | null> {
   }
 }
 
-export async function fetchLotMeta(): Promise<{
+export type LotMetaResponse = {
   total: number;
   makes: string[];
+  models: string[];
+  sources: string[];
+  regions: string[];
+  damages: string[];
+  body_styles: string[];
+  fuels?: string[];
+  transmissions?: string[];
+  drives?: string[];
   counts_by_region: Record<string, number>;
   counts_by_source: Record<string, number>;
-}> {
-  return apiFetch("/api/v1/lots/meta");
+};
+
+export async function fetchLotMeta(opts?: {
+  make?: string;
+  region?: string;
+}): Promise<LotMetaResponse> {
+  const sp = new URLSearchParams();
+  if (opts?.make) sp.set("make", opts.make);
+  if (opts?.region) sp.set("region", opts.region);
+  const q = sp.toString();
+  return apiFetch(`/api/v1/lots/meta${q ? `?${q}` : ""}`);
 }
 
 export async function fetchLotSlugs(): Promise<string[]> {

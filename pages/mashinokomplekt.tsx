@@ -33,6 +33,7 @@ export default function MashinokomplektPage({ dictionary, lots }: Props) {
           },
         }}
         lang="ru"
+        path="/mashinokomplekt/"
       />
 
       <PageShell

@@ -10,15 +10,16 @@ type Props = {
   path: string;
   image?: string;
   jsonLd?: JsonLd;
+  noindex?: boolean;
 };
 
-export function CatalogSEO({ title, description, path, image, jsonLd }: Props) {
+export function CatalogSEO({ title, description, path, image, jsonLd, noindex }: Props) {
   const url = absoluteUrl(path);
   const ogImage = image
     ? image.startsWith("http")
       ? image
       : absoluteUrl(image)
-    : absoluteUrl("/logo.png");
+    : absoluteUrl("/og-image.png");
 
   const graph = jsonLd
     ? Array.isArray(jsonLd)
@@ -30,17 +31,22 @@ export function CatalogSEO({ title, description, path, image, jsonLd }: Props) {
     <Head>
       <title>{title}</title>
       <meta name="description" content={description} />
+      {noindex ? <meta name="robots" content="noindex, follow" /> : null}
       <link rel="canonical" href={url} />
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={url} />
       <meta property="og:type" content="website" />
       <meta property="og:image" content={ogImage} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="1200" />
+      <meta property="og:image:alt" content={title} />
       <meta property="og:locale" content="ru_BY" />
       <meta property="og:site_name" content={COMPANY.name} />
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={ogImage} />
       {graph.map((item, i) => (
         <script
           // eslint-disable-next-line react/no-danger
@@ -124,6 +130,7 @@ export function organizationJsonLd() {
     },
     image: absoluteUrl("/logo.png"),
     telephone: "+375298668811",
+    sameAs: ["https://t.me/Yury_MG_Global"],
     address: {
       "@type": "PostalAddress",
       streetAddress: "ул. Гаспадарчая 19, каб. 340/1, БЦ Марро",

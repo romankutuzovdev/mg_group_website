@@ -26,6 +26,7 @@ export default function PurchasedKitsPage({ dictionary }: Props) {
           },
         }}
         lang="ru"
+        path="/kuplennye-mashinokomplekty/"
       />
       <PageShell
         title="Купленные машинокомплекты"

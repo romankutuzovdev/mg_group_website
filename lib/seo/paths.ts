@@ -30,7 +30,6 @@ export async function allSeoPathsAsync(): Promise<SitemapEntry[]> {
     { path: "/kuplennye-mashinokomplekty/", priority: 0.8, changefreq: "weekly" },
     { path: "/otzyvy/", priority: 0.7, changefreq: "weekly" },
     { path: "/calculator/", priority: 0.7, changefreq: "monthly" },
-    { path: "/cabinet/", priority: 0.3, changefreq: "monthly" },
     { path: "/about/", priority: 0.5, changefreq: "monthly" },
     { path: "/faq/", priority: 0.5, changefreq: "monthly" },
     { path: "/contacts/", priority: 0.6, changefreq: "monthly" },
@@ -107,7 +106,6 @@ export function allSeoPaths(): SitemapEntry[] {
     { path: "/kuplennye-mashinokomplekty/", priority: 0.8, changefreq: "weekly" },
     { path: "/otzyvy/", priority: 0.7, changefreq: "weekly" },
     { path: "/calculator/", priority: 0.7, changefreq: "monthly" },
-    { path: "/cabinet/", priority: 0.3, changefreq: "monthly" },
     { path: "/about/", priority: 0.5, changefreq: "monthly" },
     { path: "/faq/", priority: 0.5, changefreq: "monthly" },
     { path: "/contacts/", priority: 0.6, changefreq: "monthly" },
@@ -132,6 +130,7 @@ export async function buildSitemapXmlAsync(): Promise<string> {
 }
 
 export function buildSitemapXml(entries: SitemapEntry[] = allSeoPaths()): string {
+  const lastmod = new Date().toISOString().slice(0, 10);
   const urls = entries
     .map((e) => {
       const loc = absoluteUrl(e.path);
@@ -139,6 +138,7 @@ export function buildSitemapXml(entries: SitemapEntry[] = allSeoPaths()): string
       const changefreq = e.changefreq ?? "weekly";
       return `  <url>
     <loc>${loc}</loc>
+    <lastmod>${lastmod}</lastmod>
     <changefreq>${changefreq}</changefreq>
     <priority>${priority.toFixed(1)}</priority>
   </url>`;
@@ -156,6 +156,7 @@ export function robotsTxt(): string {
   return `User-agent: *
 Allow: /
 Disallow: /cabinet/
+Disallow: /api/
 
 Sitemap: ${SITE_ORIGIN}/sitemap.xml
 `;

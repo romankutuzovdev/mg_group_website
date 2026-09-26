@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /cabinet/
+Disallow: /api/
 
-Sitemap: https://www.multiglobalgroup.com/sitemap.xml
+Sitemap: https://mg-group.by/sitemap.xml

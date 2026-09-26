@@ -31,7 +31,12 @@ export const MAKES = catalog.makes as Record<string, CatalogMake>;
 
 export const REGION_ORDER: CatalogRegionSlug[] = ["usa", "china", "korea", "uk"];
 
-export const SITE_ORIGIN = "https://www.multiglobalgroup.com";
+/** Canonical site origin for SEO (sitemap, OG, JSON-LD). */
+export const SITE_ORIGIN = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.SITEMAP_SITE_URL ||
+  "https://mg-group.by"
+).replace(/\/$/, "");
 
 export function getRegion(slug: string): CatalogRegion | undefined {
   return REGIONS[slug as CatalogRegionSlug];

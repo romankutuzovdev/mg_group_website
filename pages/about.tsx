@@ -25,6 +25,7 @@ export default function AboutPage({ dictionary }: Props) {
           },
         }}
         lang="ru"
+        path="/about/"
       />
       <PageShell
         title="О нас"

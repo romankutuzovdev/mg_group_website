@@ -64,9 +64,11 @@ function shortDamage(value: string): string {
 export function LotCard({
   lot,
   pricingMode,
+  onNavigate,
 }: {
   lot: AuctionLot;
   pricingMode?: LotPricingMode;
+  onNavigate?: (slug: string) => void;
 }) {
   const mode = pricingMode ?? defaultPricingMode(lot);
   let turnkey: ReturnType<typeof estimateLotTurnkey> = null;
@@ -85,7 +87,12 @@ export function LotCard({
   ].filter(Boolean) as string[];
 
   return (
-    <Link href={`/auctions/${lot.slug}/`} className="group block h-full min-w-0">
+    <Link
+      href={`/auctions/${lot.slug}/`}
+      className="group block h-full min-w-0"
+      data-lot-slug={lot.slug}
+      onClick={() => onNavigate?.(lot.slug)}
+    >
       <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
         <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-zinc-100">
           <LotImage

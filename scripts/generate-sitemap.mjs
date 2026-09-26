@@ -10,8 +10,9 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
-const SITE = process.env.SITEMAP_SITE_URL || "https://www.multiglobalgroup.com";
+const SITE = process.env.SITEMAP_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://mg-group.by";
 const API_BASE = (
+  process.env.API_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.SITEMAP_API_URL ||
   "http://91.149.133.54"
@@ -221,12 +222,15 @@ const unique = entries.filter((e) => {
   return true;
 });
 
+const lastmod = new Date().toISOString().slice(0, 10);
+
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${unique
   .map(
     (e) => `  <url>
-    <loc>${SITE}${e.path}</loc>
+    <loc>${SITE.replace(/\/$/, "")}${e.path}</loc>
+    <lastmod>${lastmod}</lastmod>
     <changefreq>${e.changefreq}</changefreq>
     <priority>${e.priority.toFixed(1)}</priority>
   </url>`,
@@ -238,12 +242,13 @@ ${unique
 const robots = `User-agent: *
 Allow: /
 Disallow: /cabinet/
+Disallow: /api/
 
-Sitemap: ${SITE}/sitemap.xml
+Sitemap: ${SITE.replace(/\/$/, "")}/sitemap.xml
 `;
 
 fs.writeFileSync(path.join(ROOT, "public/sitemap.xml"), xml);
 fs.writeFileSync(path.join(ROOT, "public/robots.txt"), robots);
 console.log(
-  `sitemap: ${unique.length} urls (makes=${makeKeys.size}, models=${modelKeys.size}, auctions=${indexedLots})`,
+  `sitemap: ${unique.length} urls (makes=${makeKeys.size}, models=${modelKeys.size}, auctions=${indexedLots}) → ${SITE}`,
 );

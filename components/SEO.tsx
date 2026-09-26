@@ -50,10 +50,10 @@ const SEO = ({ dictionary, lang, title, description, path, image, noindex, jsonL
       <meta property="og:url" content={canonical} />
       <meta property="og:type" content="website" />
       <meta property="og:site_name" content="MG.GROUP" />
-      <meta property="og:locale" content={lang === 'ru' ? 'ru_RU' : lang} />
+      <meta property="og:locale" content={lang === 'ru' ? 'ru_BY' : lang} />
 
       {/* Twitter / X */}
-      <meta name="twitter:card" content="summary" />
+      <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={pageTitle} />
       <meta name="twitter:description" content={pageDescription} />
       <meta name="twitter:image" content={ogImage} />

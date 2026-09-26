@@ -26,6 +26,7 @@ export default function ContactsPage({ dictionary }: Props) {
           },
         }}
         lang="ru"
+        path="/contacts/"
       />
       <PageShell
         title="Контакты"

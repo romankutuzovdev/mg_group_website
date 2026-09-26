@@ -1,20 +1,36 @@
 /** @type {import('next').NextConfig} */
 const isVercel = process.env.VERCEL === "1";
+const isDev = process.env.NODE_ENV === "development";
+// Static export only for non-Vercel production builds (Windows / Cloudflare out/).
+const useStaticExport = !isVercel && !isDev;
+
+function apiUpstream() {
+  const raw = (
+    process.env.API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://91.149.133.54"
+  )
+    .trim()
+    .replace(/\/$/, "");
+  // Prefer hostname form for environments that block raw IPs; local Next is fine with IP.
+  if (/^https?:\/\/\d{1,3}(?:\.\d{1,3}){3}$/i.test(raw)) {
+    const ip = raw.replace(/^https?:\/\//i, "");
+    return `http://${ip}`;
+  }
+  return raw || "http://91.149.133.54";
+}
 
 const nextConfig = {
-  // Windows/Cloudflare static export. On Vercel use Next runtime so /api rewrites work
-  // (trailingSlash + static out/ was 308→/api/.../ → HTML 404, empty catalog).
-  ...(isVercel ? {} : { output: "export" }),
+  ...(useStaticExport ? { output: "export" } : {}),
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
   async rewrites() {
-    if (!isVercel) return [];
-    const upstream = "http://91.149.133.54.nip.io";
+    // Local `next dev` + Vercel: same-origin /api → Windows FastAPI
+    if (!isVercel && !isDev) return [];
+    const upstream = apiUpstream();
     return [
       { source: "/api/:path*/", destination: `${upstream}/api/:path*` },
       { source: "/api/:path*", destination: `${upstream}/api/:path*` },
-      { source: "/auctions/:slug/", destination: `${upstream}/auctions/:slug/` },
-      { source: "/auctions/:slug", destination: `${upstream}/auctions/:slug/` },
     ];
   },
   eslint: {
@@ -31,6 +47,8 @@ const nextConfig = {
       { protocol: 'https', hostname: '**.bid.cars' },
       { protocol: 'https', hostname: '**.pages.dev' },
       { protocol: 'https', hostname: '**.workers.dev' },
+      { protocol: 'http', hostname: '91.149.133.54' },
+      { protocol: 'http', hostname: '**.nip.io' },
     ],
   },
   // Avoid EMFILE on macOS: don't watch huge static/catalog dumps.
