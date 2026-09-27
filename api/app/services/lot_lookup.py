@@ -678,56 +678,161 @@ def _merge_chrome_into_catalog(
     return merged
 
 
+def _payload_from_copart_js(
+    raw: dict[str, Any],
+    *,
+    url: str,
+    lot_number: str | None,
+    is_uk: bool,
+    via: str,
+) -> dict[str, Any]:
+    category = str(raw.get("category") or "").strip().upper() or None
+    if category and len(category) > 1:
+        cat_m = re.search(r"\b([ABNSCDXU])\b", category, re.I)
+        category = cat_m.group(1).upper() if cat_m else None
+    if not category:
+        cat_m = re.search(
+            r"\bCat(?:egory)?\s*[-:]?\s*([ABNSCDXU])\b",
+            str(raw.get("title") or ""),
+            re.I,
+        )
+        category = cat_m.group(1).upper() if cat_m else None
+
+    payload = {
+        "ok": True,
+        "url": url,
+        "source": "copart_uk" if is_uk else "copart",
+        "region": "uk" if is_uk else "usa",
+        "auction_platform": "copart",
+        "category": category,
+        "lotNumber": raw.get("lotNumber") or lot_number,
+        "bid": raw.get("bid"),
+        "year": raw.get("year"),
+        "make": raw.get("make"),
+        "model": raw.get("model"),
+        "title": raw.get("title"),
+        "location": clean_auction_location(raw.get("location")),
+        "odometer": raw.get("odometer"),
+        "bodyStyle": raw.get("bodyStyle"),
+        "images": raw.get("images") or [],
+        "via": via,
+    }
+    if not is_uk:
+        payload = enrich_usa_inland(payload, live=False)
+    return payload
+
+
+async def _fetch_copart_via_agent_tab(url: str) -> dict[str, Any] | None:
+    """Read lot via permanent scraper tab Solr fetch — no new Chrome tabs."""
+    canonical = normalize_lot_url(url)
+    is_uk = "copart.co.uk" in canonical.lower()
+    lot_number = extract_lot_number(canonical, "copart")
+    if not lot_number:
+        return None
+    try:
+        from app.scraper.worker import scraper_worker
+    except Exception:
+        return None
+
+    source = "copart_uk" if is_uk else "copart"
+    raw = await scraper_worker.evaluate_on_agent_tab(
+        source,
+        COPART_JS,
+        lot_number,
+        timeout_sec=6.0,
+    )
+    if not isinstance(raw, dict):
+        alt = "copart" if is_uk else "copart_uk"
+        raw = await scraper_worker.evaluate_on_agent_tab(
+            alt,
+            COPART_JS,
+            lot_number,
+            timeout_sec=5.0,
+        )
+    if not isinstance(raw, dict):
+        return None
+    if raw.get("error") and not raw.get("bid") and not raw.get("make") and not raw.get("location"):
+        return None
+    return _payload_from_copart_js(
+        raw,
+        url=canonical,
+        lot_number=lot_number,
+        is_uk=is_uk,
+        via="agent_tab",
+    )
+
+
 async def fetch_lot_from_url(url: str) -> dict[str, Any]:
-    """Resolve lot for calculator: catalog first; agent-tab Solr enrich; Chrome last."""
+    """Catalog first; Copart via scraper tab; Chrome only if needed. Never 502.
+
+    Hard total budget ~12s so Vercel rewrites do not time out.
+    """
+    import time
+
+    deadline = time.monotonic() + 12.0
+
+    def _remaining() -> float:
+        return max(0.5, deadline - time.monotonic())
+
     try:
         from_store = lookup_in_production_catalog(url)
     except Exception as exc:
         logger.warning("catalog lookup failed: %s", exc)
         from_store = None
 
-    catalog_ok = bool(from_store and (from_store.get("bid") or from_store.get("make")))
-    is_uk = bool(from_store and _is_uk_payload(from_store)) or "copart.co.uk" in (url or "").lower()
+    catalog_ok = bool(
+        from_store
+        and (from_store.get("bid") or from_store.get("make") or from_store.get("lotNumber"))
+    )
 
     if catalog_ok and from_store:
-        if is_uk:
+        # Quick enrich for weak UK yard/body — skip if tab busy
+        if _is_uk_payload(from_store) and (
+            uk_location_needs_refresh(from_store) or not (from_store.get("bodyStyle") or "").strip()
+        ):
             try:
                 enriched = await asyncio.wait_for(
                     _enrich_uk_via_agent_tab(url, from_store),
-                    timeout=7.0,
+                    timeout=min(5.0, _remaining()),
                 )
+                if enriched:
+                    return enriched
             except Exception as exc:
-                logger.warning("uk agent-tab enrich failed: %s", exc)
-                enriched = None
-            if enriched:
-                return enriched
+                logger.warning("uk enrich skipped: %s", exc)
         return from_store
 
-    # Not in catalog — brief Chrome attempt, then soft fallback (never raise)
+    # Lot not in catalog — resolve from the link
     try:
-        chrome = await _fetch_lot_via_chrome(url, optional=False)
-    except Exception as exc:
-        logger.warning("chrome lot-from-url failed: %s", exc)
-        again = None
-        try:
-            again = lookup_in_production_catalog(url)
-        except Exception:
-            again = None
-        if again and (again.get("bid") or again.get("make")):
-            again = dict(again)
-            again["via"] = "catalog_fallback"
-            again["chrome_error"] = str(exc)
-            return again
+        canonical = normalize_lot_url(url)
+        platform = detect_platform(canonical)
+    except ValueError as exc:
         return soft_lot_payload(url, str(exc))
 
-    if chrome and (chrome.get("bid") or chrome.get("make") or chrome.get("location")):
-        return chrome
+    is_copart = platform == "copart" or "copart." in canonical.lower()
+    if is_copart and _remaining() > 1.0:
+        try:
+            hit = await asyncio.wait_for(
+                _fetch_copart_via_agent_tab(canonical),
+                timeout=min(7.0, _remaining()),
+            )
+            if hit and (
+                hit.get("bid") or hit.get("make") or hit.get("location") or hit.get("bodyStyle")
+            ):
+                return hit
+        except Exception as exc:
+            logger.warning("copart agent-tab lookup failed: %s", exc)
 
-    again = None
-    try:
-        again = lookup_in_production_catalog(url)
-    except Exception:
-        again = None
-    if again:
-        return again
-    return soft_lot_payload(url, (chrome or {}).get("chrome_error") or "chrome_empty")
+    # Bid.cars / IAAI / Copart when agent tab failed — short Chrome window
+    if _remaining() > 1.5:
+        try:
+            chrome = await asyncio.wait_for(
+                _fetch_lot_via_chrome(canonical, optional=False),
+                timeout=min(9.0, _remaining()),
+            )
+            if chrome and (chrome.get("bid") or chrome.get("make") or chrome.get("location")):
+                return chrome
+        except Exception as exc:
+            logger.warning("chrome lot-from-url failed: %s", exc)
+            return soft_lot_payload(url, str(exc))
+
+    return soft_lot_payload(url, "lot_not_found")

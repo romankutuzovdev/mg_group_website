@@ -79,6 +79,41 @@ async ({ origin, lotNumbers }) => {
 }
 """
 
+# Yard + body style from lotdetails Solr (same cookies as the scraper tab).
+FETCH_LOT_DETAILS_JS = """
+async ({ origin, lotNumbers }) => {
+  const out = {};
+  for (const lotNumber of lotNumbers) {
+    try {
+      const res = await fetch(origin + '/public/data/lotdetails/solr/' + lotNumber, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!res.ok) { out[String(lotNumber)] = null; continue; }
+      const j = await res.json();
+      const d = (j && j.data && (j.data.lotDetails || j.data)) || j || {};
+      let loc = d.yn || d.yardName || d.aname || d.facilityName || d.saleLocation || d.loc || null;
+      if (loc && typeof loc === 'object') {
+        loc = loc.name || loc.yardName || loc.yn || loc.value || null;
+      }
+      out[String(lotNumber)] = {
+        yn: loc,
+        bsd: d.bsd || d.vehTypDesc || d.bodyStyle || d.bt || d.vehicleTypeDesc || null,
+        td: d.td || d.titleDesc || d.tgd || d.ft || null,
+        hb: d.highBid || d.hb || d.currentBid || null,
+        orr: d.orr || d.odometer || null,
+        mkn: d.mkn || d.make || null,
+        lm: d.lm || d.model || d.lmg || null,
+        lcy: d.lcy || d.year || null,
+      };
+    } catch (e) {
+      out[String(lotNumber)] = null;
+    }
+  }
+  return out;
+}
+"""
+
 EXTRACT_DOM_JS = """
 () => {
   const cards = [...document.querySelectorAll(
@@ -204,6 +239,53 @@ async def _attach_galleries(tab: Page, rows: list[dict[str, Any]], *, origin: st
             row["images"] = urls
             row.setdefault("tims", urls[0])
             row.setdefault("image", urls[0])
+
+
+async def _attach_lot_details(tab: Page, rows: list[dict[str, Any]], *, origin: str) -> None:
+    """Fill yn (yard) + bsd (body) from Solr lotdetails — needed for UK calculator."""
+    numbers = [_lot_number(row) for row in rows if _lot_number(row)]
+    if not numbers:
+        return
+    merged: dict[str, dict[str, Any]] = {}
+    chunk = 10
+    for start in range(0, len(numbers), chunk):
+        part = numbers[start : start + chunk]
+        try:
+            batch = await tab.evaluate(
+                FETCH_LOT_DETAILS_JS,
+                {"origin": origin, "lotNumbers": part},
+            )
+        except Exception as exc:
+            logger.warning("copart lot details %s: %s", origin, exc)
+            continue
+        if isinstance(batch, dict):
+            for key, details in batch.items():
+                if isinstance(details, dict):
+                    merged[str(key)] = details
+    filled = 0
+    for row in rows:
+        ln = _lot_number(row)
+        details = merged.get(ln)
+        if not details:
+            continue
+        if details.get("yn") and not row.get("yn"):
+            row["yn"] = details["yn"]
+        if details.get("bsd") and not row.get("bsd"):
+            row["bsd"] = details["bsd"]
+        if details.get("td") and not row.get("td"):
+            row["td"] = details["td"]
+        if details.get("hb") and not row.get("hb"):
+            row["hb"] = details["hb"]
+        if details.get("orr") and not row.get("orr"):
+            row["orr"] = details["orr"]
+        if details.get("mkn") and not row.get("mkn"):
+            row["mkn"] = details["mkn"]
+        if details.get("lm") and not row.get("lm"):
+            row["lm"] = details["lm"]
+        if details.get("lcy") and not row.get("lcy"):
+            row["lcy"] = details["lcy"]
+        filled += 1
+    logger.info("copart %s lot details filled for %s/%s rows", origin, filled, len(numbers))
 
 
 # One Copart market at a time. Two parallel gotos in the same Chrome drop the CDP session.
@@ -435,6 +517,9 @@ async def _scrape_copart_inventory(
 
     if not lots:
         return [{"_blocked": True, "reason": "empty" if state != "incapsula" else "incapsula"}]
+
+    # Yard + body from Solr before opening photo pages (calculator needs these).
+    await _attach_lot_details(tab, lots, origin=origin)
 
     await _open_lot_pages(
         tab,

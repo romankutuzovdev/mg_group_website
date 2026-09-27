@@ -89,7 +89,7 @@ def calc_weight(body: WeightPriceRequest) -> dict:
 
 @router.post("/lot-from-url")
 async def lot_from_url(body: LotFromUrlRequest) -> dict:
-    """Resolve lot for calculator: production catalog first, then Chrome CDP."""
+    """Resolve lot for calculator: catalog → scraper tab → short Chrome → soft 200."""
     from app.services.lot_lookup import soft_lot_payload
 
     try:
@@ -97,14 +97,7 @@ async def lot_from_url(body: LotFromUrlRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        # Prefer soft JSON over 502 — Vercel/proxy 502 breaks the calculator UI.
-        try:
-            return soft_lot_payload(body.url, str(exc))
-        except Exception:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Не удалось открыть лот: {exc}",
-            ) from exc
+        return soft_lot_payload(body.url, str(exc))
 
 
 @router.post("/quote")

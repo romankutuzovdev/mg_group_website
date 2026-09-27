@@ -144,6 +144,87 @@ def infer_body_style(*, make: str = "", model: str = "") -> str | None:
     return None
 
 
+# UK delivery yards used by the calculator (must stay in sync with lib/pricing/shared.ts).
+_UK_YARD_NAMES = (
+    "ROCHFORD",
+    "COLCHESTER",
+    "SANDY",
+    "SANDWICH",
+    "NEWBURY",
+    "WISBECH",
+    "CORBY",
+    "WESTBURY",
+    "BRISTOL",
+    "WOLVERHAMPTON",
+    "SANDTOFT",
+    "CHESTER",
+    "YORK",
+    "PETERLEE",
+    "WHITBURN",
+    "EAST KILBRIDE",
+    "GLOUCESTER",
+)
+
+
+def extract_copart_location(row: dict[str, Any], *, region: str = "usa") -> str | None:
+    """Yard / sale location from Copart Solr/DOM — never bare 'UK'/'USA'."""
+    candidates: list[Any] = [
+        row.get("yn"),
+        row.get("yardName"),
+        row.get("yard_name"),
+        row.get("aname"),
+        row.get("facilityName"),
+        row.get("facility_name"),
+        row.get("saleLocation"),
+        row.get("salelocation"),
+        row.get("physicalYardName"),
+        row.get("yard"),
+        row.get("location"),
+        row.get("loc"),
+    ]
+    for raw in candidates:
+        if raw is None or raw == "":
+            continue
+        if isinstance(raw, dict):
+            raw = raw.get("name") or raw.get("yardName") or raw.get("yn") or raw.get("value")
+        text = re.sub(r"\s+", " ", str(raw or "")).strip()
+        if not text:
+            continue
+        text = re.sub(
+            r"^(?:COPART(?:\s+UK)?|SALE\s*LOCATION|YARD|LOCATION|FACILITY)\s*[-:]?\s*",
+            "",
+            text,
+            flags=re.I,
+        ).strip(" :-")
+        text = re.sub(r"\b(?:DNW|DNS|DN[A-Z]{0,2}|YARD|AUCTION)\b", " ", text, flags=re.I)
+        text = re.sub(r"\s+", " ", text).strip()
+        if not text or re.fullmatch(r"(?:UK|USA|UNITED\s+KINGDOM|GREAT\s+BRITAIN|US)", text, re.I):
+            continue
+        # Prefer canonical UK yard spelling when we recognize it
+        if region == "uk":
+            upper = text.upper()
+            for yard in _UK_YARD_NAMES:
+                pattern = re.sub(r"\s+", r"\\s+", re.escape(yard))
+                if re.search(rf"\b{pattern}\b", upper):
+                    return yard.title() if " " in yard else yard.title()
+            return text[:80]
+        return text[:80]
+
+    # DOM card text: "Location: Whitburn"
+    blob = " ".join(
+        str(row.get(k) or "")
+        for k in ("text", "title", "locationLabel", "sale_location")
+    )
+    m = re.search(
+        r"(?:Sale\s*location|Location|Yard|Площадка)\s*:?\s*([A-Za-z][A-Za-z0-9 \-/]{2,40})",
+        blob,
+        re.I,
+    )
+    if m:
+        return extract_copart_location({"yn": m.group(1)}, region=region)
+    return None
+
+
 def extract_body_style(
     row: dict[str, Any],
     *extra_text: str,
@@ -410,10 +491,18 @@ def map_copart_row(row: dict[str, Any]) -> AuctionLot | None:
     buy_now = float(row.get("bnp") or dyn.get("buyTodayBid") or 0) or None
     odo = int(row.get("orr") or 0)
     damage = title_case(str(row.get("dd") or "Unknown")) or "Unknown"
-    location = str(row.get("yn") or "USA")
+    location = extract_copart_location(row, region="usa") or "USA"
     vin = str(row.get("fv") or "*****************")
     engine = str(row.get("egn") or "").strip() or None
     title_desc = str(row.get("td") or row.get("tgd") or "Salvage")
+    body = extract_body_style(
+        row,
+        title_desc,
+        str(row.get("text") or ""),
+        make=make,
+        model=model,
+        allow_infer=True,
+    )
 
     slug = f"copart-{year}-{slugify(make)}-{slugify(model)}-{ln}"
     return AuctionLot(
@@ -446,7 +535,7 @@ def map_copart_row(row: dict[str, Any]) -> AuctionLot | None:
         hasKeys=_copart_has_keys(row),
         runsDrives=_copart_runs_drives(row),
         engine=engine,
-        bodyStyle=title_case(str(row.get("bsd") or "")) or None,
+        bodyStyle=body,
         lotUrl=f"https://www.copart.com/lot/{ln}",
     )
 
@@ -468,6 +557,10 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
         bid_m = re.search(r"£\s*([\d,]+)", text)
         bid = float(bid_m.group(1).replace(",", "")) if bid_m else 0.0
         cat_m = re.search(r"\bCat(?:egory)?\s*([ABNSCDXU])\b", text, re.I)
+        body = extract_body_style(
+            row, text, str(row.get("title") or ""), make=make, model=model, allow_infer=True
+        )
+        loc = extract_copart_location(row, region="uk")
         return AuctionLot(
             id=f"uk-copart-{ln}",
             slug=f"copart-uk-{year}-{slugify(make)}-{slugify(model)}-{ln}",
@@ -485,7 +578,7 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
             odometerUnit="mi",
             currentBid=bid,
             currency="GBP",
-            location=str(row.get("location") or "UK"),
+            location=loc or "UK",
             auctionDate=(datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
             imageUrl=gallery[0],
             imageUrls=gallery,
@@ -495,6 +588,7 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
             exteriorColor="—",
             hasKeys=False,
             runsDrives=False,
+            bodyStyle=body,
             category=cat_m.group(1).upper() if cat_m else None,
             lotUrl=str(row.get("url") or f"https://www.copart.co.uk/lot/{ln}"),
         )
@@ -515,7 +609,7 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
     buy_now = float(row.get("bnp") or dyn.get("buyTodayBid") or 0) or None
     odo = int(row.get("orr") or 0)
     damage = title_case(str(row.get("dd") or "Unknown")) or "Unknown"
-    location = str(row.get("yn") or "UK")
+    location = extract_copart_location(row, region="uk") or "UK"
     vin = str(row.get("fv") or "*****************")
     title_desc = str(row.get("td") or row.get("tgd") or row.get("ft") or "Salvage")
     cat = None
@@ -526,6 +620,14 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
         m = re.search(r"\b([ABNSCDXU])\b", title_desc)
         if m:
             cat = m.group(1).upper()
+    body = extract_body_style(
+        row,
+        title_desc,
+        str(row.get("text") or ""),
+        make=make,
+        model=model,
+        allow_infer=True,
+    )
 
     return AuctionLot(
         id=f"uk-copart-{ln}",
@@ -557,7 +659,7 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
         hasKeys=_copart_has_keys(row),
         runsDrives=_copart_runs_drives(row),
         engine=str(row.get("egn") or "").strip() or None,
-        bodyStyle=title_case(str(row.get("bsd") or "")) or None,
+        bodyStyle=body,
         category=cat,
         lotUrl=f"https://www.copart.co.uk/lot/{ln}",
     )
