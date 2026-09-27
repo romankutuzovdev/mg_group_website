@@ -125,6 +125,12 @@ export function toLotThumbUrl(url: string): string {
 }
 
 function photoIdentity(url: string): string {
+  if (url.startsWith("/api/lot-photos/")) {
+    const base = (url.split("/").pop() || "").replace(/\.[^.]+$/, "");
+    // 01-abc123def456 → prefer hash part
+    const hash = base.replace(/^\d+-/, "");
+    return hash ? `local:${hash}` : `local:${base}`;
+  }
   const keyMatch = url.match(/[?&]imageKeys=([^&]+)/i);
   if (keyMatch) {
     try {
@@ -141,6 +147,8 @@ function photoIdentity(url: string): string {
 
 function photoScore(url: string): number {
   let score = 0;
+  // Prefer our archived copies over auction CDN
+  if (url.startsWith("/api/lot-photos/")) score += 20_000;
   const rh = url.match(/[?&]rh=(\d+)/i);
   if (rh) score += Number(rh[1]);
   const width = url.match(/[?&](?:width|cw)=(\d+)/i);

@@ -37,18 +37,27 @@ _ROUTE_CACHE: dict[str, float | None] = {}
 _GOOGLE_MATRIX_CACHE: dict[str, dict[str, float | None]] = {}
 
 
-def _http_json(url: str, *, timeout: float = 12.0) -> dict | list | None:
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": USER_AGENT,
-            "Accept": "application/json",
-        },
-    )
+def _http_json(url: str, *, timeout: float = 5.0) -> dict | list | None:
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json",
+    }
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8", "replace"))
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
+        log.debug("urllib %s: %s", url.split("?")[0], exc)
+    # httpx often succeeds where system SSL/urllib fails (Windows / old OpenSSL)
+    try:
+        import httpx
+
+        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+            response = client.get(url, headers=headers)
+            if response.status_code >= 400:
+                return None
+            return response.json()
+    except Exception as exc:
         log.warning("API %s: %s", url.split("?")[0], exc)
         return None
 
@@ -77,8 +86,16 @@ def place_query_variants(place: str | None) -> list[str]:
     raw = _clean_place(place)
     if not raw:
         return []
+    # Strip auction prefixes Bid.cars / Copart sometimes leave
+    raw = re.sub(
+        r"^(?:copart|iaai|bid\.?cars|sale\s*location|yard|location|площадка|местоположение)\s*[-:]?\s*",
+        "",
+        raw,
+        flags=re.I,
+    ).strip(" :-")
     variants: list[str] = []
-    m = re.match(r"^(.+?)\s*\(([A-Z]{2})\)$", raw, re.I)
+    # "Los Angeles, CA" / "Los Angeles, CA, USA"
+    m = re.match(r"^(.+?),\s*([A-Z]{2})(?:\s*,\s*USA)?$", raw, re.I)
     if m:
         city = m.group(1).strip()
         st = m.group(2).upper()
@@ -88,10 +105,35 @@ def place_query_variants(place: str | None) -> list[str]:
                 f"{city}, {st}, USA",
                 f"{city}, {state}, USA",
                 f"{city}, {st}",
+            ]
+        )
+    # "Los Angeles (CA)"
+    m2 = re.match(r"^(.+?)\s*\(([A-Z]{2})\)$", raw, re.I)
+    if m2:
+        city = m2.group(1).strip()
+        st = m2.group(2).upper()
+        state = US_STATE_NAMES.get(st, st)
+        variants.extend(
+            [
+                f"{city}, {st}, USA",
+                f"{city}, {state}, USA",
+                f"{city}, {st}",
                 f"{city} {state}",
             ]
         )
-    else:
+    # "CA - Los Angeles" / "CA Los Angeles"
+    m3 = re.match(r"^([A-Z]{2})\s*[-–]\s*(.+)$", raw, re.I)
+    if m3:
+        st = m3.group(1).upper()
+        city = m3.group(2).strip()
+        state = US_STATE_NAMES.get(st, st)
+        variants.extend(
+            [
+                f"{city}, {st}, USA",
+                f"{city}, {state}, USA",
+            ]
+        )
+    if not variants:
         variants.append(f"{raw}, USA")
         variants.append(raw)
     seen: set[str] = set()

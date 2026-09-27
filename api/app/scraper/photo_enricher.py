@@ -201,22 +201,28 @@ def normalize_gallery(urls: list[str], source: str) -> list[str]:
 
 
 def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> bool:
-    """True if lot should be visited for gallery photos today."""
+    """True if lot still needs local gallery files on our server."""
     if not lot.lotUrl:
         return False
     day = today or datetime.now(timezone.utc).date()
-    imgs = [u for u in (lot.imageUrls or []) if u and (u.startswith("/api/lot-photos/") or not _is_useless_photo(u))]
-    has_remote = any((u or "").startswith("http") for u in imgs)
-    # Already enriched today with a real gallery stored on our server.
-    if lot.photosEnrichedAt and not has_remote:
+    imgs = [
+        u
+        for u in (list(lot.imageUrls or []) + ([lot.imageUrl] if lot.imageUrl else []))
+        if u and (u.startswith("/api/lot-photos/") or not _is_useless_photo(u))
+    ]
+    local = [u for u in imgs if (u or "").startswith("/api/lot-photos/")]
+    # Enough local copies already archived today — skip.
+    if len(local) >= 2 and lot.photosEnrichedAt:
         try:
             enriched_day = datetime.fromisoformat(
                 lot.photosEnrichedAt.replace("Z", "+00:00")
             ).astimezone(timezone.utc).date()
-            if enriched_day == day and len(imgs) >= 2:
+            if enriched_day == day:
                 return False
         except Exception:
-            pass
+            if len(local) >= 3:
+                return False
+    # No local files yet (or only remote CDN) — keep trying.
     return True
 
 
@@ -394,24 +400,57 @@ class PhotoEnrichmentAgent:
                 break
             self.status.last_lot_id = lot.id
             try:
-                urls = await self.enrich_lot(page, lot)
                 now = datetime.now(timezone.utc).isoformat()
-                if urls:
-                    from app.services.lot_photos import archive_gallery
+                hint = "uk" if (
+                    lot.region == "uk" or lot.source == "copart_uk"
+                ) else (lot.source or lot.region or "")
+                from app.services.lot_photos import archive_gallery
 
-                    saved = await archive_gallery(lot.id, urls)
-                    updated = lot_store.update_photos(lot.id, saved or urls, enriched_at=now)
+                # Fast path: catalog already has CDN URLs — download in parallel,
+                # no need to open the lot page one-by-one.
+                existing_remote = [
+                    u
+                    for u in (
+                        list(lot.imageUrls or [])
+                        + ([lot.imageUrl] if lot.imageUrl else [])
+                    )
+                    if (u or "").startswith("http") and not _is_useless_photo(u)
+                ]
+                saved: list[str] = []
+                if len(existing_remote) >= 2:
+                    saved = await archive_gallery(
+                        lot.id, existing_remote, referer_hint=hint
+                    )
+
+                if not saved:
+                    urls = await self.enrich_lot(page, lot)
+                    if urls:
+                        saved = await archive_gallery(
+                            lot.id, urls, referer_hint=hint
+                        )
+
+                if saved:
+                    updated = lot_store.update_photos(
+                        lot.id, saved, enriched_at=now
+                    )
                     if updated:
                         enriched += 1
-                        photos += len(urls)
+                        photos += len(saved)
                         self.status.total_enriched += 1
-                        self.status.total_photos += len(urls)
-                self._processed_ids.add(lot.id)
-                self.status.processed_today += 1
+                        self.status.total_photos += len(saved)
+                    self._processed_ids.add(lot.id)
+                    self.status.processed_today += 1
+                elif existing_remote:
+                    # Had CDN urls but download failed — retry later (no mark)
+                    errors += 1
+                    self.status.last_error = f"archive_empty:{lot.id}"
+                    logger.warning("photo archive empty %s — will retry", lot.id)
+                else:
+                    self._processed_ids.add(lot.id)
+                    self.status.processed_today += 1
             except Exception as exc:
                 errors += 1
                 self.status.last_error = str(exc)
-                self._processed_ids.add(lot.id)  # skip retry same day
                 logger.warning("photo enrich failed %s: %s", lot.id, exc)
 
             delay = max(0.5, settings.scraper_photo_delay_seconds)

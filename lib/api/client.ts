@@ -313,10 +313,17 @@ export type LotFromUrlResponse = {
 };
 
 export async function fetchLotFromUrl(url: string): Promise<LotFromUrlResponse> {
-  return apiFetch("/api/v1/pricing/lot-from-url", {
-    method: "POST",
-    body: JSON.stringify({ url }),
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25_000);
+  try {
+    return await apiFetch("/api/v1/pricing/lot-from-url", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function fetchHealth(): Promise<{ status: string; lots: number }> {

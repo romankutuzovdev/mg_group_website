@@ -327,7 +327,11 @@ def soft_lot_payload(url: str, error: str) -> dict[str, Any]:
     return {
         "ok": False,
         "url": canonical,
-        "source": "copart_uk" if is_uk else platform,
+        "source": (
+            "copart_uk" if is_uk
+            else "iaai" if platform == "iaai"
+            else "copart"
+        ),
         "region": "uk" if is_uk else "usa",
         "auction_platform": "iaai" if platform == "iaai" else "copart",
         "lotNumber": lot_number,
@@ -349,8 +353,8 @@ def soft_lot_payload(url: str, error: str) -> dict[str, Any]:
 def enrich_usa_inland(payload: dict[str, Any], *, live: bool = False) -> dict[str, Any]:
     """Как в desktop-боте: мили до NJ/Houston и $1/mi для машинокомплекта США.
 
-    live=False (default on request path): never call external geocoders — that
-    blocks the FastAPI event loop and causes site-wide 502 under load.
+    live=False: only apply fallback / keep existing miles (never block on HTTP).
+    Prefer enrich_usa_inland_async on the request path.
     """
     out = dict(payload)
     region = str(out.get("region") or "").lower()
@@ -358,27 +362,36 @@ def enrich_usa_inland(payload: dict[str, Any], *, live: bool = False) -> dict[st
     is_uk = region == "uk" or source == "copart_uk" or "copart.co.uk" in str(out.get("url") or "").lower()
     if is_uk:
         return out
-    location = out.get("location")
     existing = out.get("inlandMiles")
-    if existing is not None and float(existing or 0) > 0:
+    if (
+        existing is not None
+        and float(existing or 0) > 0
+        and out.get("milesToNewJersey") is not None
+        and out.get("milesToHouston") is not None
+    ):
         out.setdefault("inlandOk", True)
         return out
     if not live:
         if out.get("inlandMiles") is None:
             out["inlandMiles"] = 450
-        out["inlandOk"] = False
-        out["inlandError"] = "live_miles_skipped"
+        out.setdefault("inlandOk", False)
+        out.setdefault("inlandError", "live_miles_skipped")
         return out
     try:
         from app.services.usa_distance import resolve_us_inland
 
-        route = resolve_us_inland(str(location or ""), None, allow_chrome_maps=False)
+        route = resolve_us_inland(str(out.get("location") or ""), None, allow_chrome_maps=False)
     except Exception as exc:
         logger.warning("resolve_us_inland failed: %s", exc)
         if out.get("inlandMiles") is None:
             out["inlandMiles"] = 450
         out["inlandOk"] = False
         return out
+    return _apply_inland_route(out, route)
+
+
+def _apply_inland_route(payload: dict[str, Any], route: dict[str, Any]) -> dict[str, Any]:
+    out = dict(payload)
     if route.get("ok") and route.get("inland_miles") is not None:
         out["inlandMiles"] = float(route["inland_miles"])
         out["inlandUsd"] = float(route.get("inland_usd") or round(float(route["inland_miles"])))
@@ -388,14 +401,54 @@ def enrich_usa_inland(payload: dict[str, Any], *, live: bool = False) -> dict[st
         out["usPortLabel"] = route.get("us_port_label")
         out["distanceSource"] = route.get("distance_source")
         out["inlandOk"] = True
+        out.pop("inlandError", None)
     else:
         if out.get("inlandMiles") is None:
             out["inlandMiles"] = 450
         out["milesToNewJersey"] = route.get("miles_to_new_jersey")
         out["milesToHouston"] = route.get("miles_to_houston")
         out["inlandOk"] = False
-        out["inlandError"] = route.get("error")
+        out["inlandError"] = route.get("error") or "miles_unavailable"
     return out
+
+
+async def enrich_usa_inland_async(
+    payload: dict[str, Any],
+    *,
+    timeout: float = 4.0,
+) -> dict[str, Any]:
+    """Resolve NJ/Houston miles off the event loop (thread) with a hard timeout."""
+    out = dict(payload)
+    if _is_uk_payload(out):
+        return out
+    if (
+        out.get("inlandOk")
+        and out.get("milesToNewJersey") is not None
+        and out.get("milesToHouston") is not None
+        and float(out.get("inlandMiles") or 0) > 0
+    ):
+        return out
+    location = clean_auction_location(str(out.get("location") or "")) or str(out.get("location") or "").strip()
+    if not location:
+        return enrich_usa_inland(out, live=False)
+    try:
+        from app.services.usa_distance import resolve_us_inland
+
+        route = await asyncio.wait_for(
+            asyncio.to_thread(
+                lambda: resolve_us_inland(location, None, allow_chrome_maps=False)
+            ),
+            timeout=max(1.0, timeout),
+        )
+        if isinstance(route, dict):
+            return _apply_inland_route(out, route)
+    except asyncio.TimeoutError:
+        logger.warning("usa inland timeout (%.1fs) for %s", timeout, location[:60])
+        out["inlandError"] = "miles_timeout"
+    except Exception as exc:
+        logger.warning("usa inland async failed: %s", exc)
+        out["inlandError"] = str(exc)[:200]
+    return enrich_usa_inland(out, live=False)
 
 
 def lot_to_calculator_payload(
@@ -429,8 +482,9 @@ def lot_to_calculator_payload(
         "slug": lot.slug,
         "region": lot.region,
     }
-    if str(lot.region or "").lower() != "uk" and lot.source != "copart_uk":
-        return enrich_usa_inland(payload)
+    # Miles resolved async in fetch_lot_from_url (Bid.cars / Copart / IAAI USA).
+    if lot.inlandMiles is not None and float(lot.inlandMiles or 0) > 0:
+        payload["inlandOk"] = True
     return payload
 
 
@@ -591,10 +645,13 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
             data["year"] = int(m_year.group(1))
 
     auction = data.get("auction_platform") or (
-        "copart" if data.get("platform") == "copart" else "iaai"
+        "copart" if data.get("platform") in ("copart", "bidcars") else "iaai"
     )
     if auction not in ("copart", "iaai"):
-        auction = "copart" if "copart" in canonical.lower() else "iaai"
+        if "bid.cars" in canonical.lower() or "copart" in canonical.lower():
+            auction = "copart"
+        else:
+            auction = "iaai"
     is_uk = "copart.co.uk" in canonical.lower() or data.get("region") == "uk"
     title_text = str(data.get("title") or "")
     category = str(data.get("category") or "").strip().upper() or None
@@ -608,7 +665,13 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
             re.I,
         )
         category = cat_m.group(1).upper() if cat_m else None
-    source = "copart_uk" if is_uk else platform
+    # Normalize source for calculator (never leave raw "bidcars")
+    if is_uk:
+        source = "copart_uk"
+    elif auction == "iaai":
+        source = "iaai"
+    else:
+        source = "copart"
 
     chrome_payload = {
         "ok": True,
@@ -631,8 +694,6 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
     }
     if data.get("chrome_error"):
         chrome_payload["chrome_error"] = data["chrome_error"]
-    if not is_uk:
-        chrome_payload = enrich_usa_inland(chrome_payload)
     return chrome_payload
 
 
@@ -776,8 +837,6 @@ def _payload_from_copart_js(
         "images": raw.get("images") or [],
         "via": via,
     }
-    if not is_uk:
-        payload = enrich_usa_inland(payload, live=False)
     return payload
 
 
@@ -821,15 +880,21 @@ async def _fetch_copart_via_agent_tab(url: str) -> dict[str, Any] | None:
     )
 
 
-async def fetch_lot_from_url(url: str) -> dict[str, Any]:
-    """Catalog first; Copart via scraper tab; Chrome only if needed. Never 502.
+async def _finalize_lot_payload(payload: dict[str, Any], remaining: float) -> dict[str, Any]:
+    """Attach live USA inland miles (NJ/Houston) when budget allows."""
+    if _is_uk_payload(payload):
+        return payload
+    return await enrich_usa_inland_async(
+        payload,
+        timeout=min(4.0, max(1.2, remaining)),
+    )
 
-    Hard total budget ~12s so Vercel rewrites do not time out.
-    UK lots always try a live Solr refresh — catalog yards/bids go stale fast.
-    """
+
+async def fetch_lot_from_url(url: str) -> dict[str, Any]:
+    """Catalog → agent/Chrome → USA miles. Soft 200, never hang past budget."""
     import time
 
-    deadline = time.monotonic() + 12.0
+    deadline = time.monotonic() + 14.0
 
     def _remaining() -> float:
         return max(0.5, deadline - time.monotonic())
@@ -847,7 +912,6 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
 
     if catalog_ok and from_store:
         if _is_uk_payload(from_store):
-            # Always refresh UK bid/yard from live Solr when possible
             try:
                 enriched = await asyncio.wait_for(
                     _enrich_uk_via_agent_tab(url, from_store),
@@ -858,9 +922,8 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
             except Exception as exc:
                 logger.warning("uk enrich skipped: %s", exc)
             return apply_uk_url_yard(from_store, url)
-        return from_store
+        return await _finalize_lot_payload(from_store, _remaining())
 
-    # Lot not in catalog — resolve from the link
     try:
         canonical = normalize_lot_url(url)
         platform = detect_platform(canonical)
@@ -877,11 +940,13 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
             if hit and (
                 hit.get("bid") or hit.get("make") or hit.get("location") or hit.get("bodyStyle")
             ):
-                return apply_uk_url_yard(hit, canonical) if _is_uk_payload(hit) else hit
+                if _is_uk_payload(hit):
+                    return apply_uk_url_yard(hit, canonical)
+                return await _finalize_lot_payload(hit, _remaining())
         except Exception as exc:
             logger.warning("copart agent-tab lookup failed: %s", exc)
 
-    # Bid.cars / IAAI / Copart when agent tab failed — short Chrome window
+    # Bid.cars / IAAI / Copart fallback — short Chrome window
     if _remaining() > 1.5:
         try:
             chrome = await asyncio.wait_for(
@@ -891,10 +956,12 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
             if chrome and (chrome.get("bid") or chrome.get("make") or chrome.get("location")):
                 if _is_uk_payload(chrome):
                     return apply_uk_url_yard(chrome, canonical)
-                return chrome
+                return await _finalize_lot_payload(chrome, _remaining())
         except Exception as exc:
             logger.warning("chrome lot-from-url failed: %s", exc)
             return soft_lot_payload(url, str(exc))
 
     soft = soft_lot_payload(url, "lot_not_found")
-    return apply_uk_url_yard(soft, url) if _is_uk_payload(soft) else soft
+    if _is_uk_payload(soft):
+        return apply_uk_url_yard(soft, url)
+    return await _finalize_lot_payload(soft, _remaining())
