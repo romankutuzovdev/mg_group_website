@@ -99,7 +99,12 @@ class LotStore:
         path = Path(get_settings().lots_json_path)
         lots: list[AuctionLot] = []
         if path.is_file():
-            raw = json.loads(path.read_text(encoding="utf-8"))
+            try:
+                # utf-8-sig: tolerate PowerShell Set-Content -Encoding UTF8 (BOM)
+                raw = json.loads(path.read_text(encoding="utf-8-sig"))
+            except json.JSONDecodeError:
+                # Broken / empty file — start with empty catalog rather than crash API
+                raw = {"lots": []}
             items = raw.get("lots", raw) if isinstance(raw, dict) else raw
             for item in items or []:
                 try:
