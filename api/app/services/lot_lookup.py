@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Any
@@ -249,8 +250,51 @@ def _title_label(lot: AuctionLot) -> str | None:
     return None
 
 
-def enrich_usa_inland(payload: dict[str, Any]) -> dict[str, Any]:
-    """Как в desktop-боте: мили до NJ/Houston и $1/mi для машинокомплекта США."""
+def soft_lot_payload(url: str, error: str) -> dict[str, Any]:
+    """Always-200 fallback so the calculator UI never dies on Chrome/CDP 502."""
+    try:
+        canonical = normalize_lot_url(url)
+        platform = detect_platform(canonical)
+        lot_number = extract_lot_number(canonical, platform)
+    except Exception:
+        canonical = (url or "").strip()
+        platform = "copart"
+        lot_number = None
+    is_uk = "copart.co.uk" in canonical.lower() or platform == "copart" and "uk" in canonical.lower()
+    year_u, make_u, model_u = (None, None, None)
+    try:
+        if "bid.cars" in canonical.lower():
+            year_u, make_u, model_u = title_from_bidcars_url(canonical)
+    except Exception:
+        pass
+    return {
+        "ok": False,
+        "url": canonical,
+        "source": "copart_uk" if is_uk else platform,
+        "region": "uk" if is_uk else "usa",
+        "auction_platform": "iaai" if platform == "iaai" else "copart",
+        "lotNumber": lot_number,
+        "bid": None,
+        "year": year_u,
+        "make": make_u,
+        "model": model_u,
+        "title": None,
+        "location": None,
+        "odometer": None,
+        "bodyStyle": None,
+        "category": None,
+        "images": [],
+        "via": "soft_fallback",
+        "error": (error or "lot_lookup_failed")[:300],
+    }
+
+
+def enrich_usa_inland(payload: dict[str, Any], *, live: bool = False) -> dict[str, Any]:
+    """Как в desktop-боте: мили до NJ/Houston и $1/mi для машинокомплекта США.
+
+    live=False (default on request path): never call external geocoders — that
+    blocks the FastAPI event loop and causes site-wide 502 under load.
+    """
     out = dict(payload)
     region = str(out.get("region") or "").lower()
     source = str(out.get("source") or "").lower()
@@ -259,7 +303,14 @@ def enrich_usa_inland(payload: dict[str, Any]) -> dict[str, Any]:
         return out
     location = out.get("location")
     existing = out.get("inlandMiles")
-    if existing is not None and float(existing or 0) > 0 and out.get("milesToNewJersey") is not None:
+    if existing is not None and float(existing or 0) > 0:
+        out.setdefault("inlandOk", True)
+        return out
+    if not live:
+        if out.get("inlandMiles") is None:
+            out["inlandMiles"] = 450
+        out["inlandOk"] = False
+        out["inlandError"] = "live_miles_skipped"
         return out
     try:
         from app.services.usa_distance import resolve_us_inland
@@ -527,74 +578,156 @@ async def _fetch_lot_via_chrome(url: str, *, optional: bool = False) -> dict[str
     return await pool.run(worker, optional=optional)
 
 
+def _merge_fields(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key in (
+        "location",
+        "category",
+        "bodyStyle",
+        "bid",
+        "year",
+        "make",
+        "model",
+        "title",
+        "odometer",
+    ):
+        val = extra.get(key)
+        if val is None or val == "":
+            continue
+        if key == "location":
+            cleaned = clean_auction_location(str(val))
+            if cleaned:
+                merged["location"] = cleaned
+            continue
+        if key == "bid" and merged.get("bid"):
+            continue
+        merged[key] = val
+    return merged
+
+
+async def _enrich_uk_via_agent_tab(
+    url: str, catalog: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Fill yard / body / category using the permanent copart_uk scraper tab."""
+    need_loc = uk_location_needs_refresh(catalog)
+    need_body = not (catalog.get("bodyStyle") or "").strip()
+    need_cat = not (catalog.get("category") or "").strip()
+    if not (need_loc or need_body or need_cat):
+        return None
+
+    lot_number = str(catalog.get("lotNumber") or extract_lot_number(url, "copart") or "").strip()
+    if not lot_number:
+        return None
+
+    try:
+        from app.scraper.worker import scraper_worker
+    except Exception:
+        return None
+
+    raw = await scraper_worker.evaluate_on_agent_tab(
+        "copart_uk",
+        COPART_JS,
+        lot_number,
+        timeout_sec=6.0,
+    )
+    if not isinstance(raw, dict):
+        # Fallback: USA Copart tab can still hit .co.uk if user is on UK VPN — try UK origin via goto skip
+        raw = await scraper_worker.evaluate_on_agent_tab(
+            "copart",
+            COPART_JS,
+            lot_number,
+            timeout_sec=6.0,
+        )
+    if not isinstance(raw, dict):
+        return None
+
+    extra: dict[str, Any] = {
+        "location": raw.get("location"),
+        "bodyStyle": raw.get("bodyStyle"),
+        "category": raw.get("category"),
+        "bid": raw.get("bid"),
+        "year": raw.get("year"),
+        "make": raw.get("make"),
+        "model": raw.get("model"),
+        "title": raw.get("title"),
+        "odometer": raw.get("odometer"),
+    }
+    if isinstance(extra.get("category"), str) and len(extra["category"]) > 1:
+        cat_m = re.search(r"\b([ABNSCDXU])\b", extra["category"], re.I)
+        extra["category"] = cat_m.group(1).upper() if cat_m else None
+
+    merged = _merge_fields(catalog, extra)
+    # Force-update weak UK placeholder location / empty body
+    if need_loc and extra.get("location"):
+        cleaned = clean_auction_location(str(extra["location"]))
+        if cleaned:
+            merged["location"] = cleaned
+    if need_body and extra.get("bodyStyle"):
+        merged["bodyStyle"] = extra["bodyStyle"]
+    if need_cat and extra.get("category"):
+        merged["category"] = extra["category"]
+    merged["via"] = "catalog+agent_tab"
+    return merged
+
+
 def _merge_chrome_into_catalog(
     catalog: dict[str, Any], chrome: dict[str, Any]
 ) -> dict[str, Any]:
-    merged = dict(catalog)
-    if chrome.get("location"):
-        merged["location"] = chrome["location"]
-    if chrome.get("category") and not merged.get("category"):
-        merged["category"] = chrome["category"]
-    if chrome.get("bodyStyle") and not merged.get("bodyStyle"):
-        merged["bodyStyle"] = chrome["bodyStyle"]
-    if chrome.get("bid") and not merged.get("bid"):
-        merged["bid"] = chrome["bid"]
+    merged = _merge_fields(catalog, chrome)
     merged["via"] = "catalog+chrome"
     return merged
 
 
 async def fetch_lot_from_url(url: str) -> dict[str, Any]:
-    """Resolve lot for calculator: catalog first; Chrome only as enrich/fallback.
+    """Resolve lot for calculator: catalog first; agent-tab Solr enrich; Chrome last."""
+    try:
+        from_store = lookup_in_production_catalog(url)
+    except Exception as exc:
+        logger.warning("catalog lookup failed: %s", exc)
+        from_store = None
 
-    Concurrent users: catalog answers without Chrome. Chrome enrich is capped
-    (default 3 tabs) and optional when catalog already has the lot — so a busy
-    Chrome never 502s the calculator.
-    """
-    from_store = lookup_in_production_catalog(url)
     catalog_ok = bool(from_store and (from_store.get("bid") or from_store.get("make")))
-    need_yard = uk_location_needs_refresh(from_store)
+    is_uk = bool(from_store and _is_uk_payload(from_store)) or "copart.co.uk" in (url or "").lower()
 
-    # Fast path: catalog is enough
-    if catalog_ok and not need_yard:
-        return from_store  # type: ignore[return-value]
+    if catalog_ok and from_store:
+        if is_uk:
+            try:
+                enriched = await asyncio.wait_for(
+                    _enrich_uk_via_agent_tab(url, from_store),
+                    timeout=7.0,
+                )
+            except Exception as exc:
+                logger.warning("uk agent-tab enrich failed: %s", exc)
+                enriched = None
+            if enriched:
+                return enriched
+        return from_store
 
-    # Catalog has the car but yard is weak — try Chrome only if a slot is free
-    if catalog_ok and need_yard:
-        try:
-            chrome = await _fetch_lot_via_chrome(url, optional=True)
-        except Exception as exc:
-            logger.warning("chrome enrich (optional) failed: %s", exc)
-            chrome = None
-        if chrome:
-            return _merge_chrome_into_catalog(from_store, chrome)  # type: ignore[arg-type]
-        out = dict(from_store)  # type: ignore[arg-type]
-        out["via"] = "catalog_fallback"
-        out["chrome_error"] = "chrome_busy_or_failed"
-        return out
-
-    # No catalog row — must use Chrome (wait for a slot)
+    # Not in catalog — brief Chrome attempt, then soft fallback (never raise)
     try:
         chrome = await _fetch_lot_via_chrome(url, optional=False)
     except Exception as exc:
         logger.warning("chrome lot-from-url failed: %s", exc)
-        again = lookup_in_production_catalog(url)
+        again = None
+        try:
+            again = lookup_in_production_catalog(url)
+        except Exception:
+            again = None
         if again and (again.get("bid") or again.get("make")):
             again = dict(again)
             again["via"] = "catalog_fallback"
             again["chrome_error"] = str(exc)
             return again
-        raise
+        return soft_lot_payload(url, str(exc))
 
-    if not chrome:
-        again = lookup_in_production_catalog(url)
-        if again:
-            return again
-        raise RuntimeError("Chrome недоступен для загрузки лота")
-
-    if chrome.get("bid") or chrome.get("make") or chrome.get("location"):
+    if chrome and (chrome.get("bid") or chrome.get("make") or chrome.get("location")):
         return chrome
 
-    again = lookup_in_production_catalog(url)
+    again = None
+    try:
+        again = lookup_in_production_catalog(url)
+    except Exception:
+        again = None
     if again:
         return again
-    return chrome
+    return soft_lot_payload(url, (chrome or {}).get("chrome_error") or "chrome_empty")

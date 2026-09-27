@@ -346,10 +346,43 @@ class MultiAgentOrchestrator:
         self._photo_agent: PhotoEnrichmentAgent | None = None
         self._calc_page: Page | None = None
         self._lock = asyncio.Lock()
+        self._calc_lookup_lock = asyncio.Lock()
         self._browser: Browser | None = None
         self._pw = None
         self._stop = asyncio.Event()
         self._supervisor: asyncio.Task | None = None
+
+    async def evaluate_on_agent_tab(
+        self,
+        source: str,
+        expression: str,
+        arg: Any = None,
+        *,
+        timeout_sec: float = 6.0,
+    ) -> Any | None:
+        """Run JS on an existing scraper tab (no new Chrome tabs).
+
+        Used by calculator lot-from-url to read Copart Solr with live cookies.
+        If another calc lookup is in progress, returns None immediately.
+        """
+        try:
+            await asyncio.wait_for(self._calc_lookup_lock.acquire(), timeout=0.05)
+        except asyncio.TimeoutError:
+            return None
+        try:
+            agent = self._agents.get(source)
+            page = agent._page if agent else None
+            if page is None or page.is_closed():
+                return None
+            return await asyncio.wait_for(
+                page.evaluate(expression, arg),
+                timeout=timeout_sec,
+            )
+        except Exception as exc:
+            logger.warning("evaluate_on_agent_tab %s: %s", source, exc)
+            return None
+        finally:
+            self._calc_lookup_lock.release()
 
     async def _warm_agent_tabs(self, names: set[str] | None = None) -> None:
         """Navigate tabs one-by-one (never in parallel — parallel goto kills CDP/Chrome)."""

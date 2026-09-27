@@ -40,15 +40,37 @@ function matchBodyFromLot(lot: LotFromUrlResponse): {
   if (classified.vehicleType === "motorcycle") {
     return { value: "motorcycle", matched: classified.matched, raw: lot.bodyStyle || raw };
   }
-  const map: Record<string, string> = {
-    sedan: "sedan",
-    suv: "SUV",
-    sprinter: "van",
-    pickup: "pickup",
-  };
+  if (classified.matched) {
+    const map: Record<string, string> = {
+      sedan: "sedan",
+      suv: "SUV",
+      sprinter: "van",
+      pickup: "pickup",
+    };
+    return {
+      value: map[classified.dismantleType] || "sedan",
+      matched: true,
+      raw: (lot.bodyStyle || "").trim() || raw,
+    };
+  }
+  // Common SUV/crossover model codes when Copart leaves bodyStyle empty
+  const modelHay = `${lot.model || ""} ${lot.make || ""} ${lot.title || ""}`;
+  if (
+    /\b(q[23578]|x[1-7]|gl[ces]|gle|gls|tucson|sportage|rav4|cr-?v|cx-?[35]|explorer|escape|equinox|highlander|4runner|wrangler|cherokee|tahoe|suburban|escalade|navigator|outlander|forester|outback|discovery|defender|range\s*rover|land\s*rover|touareg|tiguan|kodiaq|ateca|karoq|cayenne|macan|model\s*y|ioniq\s*[59]|niro|kona|seltos|sorento|santa\s*fe|palisade|pathfinder|murano|rogue|compass|renegade|asx|eclipse\s*cross)\b/i.test(
+      modelHay,
+    )
+  ) {
+    return { value: "SUV", matched: true, raw: lot.bodyStyle || lot.model || raw };
+  }
+  if (/\b(sprinter|transit|vivaro|trafic|crafter|crafter|ducato|boxer|relay|nv[23]00|promaster)\b/i.test(modelHay)) {
+    return { value: "van", matched: true, raw: lot.bodyStyle || lot.model || raw };
+  }
+  if (/\b(hilux|ranger|navara|l200|amarok|canyon|colorado|tacoma|tundra|f-?150|silverado|sierra|ram\s*1500)\b/i.test(modelHay)) {
+    return { value: "pickup", matched: true, raw: lot.bodyStyle || lot.model || raw };
+  }
   return {
-    value: map[classified.dismantleType] || "sedan",
-    matched: classified.matched,
+    value: "sedan",
+    matched: false,
     raw: (lot.bodyStyle || "").trim() || raw,
   };
 }
@@ -142,6 +164,16 @@ export function CalculatorForm({
       }
       setTab(market);
       onMarketChange?.(market);
+      if (lot.ok === false && lot.bid == null && !lot.make) {
+        setLotError(
+          "Лот не загрузился автоматически — введите ставку и площадку вручную",
+        );
+        if (lot.lotNumber) {
+          setLotMeta(`#${lot.lotNumber} · введите данные вручную`);
+        }
+        setTouched(true);
+        return;
+      }
       if (lot.bid != null && Number(lot.bid) > 0) {
         setBidText(String(Math.round(Number(lot.bid))));
       }

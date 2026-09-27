@@ -308,6 +308,8 @@ export type LotFromUrlResponse = {
   currency?: string | null;
   via?: string;
   cdp?: string;
+  error?: string | null;
+  chrome_error?: string | null;
 };
 
 export async function fetchLotFromUrl(url: string): Promise<LotFromUrlResponse> {
