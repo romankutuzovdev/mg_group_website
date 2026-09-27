@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { CustomsByPanel } from "@/components/pricing/customs-by-panel";
+import { useRecordQuote } from "@/components/pricing/use-record-quote";
 import type { CustomsByResult } from "@/lib/pricing/customs-by";
 import {
   estimateIaaiAuctionFeesUsd,
@@ -11,10 +12,11 @@ import {
   type RestorationQuote,
 } from "@/lib/pricing/restoration-quote";
 import { listTitleTariffs } from "@/lib/pricing/usa-title";
-import { listYards, type VehicleSize } from "@/lib/pricing/usa-delivery";
+import { findYard, listYards, type VehicleSize } from "@/lib/pricing/usa-delivery";
 import { fetchLotFromUrl } from "@/lib/api/client";
 import { isApiEnabled } from "@/lib/api/config";
 import { LotLoadButton, LotLoadStatus, lotLoadErrorMessage } from "@/components/pricing/lot-url-load";
+import { lotHost, restorationLotUrlError } from "@/lib/pricing/lot-url";
 
 function usd(n: number, digits = 0) {
   return `$${n.toLocaleString("en-US", {
@@ -25,18 +27,6 @@ function usd(n: number, digits = 0) {
 
 function byn(n: number) {
   return `${n.toLocaleString("ru-RU", { maximumFractionDigits: 0 })} BYN`;
-}
-
-function matchYard(platform: "iaai" | "copart", location: string | null | undefined): string | null {
-  if (!location) return null;
-  const yards = listYards(platform);
-  const low = location.toLowerCase();
-  const exact = yards.find((y) => y.toLowerCase() === low);
-  if (exact) return exact;
-  const partial = yards.find(
-    (y) => y.toLowerCase().includes(low) || low.includes(y.toLowerCase().split(" - ")[0] || ""),
-  );
-  return partial || null;
 }
 
 const TITLE_OPTIONS = listTitleTariffs();
@@ -63,13 +53,15 @@ export function RestorationCalculator() {
   const [inlandOverride, setInlandOverride] = useState("");
   const [oceanOverride, setOceanOverride] = useState("");
   const [customs, setCustoms] = useState<CustomsByResult | null>(null);
+  const [touched, setTouched] = useState(false);
 
   const onCustoms = useCallback((r: CustomsByResult | null) => setCustoms(r), []);
 
   const loadFromUrl = useCallback(async () => {
     const url = lotUrl.trim();
-    if (!url) {
-      setLotError("Вставьте ссылку Copart / Bid.cars / IAAI");
+    const rejected = restorationLotUrlError(url);
+    if (rejected) {
+      setLotError(rejected);
       return;
     }
     if (!isApiEnabled()) {
@@ -81,13 +73,24 @@ export function RestorationCalculator() {
     setLotMeta(null);
     try {
       const lot = await fetchLotFromUrl(url);
-      const auction =
-        lot.auction_platform === "copart" || lot.auction_platform === "iaai"
-          ? lot.auction_platform
-          : lot.source === "copart"
-            ? "copart"
-            : "iaai";
-      setPlatform(auction);
+      const lotIsUk =
+        lot.region === "uk" ||
+        lot.source === "copart_uk" ||
+        lotHost(lot.url || "") === "copart_uk" ||
+        lotHost(url) === "copart_uk";
+      if (lotIsUk) {
+        setLotError("Авто под восстановление считается только по США: IAAI, Bid.cars или Copart.com");
+        return;
+      }
+      const host = lotHost(url);
+      const auction: "iaai" | "copart" =
+        host === "copart_com"
+          ? "copart"
+          : host === "iaai"
+            ? "iaai"
+            : lot.auction_platform === "copart" || lot.source === "copart"
+              ? "copart"
+              : "iaai";
       if (lot.bid != null && Number(lot.bid) > 0) setBidText(String(Math.round(Number(lot.bid))));
       if (lot.year) setYearText(String(lot.year));
       if (lot.title) {
@@ -99,15 +102,28 @@ export function RestorationCalculator() {
         );
         if (match) setTitleCode(match.name);
       }
-      const yard = matchYard(auction, lot.location || undefined);
-      if (yard) {
-        setLocation(yard);
+      const yard = findYard(lot.location, auction);
+      const matchedPlatform: "iaai" | "copart" =
+        yard?.matched_auction === "copart" || yard?.matched_auction === "iaai"
+          ? yard.matched_auction
+          : auction;
+      setPlatform(matchedPlatform);
+      if (yard?.location) {
+        setLocation(yard.location);
         setYardFilter("");
+      } else if (lot.location) {
+        setYardFilter(lot.location);
       }
       const label = [lot.year, lot.make, lot.model, lot.lotNumber && `#${lot.lotNumber}`]
         .filter(Boolean)
         .join(" ");
-      setLotMeta(label || "Лот загружен");
+      const place = yard?.location || lot.location;
+      setLotMeta(
+        [label || "Лот загружен", place, matchedPlatform === "copart" ? "Copart" : "IAAI"]
+          .filter(Boolean)
+          .join(" · "),
+      );
+      setTouched(true);
     } catch (err) {
       setLotError(lotLoadErrorMessage(err));
     } finally {
@@ -164,8 +180,23 @@ export function RestorationCalculator() {
         ? Math.round(pricedQuote.grandUsd)
         : null;
 
+  useRecordQuote(
+    touched && pricedQuote && bid > 0
+      ? {
+          kind: "restoration",
+          title: lotMeta || "Авто под восстановление",
+          lot_url: lotUrl.trim(),
+          location,
+          bid,
+          currency: "USD",
+          total_usd: grandWithCustoms,
+          summary: `Восстановление · ${platform === "copart" ? "Copart" : "IAAI"} · ${oceanDest === "poti" ? "Poti" : "Klaipeda"}`,
+        }
+      : null,
+  );
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" onChange={() => setTouched(true)}>
       <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
         <div className="card-premium space-y-4 rounded-xl p-4 sm:p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
@@ -173,7 +204,7 @@ export function RestorationCalculator() {
           </p>
 
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted sm:col-span-2">
-            Ссылка на лот (Copart / Bid.cars / IAAI)
+            Ссылка на лот (IAAI / Bid.cars / Copart.com)
             <div className="mt-1 flex flex-col gap-2 sm:flex-row">
               <input
                 type="url"
@@ -185,7 +216,7 @@ export function RestorationCalculator() {
                     void loadFromUrl();
                   }
                 }}
-                placeholder="https://www.copart.com/lot/… или https://bid.cars/…"
+                placeholder="https://www.iaai.com/… или https://www.copart.com/lot/…"
                 className="w-full flex-1 rounded-lg border border-border px-3 py-2 text-sm text-text-primary"
               />
               <LotLoadButton loading={lotLoading} onClick={() => void loadFromUrl()} />

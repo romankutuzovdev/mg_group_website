@@ -81,17 +81,17 @@ const Footer = ({ dictionary }: FooterProps) => {
               <a href="/calculator/" className="hover:text-foreground transition-colors">
                 Калькуляторы
               </a>
-              <a
-                href="/calculator/mashinokomplekt/"
-                className="hover:text-foreground transition-colors"
-              >
-                Просчёт комплекта
+              <a href="/calculator/usa/" className="hover:text-foreground transition-colors">
+                Просчёт США
               </a>
-              <a
-                href="/calculator/vosstanovlenie/"
-                className="hover:text-foreground transition-colors"
-              >
-                Просчёт авто
+              <a href="/calculator/angliya/" className="hover:text-foreground transition-colors">
+                Просчёт Англия
+              </a>
+              <a href="/calculator/vosstanovlenie/" className="hover:text-foreground transition-colors">
+                Восстановление
+              </a>
+              <a href="/calculator/rastamozhka/" className="hover:text-foreground transition-colors">
+                Растаможка
               </a>
               <a href="/otzyvy/" className="hover:text-foreground transition-colors">
                 Отзывы

@@ -79,10 +79,9 @@ export function CabinetCalculator() {
 function CustomsStandalone() {
   const [price, setPrice] = useState("12000");
   const [year, setYear] = useState("2018");
-  const [engine, setEngine] = useState("2.0");
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
           Цена авто (USD)
           <input
@@ -101,21 +100,8 @@ function CustomsStandalone() {
             className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal"
           />
         </label>
-        <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
-          Двигатель
-          <input
-            type="text"
-            value={engine}
-            onChange={(e) => setEngine(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal"
-          />
-        </label>
       </div>
-      <CustomsByPanel
-        priceUsd={Number(price) || null}
-        year={Number(year) || null}
-        engine={engine}
-      />
+      <CustomsByPanel priceUsd={Number(price) || null} year={Number(year) || null} />
     </div>
   );
 }

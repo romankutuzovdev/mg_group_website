@@ -122,31 +122,54 @@ function normText(value: string): string {
     .trim();
 }
 
+function stateAbbr(token: string): string | null {
+  const t = token.trim();
+  if (!t) return null;
+  if (t.length === 2 && US_STATE_ABBR[t.toUpperCase()]) return t.toUpperCase();
+  return STATE_NAME_TO_ABBR[t.toLowerCase()] || null;
+}
+
+/** Copart «FL - TAMPA SOUTH», IAAI «Dallas/ft Worth (texas)», Bid.cars «Houston (TX)». */
 export function parseLocationQuery(location?: string | null): { city: string; state: string | null } {
-  const raw = String(location || "").trim();
+  let raw = String(location || "").trim();
   if (!raw) return { city: "", state: null };
+  raw = raw.replace(/^(?:auction\s+)?(?:iaai|copart)\s*[-:|]?\s*/i, "");
+  raw = raw.replace(/\s*[-–]\s*(?:iaai|copart)\s*$/i, "");
+
   let state: string | null = null;
   let city = raw;
-  let m = raw.match(/\(([A-Za-z]{2})\)\s*$/);
-  if (m) {
-    state = m[1].toUpperCase();
-    city = raw.slice(0, m.index).replace(/[ ,.-]+$/, "");
+  let m = raw.match(/\(\s*([A-Za-z][A-Za-z .'-]{1,24})\s*\)\s*$/);
+  if (m && stateAbbr(m[1])) {
+    state = stateAbbr(m[1]);
+    city = raw.slice(0, m.index).replace(/[\s,./-]+$/, "");
   } else {
-    m = raw.match(/,\s*([A-Za-z]{2})\s*$/);
-    if (m) {
-      state = m[1].toUpperCase();
+    m = raw.match(/,\s*([A-Za-z][A-Za-z .'-]{1,24})\s*$/);
+    if (m && stateAbbr(m[1])) {
+      state = stateAbbr(m[1]);
       city = raw.slice(0, m.index).trim();
     } else {
       const parts = raw.split(/\s+-\s+/).map((p) => p.trim()).filter(Boolean);
       if (parts.length >= 2) {
-        city = parts[0];
-        const maybe = parts[1];
-        if (maybe.length === 2 && US_STATE_ABBR[maybe.toUpperCase()]) state = maybe.toUpperCase();
-        else if (STATE_NAME_TO_ABBR[maybe.toLowerCase()]) state = STATE_NAME_TO_ABBR[maybe.toLowerCase()];
+        const head = stateAbbr(parts[0]);
+        if (head && parts[0].trim().length === 2) {
+          state = head;
+          const rest = parts
+            .slice(1)
+            .filter((p) => !/^(iaai|copart)$/i.test(p) && !stateAbbr(p));
+          city = (rest.join(" ") || parts[1]).trim();
+        } else {
+          city = parts[0];
+          const mid = stateAbbr(parts[1]);
+          if (mid) state = mid;
+        }
       }
     }
   }
-  city = city.replace(/\s+(?:IAAI|COPART)\s*$/i, "").trim();
+  city = city
+    .replace(/[\\/]+/g, " ")
+    .replace(/\s+(?:IAAI|COPART)\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
   return { city, state };
 }
 

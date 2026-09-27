@@ -428,6 +428,15 @@
   }
 }
 
+@keyframes lot-load-slide {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(430%);
+  }
+}
+
 .partners-ticker {
   overflow: hidden;
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);

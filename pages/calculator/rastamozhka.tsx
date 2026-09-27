@@ -11,7 +11,7 @@ interface Props {
   dictionary: Dictionary;
 }
 
-export default function RestorationCalculatorPage({ dictionary }: Props) {
+export default function CustomsCalculatorPage({ dictionary }: Props) {
   return (
     <>
       <SEO
@@ -19,20 +19,20 @@ export default function RestorationCalculatorPage({ dictionary }: Props) {
           ...dictionary,
           metadata: {
             ...dictionary.metadata,
-            title: "Калькулятор авто под восстановление | MG.GROUP",
+            title: "Калькулятор растаможки | MG.GROUP",
             description:
-              "Просчёт целого авто из США по ссылке IAAI, Bid.cars или Copart.com: площадка, доставка и растаможка РБ.",
+              "Растаможка авто в Беларусь: пошлина и утильсбор по цене, году и объёму двигателя.",
           },
         }}
         lang="ru"
-        path="/calculator/vosstanovlenie/"
+        path="/calculator/rastamozhka/"
       />
       <PageShell
-        title="Авто под восстановление"
-        description="Только США: IAAI, Bid.cars и Copart.com. Площадка берётся из лота."
+        title="Растаможка"
+        description="Пошлина и утильсбор в Беларусь по цене авто, году и объёму двигателя."
       >
         <CalculatorGate>
-          <SiteCalculator mode="car" showSwitcher={false} />
+          <SiteCalculator mode="customs" showSwitcher={false} />
           <p className="mt-8 text-sm text-text-muted">
             <Link href="/calculator/usa/" className="font-medium text-accent-dark underline underline-offset-2">
               США
@@ -42,8 +42,8 @@ export default function RestorationCalculatorPage({ dictionary }: Props) {
               Англия
             </Link>
             {" · "}
-            <Link href="/calculator/rastamozhka/" className="font-medium text-accent-dark underline underline-offset-2">
-              Растаможка
+            <Link href="/calculator/vosstanovlenie/" className="font-medium text-accent-dark underline underline-offset-2">
+              Восстановление
             </Link>
           </p>
         </CalculatorGate>

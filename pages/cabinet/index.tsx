@@ -11,8 +11,7 @@ import { DealPhotos, dealCoverPhotoUrl } from "@/components/cabinet/deal-photos"
 import { DealPaymentStatus, paymentProgressLabel } from "@/components/cabinet/deal-payment-status";
 import { DealClosingStages } from "@/components/cabinet/deal-closing-stages";
 import { AdminDealsPanel } from "@/components/cabinet/admin-deals-panel";
-import { PurchasedCarsAdmin } from "@/components/cabinet/purchased-cars-admin";
-import { CabinetCalculator } from "@/components/cabinet/cabinet-calculator";
+import { QuoteHistoryPanel } from "@/components/cabinet/quote-history-panel";
 import { FavoriteButton } from "@/components/auctions/favorite-button";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
@@ -69,15 +68,15 @@ function dealProgress(deal: Deal) {
   };
 }
 
-type Tab = "deals" | "favorites" | "calc" | "manager";
+type Tab = "deals" | "favorites" | "quotes" | "manager";
 
-const TAB_IDS: Tab[] = ["deals", "favorites", "calc", "manager"];
+const TAB_IDS: Tab[] = ["deals", "favorites", "quotes", "manager"];
 
 function tabFromQuery(raw: string | null): Tab | null {
   if (!raw) return null;
   const v = raw.trim().toLowerCase();
-  if (v === "calculator" || v === "calc" || v === "просчет" || v === "просчёт") return "calc";
   if (v === "favorites" || v === "fav" || v === "избранное") return "favorites";
+  if (v === "quotes" || v === "просчеты" || v === "просчёты" || v === "history") return "quotes";
   if (v === "manager" || v === "admin" || v === "менеджер") return "manager";
   if (v === "deals" || v === "сделки") return "deals";
   return TAB_IDS.includes(v as Tab) ? (v as Tab) : null;
@@ -97,7 +96,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   const [webAppAuth, setWebAppAuth] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
 
-  // Deep-link: /cabinet/?tab=calc opens the calculator tab after login
+  // Deep-link: /cabinet/?tab=favorites|manager|deals
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -289,18 +288,8 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
               >
                 Написать менеджеру
               </a>
-              {" · "}
-              <a
-                href="/calculator/"
-                className="font-medium text-accent-dark underline underline-offset-2"
-              >
-                Калькулятор на сайте
-              </a>
             </p>
           </div>
-
-          {/* Calculators work without Telegram login */}
-          <CabinetCalculator />
         </div>
       ) : (
         <div className="flex w-full flex-1 flex-col space-y-4">
@@ -353,9 +342,11 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                       id: "favorites" as const,
                       label: `Избранное${favorites.length ? ` (${favorites.length})` : ""}`,
                     },
-                    { id: "calc" as const, label: "Калькулятор" },
                     ...(user.is_admin
-                      ? [{ id: "manager" as const, label: "Менеджер" }]
+                      ? [
+                          { id: "quotes" as const, label: "Просчёты" },
+                          { id: "manager" as const, label: "Менеджер" },
+                        ]
                       : []),
                   ] as { id: Tab; label: string }[]
                 ).map((t) => (
@@ -550,7 +541,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
               </div>
               ) : null}
 
-              {tab === "calc" ? <CabinetCalculator /> : null}
+              {tab === "quotes" && user.is_admin ? <QuoteHistoryPanel scope="all" /> : null}
 
               {tab === "manager" && user.is_admin ? (
                 <div className="space-y-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useRecordQuote } from "@/components/pricing/use-record-quote";
 import {
   calculateCustomsBy,
   fetchNbrbRates,
@@ -9,7 +9,6 @@ import {
   type AgeBand,
   type BynRates,
   type CustomsByResult,
-  type EngineType,
   FALLBACK_BYN_RATES,
 } from "@/lib/pricing/customs-by";
 
@@ -44,16 +43,27 @@ type Props = {
   fuel?: string | null;
   title?: string | null;
   onResult?: (result: CustomsByResult | null) => void;
+  /** Писать просчёт в историю. В калькуляторе восстановления история пишется отдельно. */
+  recordHistory?: boolean;
 };
 
-export function CustomsByPanel({ priceUsd, year, engine, fuel, title, onResult }: Props) {
+export function CustomsByPanel({
+  priceUsd,
+  year,
+  engine,
+  fuel,
+  title,
+  onResult,
+  recordHistory = false,
+}: Props) {
   const [ageBand, setAgeBand] = useState<"auto" | AgeBand>("auto");
-  const [engineType, setEngineType] = useState<"auto" | EngineType>("auto");
+  const [electric, setElectric] = useState(false);
   const [cc, setCc] = useState("");
   const [ccTouched, setCcTouched] = useState(false);
   const [benefit50, setBenefit50] = useState(false);
   const [includeEpts, setIncludeEpts] = useState(true);
   const [rates, setRates] = useState<BynRates>(FALLBACK_BYN_RATES);
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
     void fetchNbrbRates().then(setRates);
@@ -72,7 +82,7 @@ export function CustomsByPanel({ priceUsd, year, engine, fuel, title, onResult }
       priceUsd: price,
       year: year ?? null,
       ageBand: ageBand === "auto" ? null : ageBand,
-      engineType: engineType === "auto" ? null : engineType,
+      engineType: electric ? "electric" : null,
       engineCc: Number(cc) > 0 ? Number(cc) : null,
       engine,
       fuel,
@@ -81,16 +91,29 @@ export function CustomsByPanel({ priceUsd, year, engine, fuel, title, onResult }
       includeEpts,
       rates,
     });
-  }, [priceUsd, year, ageBand, engineType, cc, engine, fuel, title, benefit50, includeEpts, rates]);
+  }, [priceUsd, year, ageBand, electric, cc, engine, fuel, title, benefit50, includeEpts, rates]);
 
   useEffect(() => {
     onResult?.(result);
   }, [result, onResult]);
 
+  useRecordQuote(
+    recordHistory && touched && result?.ok && result.totalUsd != null
+      ? {
+          kind: "customs",
+          title: "Растаможка",
+          bid: Number(priceUsd) || null,
+          currency: "USD",
+          total_usd: Math.round(result.totalUsd),
+          summary: `Растаможка · ${year || "год не указан"} · ${cc || "объём не указан"} см³`,
+        }
+      : null,
+  );
+
   const autoBand = vehicleAgeBand(year);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onChange={() => setTouched(true)}>
       <div>
         <h3 className="font-display text-base font-semibold">Растаможка РБ</h3>
         <p className="mt-1 text-xs text-text-muted">
@@ -118,21 +141,6 @@ export function CustomsByPanel({ priceUsd, year, engine, fuel, title, onResult }
           </select>
         </label>
         <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
-          Двигатель
-          <select
-            className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal text-text-primary"
-            value={engineType}
-            onChange={(e) => setEngineType(e.target.value as "auto" | EngineType)}
-          >
-            <option value="auto">Авто</option>
-            <option value="fuel">Бензин</option>
-            <option value="diesel">Дизель</option>
-            <option value="electric">Электро (BEV)</option>
-            <option value="phev">Гибрид / PHEV</option>
-            <option value="erev">EREV</option>
-          </select>
-        </label>
-        <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted sm:col-span-2">
           Объём, см³
           <input
             type="number"
@@ -149,6 +157,10 @@ export function CustomsByPanel({ priceUsd, year, engine, fuel, title, onResult }
       </div>
 
       <div className="flex flex-wrap gap-4 text-sm">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={electric} onChange={(e) => setElectric(e.target.checked)} />
+          Электромобиль (пошлина 0)
+        </label>
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={benefit50} onChange={(e) => setBenefit50(e.target.checked)} />
           Льгота 50% (Указ №140)

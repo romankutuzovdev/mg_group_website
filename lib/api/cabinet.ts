@@ -206,6 +206,52 @@ export async function fetchMe(): Promise<CabinetUser> {
   return cabinetFetch("/api/v1/me");
 }
 
+export type QuoteHistoryKind = "usa" | "uk" | "restoration" | "customs";
+
+export type QuoteHistoryEntry = {
+  id: number;
+  user_id: number;
+  telegram_id: number;
+  username: string;
+  first_name: string;
+  last_name: string;
+  kind: QuoteHistoryKind;
+  title: string;
+  lot_url: string;
+  location: string;
+  bid: number | null;
+  currency: "USD" | "GBP";
+  total_usd: number | null;
+  summary: string;
+  created_at: string;
+};
+
+export type QuoteHistoryInput = {
+  kind: QuoteHistoryKind;
+  title?: string;
+  lot_url?: string;
+  location?: string;
+  bid?: number | null;
+  currency?: "USD" | "GBP";
+  total_usd?: number | null;
+  summary?: string;
+};
+
+export async function saveQuoteHistory(body: QuoteHistoryInput): Promise<QuoteHistoryEntry> {
+  return cabinetFetch("/api/v1/pricing/history", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function fetchMyQuoteHistory(): Promise<QuoteHistoryEntry[]> {
+  return cabinetFetch("/api/v1/pricing/history");
+}
+
+export async function fetchAllQuoteHistory(): Promise<QuoteHistoryEntry[]> {
+  return cabinetFetch("/api/v1/pricing/history/all");
+}
+
 export async function fetchMyDeals(): Promise<Deal[]> {
   return cabinetFetch("/api/v1/me/deals");
 }

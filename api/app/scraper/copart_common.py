@@ -146,21 +146,34 @@ async def _accept_cookies(tab: Page) -> None:
             pass
 
 
-async def _page_blocked(tab: Page) -> str:
+async def _dom_state(tab: Page) -> str:
+    """lots = search rendered. incapsula = the short challenge page, not the app shell."""
     try:
         return await tab.evaluate(
             """() => {
               const html = document.documentElement ? document.documentElement.innerHTML : '';
-              const hasLots = !!document.querySelector('a[href*="/lot/"]');
-              if (hasLots) return '';
-              if (/_Incapsula_Resource|pardon our interruption|additional security/i.test(html))
-                return 'incapsula';
-              if (/i am human|hcaptcha|access denied/i.test(html)) return 'bot_wall';
-              return '';
+              if (document.querySelector('a[href*="/lot/"]')) return 'lots';
+              const challenge = /pardon our interruption|additional security check|_Incapsula_Resource/i.test(html);
+              if (challenge && html.length < 120000) return 'incapsula';
+              if (/i am human|hcaptcha/i.test(html) && html.length < 120000) return 'bot_wall';
+              return 'loading';
             }"""
         )
     except Exception:
-        return ""
+        return "loading"
+
+
+async def _settle_page(tab: Page, timeout_ms: int = 15000) -> str:
+    """Angular draws lot links a few seconds after domcontentloaded."""
+    waited = 0
+    state = "loading"
+    while waited < timeout_ms:
+        state = await _dom_state(tab)
+        if state == "lots":
+            return state
+        await tab.wait_for_timeout(1000)
+        waited += 1000
+    return state
 
 
 async def _attach_galleries(tab: Page, rows: list[dict[str, Any]], *, origin: str) -> None:
@@ -208,12 +221,8 @@ async def scrape_copart_inventory(
 
     await tab.goto(warm_url, wait_until="domcontentloaded", timeout=timeout_ms)
     await _accept_cookies(tab)
-    await tab.wait_for_timeout(2500)
-
-    blocked = await _page_blocked(tab)
-    if blocked:
-        logger.warning("copart %s blocked: %s", origin, blocked)
-        return [{"_blocked": True, "reason": blocked}]
+    state = await _settle_page(tab)
+    logger.info("copart %s page state=%s", origin, state)
 
     api_ok = False
     for page_idx in range(max_pages):
@@ -226,15 +235,29 @@ async def scrape_copart_inventory(
             logger.warning("copart search page %s failed: %s", page_idx, exc)
             break
         if not isinstance(result, dict) or not result.get("ok"):
-            logger.warning(
-                "copart search HTTP %s %s",
-                result.get("status") if isinstance(result, dict) else "?",
-                (result.get("textHead") if isinstance(result, dict) else "")[:120],
-            )
             head = str((result or {}).get("textHead") or "").lower() if isinstance(result, dict) else ""
-            if "incapsula" in head or "captcha" in head:
-                return [{"_blocked": True, "reason": "incapsula"}]
-            break
+            if page_idx == 0 and ("incapsula" in head or "captcha" in head):
+                logger.info("copart %s search challenged, retry once", origin)
+                await tab.wait_for_timeout(4000)
+                await _accept_cookies(tab)
+                try:
+                    result = await tab.evaluate(
+                        INPAGE_SEARCH_JS,
+                        {"url": search_url, "body": search_body(page_idx, page_size)},
+                    )
+                except Exception as exc:
+                    logger.warning("copart search retry failed: %s", exc)
+                    result = {"ok": False, "textHead": ""}
+                head = str((result or {}).get("textHead") or "").lower() if isinstance(result, dict) else ""
+            if not isinstance(result, dict) or not result.get("ok"):
+                logger.warning(
+                    "copart search HTTP %s %s",
+                    result.get("status") if isinstance(result, dict) else "?",
+                    head[:120],
+                )
+                if "incapsula" in head or "captcha" in head:
+                    return [{"_blocked": True, "reason": "incapsula"}]
+                break
 
         payload = result.get("json") or {}
         if int(payload.get("returnCode") or 0) not in {0, 1} and not payload.get("data"):

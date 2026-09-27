@@ -1,13 +1,38 @@
 import { GetStaticProps } from "next";
+import Link from "next/link";
 import SEO from "@/components/SEO";
 import { PageShell } from "@/components/layout/page-shell";
-import { SiteCalculator } from "@/components/pricing/site-calculator";
+import { CalculatorGate } from "@/components/pricing/calculator-gate";
+import { QuoteHistoryPanel } from "@/components/cabinet/quote-history-panel";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
 
 interface Props {
   dictionary: Dictionary;
 }
+
+const CALCULATORS = [
+  {
+    href: "/calculator/usa/",
+    title: "США",
+    text: "Машинокомплект из США: IAAI, Bid.cars и Copart.com.",
+  },
+  {
+    href: "/calculator/angliya/",
+    title: "Англия",
+    text: "Машинокомплект из Англии: только Copart UK.",
+  },
+  {
+    href: "/calculator/vosstanovlenie/",
+    title: "Восстановление",
+    text: "Целое авто из США: IAAI, Bid.cars и Copart.com.",
+  },
+  {
+    href: "/calculator/rastamozhka/",
+    title: "Растаможка",
+    text: "Пошлина и утильсбор в Беларусь.",
+  },
+] as const;
 
 export default function CalculatorHubPage({ dictionary }: Props) {
   return (
@@ -17,19 +42,35 @@ export default function CalculatorHubPage({ dictionary }: Props) {
           ...dictionary,
           metadata: {
             ...dictionary.metadata,
-            title: "Калькуляторы MG.GROUP | Машинокомплект и авто под восстановление",
+            title: "Калькуляторы MG.GROUP | США, Англия, восстановление, растаможка",
             description:
-              "Отдельные калькуляторы как в боте MG.GROUP: машинокомплект (США/Англия) и авто под восстановление с растаможкой РБ.",
+              "Отдельные калькуляторы: машинокомплект США, машинокомплект Англия, авто под восстановление и растаможка.",
           },
         }}
         lang="ru"
         path="/calculator/"
       />
       <PageShell
-        title="Калькуляторы просчёта"
-        description="Три разных просчёта, как в боте: машинокомплект из Англии, машинокомплект из США и авто под восстановление."
+        title="Калькуляторы"
+        description="США, Англия, восстановление и растаможка — каждый расчёт на своей странице. Доступны после входа через Telegram."
       >
-        <SiteCalculator mode="kit-uk" showSwitcher />
+        <CalculatorGate>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {CALCULATORS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-xl border border-border bg-white p-5 transition hover:border-primary"
+              >
+                <h2 className="text-lg font-semibold text-text-primary">{item.title}</h2>
+                <p className="mt-1 text-sm text-text-secondary">{item.text}</p>
+              </Link>
+            ))}
+          </div>
+          <div className="mt-8">
+            <QuoteHistoryPanel scope="mine" />
+          </div>
+        </CalculatorGate>
       </PageShell>
     </>
   );

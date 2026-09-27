@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
@@ -10,9 +10,13 @@ from app.data import static_content as sc
 from app.data.store import lot_store
 from app.models.leads import QuoteRequest, WeightPriceRequest
 from app.models.lots import AuctionLot
+from app.services.auth_deps import get_current_user, require_admin
 from app.services.customs_by import calculate_customs_by
 from app.services.lot_lookup import fetch_lot_from_url
 from app.services.pricing import price_by_weight, quote_copart_uk, quote_iaai_usa
+from app.services import quote_history
+from app.services.telegram_notify import _escape, send_telegram_message
+from app.services.cabinet_admin import parse_admin_ids
 
 router = APIRouter(prefix="/pricing", tags=["pricing"])
 
@@ -166,3 +170,86 @@ def _quote_for_lot(lot: AuctionLot) -> dict:
         include_america_delivery=True,
     )
     return {"region": "usa", "lot_id": lot.id, "slug": lot.slug, "quote": quote}
+
+
+class QuoteHistoryIn(BaseModel):
+    kind: Literal["usa", "uk", "restoration", "customs"]
+    title: str = ""
+    lot_url: str = ""
+    location: str = ""
+    bid: float | None = None
+    currency: Literal["USD", "GBP"] = "USD"
+    total_usd: float | None = None
+    summary: str = ""
+
+
+_KIND_LABEL = {
+    "usa": "Машинокомплект США",
+    "uk": "Машинокомплект Англия",
+    "restoration": "Авто под восстановление",
+    "customs": "Растаможка",
+}
+
+
+def _quote_telegram_text(user: Any, row: dict[str, Any]) -> str:
+    who = " ".join(p for p in (user.first_name, user.last_name) if p).strip() or "Пользователь"
+    if user.username:
+        who = f"{who} @{user.username}"
+    lines = [
+        f"<b>Просчёт · {_escape(_KIND_LABEL.get(row['kind'], row['kind']))}</b>",
+        _escape(who),
+        f"TG {user.telegram_id}",
+    ]
+    if row.get("title"):
+        lines.append(_escape(str(row["title"])))
+    if row.get("location"):
+        lines.append(f"Площадка: {_escape(str(row['location']))}")
+    if row.get("bid"):
+        cur = "£" if row.get("currency") == "GBP" else "$"
+        lines.append(f"Ставка: {cur}{int(round(float(row['bid']))):,}".replace(",", " "))
+    if row.get("total_usd"):
+        lines.append(f"Итого: ${int(round(float(row['total_usd']))):,}".replace(",", " "))
+    if row.get("summary"):
+        lines.append(_escape(str(row["summary"])))
+    if row.get("lot_url"):
+        lines.append(_escape(str(row["lot_url"])))
+    return "\n".join(lines)
+
+
+@router.post("/history")
+async def save_quote_history(
+    body: QuoteHistoryIn,
+    user=Depends(get_current_user),
+    settings=Depends(get_settings),
+) -> dict[str, Any]:
+    row = quote_history.add_quote(
+        user_id=user.id,
+        telegram_id=user.telegram_id,
+        username=user.username or "",
+        first_name=user.first_name or "",
+        last_name=user.last_name or "",
+        kind=body.kind,
+        title=body.title,
+        lot_url=body.lot_url,
+        location=body.location,
+        bid=body.bid,
+        currency=body.currency,
+        total_usd=body.total_usd,
+        summary=body.summary,
+    )
+    text = _quote_telegram_text(user, row)
+    for chat_id in sorted(parse_admin_ids(settings.cabinet_admin_telegram_ids)):
+        if chat_id == user.telegram_id:
+            continue
+        await send_telegram_message(chat_id, text)
+    return row
+
+
+@router.get("/history")
+def my_quote_history(user=Depends(get_current_user)) -> list[dict[str, Any]]:
+    return quote_history.list_for_user(user.id)
+
+
+@router.get("/history/all")
+def all_quote_history(_admin=Depends(require_admin)) -> list[dict[str, Any]]:
+    return quote_history.list_all()

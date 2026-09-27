@@ -75,29 +75,65 @@ BIDCars_JS = """
     const n = Number(String(m[1]).replace(/[\\s,]/g, ''));
     return Number.isFinite(n) ? n : null;
   };
-  const title = (document.querySelector('h1') || {}).textContent || '';
-  const yearM = title.match(/(19|20)\\d{2}/);
+  const h1 = ((document.querySelector('h1') || {}).textContent || '').trim();
+  const vinLike = /^[A-HJ-NPR-Z0-9]{11,17}$/i.test(h1);
   let platform = null;
-  if (/copart/i.test(text) && !/iaai/i.test(text.slice(0, 500))) platform = 'copart';
-  if (/\\biaai\\b/i.test(text)) platform = 'iaai';
-  const imgs = Array.from(document.querySelectorAll('img'))
-    .map(i => i.src || i.getAttribute('data-src') || '')
-    .filter(s => /images\\.bid\\.cars|cdn\\.bid\\.cars|\\.(jpe?g|webp)/i.test(s))
-    .slice(0, 8);
+  if (/copart\\.co\\.uk|copart uk|united kingdom|great britain/i.test(text)) platform = 'copart_uk';
+  else if (/\\biaai\\b/i.test(text)) platform = 'iaai';
+  else if (/copart/i.test(text)) platform = 'copart';
+  const bid = money(/Текущая ставка[^0-9$]*\\$?\\s*([0-9][0-9\\s,]*)/i)
+    || money(/Current Bid[^0-9$]*\\$?\\s*([0-9][0-9,]*)/i)
+    || money(/Ставка[^0-9$]*\\$?\\s*([0-9][0-9,]*)/i);
+  const odo = money(/Одометр[^0-9]*([0-9][0-9\\s,]*)/i)
+    || money(/Odometer[^0-9]*([0-9][0-9,]*)/i);
   return {
-    title: title.trim() || null,
-    year: yearM ? Number(yearM[0]) : null,
-    bid: money(/Current Bid[^0-9$]*\\$?([0-9][0-9,]*)/i)
-      || money(/Ставка[^0-9$]*\\$?([0-9][0-9,]*)/i)
-      || money(/\\$([0-9][0-9,]{2,})/),
-    location: pick(/Location[:\\s]+([^\\n]+)/i) || pick(/Площадка[:\\s]+([^\\n]+)/i),
-    titleDoc: pick(/Title[:\\s]+([^\\n]+)/i) || pick(/Документ[:\\s]+([^\\n]+)/i),
-    odometer: money(/Odometer[^0-9]*([0-9][0-9,]*)/i),
+    title: vinLike ? null : (h1 || null),
+    docTitle: document.title || '',
+    year: null,
+    bid,
+    location: pick(/Местоположение\\s*:?\\s*([^\\n]{3,80})/i)
+      || pick(/Location\\s*:?\\s*([^\\n]{3,80})/i)
+      || pick(/Площадка\\s*:?\\s*([^\\n]{3,80})/i),
+    titleDoc: pick(/Документы о продаже\\s*:?\\s*([^\\n]{3,80})/i)
+      || pick(/Sale documents?\\s*:?\\s*([^\\n]{3,80})/i),
+    odometer: odo,
     auction_platform: platform,
-    images: imgs,
+    images: Array.from(document.querySelectorAll('img'))
+      .map(i => i.src || i.getAttribute('data-src') || '')
+      .filter(s => /images\\.bid\\.cars|cdn\\.bid\\.cars|\\.(jpe?g|webp)/i.test(s))
+      .slice(0, 12),
   };
 }
 """
+
+
+def clean_auction_location(raw: str | None) -> str | None:
+    """Площадка с карточки Copart / IAAI / Bid.cars без соседних подписей."""
+    if not raw:
+        return None
+    text = re.sub(r"\s+", " ", str(raw)).strip()
+    text = re.split(
+        r"\s+(?:Отправка из|Shipping from|Продавец|Seller|Одометр|Odometer|"
+        r"Документ|Title|Пробег|VIN)\b",
+        text,
+        maxsplit=1,
+    )[0].strip(" :-")
+    text = re.sub(r"^(?:IAAI|Copart)\s*[-:]\s*", "", text, flags=re.I).strip()
+    return text[:80] or None
+
+
+def title_from_bidcars_url(url: str) -> tuple[int | None, str | None, str | None]:
+    """Slug /2018-Audi-Q5-WA1... is the car. The h1 on the page is the VIN."""
+    match = re.search(r"/lot/(?:\d+-)?\d+/([^/?#]+)", url or "", re.I)
+    if not match:
+        return None, None, None
+    slug = re.sub(r"-?[A-HJ-NPR-Z0-9]{17}$", "", match.group(1), flags=re.I)
+    slug = re.sub(r"[-_]+", " ", slug).strip()
+    parts = slug.split()
+    if len(parts) < 3 or not re.fullmatch(r"(?:19|20)\d{2}", parts[0]):
+        return None, None, None
+    model = " ".join(parts[2:5])
+    return int(parts[0]), parts[1], model
 
 
 def normalize_lot_url(raw: str) -> str:
@@ -171,7 +207,7 @@ def lot_to_calculator_payload(
         "make": lot.make or None,
         "model": lot.model or None,
         "title": _title_label(lot),
-        "location": lot.location or None,
+        "location": clean_auction_location(lot.location),
         "odometer": lot.odometer if lot.odometer else None,
         "images": images[:12],
         "category": lot.category,
@@ -241,13 +277,42 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
                     wait_until="domcontentloaded",
                     timeout=settings.scraper_timeout_ms,
                 )
-                await page.wait_for_timeout(1800)
+                if platform == "bidcars":
+                    try:
+                        await page.wait_for_function(
+                            """() => /Местоположение|Location|Текущая ставка|Current Bid/i.test(
+                              (document.body && document.body.innerText) || ''
+                            )""",
+                            timeout=12000,
+                        )
+                    except Exception:
+                        await page.wait_for_timeout(2000)
+                else:
+                    await page.wait_for_timeout(1800)
 
                 data: dict[str, Any] = {
                     "url": canonical,
                     "platform": platform,
                     "lotNumber": lot_number,
                 }
+
+                if platform == "iaai":
+                    from app.scraper.iaai import parse_iaai_text_fields
+
+                    body = await page.inner_text("body")
+                    fields = parse_iaai_text_fields(body or "")
+                    if fields.get("location"):
+                        data["location"] = fields["location"]
+                    if fields.get("bid") is not None:
+                        data["bid"] = fields["bid"]
+                    if fields.get("year"):
+                        data["year"] = fields["year"]
+                    if fields.get("make"):
+                        data["make"] = fields["make"]
+                    if fields.get("model"):
+                        data["model"] = fields["model"]
+                    if fields.get("odometer"):
+                        data["odometer"] = fields["odometer"]
 
                 if platform == "copart" and lot_number:
                     api = await page.evaluate(COPART_JS, lot_number)
@@ -263,20 +328,36 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
                     if isinstance(dom, dict):
                         data["bid"] = dom.get("bid")
                         data["year"] = dom.get("year")
-                        data["location"] = dom.get("location")
+                        data["location"] = clean_auction_location(dom.get("location"))
                         data["title"] = dom.get("titleDoc") or dom.get("title")
                         data["odometer"] = dom.get("odometer")
                         data["images"] = dom.get("images") or []
-                        if dom.get("title"):
+                        year_u, make_u, model_u = title_from_bidcars_url(canonical)
+                        doc_title = str(dom.get("docTitle") or "")
+                        if year_u:
+                            data["year"] = year_u
+                            data["make"] = make_u
+                            data["model"] = model_u
+                        elif re.match(r"^(?:19|20)\d{2}\b", doc_title):
+                            parts = doc_title.split()
+                            if len(parts) >= 3 and parts[0].isdigit():
+                                data["year"] = int(parts[0])
+                                data["make"] = parts[1]
+                                data["model"] = " ".join(parts[2:5]).strip("|,")
+                        if dom.get("title") and not data.get("make"):
                             parts = str(dom["title"]).split()
                             if len(parts) >= 3 and parts[0].isdigit():
                                 data["year"] = data.get("year") or int(parts[0])
                                 data["make"] = parts[1]
                                 data["model"] = " ".join(parts[2:5])
-                        if dom.get("auction_platform") in ("copart", "iaai"):
+                        if dom.get("auction_platform") == "copart_uk":
+                            data["auction_platform"] = "copart"
+                            data["platform"] = "copart"
+                            data["region"] = "uk"
+                        elif dom.get("auction_platform") in ("copart", "iaai"):
                             data["auction_platform"] = dom["auction_platform"]
                             data["platform"] = dom["auction_platform"]
-                else:
+                elif platform != "iaai":
                     title = await page.title()
                     text = await page.inner_text("body")
                     data["title"] = title
@@ -296,7 +377,7 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
                 )
                 if auction not in ("copart", "iaai"):
                     auction = "copart" if "copart" in canonical.lower() else "iaai"
-                is_uk = "copart.co.uk" in canonical.lower()
+                is_uk = "copart.co.uk" in canonical.lower() or data.get("region") == "uk"
                 title_text = str(data.get("title") or "")
                 cat_m = re.search(r"\bCat(?:egory)?\s*([ABNS])\b", title_text, re.I)
                 source = "copart_uk" if is_uk else platform
@@ -314,7 +395,7 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
                     "make": data.get("make"),
                     "model": data.get("model"),
                     "title": data.get("title"),
-                    "location": data.get("location"),
+                    "location": clean_auction_location(data.get("location")),
                     "odometer": data.get("odometer"),
                     "images": data.get("images") or [],
                     "via": "chrome_cdp",

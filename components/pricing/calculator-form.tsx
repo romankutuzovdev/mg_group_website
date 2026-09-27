@@ -14,6 +14,8 @@ import { parseBidInput, useFxRate } from "@/components/pricing/use-fx-rate";
 import { fetchLotFromUrl, type LotFromUrlResponse } from "@/lib/api/client";
 import { isApiEnabled } from "@/lib/api/config";
 import { LotLoadButton, LotLoadStatus, lotLoadErrorMessage } from "@/components/pricing/lot-url-load";
+import { kitLotUrlError, lotHost, ukKitLotUrlError, usaKitLotUrlError } from "@/lib/pricing/lot-url";
+import { useRecordQuote } from "@/components/pricing/use-record-quote";
 
 type Tab = "uk" | "usa";
 
@@ -21,8 +23,9 @@ const UK_LOCATIONS = listUkDeliveryLocations();
 const BODY_VALUES = new Set<string>(VEHICLE_TYPE_OPTIONS.map((opt) => opt.value));
 
 function kitMarket(url: string, lot: LotFromUrlResponse): Tab {
-  const hay = `${url} ${lot.url || ""} ${lot.source || ""} ${lot.region || ""}`.toLowerCase();
-  if (lot.region === "uk" || lot.source === "copart_uk" || hay.includes("copart.co.uk")) return "uk";
+  if (lotHost(url) === "copart_uk" || lotHost(lot.url || "") === "copart_uk") return "uk";
+  const hay = `${lot.source || ""} ${lot.region || ""}`.toLowerCase();
+  if (lot.region === "uk" || lot.source === "copart_uk" || hay.includes("copart_uk")) return "uk";
   return "usa";
 }
 
@@ -50,13 +53,20 @@ function matchCategory(lot: LotFromUrlResponse): string {
 type Props = {
   /** Стартовый рынок в калькуляторе */
   defaultTab?: Tab;
-  /** Скрыть переключатель рынков (на отдельных SEO-страницах) */
+  /** Скрыть переключатель рынков */
   hideTabs?: boolean;
+  /** Не переключать рынок: ссылка другого рынка отклоняется */
+  lockMarket?: boolean;
   /** Когда ссылка сама переключает Англию и США */
   onMarketChange?: (tab: Tab) => void;
 };
 
-export function CalculatorForm({ defaultTab = "uk", hideTabs = false, onMarketChange }: Props) {
+export function CalculatorForm({
+  defaultTab = "uk",
+  hideTabs = false,
+  lockMarket = false,
+  onMarketChange,
+}: Props) {
   const fx = useFxRate();
   const [tab, setTab] = useState<Tab>(defaultTab);
   const [bidText, setBidText] = useState("5000");
@@ -68,6 +78,7 @@ export function CalculatorForm({ defaultTab = "uk", hideTabs = false, onMarketCh
   const [lotLoading, setLotLoading] = useState(false);
   const [lotError, setLotError] = useState<string | null>(null);
   const [lotMeta, setLotMeta] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
     setTab(defaultTab);
@@ -75,8 +86,13 @@ export function CalculatorForm({ defaultTab = "uk", hideTabs = false, onMarketCh
 
   const loadFromUrl = useCallback(async () => {
     const url = lotUrl.trim();
-    if (!url) {
-      setLotError("Вставьте ссылку Copart, Copart UK, IAAI или Bid.cars");
+    const rejected = lockMarket
+      ? tab === "uk"
+        ? ukKitLotUrlError(url)
+        : usaKitLotUrlError(url)
+      : kitLotUrlError(url);
+    if (rejected) {
+      setLotError(rejected);
       return;
     }
     if (!isApiEnabled()) {
@@ -89,6 +105,14 @@ export function CalculatorForm({ defaultTab = "uk", hideTabs = false, onMarketCh
     try {
       const lot = await fetchLotFromUrl(url);
       const market = kitMarket(url, lot);
+      if (lockMarket && market !== tab) {
+        setLotError(
+          market === "uk"
+            ? "Это лот из Англии. Он считается в калькуляторе «Англия»"
+            : "Это лот из США. Он считается в калькуляторе «США»",
+        );
+        return;
+      }
       setTab(market);
       onMarketChange?.(market);
       if (lot.bid != null && Number(lot.bid) > 0) {
@@ -110,12 +134,13 @@ export function CalculatorForm({ defaultTab = "uk", hideTabs = false, onMarketCh
       setLotMeta(
         `${label || "Лот загружен"}${place} · ${market === "uk" ? "Англия" : "США"}`,
       );
+      setTouched(true);
     } catch (err) {
       setLotError(lotLoadErrorMessage(err));
     } finally {
       setLotLoading(false);
     }
-  }, [lotUrl, onMarketChange]);
+  }, [lotUrl, onMarketChange, lockMarket, tab]);
 
   const bid = parseBidInput(bidText);
   const fxRate = fx.rate;
@@ -133,9 +158,26 @@ export function CalculatorForm({ defaultTab = "uk", hideTabs = false, onMarketCh
     [tab, bidText, fx, fxRate, fxMarketRate, location, category, bodyStyle, inlandMilesText],
   );
 
+  const totalUsd =
+    quote && "grandUsd" in quote && quote.grandUsd != null ? Math.round(quote.grandUsd) : null;
+  useRecordQuote(
+    touched && bid > 0 && totalUsd != null
+      ? {
+          kind: tab === "uk" ? "uk" : "usa",
+          title: lotMeta || (tab === "uk" ? "Машинокомплект Англия" : "Машинокомплект США"),
+          lot_url: lotUrl.trim(),
+          location,
+          bid,
+          currency: tab === "uk" ? "GBP" : "USD",
+          total_usd: totalUsd,
+          summary: tab === "uk" ? "Машинокомплект · Англия" : "Машинокомплект · США",
+        }
+      : null,
+  );
+
   return (
-    <div>
-      {!hideTabs ? (
+    <div onChange={() => setTouched(true)}>
+      {!hideTabs && !lockMarket ? (
         <div className="mb-6 flex gap-2 rounded-lg border border-border bg-bg-base p-1">
           {(
             [
@@ -160,7 +202,7 @@ export function CalculatorForm({ defaultTab = "uk", hideTabs = false, onMarketCh
       <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
         <div className="card-premium space-y-4 rounded-xl p-4 sm:p-6">
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
-            Ссылка на лот (Copart / Copart UK / IAAI / Bid.cars)
+            {tab === "uk" ? "Ссылка на лот (Copart UK)" : "Ссылка на лот (IAAI / Bid.cars / Copart.com)"}
             <div className="mt-1 flex flex-col gap-2 sm:flex-row">
               <input
                 type="url"
@@ -172,7 +214,11 @@ export function CalculatorForm({ defaultTab = "uk", hideTabs = false, onMarketCh
                     void loadFromUrl();
                   }
                 }}
-                placeholder="https://www.copart.com/lot/… или https://www.copart.co.uk/lot/…"
+                placeholder={
+                  tab === "uk"
+                    ? "https://www.copart.co.uk/lot/…"
+                    : "https://www.copart.com/lot/… или https://www.iaai.com/…"
+                }
                 className="w-full flex-1 rounded-lg border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal text-text-primary"
               />
               <LotLoadButton loading={lotLoading} onClick={() => void loadFromUrl()} />

@@ -104,20 +104,27 @@ async def scrape_iaai_usa(
     try:
         logger.info("iaai → %s", SEARCH_URL)
         await tab.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=timeout_ms)
-        await tab.wait_for_timeout(2500)
-
-        blocked = await tab.evaluate(
-            """() => {
-              const t = (document.body && document.body.innerText) || '';
-              const html = document.documentElement ? document.documentElement.innerHTML : '';
-              if (/i am human|imperva|hcaptcha|additional security check/i.test(t + html))
-                return 'imperva_hcaptcha';
-              if (/access denied|attention required/i.test(t)) return 'access_denied';
-              if (!t.trim() && !document.querySelector('a[href*="VehicleDetail"]'))
-                return 'empty_page_possible_bot_wall';
-              return '';
-            }"""
-        )
+        blocked = ""
+        for _ in range(12):
+            blocked = await tab.evaluate(
+                """() => {
+                  const t = (document.body && document.body.innerText) || '';
+                  const html = document.documentElement ? document.documentElement.innerHTML : '';
+                  const hasRows = !!document.querySelector(
+                    '.table-row.table-row-border, a[href*="VehicleDetail"], a[href*="vehicledetail"]'
+                  );
+                  if (hasRows || t.length > 400) return '';
+                  if (/i am human|imperva|hcaptcha|additional security check/i.test(t))
+                    return 'imperva_hcaptcha';
+                  if (/access denied|attention required/i.test(t)) return 'access_denied';
+                  return 'loading';
+                }"""
+            )
+            if blocked != "loading":
+                break
+            await tab.wait_for_timeout(1000)
+        if blocked == "loading":
+            blocked = "empty_page_possible_bot_wall"
         if blocked:
             logger.error(
                 "iaai blocked by %s — open Chrome with remote debugging "

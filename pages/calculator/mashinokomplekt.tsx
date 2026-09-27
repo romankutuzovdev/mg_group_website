@@ -3,6 +3,7 @@ import Link from "next/link";
 import SEO from "@/components/SEO";
 import { PageShell } from "@/components/layout/page-shell";
 import { SiteCalculator } from "@/components/pricing/site-calculator";
+import { CalculatorGate } from "@/components/pricing/calculator-gate";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
 
@@ -20,7 +21,7 @@ export default function KitCalculatorPage({ dictionary }: Props) {
             ...dictionary.metadata,
             title: "Калькулятор машинокомплекта | США и Англия | MG.GROUP",
             description:
-              "Просчёт машинокомплекта из США и Англии: ставка Copart/IAAI/Copart UK, сборы, доставка и разбор — как в боте MG.GROUP.",
+              "Просчёт машинокомплекта: ссылка IAAI, Bid.cars, Copart.com или Copart UK. США и Англия считаются разными формулами.",
           },
         }}
         lang="ru"
@@ -28,22 +29,24 @@ export default function KitCalculatorPage({ dictionary }: Props) {
       />
       <PageShell
         title="Калькулятор машинокомплекта"
-        description="Вставьте ссылку Copart, Copart UK или IAAI — ставка и рынок (США или Англия) подтянутся в расчёт комплекта."
+        description="IAAI, Bid.cars, Copart.com и Copart UK. Ссылка переключает расчёт на США или Англию."
       >
-        <SiteCalculator mode="kit-usa" showSwitcher={false} kitDefaultTab="usa" />
-        <p className="mt-8 text-sm text-text-muted">
-          Нужен расчёт целого авто?{" "}
-          <Link
-            href="/calculator/vosstanovlenie/"
-            className="font-medium text-accent-dark underline underline-offset-2"
-          >
-            Калькулятор под восстановление
-          </Link>
-          {" · "}
-          <Link href="/mashinokomplekt/" className="font-medium text-accent-dark underline underline-offset-2">
-            Каталог комплектов
-          </Link>
-        </p>
+        <CalculatorGate>
+          <SiteCalculator mode="kit-usa" showSwitcher={false} kitDefaultTab="usa" />
+          <p className="mt-8 text-sm text-text-muted">
+            Нужен расчёт целого авто?{" "}
+            <Link
+              href="/calculator/vosstanovlenie/"
+              className="font-medium text-accent-dark underline underline-offset-2"
+            >
+              Калькулятор под восстановление
+            </Link>
+            {" · "}
+            <Link href="/mashinokomplekt/" className="font-medium text-accent-dark underline underline-offset-2">
+              Каталог комплектов
+            </Link>
+          </p>
+        </CalculatorGate>
       </PageShell>
     </>
   );

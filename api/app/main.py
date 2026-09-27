@@ -24,6 +24,7 @@ from app.routers import (
 from app.scraper.worker import scraper_worker, start_scraper_in_background
 from app.services.cabinet_store import cabinet_store
 from app.services.purchased_cars_store import purchased_cars_store
+from app.services import quote_history
 
 
 @asynccontextmanager
@@ -32,6 +33,7 @@ async def lifespan(_app: FastAPI):
     print(f"[mg-api] loaded {n} lots from disk")
     cabinet_store.init()
     purchased_cars_store.init()
+    quote_history.init()
     print("[mg-api] cabinet + purchased cars db ready")
     start_scraper_in_background()
     yield
