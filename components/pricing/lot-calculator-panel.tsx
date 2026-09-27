@@ -57,7 +57,7 @@ function RestorationQuoteLines({ quote }: { quote: RestorationQuote }) {
       {quote.delivery ? (
         <>
           <Line
-            label="Inland"
+            label="Доставка по США"
             value={usd(quote.delivery.inlandUsd)}
             hint={
               quote.delivery.fromTariff
@@ -202,7 +202,7 @@ function UsaRestorationPanel({ lot }: { lot: AuctionLot }) {
           {" · "}
           {lot.location}
           {quote?.delivery?.fromTariff
-            ? ` · прайс: inland $${Math.round(quote.delivery.inlandUsd)}`
+            ? ` · прайс: доставка по США $${Math.round(quote.delivery.inlandUsd)}`
             : " · прайс не найден"}
         </p>
 

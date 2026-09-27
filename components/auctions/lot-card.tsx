@@ -12,6 +12,7 @@ import {
 import type { AuctionLot } from "@/lib/auctions/types";
 import { CLOSED_AUCTION_LABEL, isClosedAuction, REGION_LABELS } from "@/lib/auctions/types";
 import { collectLotPhotoUrls } from "@/lib/auctions/lot-image-url";
+import { displayDamage, presentLot } from "@/lib/auctions/listing-blob";
 import { formatOdometerKm } from "@/lib/auctions/odometer";
 
 /** Fixed TZ so SSR (UTC) and browser (Minsk) render the same absolute string. */
@@ -60,13 +61,11 @@ function formatAuctionRelative(iso: string, nowMs: number): string | null {
 }
 
 function shortDamage(value: string): string {
-  const t = (value || "").trim();
-  if (!t || t === "Unknown") return "";
-  return t.length > 22 ? `${t.slice(0, 20)}…` : t;
+  return displayDamage(value);
 }
 
 export function LotCard({
-  lot,
+  lot: rawLot,
   pricingMode,
   onNavigate,
 }: {
@@ -74,6 +73,7 @@ export function LotCard({
   pricingMode?: LotPricingMode;
   onNavigate?: (slug: string) => void;
 }) {
+  const lot = presentLot(rawLot);
   const mode = pricingMode ?? defaultPricingMode(lot);
   let turnkey: ReturnType<typeof estimateLotTurnkey> = null;
   try {

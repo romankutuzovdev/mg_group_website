@@ -28,6 +28,7 @@ import {
   formatTransmissionRu,
 } from "@/lib/auctions/lot-specs";
 import { collectLotPhotoUrls, resolveLotDisplayImage } from "@/lib/auctions/lot-image-url";
+import { presentLot } from "@/lib/auctions/listing-blob";
 import { CONSULTATION_TG, consultationMessage } from "@/lib/company";
 
 function formatMoney(amount: number, currency: "USD" | "GBP" | "KRW") {
@@ -125,11 +126,12 @@ function regionCrumbLabel(region: AuctionLot["region"]) {
 
 export function LotDetailView({
   dictionary,
-  lot,
+  lot: rawLot,
 }: {
   dictionary: Dictionary;
   lot: AuctionLot;
 }) {
+  const lot = useMemo(() => presentLot(rawLot), [rawLot]);
   const router = useRouter();
   const lotPath = `/auctions/${lot.slug}/`;
   const backHref = catalogHref(lot.region);

@@ -282,9 +282,9 @@ export function RestorationCalculator() {
             <p className="text-xs text-text-muted">
               Выбрано: <span className="font-medium text-text-secondary">{location || "—"}</span>
               {quote?.delivery?.fromTariff
-                ? ` · прайс: inland $${Math.round(quote.delivery.inlandUsd)}`
+                ? ` · прайс: доставка по США $${Math.round(quote.delivery.inlandUsd)}`
                 : quote?.delivery
-                  ? ` · вручную: inland $${Math.round(quote.delivery.inlandUsd)}`
+                  ? ` · вручную: доставка по США $${Math.round(quote.delivery.inlandUsd)}`
                   : " · прайс не найден"}
             </p>
           </div>
@@ -341,11 +341,11 @@ export function RestorationCalculator() {
 
           <details className="rounded-lg border border-border bg-bg-base p-3 text-sm">
             <summary className="cursor-pointer font-medium text-text-secondary">
-              Ручной inland / ocean (если площадка не в прайсе)
+              Ручная доставка по США и море (если площадка не в прайсе)
             </summary>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="block text-xs text-text-muted">
-                Inland, USD
+                Доставка по США, USD
                 <input
                   type="number"
                   value={inlandOverride}
@@ -382,8 +382,8 @@ export function RestorationCalculator() {
                   </p>
                 ) : (
                   <p className="mt-3 text-sm text-amber-700">
-                    Площадка не найдена в прайсе. Выберите город из списка или укажите inland и
-                    ocean вручную.
+                    Площадка не найдена в прайсе. Выберите город из списка или укажите доставку по США и
+                    море вручную.
                   </p>
                 )}
                 <dl className="mt-4 space-y-2 text-sm">
@@ -392,7 +392,7 @@ export function RestorationCalculator() {
                   {quote.delivery ? (
                     <>
                       <Line
-                        label="Inland"
+                        label="Доставка по США"
                         value={usd(quote.delivery.inlandUsd)}
                         hint={
                           quote.delivery.fromTariff

@@ -185,13 +185,13 @@ DISMANTLE_TARIFFS = {
     "uk": [
         {"id": "sedan", "label": "Седан", "price": 2250},
         {"id": "suv", "label": "Внедорожник", "price": 2550},
-        {"id": "sprinter", "label": "Спринтер", "price": 2350},
+        {"id": "sprinter", "label": "Спринтер / бус", "price": 2350},
         {"id": "pickup", "label": "Пикап / X7 / LR", "price": 2850},
     ],
     "usa": [
-        {"id": "sedan", "label": "Легковые авто", "price": 4100},
-        {"id": "suv", "label": "Внедорожник / кроссовер", "price": 4450},
-        {"id": "frame_suv", "label": "Рамный внедорожник", "price": 4850},
+        {"id": "sedan", "label": "Легковые авто (премиум)", "price": 4100},
+        {"id": "suv", "label": "Внедорожник / кроссовер (премиум)", "price": 4450},
+        {"id": "frame_suv", "label": "Рамный внедорожник (премиум)", "price": 4850},
     ],
 }
 

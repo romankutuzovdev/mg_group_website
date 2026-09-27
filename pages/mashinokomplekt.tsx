@@ -7,12 +7,10 @@ import { PageShell } from "@/components/layout/page-shell";
 import { CommercialPricingSection } from "@/components/pricing/commercial-pricing-section";
 import { CityNavLinks } from "@/components/seo/seo-blocks";
 import { AnchorButton, LinkButton } from "@/components/site/button";
-import { getDictionary } from "@/lib/dictionary";
-import type { Dictionary } from "@/lib/dictionary";
-import {
-  loadLotsPageLite,
-} from "@/lib/auctions/ssg-lite";
 import type { AuctionLot } from "@/lib/auctions/types";
+import { KIT_AUCTION_SOURCES } from "@/lib/auctions/types";
+import { loadLotsPageLite } from "@/lib/auctions/ssg-lite";
+import { getDictionary, type Dictionary } from "@/lib/dictionary";
 import { CONSULTATION_TG, PARTS } from "@/lib/company";
 import { CITIES, kitCityPath, kitOriginPath } from "@/lib/seo/cities";
 
@@ -127,7 +125,7 @@ export default function MashinokomplektPage({ dictionary, lots }: Props) {
           </div>
         </div>
         <div className="mx-auto mt-8 max-w-7xl px-4 sm:px-6 lg:px-8">
-          <AuctionsCatalog lots={lots} pricingMode="kit" />
+          <AuctionsCatalog lots={lots} pricingMode="kit" auctions={KIT_AUCTION_SOURCES} />
         </div>
       </section>
 
@@ -165,7 +163,10 @@ export default function MashinokomplektPage({ dictionary, lots }: Props) {
 }
 
 export const getStaticProps: GetStaticProps = async () => {
-  const { lots } = await loadLotsPageLite({ pageSize: 12 });
+  const { lots } = await loadLotsPageLite({
+    pageSize: 12,
+    auctions: KIT_AUCTION_SOURCES,
+  });
   return {
     props: {
       dictionary: getDictionary(),

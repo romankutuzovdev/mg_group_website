@@ -9,6 +9,15 @@ export type AuctionSource =
   | "encar"
   | "china_market";
 
+/** Машинокомплекты: только США и Англия. Корея и Китай — авто под восстановление. */
+export const KIT_AUCTION_SOURCES: AuctionSource[] = [
+  "copart",
+  "iaai",
+  "copart_uk",
+  "manheim",
+  "salvage_market",
+];
+
 export type TitleType = "clean" | "salvage" | "rebuilt" | "parts_only";
 
 /** Manheim, SalvageMarket и Copart UK Cat B — закрытые аукционы (доступ через дилера). */

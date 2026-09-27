@@ -5,10 +5,12 @@ import {
   savingsPercent,
   type PurchasedCar,
 } from "@/lib/purchased-cars";
+import { displayDamage } from "@/lib/auctions/listing-blob";
 
 export function PurchasedCarCard({ car }: { car: PurchasedCar }) {
   const savings = savingsPercent(car);
   const title = `${car.year} ${car.make} ${car.model}${car.trim ? ` ${car.trim}` : ""}`;
+  const damage = displayDamage(car.damage);
 
   const body = (
     <>
@@ -49,8 +51,8 @@ export function PurchasedCarCard({ car }: { car: PurchasedCar }) {
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          {car.damage ? (
-            <span className="rounded-full bg-red-50 px-2 py-0.5 text-red-700">{car.damage}</span>
+          {damage ? (
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-red-700">{damage}</span>
           ) : null}
           {car.odometer ? (
             <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-text-secondary">

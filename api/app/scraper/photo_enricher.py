@@ -97,40 +97,28 @@ EXTRACT_GALLERY_JS = """
 
 COPART_API_JS = """
 async (lotNumber) => {
-  const tryUrls = [
-    `https://www.copart.com/public/data/lotdetails/solr/lotImages/${lotNumber}`,
-    `https://www.copart.com/public/data/lotdetails/solr/${lotNumber}`,
-    `https://www.copart.co.uk/public/data/lotdetails/solr/${lotNumber}`,
-  ];
-  const out = [];
-  for (const url of tryUrls) {
-    try {
-      const res = await fetch(url, { credentials: 'include' });
-      if (!res.ok) continue;
-      const data = await res.json();
-      const lot = data?.data?.lotDetails || data?.lotDetails || data?.data || data;
-      const candidates = [];
-      const walk = (obj, depth) => {
-        if (!obj || depth > 8) return;
-        if (typeof obj === 'string') {
-          if (/^https?:\\/\\//i.test(obj) && /\\.(jpe?g|png|webp)(\\?|$)|imageKeys=|cs\\.copart|c-static\\.copart/i.test(obj))
-            candidates.push(obj);
-          return;
-        }
-        if (Array.isArray(obj)) {
-          obj.forEach((v) => walk(v, depth + 1));
-          return;
-        }
-        if (typeof obj === 'object') {
-          Object.values(obj).forEach((v) => walk(v, depth + 1));
-        }
-      };
-      walk(lot, 0);
-      out.push(...candidates);
-      if (out.length) break;
-    } catch (e) {}
+  const origin = /copart\\.co\\.uk/i.test(location.hostname)
+    ? 'https://www.copart.co.uk'
+    : 'https://www.copart.com';
+  try {
+    const res = await fetch(origin + '/public/data/lotdetails/solr/lotImages/' + lotNumber, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const list = (((data || {}).data || {}).imagesList) || {};
+    const arr = Array.isArray(list.content) ? list.content
+      : Array.isArray(list.IMAGE) ? list.IMAGE : [];
+    const urls = [];
+    for (const item of arr) {
+      const u = (item && (item.highResUrl || item.fullUrl || item.thumbnailUrl)) || '';
+      if (typeof u === 'string' && u.startsWith('http')) urls.push(u.split('?')[0]);
+    }
+    return [...new Set(urls)];
+  } catch (e) {
+    return [];
   }
-  return [...new Set(out)];
 }
 """
 
@@ -202,6 +190,10 @@ def _dedupe(urls: list[str], source: str) -> list[str]:
     return out
 
 
+def normalize_gallery(urls: list[str], source: str) -> list[str]:
+    return _dedupe(urls, source)[:40]
+
+
 def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> bool:
     """True if lot should be visited for gallery photos today."""
     if not lot.lotUrl:
@@ -216,9 +208,6 @@ def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> boo
                 lot.photosEnrichedAt.replace("Z", "+00:00")
             ).astimezone(timezone.utc).date()
             if enriched_day == day and len(imgs) >= 2:
-                return False
-            if enriched_day == day and len(imgs) >= 1:
-                # tried today — don't hammer again same day
                 return False
         except Exception:
             pass
@@ -274,7 +263,8 @@ class PhotoEnrichmentAgent:
         # Prefer lots with fewest photos first, then higher bids
         lots.sort(
             key=lambda l: (
-                len(l.imageUrls or []),
+                0 if l.region == "uk" or l.source == "copart_uk" else 1 if l.region == "usa" else 2,
+                len([u for u in (l.imageUrls or []) if u and not _is_useless_photo(u)]),
                 -(l.currentBid or 0),
             )
         )

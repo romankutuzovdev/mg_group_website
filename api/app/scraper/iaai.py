@@ -312,28 +312,48 @@ def parse_iaai_text_fields(text: str) -> dict[str, Any]:
     location = _parse_location(text)
     if location:
         out["location"] = location
+    title = re.search(
+        r"\b((?:19|20)\d{2})\s+([A-Za-z0-9][A-Za-z0-9-]{1,24})\s+(.+?)\s+Stock\s*#:",
+        text,
+        re.I,
+    )
+    if title:
+        out["year"] = int(title.group(1))
+        out["make"] = _title_case(title.group(2))
+        out["model"] = _title_case(title.group(3))
     out["runs"] = bool(re.search(r"Run\s*&\s*Drive|Runs?\s*and\s*Drive", text, re.I))
     out["has_keys"] = bool(re.search(r"Key Available|Keys?\s*:\s*Present", text, re.I))
     return out
 
 
 def repair_iaai_listing_blob(lot: Any) -> Any:
-    """If primaryDamage is the whole search row, pull the real damage back out."""
+    """If a field is the whole search row, pull make, damage and location back out."""
     from app.models.lots import AuctionLot
 
     if not isinstance(lot, AuctionLot):
         return lot
-    text = lot.primaryDamage or ""
-    if len(text) < 80 or not _LISTING_BLOB.search(text):
+    candidates = [lot.primaryDamage or "", lot.model or "", lot.make or ""]
+    text = next((item for item in candidates if len(item) >= 80 and _LISTING_BLOB.search(item)), "")
+    if not text:
         return lot
     fields = parse_iaai_text_fields(text)
     data = lot.model_dump()
-    if fields.get("damage"):
+    if fields.get("damage") and (len(lot.primaryDamage or "") >= 80 or not lot.primaryDamage):
         data["primaryDamage"] = fields["damage"]
+    if fields.get("model") and len(lot.model or "") >= 80:
+        data["model"] = fields["model"]
+    if fields.get("make") and (lot.make in {"", "Unknown"} or len(lot.make or "") >= 80):
+        data["make"] = fields["make"]
+    if fields.get("year") and len(text) >= 80:
+        data["year"] = fields["year"]
     if fields.get("secondary_damage") and not lot.secondaryDamage:
         data["secondaryDamage"] = fields["secondary_damage"]
     if fields.get("location") and lot.location in {"", "USA", "Unknown"}:
         data["location"] = fields["location"]
+    if fields.get("odometer") and not lot.odometer:
+        data["odometer"] = fields["odometer"]
+    if fields.get("vin") and set(lot.vin or "") <= {"*"}:
+        data["vin"] = fields["vin"]
     acv = fields.get("acv")
     bid = fields.get("bid")
     if (

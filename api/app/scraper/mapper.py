@@ -302,16 +302,62 @@ def copart_image(url: str | None) -> str:
     return url.replace("_thb.", "_ful.").replace("_ths.", "_ful.")
 
 
+def copart_auction_iso(row: dict[str, Any]) -> str | None:
+    """Scheduled sale time. Missing or already past → not a current lot."""
+    raw = row.get("ad")
+    if raw in (None, "", 0):
+        return None
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return None
+    if n < 10_000_000_000:
+        n *= 1000
+    if n < (datetime.now(timezone.utc).timestamp() - 6 * 3600) * 1000:
+        return None
+    return datetime.fromtimestamp(n / 1000, tz=timezone.utc).isoformat()
+
+
+def copart_row_is_current(row: dict[str, Any]) -> bool:
+    """Keep automobiles that still have an upcoming sale. DOM cards are the live page."""
+    dyn = row.get("dynamicLotDetails") or {}
+    if dyn.get("lotSold") is True:
+        return False
+    if row.get("_dom") or (row.get("title") and not row.get("mkn")):
+        return True
+    return copart_auction_iso(row) is not None
+
+
+def _copart_gallery(row: dict[str, Any], cover: str) -> list[str]:
+    """Search thumb plus per-lot gallery collected by the UK scraper."""
+    urls: list[str] = []
+    if cover:
+        urls.append(cover)
+    for item in row.get("images") or []:
+        if isinstance(item, str) and item.startswith("http"):
+            urls.append(copart_image(item) if "copart" in item else item)
+    seen: set[str] = set()
+    out: list[str] = []
+    for raw in urls:
+        u = (raw or "").strip()
+        if not u.startswith("http") or u in seen:
+            continue
+        seen.add(u)
+        out.append(u)
+    return out[:40]
+
+
 def map_copart_row(row: dict[str, Any]) -> AuctionLot | None:
     ln = str(row.get("ln") or row.get("lotNumberStr") or row.get("id") or "").strip()
-    if not ln:
+    if not ln or not copart_row_is_current(row):
         return None
 
     # DOM fallback (same shape as Copart UK page scrape)
     if row.get("title") and not row.get("mkn"):
         year, make, model = parse_title_year_make_model(str(row.get("title") or ""))
         img = str(row.get("image") or "")
-        if not img:
+        gallery = _copart_gallery(row, img)
+        if not gallery:
             return None
         text = str(row.get("text") or "")
         bid_m = re.search(r"\$\s*([\d,]+)", text)
@@ -334,9 +380,9 @@ def map_copart_row(row: dict[str, Any]) -> AuctionLot | None:
             currentBid=bid,
             currency="USD",
             location="USA",
-            auctionDate=datetime.now(timezone.utc).isoformat(),
-            imageUrl=img,
-            imageUrls=[img],
+            auctionDate=copart_auction_iso(row) or datetime.now(timezone.utc).isoformat(),
+            imageUrl=gallery[0],
+            imageUrls=gallery,
             transmission="—",
             fuel="—",
             drive="—",
@@ -347,8 +393,12 @@ def map_copart_row(row: dict[str, Any]) -> AuctionLot | None:
     make = title_case(str(row.get("mkn") or "Unknown"))
     model = title_case(str(row.get("lmg") or row.get("lm") or "Unknown"))
     year = int(row.get("lcy") or 2018)
-    img = copart_image(str(row.get("tims") or ""))
-    if not img:
+    img = copart_image(str(row.get("tims") or row.get("image") or ""))
+    gallery = _copart_gallery(row, img)
+    if not gallery:
+        return None
+    auction_date = copart_auction_iso(row)
+    if auction_date is None:
         return None
 
     dyn = row.get("dynamicLotDetails") or {}
@@ -360,7 +410,6 @@ def map_copart_row(row: dict[str, Any]) -> AuctionLot | None:
     vin = str(row.get("fv") or "*****************")
     engine = str(row.get("egn") or "").strip() or None
     title_desc = str(row.get("td") or row.get("tgd") or "Salvage")
-    auction_date = ms_to_iso(row.get("ad") or row.get("lad"))
 
     slug = f"copart-{year}-{slugify(make)}-{slugify(model)}-{ln}"
     return AuctionLot(
@@ -384,8 +433,8 @@ def map_copart_row(row: dict[str, Any]) -> AuctionLot | None:
         currency="USD",
         location=location,
         auctionDate=auction_date,
-        imageUrl=img,
-        imageUrls=[img],
+        imageUrl=gallery[0],
+        imageUrls=gallery,
         transmission=_copart_transmission(row),
         fuel=_copart_fuel(row),
         drive=_copart_drive(row),
@@ -401,14 +450,15 @@ def map_copart_row(row: dict[str, Any]) -> AuctionLot | None:
 def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
     """Copart UK search row (same Solr shape as USA) or DOM fallback."""
     ln = str(row.get("ln") or row.get("lotNumberStr") or row.get("id") or "").strip()
-    if not ln:
+    if not ln or not copart_row_is_current(row):
         return None
 
     # DOM fallback shape
     if row.get("title") and not row.get("mkn"):
         year, make, model = parse_title_year_make_model(str(row.get("title") or ""))
         img = str(row.get("image") or "")
-        if not img:
+        gallery = _copart_gallery(row, img)
+        if not gallery:
             return None
         text = str(row.get("text") or "")
         bid_m = re.search(r"£\s*([\d,]+)", text)
@@ -433,8 +483,8 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
             currency="GBP",
             location=str(row.get("location") or "UK"),
             auctionDate=(datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
-            imageUrl=img,
-            imageUrls=[img],
+            imageUrl=gallery[0],
+            imageUrls=gallery,
             transmission="—",
             fuel="—",
             drive="—",
@@ -448,8 +498,12 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
     make = title_case(str(row.get("mkn") or "Unknown"))
     model = title_case(str(row.get("lmg") or row.get("lm") or "Unknown"))
     year = int(row.get("lcy") or 2018)
-    img = copart_image(str(row.get("tims") or ""))
-    if not img:
+    img = copart_image(str(row.get("tims") or row.get("image") or ""))
+    gallery = _copart_gallery(row, img)
+    if not gallery:
+        return None
+    auction_date = copart_auction_iso(row)
+    if auction_date is None:
         return None
 
     dyn = row.get("dynamicLotDetails") or {}
@@ -489,9 +543,9 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
         buyNowPrice=buy_now,
         currency="GBP",
         location=location,
-        auctionDate=ms_to_iso(row.get("ad") or row.get("lad")),
-        imageUrl=img,
-        imageUrls=[img],
+        auctionDate=auction_date,
+        imageUrl=gallery[0],
+        imageUrls=gallery,
         transmission=_copart_transmission(row),
         fuel=_copart_fuel(row),
         drive=_copart_drive(row),

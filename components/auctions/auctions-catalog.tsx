@@ -23,7 +23,7 @@ import {
   saveCatalogRestore,
 } from "@/lib/auctions/catalog-session";
 import type { LotPricingMode } from "@/lib/auctions/lot-quote";
-import type { AuctionLot, AuctionRegion, CatalogQuickTab } from "@/lib/auctions/types";
+import type { AuctionLot, AuctionRegion, AuctionSource, CatalogQuickTab } from "@/lib/auctions/types";
 import {
   MILEAGE_PRESETS,
   REGION_LABELS,
@@ -48,6 +48,8 @@ type Props = {
   initialMake?: string;
   /** Предвыбранная модель в фильтрах */
   initialModel?: string;
+  /** Оставить только эти площадки (машинокомплект: США и Англия). */
+  auctions?: AuctionSource[];
 };
 
 type FilterState = {
@@ -124,6 +126,7 @@ function filtersToQuery(
   f: FilterState,
   regionProp: AuctionRegion | undefined,
   page: number,
+  auctions?: AuctionSource[],
 ): LotQuery {
   return {
     q: f.q.trim() || undefined,
@@ -145,6 +148,7 @@ function filtersToQuery(
     buynow: f.buynow || undefined,
     tab: f.tab !== "all" ? f.tab : undefined,
     region: regionProp || f.regionFilter || undefined,
+    auction: auctions,
     page,
     pageSize: PAGE_SIZE,
     sort: "date",
@@ -171,15 +175,26 @@ export function AuctionsCatalog({
   pricingMode,
   initialMake = "",
   initialModel = "",
+  auctions,
 }: Props) {
   const apiOn = isApiEnabled();
+  const seedLots = useMemo(
+    () =>
+      auctions?.length
+        ? initialLots.filter(
+            (lot) =>
+              auctions.includes(lot.source) && (lot.region === "usa" || lot.region === "uk"),
+          )
+        : initialLots,
+    [auctions, initialLots],
+  );
   const [f, setF] = useState<FilterState>(() => ({
     ...INITIAL,
     make: initialMake,
     model: initialModel,
   }));
   const [lots, setLots] = useState<AuctionLot[]>(() =>
-    apiOn ? initialLots.slice(0, PAGE_SIZE) : initialLots,
+    apiOn ? seedLots.slice(0, PAGE_SIZE) : seedLots,
   );
   const [total, setTotal] = useState(() =>
     apiOn ? Math.max(initialLots.length, 0) : initialLots.length,
@@ -242,7 +257,11 @@ export function AuctionsCatalog({
     if (!apiOn) setOfflineVisible(PAGE_SIZE);
   }, [filterKey, apiOn]);
 
-  const visibleLots = apiOn ? lots : offlineFiltered.slice(0, offlineVisible);
+  const visibleLots = (apiOn ? lots : offlineFiltered.slice(0, offlineVisible)).filter((lot) =>
+    auctions?.length
+      ? auctions.includes(lot.source) && (lot.region === "usa" || lot.region === "uk")
+      : true,
+  );
   const hasMore = apiOn ? page < pages : offlineVisible < offlineFiltered.length;
   const foundCount = apiOn ? total : offlineFiltered.length;
   const allCount = apiOn
@@ -285,15 +304,16 @@ export function AuctionsCatalog({
     return uniqueSorted(scoped.map((l) => l.model));
   }, [meta, apiOn, lots, initialLots, f.make]);
 
-  const regionOptions = useMemo(
-    () =>
-      REGION_FILTER_ORDER.filter((r) =>
-        meta?.regions?.length
-          ? meta.regions.includes(r)
-          : (apiOn ? lots : initialLots).some((l) => l.region === r),
-      ),
-    [meta, apiOn, lots, initialLots],
-  );
+  const regionOptions = useMemo(() => {
+    const order = auctions?.length
+      ? REGION_FILTER_ORDER.filter((r) => r === "usa" || r === "uk")
+      : REGION_FILTER_ORDER;
+    return order.filter((r) =>
+      meta?.regions?.length
+        ? meta.regions.includes(r)
+        : (apiOn ? lots : initialLots).some((l) => l.region === r),
+    );
+  }, [auctions, meta, apiOn, lots, initialLots]);
 
   const fuels = useMemo(() => {
     if (meta?.fuels?.length) return meta.fuels;
@@ -317,8 +337,10 @@ export function AuctionsCatalog({
   }, [meta, apiOn, lots, initialLots]);
 
   const damages = useMemo(() => {
-    if (meta?.damages?.length) return meta.damages;
-    return uniqueSorted((apiOn ? lots : initialLots).map((l) => l.primaryDamage));
+    const raw = meta?.damages?.length
+      ? meta.damages
+      : uniqueSorted((apiOn ? lots : initialLots).map((l) => l.primaryDamage));
+    return raw.filter((d) => d && d.length < 48 && !/stock\s*#:|view all images/i.test(d));
   }, [meta, apiOn, lots, initialLots]);
 
   const bodies = useMemo(() => {
@@ -339,7 +361,7 @@ export function AuctionsCatalog({
   const loadPage = useCallback(
     async (targetPage: number, mode: "replace" | "append", filters: FilterState) => {
       if (!apiOn) return;
-      const query = filtersToQuery(filters, region, targetPage);
+      const query = filtersToQuery(filters, region, targetPage, auctions);
       if (mode === "replace") setApiLoading(true);
       else setLoadingMore(true);
       try {
@@ -355,7 +377,7 @@ export function AuctionsCatalog({
         setLoadingMore(false);
       }
     },
-    [apiOn, region],
+    [apiOn, region, auctions],
   );
 
   // Restore scroll / filters once on mount
@@ -388,7 +410,7 @@ export function AuctionsCatalog({
       let lastPages = 1;
       for (let p = 1; p <= targetPages; p++) {
         try {
-          const res = await fetchLotsPage(filtersToQuery(nextFilters, region, p));
+          const res = await fetchLotsPage(filtersToQuery(nextFilters, region, p, auctions));
           if (cancelled) return;
           merged.push(...res.items);
           lastTotal = res.total;
@@ -417,7 +439,7 @@ export function AuctionsCatalog({
     return () => {
       cancelled = true;
     };
-  }, [restored, apiOn, region]);
+  }, [restored, apiOn, region, auctions]);
 
   // Meta facets
   useEffect(() => {

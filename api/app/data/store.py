@@ -15,7 +15,13 @@ _IAAI_LISTING_BLOB = re.compile(r"stock\s*#:|view all images|pre-?bid or buy now
 
 
 def _repair_iaai_blobs(lots: list[AuctionLot]) -> list[AuctionLot]:
-    if not any(_IAAI_LISTING_BLOB.search(lot.primaryDamage or "") for lot in lots):
+    def _blob(lot: AuctionLot) -> bool:
+        for value in (lot.primaryDamage, lot.model, lot.make):
+            if len(value or "") >= 80 and _IAAI_LISTING_BLOB.search(value or ""):
+                return True
+        return False
+
+    if not any(_blob(lot) for lot in lots):
         return lots
     try:
         from app.scraper.iaai import repair_iaai_listing_blob

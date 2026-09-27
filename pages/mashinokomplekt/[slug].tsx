@@ -12,6 +12,7 @@ import { PageShell } from "@/components/layout/page-shell";
 import { CityNavLinks, SeoCta, SeoFaq } from "@/components/seo/seo-blocks";
 import { loadLotsPageLite } from "@/lib/auctions/ssg-lite";
 import type { AuctionLot } from "@/lib/auctions/types";
+import { KIT_AUCTION_SOURCES } from "@/lib/auctions/types";
 import { getDictionary } from "@/lib/dictionary";
 import {
   CITIES,
@@ -153,7 +154,12 @@ export default function MashinokomplektSeoPage(props: Props) {
 
       <section id="lots" className="scroll-mt-24 bg-bg-base pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-12 sm:pb-16">
         <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 sm:pt-8 lg:px-8">
-          <AuctionsCatalog lots={lots} region={origin} pricingMode="kit" />
+          <AuctionsCatalog
+            lots={lots}
+            region={origin}
+            pricingMode="kit"
+            auctions={KIT_AUCTION_SOURCES}
+          />
         </div>
       </section>
 
@@ -181,7 +187,11 @@ export const getStaticPaths: GetStaticPaths = async () => ({
 export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
   const slug = ctx.params?.slug as string;
   if (slug === "usa" || slug === "uk") {
-    const { lots } = await loadLotsPageLite({ region: slug, pageSize: 12 });
+    const { lots } = await loadLotsPageLite({
+      region: slug,
+      pageSize: 12,
+      auctions: KIT_AUCTION_SOURCES,
+    });
     return {
       props: {
         dictionary: getDictionary(),

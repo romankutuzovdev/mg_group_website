@@ -43,7 +43,11 @@ export function PurchasedKitsFeed() {
     fetchPurchased(12)
       .then((items) => {
         if (cancelled || !items.length) return;
-        setCars(items.map(mapApiCar));
+        const kits = items.filter(
+          (item) => item.source !== "encar" && item.source !== "china_market",
+        );
+        if (!kits.length) return;
+        setCars(kits.map(mapApiCar));
       })
       .catch(() => {});
     return () => {
