@@ -35,7 +35,9 @@ def _dedupe_urls(urls: list[str]) -> list[str]:
     out: list[str] = []
     for u in urls:
         u = (u or "").strip()
-        if not u or not u.startswith("http"):
+        if not u:
+            continue
+        if not u.startswith("http") and not u.startswith("/api/lot-photos/"):
             continue
         if u in seen:
             continue
@@ -52,8 +54,13 @@ def merge_lot(old: AuctionLot | None, new: AuctionLot) -> AuctionLot:
     data = new.model_dump()
     old_imgs = _dedupe_urls(list(old.imageUrls or []) + ([old.imageUrl] if old.imageUrl else []))
     new_imgs = _dedupe_urls(list(new.imageUrls or []) + ([new.imageUrl] if new.imageUrl else []))
+    old_local = [u for u in old_imgs if u.startswith("/api/lot-photos/")]
 
-    if len(old_imgs) > len(new_imgs):
+    # A saved gallery must survive the next search scrape, which only has thumbs.
+    if len(old_local) >= 2 and len(old_local) >= len(new_imgs):
+        data["imageUrls"] = old_local
+        data["imageUrl"] = old_local[0]
+    elif len(old_imgs) > len(new_imgs):
         merged = _dedupe_urls(old_imgs + new_imgs)
         data["imageUrls"] = merged
         data["imageUrl"] = merged[0] if merged else (new.imageUrl or old.imageUrl)
@@ -255,6 +262,13 @@ class LotStore:
                 if lot:
                     self._by_slug.pop(lot.slug, None)
                     removed += 1
+            live_ids = set(self._by_id)
+        if to_drop:
+            from app.services.lot_photos import delete_lot_photos, sweep_orphan_photos
+
+            for lot_id in to_drop:
+                delete_lot_photos(lot_id)
+            sweep_orphan_photos(live_ids)
         return removed
 
     def persist(self, path: str | Path | None = None) -> int:

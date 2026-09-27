@@ -199,10 +199,10 @@ def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> boo
     if not lot.lotUrl:
         return False
     day = today or datetime.now(timezone.utc).date()
-    imgs = [u for u in (lot.imageUrls or []) if u and not _is_useless_photo(u)]
-    # Already enriched today with a real gallery. A bare vis.iaai.com/resizer
-    # is the collapsed gallery and must be fetched again.
-    if lot.photosEnrichedAt:
+    imgs = [u for u in (lot.imageUrls or []) if u and (u.startswith("/api/lot-photos/") or not _is_useless_photo(u))]
+    has_remote = any((u or "").startswith("http") for u in imgs)
+    # Already enriched today with a real gallery stored on our server.
+    if lot.photosEnrichedAt and not has_remote:
         try:
             enriched_day = datetime.fromisoformat(
                 lot.photosEnrichedAt.replace("Z", "+00:00")
@@ -391,7 +391,10 @@ class PhotoEnrichmentAgent:
                 urls = await self.enrich_lot(page, lot)
                 now = datetime.now(timezone.utc).isoformat()
                 if urls:
-                    updated = lot_store.update_photos(lot.id, urls, enriched_at=now)
+                    from app.services.lot_photos import archive_gallery
+
+                    saved = await archive_gallery(lot.id, urls)
+                    updated = lot_store.update_photos(lot.id, saved or urls, enriched_at=now)
                     if updated:
                         enriched += 1
                         photos += len(urls)

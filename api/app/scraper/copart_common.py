@@ -326,6 +326,27 @@ async def scrape_copart_inventory(
     page_size: int,
     timeout_ms: int,
 ) -> list[dict[str, Any]]:
+    """Search Copart, then open each lot page. USA and UK never navigate at the same time."""
+    async with _WALK_LOCK:
+        return await _scrape_copart_inventory(
+            tab,
+            origin=origin,
+            warm_url=warm_url,
+            max_pages=max_pages,
+            page_size=page_size,
+            timeout_ms=timeout_ms,
+        )
+
+
+async def _scrape_copart_inventory(
+    tab: Page,
+    *,
+    origin: str,
+    warm_url: str,
+    max_pages: int,
+    page_size: int,
+    timeout_ms: int,
+) -> list[dict[str, Any]]:
     """Return upcoming automobile rows with full image lists."""
     lots: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -333,7 +354,7 @@ async def scrape_copart_inventory(
 
     await tab.goto(warm_url, wait_until="domcontentloaded", timeout=timeout_ms)
     await _accept_cookies(tab)
-    state = await _settle_page(tab)
+    state = await _settle_page(tab, 20000)
     logger.info("copart %s page state=%s", origin, state)
 
     api_ok = False
@@ -363,12 +384,10 @@ async def scrape_copart_inventory(
                 head = str((result or {}).get("textHead") or "").lower() if isinstance(result, dict) else ""
             if not isinstance(result, dict) or not result.get("ok"):
                 logger.warning(
-                    "copart search HTTP %s %s",
+                    "copart search HTTP %s %s — will read lot links on the page",
                     result.get("status") if isinstance(result, dict) else "?",
                     head[:120],
                 )
-                if "incapsula" in head or "captcha" in head:
-                    return [{"_blocked": True, "reason": "incapsula"}]
                 break
 
         payload = result.get("json") or {}
@@ -391,15 +410,13 @@ async def scrape_copart_inventory(
                 continue
             seen.add(ln)
             page_rows.append(row)
-        await _attach_galleries(tab, page_rows, origin=origin)
         lots.extend(page_rows)
         total = ((payload.get("data") or {}).get("results") or {}).get("totalElements")
         logger.info(
-            "copart %s page %s: +%s photos≈%s total≈%s",
+            "copart %s page %s: +%s total≈%s",
             origin,
             page_idx,
             len(page_rows),
-            sum(len(r.get("images") or []) for r in page_rows),
             total,
         )
         if not page_rows:
@@ -407,23 +424,23 @@ async def scrape_copart_inventory(
         if total is not None and (page_idx + 1) * page_size >= int(total):
             break
 
-    if api_ok:
-        return lots
+    if not api_ok:
+        logger.info("copart %s reading lot links from the search page", origin)
+        for row in await _collect_dom_pages(tab, max_pages=max_pages):
+            ln = _lot_number(row)
+            if not ln or ln in seen:
+                continue
+            seen.add(ln)
+            lots.append(row)
 
-    logger.info("copart %s → DOM fallback", origin)
-    try:
-        rows = await tab.evaluate(EXTRACT_DOM_JS)
-    except Exception as exc:
-        logger.warning("copart DOM failed: %s", exc)
-        return [{"_blocked": True, "reason": "empty"}]
-    page_rows = []
-    for row in rows or []:
-        ln = _lot_number(row)
-        if not ln or ln in seen:
-            continue
-        seen.add(ln)
-        page_rows.append(row)
-    await _attach_galleries(tab, page_rows, origin=origin)
-    if not page_rows:
-        return [{"_blocked": True, "reason": "empty_dom"}]
-    return page_rows
+    if not lots:
+        return [{"_blocked": True, "reason": "empty" if state != "incapsula" else "incapsula"}]
+
+    await _open_lot_pages(
+        tab,
+        lots,
+        origin=origin,
+        timeout_ms=timeout_ms,
+        limit=_LOTS_TO_OPEN,
+    )
+    return lots

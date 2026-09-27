@@ -11,7 +11,9 @@ from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
+
+from app.services.lot_photos import resolve_photo_file
 
 router = APIRouter(tags=["lot-image"])
 
@@ -89,4 +91,15 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
             "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
             "Access-Control-Allow-Origin": "*",
         },
+    )
+
+
+@router.get("/api/lot-photos/{lot_id}/{filename}")
+def serve_saved_lot_photo(lot_id: str, filename: str) -> FileResponse:
+    path = resolve_photo_file(lot_id, filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(
+        path,
+        headers={"Cache-Control": "public, max-age=86400"},
     )

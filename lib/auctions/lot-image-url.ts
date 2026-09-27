@@ -36,6 +36,7 @@ export function isRealLotPhotoUrl(url: string | undefined | null): boolean {
   if (trimmed.includes("_placeholder")) return false;
   if (trimmed.startsWith("/auctions/lots/")) return true;
   if (trimmed.startsWith("/api/lot-image")) return true;
+  if (trimmed.startsWith("/api/lot-photos/")) return true;
   if (/unsplash\.com/i.test(trimmed)) return false;
   if (/^https?:\/\//i.test(trimmed)) return true;
   return false;
@@ -53,6 +54,7 @@ export function resolveLotImageUrl(
   const trimmed = url?.trim();
   if (!trimmed) return LOT_IMAGE_FALLBACK;
   if (trimmed.startsWith("/api/lot-image")) return trimmed;
+  if (trimmed.startsWith("/api/lot-photos/")) return trimmed;
   if (trimmed.startsWith("/auctions/lots/")) return trimmed;
   if (/unsplash\.com/i.test(trimmed)) return LOT_IMAGE_FALLBACK;
 
