@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import Settings, get_settings
 from app.models.cabinet import (
@@ -10,7 +10,6 @@ from app.models.cabinet import (
     DealCreate,
     DealUpdate,
     StageUpdate,
-    TelegramAuthPayload,
     TelegramWebAppAuthPayload,
 )
 from app.services.auth_deps import create_access_token
@@ -125,20 +124,32 @@ def _ensure_demo_deals(telegram_id: int) -> None:
 @router.get("/telegram/config")
 def telegram_login_config(settings: Annotated[Settings, Depends(get_settings)]) -> dict:
     """Public bot username for the Telegram Login Widget."""
+    from app.services.telegram_auth import clean_bot_token
+
+    token = clean_bot_token(settings.telegram_bot_token)
+    username = (settings.telegram_bot_username or "").strip().lstrip("@")
     return {
-        "bot_username": settings.telegram_bot_username,
-        "enabled": bool(settings.telegram_bot_token and settings.telegram_bot_username),
+        "bot_username": username,
+        "enabled": bool(token and username),
         "dev_enabled": bool(settings.cabinet_dev_auth),
     }
 
 
 @router.post("/telegram", response_model=AuthResponse)
-def auth_telegram(
-    payload: TelegramAuthPayload,
+async def auth_telegram(
+    request: Request,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> AuthResponse:
+    """Login via Telegram Login Widget — verify hash on the raw JSON body."""
+    try:
+        raw = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from exc
+    if not isinstance(raw, dict):
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
     verified = verify_telegram_login(
-        payload.model_dump(),
+        raw,
         bot_token=settings.telegram_bot_token,
         max_age_seconds=settings.telegram_auth_max_age_seconds,
     )

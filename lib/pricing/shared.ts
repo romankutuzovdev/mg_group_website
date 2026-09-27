@@ -99,14 +99,35 @@ export const VEHICLE_TYPE_OPTIONS = [
 ] as const;
 
 export function resolveRegion(raw: string | null | undefined): string {
-  const name = String(raw ?? "")
+  let name = String(raw ?? "")
     .trim()
-    .toUpperCase();
+    .toUpperCase()
+    .replace(/\s+/g, " ");
+  if (!name) return "DEFAULT";
+
+  // Copart UK labels: "Copart UK - Whitburn", "Sale location: Rochford", "DNW Whitburn"
+  name = name
+    .replace(/^(?:COPART(?:\s+UK)?|SALE\s*LOCATION|YARD|LOCATION|FACILITY|ПЛОЩАДКА)\s*[-:]?\s*/i, "")
+    .replace(/\s*\([^)]*\)\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
   if (!name) return "DEFAULT";
   if (name in DELIVERY_RATES) return name;
-  for (const key of Object.keys(DELIVERY_RATES)) {
-    if (key === "DEFAULT") continue;
+
+  const keys = Object.keys(DELIVERY_RATES).filter((key) => key !== "DEFAULT");
+  for (const key of keys) {
     if (name.includes(key) || key.includes(name)) return key;
+  }
+  // "East Kilbride Yard" / "Whitburn Scotland" — match by first significant token(s)
+  for (const key of keys) {
+    const keyParts = key.split(" ");
+    if (keyParts.length >= 2 && name.includes(keyParts[0]) && name.includes(keyParts[1])) {
+      return key;
+    }
+    if (keyParts.length === 1 && new RegExp(`\\b${keyParts[0]}\\b`).test(name)) {
+      return key;
+    }
   }
   return "DEFAULT";
 }

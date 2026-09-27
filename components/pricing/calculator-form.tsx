@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CopartQuote } from "@/lib/pricing/copart-uk";
 import type { IaaiQuote } from "@/lib/pricing/iaai-usa";
 import {
+  classifyVehicle,
   listUkDeliveryLocations,
   resolveRegion,
   VEHICLE_TYPE_OPTIONS,
@@ -20,7 +21,6 @@ import { useRecordQuote } from "@/components/pricing/use-record-quote";
 type Tab = "uk" | "usa";
 
 const UK_LOCATIONS = listUkDeliveryLocations();
-const BODY_VALUES = new Set<string>(VEHICLE_TYPE_OPTIONS.map((opt) => opt.value));
 
 function kitMarket(url: string, lot: LotFromUrlResponse): Tab {
   if (lotHost(url) === "copart_uk" || lotHost(lot.url || "") === "copart_uk") return "uk";
@@ -29,26 +29,50 @@ function kitMarket(url: string, lot: LotFromUrlResponse): Tab {
   return "usa";
 }
 
-function matchBody(raw: string | null | undefined): string | null {
-  const t = (raw || "").trim();
-  if (!t) return null;
-  if (BODY_VALUES.has(t)) return t;
-  const low = t.toLowerCase();
-  if (/motor|bike|quad|atv|мото/.test(low)) return "motorcycle";
-  if (/van|bus|sprinter|minivan|фургон/.test(low)) return "van";
-  if (/pickup|truck|пикап/.test(low)) return "pickup";
-  if (/suv|crossover|jeep|wagon|джип|кроссовер/.test(low)) return "SUV";
-  if (/sedan|hatch|coupe|saloon|седан/.test(low)) return "sedan";
-  return null;
+/** Как в desktop-боте: classifyVehicle → значение селекта; без матча → седан. */
+function matchBodyFromLot(lot: LotFromUrlResponse): {
+  value: string;
+  matched: boolean;
+  raw: string;
+} {
+  const raw = [lot.bodyStyle, lot.model, lot.make, lot.title].filter(Boolean).join(" ");
+  const classified = classifyVehicle(raw);
+  if (classified.vehicleType === "motorcycle") {
+    return { value: "motorcycle", matched: classified.matched, raw: lot.bodyStyle || raw };
+  }
+  const map: Record<string, string> = {
+    sedan: "sedan",
+    suv: "SUV",
+    sprinter: "van",
+    pickup: "pickup",
+  };
+  return {
+    value: map[classified.dismantleType] || "sedan",
+    matched: classified.matched,
+    raw: (lot.bodyStyle || "").trim() || raw,
+  };
 }
 
 function matchCategory(lot: LotFromUrlResponse): string {
   const explicit = (lot.category || "").trim().toUpperCase();
-  if (explicit === "A" || explicit === "B") return explicit;
-  const hay = `${lot.category || ""} ${lot.title || ""}`;
-  const m = hay.match(/\bcat(?:egory)?\s*([AB])\b/i);
+  if (/^[ABNSCDXU]$/.test(explicit)) return explicit;
+  const hay = [lot.category, lot.title, lot.make, lot.model, lot.location]
+    .filter(Boolean)
+    .join(" ");
+  const m =
+    hay.match(/\bcat(?:egory)?\s*[-:]?\s*([ABNSCDXU])\b/i) ||
+    hay.match(/\bкатегор(?:ия)?\s*[-:]?\s*([ABNSCDXU])\b/i) ||
+    hay.match(/\b([AB])\s*[-–]?\s*(?:category|cat)\b/i);
   return m ? m[1].toUpperCase() : "";
 }
+
+type InlandRoute = {
+  milesNj: number | null;
+  milesHouston: number | null;
+  portLabel: string | null;
+  source: string | null;
+  ok: boolean;
+};
 
 type Props = {
   /** Стартовый рынок в калькуляторе */
@@ -71,9 +95,12 @@ export function CalculatorForm({
   const [tab, setTab] = useState<Tab>(defaultTab);
   const [bidText, setBidText] = useState("5000");
   const [location, setLocation] = useState("WHITBURN");
+  const [usaLocation, setUsaLocation] = useState("");
   const [category, setCategory] = useState("");
   const [inlandMilesText, setInlandMilesText] = useState("450");
-  const [bodyStyle, setBodyStyle] = useState("SUV");
+  const [inlandRoute, setInlandRoute] = useState<InlandRoute | null>(null);
+  const [bodyStyle, setBodyStyle] = useState("sedan");
+  const [bodyHint, setBodyHint] = useState<string | null>(null);
   const [lotUrl, setLotUrl] = useState("");
   const [lotLoading, setLotLoading] = useState(false);
   const [lotError, setLotError] = useState<string | null>(null);
@@ -118,21 +145,55 @@ export function CalculatorForm({
       if (lot.bid != null && Number(lot.bid) > 0) {
         setBidText(String(Math.round(Number(lot.bid))));
       }
-      const body = matchBody(lot.bodyStyle) || matchBody(lot.model);
-      if (body) setBodyStyle(body);
+      const body = matchBodyFromLot(lot);
+      setBodyStyle(body.value);
+      setBodyHint(
+        body.matched
+          ? `Кузов: ${lot.bodyStyle || body.value} → в прайсе`
+          : `Кузов: ${lot.bodyStyle || "не указан"} → нет в правилах, седан`,
+      );
       if (market === "uk") {
+        setInlandRoute(null);
         const yard = resolveRegion(lot.location);
-        if (yard && yard !== "DEFAULT") setLocation(yard);
+        if (yard && yard !== "DEFAULT") {
+          setLocation(yard);
+        } else if (lot.location) {
+          setLotError(null);
+        }
         setCategory(matchCategory(lot));
-      } else if (lot.inlandMiles != null && Number(lot.inlandMiles) > 0) {
-        setInlandMilesText(String(Math.round(Number(lot.inlandMiles))));
+      } else {
+        setUsaLocation(String(lot.location || ""));
+        const miles =
+          lot.inlandMiles != null && Number(lot.inlandMiles) > 0
+            ? Math.round(Number(lot.inlandMiles))
+            : 450;
+        setInlandMilesText(String(miles));
+        setInlandRoute({
+          milesNj: lot.milesToNewJersey != null ? Number(lot.milesToNewJersey) : null,
+          milesHouston: lot.milesToHouston != null ? Number(lot.milesToHouston) : null,
+          portLabel: lot.usPortLabel || null,
+          source: lot.distanceSource || null,
+          ok: Boolean(lot.inlandOk),
+        });
       }
+      const yardLabel =
+        market === "uk" && lot.location
+          ? resolveRegion(lot.location) !== "DEFAULT"
+            ? resolveRegion(lot.location)
+            : String(lot.location)
+          : lot.location;
       const label = [lot.year, lot.make, lot.model, lot.lotNumber && `#${lot.lotNumber}`]
         .filter(Boolean)
         .join(" ");
-      const place = lot.location ? ` · ${lot.location}` : "";
+      const place = yardLabel ? ` · ${yardLabel}` : "";
+      const cat = market === "uk" ? matchCategory(lot) : "";
+      const catLabel = cat ? ` · Cat ${cat}` : "";
+      const milesLabel =
+        market === "usa" && lot.inlandMiles != null
+          ? ` · ${Math.round(Number(lot.inlandMiles))} mi`
+          : "";
       setLotMeta(
-        `${label || "Лот загружен"}${place} · ${market === "uk" ? "Англия" : "США"}`,
+        `${label || "Лот загружен"}${place}${catLabel}${milesLabel} · ${market === "uk" ? "Англия" : "США"}`,
       );
       setTouched(true);
     } catch (err) {
@@ -149,13 +210,13 @@ export function CalculatorForm({
   const quote = useMemo(
     () =>
       computeCalculatorQuote(tab, bidText, { ...fx, rate: fxRate, marketRate: fxMarketRate }, {
-        location,
+        location: tab === "uk" ? location : usaLocation,
         category,
         bodyStyle,
         vatOnSale: false,
         inlandMilesText,
       }),
-    [tab, bidText, fx, fxRate, fxMarketRate, location, category, bodyStyle, inlandMilesText],
+    [tab, bidText, fx, fxRate, fxMarketRate, location, usaLocation, category, bodyStyle, inlandMilesText],
   );
 
   const totalUsd =
@@ -166,7 +227,7 @@ export function CalculatorForm({
           kind: tab === "uk" ? "uk" : "usa",
           title: lotMeta || (tab === "uk" ? "Машинокомплект Англия" : "Машинокомплект США"),
           lot_url: lotUrl.trim(),
-          location,
+          location: tab === "uk" ? location : usaLocation,
           bid,
           currency: tab === "uk" ? "GBP" : "USD",
           total_usd: totalUsd,
@@ -273,6 +334,11 @@ export function CalculatorForm({
                 </option>
               ))}
             </select>
+            {bodyHint ? (
+              <p className="mt-1 text-xs font-normal normal-case tracking-normal text-text-muted">
+                {bodyHint}
+              </p>
+            ) : null}
           </label>
           {tab === "uk" ? (
             <>
@@ -299,28 +365,66 @@ export function CalculatorForm({
                   className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal text-text-primary"
                 >
                   <option value="">—</option>
-                  <option value="B">Cat B</option>
                   <option value="A">Cat A</option>
+                  <option value="B">Cat B</option>
+                  <option value="S">Cat S</option>
+                  <option value="N">Cat N</option>
                 </select>
               </label>
             </>
           ) : (
-            <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
-              Мили до порта США ($1/mi)
-              <input
-                type="text"
-                inputMode="numeric"
-                value={inlandMilesText}
-                onChange={(e) => setInlandMilesText(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border px-3 py-2"
-              />
-            </label>
+            <div className="space-y-3">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
+                Мили до порта США ($1/mi)
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={inlandMilesText}
+                  onChange={(e) => setInlandMilesText(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border px-3 py-2"
+                />
+              </label>
+              {inlandRoute ? (
+                <div className="rounded-lg border border-border bg-bg-base px-3 py-2 text-xs text-text-secondary">
+                  <p>
+                    New Jersey:{" "}
+                    <span className="font-medium text-text-primary">
+                      {inlandRoute.milesNj != null ? `${Math.round(inlandRoute.milesNj)} mi` : "—"}
+                    </span>
+                  </p>
+                  <p>
+                    Houston:{" "}
+                    <span className="font-medium text-text-primary">
+                      {inlandRoute.milesHouston != null
+                        ? `${Math.round(inlandRoute.milesHouston)} mi`
+                        : "—"}
+                    </span>
+                  </p>
+                  <p>
+                    Ближе порт:{" "}
+                    <span className="font-medium text-text-primary">
+                      {inlandRoute.portLabel || "—"}
+                    </span>
+                    {inlandMilesText
+                      ? ` · ${inlandMilesText} mi → $${Math.round(parseBidInput(inlandMilesText) || 0)}`
+                      : ""}
+                  </p>
+                  {!inlandRoute.ok ? (
+                    <p className="mt-1 text-amber-700">Мили по карте не найдены — fallback 450 mi</p>
+                  ) : inlandRoute.source ? (
+                    <p className="mt-1 text-text-muted">Источник: {inlandRoute.source}</p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           )}
         </div>
 
         <div className="card-premium rounded-xl p-6" key={`${tab}-${bidText}-${fxRate}`}>
           {tab === "uk" && quote ? <CopartQuoteDisplay quote={quote as CopartQuote} /> : null}
-          {tab === "usa" && quote ? <IaaiQuoteDisplay quote={quote as IaaiQuote} /> : null}
+          {tab === "usa" && quote ? (
+            <IaaiQuoteDisplay quote={quote as IaaiQuote} route={inlandRoute} />
+          ) : null}
           {quote ? <QuoteTotals quote={quote} region={tab} /> : null}
         </div>
       </div>

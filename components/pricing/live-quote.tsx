@@ -84,7 +84,7 @@ export function computeCalculatorQuote(
     bid,
     title: options.bodyStyle,
     bodyStyle: options.bodyStyle,
-    location: "TX - Dallas",
+    location: options.location || undefined,
     inlandMiles,
     volume: "standard",
     includeAmericaDelivery: true,

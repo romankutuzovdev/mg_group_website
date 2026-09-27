@@ -297,6 +297,14 @@ export type LotFromUrlResponse = {
   category?: string | null;
   bodyStyle?: string | null;
   inlandMiles?: number | null;
+  inlandUsd?: number | null;
+  milesToNewJersey?: number | null;
+  milesToHouston?: number | null;
+  usPort?: string | null;
+  usPortLabel?: string | null;
+  distanceSource?: string | null;
+  inlandOk?: boolean;
+  inlandError?: string | null;
   currency?: string | null;
   via?: string;
   cdp?: string;

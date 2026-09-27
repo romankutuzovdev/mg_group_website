@@ -30,7 +30,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-export function CalculatorGate({ children }: { children: React.ReactNode }) {
+export function CalculatorGate({
+  children,
+  showOverview = false,
+}: {
+  children: React.ReactNode;
+  /** После входа показать список доступных калькуляторов */
+  showOverview?: boolean;
+}) {
   const widgetRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>("guest");
   const [botUsername, setBotUsername] = useState("");
@@ -101,7 +108,7 @@ export function CalculatorGate({ children }: { children: React.ReactNode }) {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-[calc(100dvh-8rem)] items-center justify-center">
+      <div className="mx-auto max-w-md py-4 text-center">
         <p className="text-sm text-text-muted">Проверяем вход через Telegram…</p>
       </div>
     );
@@ -109,23 +116,30 @@ export function CalculatorGate({ children }: { children: React.ReactNode }) {
 
   if (status === "guest") {
     return (
-      <div className="flex min-h-[calc(100dvh-8rem)] items-center justify-center px-4">
-        <div className="w-full max-w-md rounded-xl border border-border bg-white p-6 text-center">
-          <h2 className="text-lg font-semibold text-text-primary">
-            Калькуляторы доступны только авторизованным пользователям
-          </h2>
-          <p className="mt-2 text-sm text-text-secondary">
-            Войдите через Telegram, чтобы считать машинокомплект, авто под восстановление и растаможку.
-          </p>
-          {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-          <div ref={widgetRef} className="mt-5 flex min-h-10 items-center justify-center" />
-          {configReady && !authEnabled ? (
-            <p className="mt-3 text-sm text-text-muted">Вход через Telegram сейчас недоступен.</p>
-          ) : null}
-        </div>
+      <div className="mx-auto max-w-md rounded-xl border border-border bg-white p-5 text-center sm:p-6">
+        <h2 className="text-lg font-semibold text-text-primary">
+          Калькуляторы доступны только авторизованным пользователям
+        </h2>
+        <p className="mt-2 text-sm text-text-secondary">
+          Войдите через Telegram, чтобы считать машинокомплект, авто под восстановление и растаможку.
+        </p>
+        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+        <div ref={widgetRef} className="mt-4 flex min-h-10 items-center justify-center" />
+        {configReady && !authEnabled ? (
+          <p className="mt-3 text-sm text-text-muted">Вход через Telegram сейчас недоступен.</p>
+        ) : null}
       </div>
     );
   }
 
-  return <>{children}</>;
+  return (
+    <div className="space-y-5">
+      {showOverview ? (
+        <p className="rounded-lg border border-border bg-white px-4 py-3 text-sm text-text-secondary">
+          Здесь есть калькулятор для машинокомплекта (США и Англия), авто под восстановление и растаможка.
+        </p>
+      ) : null}
+      {children}
+    </div>
+  );
 }

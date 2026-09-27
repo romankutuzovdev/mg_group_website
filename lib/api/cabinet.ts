@@ -139,7 +139,14 @@ async function cabinetFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new ApiError(`API ${res.status}: ${cleanPath}`, res.status, text);
+    let detail = "";
+    try {
+      const parsed = JSON.parse(text) as { detail?: unknown };
+      if (typeof parsed.detail === "string") detail = parsed.detail;
+    } catch {
+      /* plain text */
+    }
+    throw new ApiError(detail || `API ${res.status}: ${cleanPath}`, res.status, text);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -156,19 +163,21 @@ export async function fetchTelegramAuthConfig(): Promise<{
 export async function loginWithTelegram(
   user: TelegramLoginUser,
 ): Promise<{ access_token: string; user: CabinetUser }> {
+  const body: Record<string, string | number> = {
+    id: Number(user.id),
+    first_name: user.first_name || "",
+    auth_date: Number(user.auth_date),
+    hash: String(user.hash || ""),
+  };
+  if (user.last_name) body.last_name = user.last_name;
+  if (user.username) body.username = user.username;
+  if (user.photo_url) body.photo_url = user.photo_url;
+
   const data = await cabinetFetch<{ access_token: string; user: CabinetUser }>(
     "/api/v1/auth/telegram",
     {
       method: "POST",
-      body: JSON.stringify({
-        id: user.id,
-        first_name: user.first_name || "",
-        last_name: user.last_name || "",
-        username: user.username || "",
-        photo_url: user.photo_url || "",
-        auth_date: user.auth_date,
-        hash: user.hash,
-      }),
+      body: JSON.stringify(body),
     },
   );
   setCabinetToken(data.access_token);

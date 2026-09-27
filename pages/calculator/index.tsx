@@ -52,9 +52,9 @@ export default function CalculatorHubPage({ dictionary }: Props) {
       />
       <PageShell
         title="Калькуляторы"
-        description="США, Англия, восстановление и растаможка — каждый расчёт на своей странице. Доступны после входа через Telegram."
+        description="После входа: машинокомплект США и Англия, авто под восстановление и растаможка."
       >
-        <CalculatorGate>
+        <CalculatorGate showOverview>
           <div className="grid gap-3 sm:grid-cols-2">
             {CALCULATORS.map((item) => (
               <Link

@@ -89,7 +89,19 @@ export function CopartQuoteDisplay({ quote }: { quote: CopartQuote }) {
   );
 }
 
-export function IaaiQuoteDisplay({ quote }: { quote: IaaiQuote }) {
+export function IaaiQuoteDisplay({
+  quote,
+  route,
+}: {
+  quote: IaaiQuote;
+  route?: {
+    milesNj: number | null;
+    milesHouston: number | null;
+    portLabel: string | null;
+    source: string | null;
+    ok: boolean;
+  } | null;
+}) {
   const fees = quote.iaai;
   return (
     <div className="space-y-1">
@@ -98,6 +110,19 @@ export function IaaiQuoteDisplay({ quote }: { quote: IaaiQuote }) {
       </p>
       <Row label="Ставка" value={usd(fees.bid, 2)} />
       <Row label="Аукционный сбор" value={usd(fees.feesNet, 2)} />
+      {route ? (
+        <>
+          <Row
+            label="До New Jersey"
+            value={route.milesNj != null ? `${Math.round(route.milesNj)} mi` : "—"}
+          />
+          <Row
+            label="До Houston"
+            value={route.milesHouston != null ? `${Math.round(route.milesHouston)} mi` : "—"}
+          />
+          <Row label="Ближе порт" value={route.portLabel || "—"} />
+        </>
+      ) : null}
       {quote.deliveryUsa ? (
         <Row
           label="Доставка по США"
