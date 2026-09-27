@@ -19,6 +19,17 @@ from app.services.filter_lots import LotFilters, filter_lots, unique_sorted
 
 router = APIRouter(prefix="/lots", tags=["lots"])
 
+# Fixed keys — old Windows builds omitted korea/china and the UI showed «Под заказ».
+_REGION_KEYS = ("usa", "uk", "korea", "china")
+
+
+def _counts_by_region(lots: list[AuctionLot]) -> dict[str, int]:
+    out = {k: 0 for k in _REGION_KEYS}
+    for lot in lots:
+        if lot.region in out:
+            out[lot.region] += 1
+    return out
+
 
 def _require_ingest_key(
     settings: Annotated[Settings, Depends(get_settings)],
@@ -102,18 +113,19 @@ def list_lots(
     start = (page - 1) * page_size
     page_items = items[start : start + page_size]
 
+    # Always emit all catalog regions (even 0) so clients never hide Korea/China.
+    counts = {"usa": 0, "uk": 0, "korea": 0, "china": 0}
+    for x in items:
+        if x.region in counts:
+            counts[x.region] += 1
+
     return LotListResponse(
         items=page_items,
         total=total,
         page=page,
         page_size=page_size,
         pages=pages,
-        counts={
-            "usa": sum(1 for x in items if x.region == "usa"),
-            "uk": sum(1 for x in items if x.region == "uk"),
-            "korea": sum(1 for x in items if x.region == "korea"),
-            "china": sum(1 for x in items if x.region == "china"),
-        },
+        counts=counts,
     )
 
 
@@ -168,12 +180,7 @@ def lots_meta(make: str | None = None, region: str | None = None) -> LotMetaResp
             [l.drive for l in lots if l.drive and l.drive != "—"]
         ),
         total=len(lots),
-        counts_by_region={
-            "usa": sum(1 for l in lots if l.region == "usa"),
-            "uk": sum(1 for l in lots if l.region == "uk"),
-            "korea": sum(1 for l in lots if l.region == "korea"),
-            "china": sum(1 for l in lots if l.region == "china"),
-        },
+        counts_by_region=_counts_by_region(lots),
         counts_by_source={
             src: sum(1 for l in lots if l.source == src)
             for src in sorted({l.source for l in lots})

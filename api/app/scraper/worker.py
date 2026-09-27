@@ -288,6 +288,7 @@ class SourceAgent:
         return stats
 
     async def _loop(self, browser: Browser) -> None:
+        settings = get_settings()
         while not self._stop.is_set():
             if self._browser_dead.is_set():
                 break
@@ -306,11 +307,27 @@ class SourceAgent:
             await self.run_once(browser)
             if self._browser_dead.is_set():
                 break
-            try:
-                await asyncio.wait_for(
-                    self._stop.wait(),
-                    timeout=max(30, self.interval_seconds),
+            # After bot-wall: drop poisoned tab and retry sooner (VPN may come up later)
+            blocked = self.status.last_blocked
+            if blocked:
+                logger.info(
+                    "agent %s blocked (%s) — closing tab, retry in %ss (enable VPN then wait)",
+                    self.name,
+                    blocked,
+                    settings.scraper_blocked_retry_seconds,
                 )
+                try:
+                    await self.detach_tab()
+                except Exception:
+                    self._page = None
+                    self.status.tab_open = False
+            sleep_for = (
+                max(30, settings.scraper_blocked_retry_seconds)
+                if blocked
+                else max(30, self.interval_seconds)
+            )
+            try:
+                await asyncio.wait_for(self._stop.wait(), timeout=sleep_for)
                 break
             except asyncio.TimeoutError:
                 continue
@@ -544,9 +561,40 @@ class MultiAgentOrchestrator:
                     agent._browser_dead = asyncio.Event()
                     await agent.attach_tab(self._browser, warm=False)
                     await asyncio.sleep(0.4)
-                for i, agent in enumerate(self._agents.values()):
+
+                vpn_names = {
+                    s.strip().lower()
+                    for s in (settings.scraper_vpn_sources or "").split(",")
+                    if s.strip()
+                }
+                early = [a for n, a in self._agents.items() if n not in vpn_names]
+                late = [a for n, a in self._agents.items() if n in vpn_names]
+
+                for agent in early:
                     await agent.start(self._browser)
                     await asyncio.sleep(0.8)
+
+                delay = max(0, int(settings.scraper_startup_delay_seconds or 0))
+                if late and delay > 0:
+                    logger.info(
+                        "waiting %ss for VPN before starting: %s "
+                        "(enable VPN now; or POST /scraper/stop+start after VPN)",
+                        delay,
+                        ", ".join(a.name for a in late),
+                    )
+                    try:
+                        await asyncio.wait_for(self._stop.wait(), timeout=delay)
+                        # stop requested during wait
+                        break
+                    except asyncio.TimeoutError:
+                        pass
+
+                for agent in late:
+                    if self._stop.is_set():
+                        break
+                    await agent.start(self._browser)
+                    await asyncio.sleep(0.8)
+
                 logger.info(
                     "agents started: %s — first scrape cycles running in Chrome tabs",
                     ", ".join(self._agents.keys()),

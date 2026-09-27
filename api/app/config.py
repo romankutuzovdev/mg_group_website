@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     scraper_autostart: bool = True
     scraper_sources: str = "copart,iaai,copart_uk,manheim,salvage_market,encar"
     scraper_interval_seconds: int = 600  # 10 min
+    # After Chrome CDP is up — wait so you can enable VPN before Copart hits Incapsula
+    scraper_startup_delay_seconds: int = 180
+    # Sources that need VPN first (started after startup delay)
+    scraper_vpn_sources: str = "copart,copart_uk"
+    # When Incapsula/bot-wall hits — recreate tab and retry sooner
+    scraper_blocked_retry_seconds: int = 90
     scraper_max_pages_copart: int = 5
     scraper_max_pages_iaai: int = 5
     scraper_max_pages_copart_uk: int = 5

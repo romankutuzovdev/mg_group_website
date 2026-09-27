@@ -98,6 +98,9 @@ if (Test-Path $envFile) {
   Set-EnvValue $envFile "SCRAPER_CDP_AUTOSTART" "true"
   Set-EnvValue $envFile "SCRAPER_CDP_HEADLESS" "false"
   Set-EnvValue $envFile "SCRAPER_CDP_FALLBACK_LAUNCH" "false"
+  Set-EnvValue $envFile "SCRAPER_STARTUP_DELAY_SECONDS" "180"
+  Set-EnvValue $envFile "SCRAPER_VPN_SOURCES" "copart,copart_uk"
+  Set-EnvValue $envFile "SCRAPER_BLOCKED_RETRY_SECONDS" "90"
   Set-EnvValue $envFile "SCRAPER_SOURCES" "copart,iaai,copart_uk,manheim,salvage_market,encar"
   $userChrome = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data"
   if (Test-Path $userChrome) {

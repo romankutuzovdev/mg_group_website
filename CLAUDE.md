@@ -15,12 +15,15 @@ No test suite is configured.
 
 ## Architecture
 
-This is a **Next.js 14 static site** (Pages Router, `output: 'export'`) for the MultiGlobalGroup business website. The build outputs to `/out` and is deployed to Cloudflare Pages via GitHub Actions on push to `main`.
+This is a **Next.js 14** site (Pages Router) for the MultiGlobalGroup business website.
+
+**Production hosting is Vercel** (not Cloudflare Pages). On Vercel (`VERCEL=1`) the app is a normal Next build with `/api/*` rewrites to the Windows FastAPI (`API_URL`). Cloudflare Pages (`wrangler.toml`, `out/`, `functions/`) may still exist as an alternate/legacy path — do not treat it as the live site.
 
 ### Key architectural decisions
 
-- **Static export only** — no SSR, no API routes, no `getServerSideProps`. Use `getStaticProps` for data.
-- **Images are unoptimized** — `next/image` optimization is disabled for static export compatibility. Use `<img>` or `next/image` with standard props.
+- **Vercel (prod)** — no static `output: 'export'`; same-origin `/api` → rewrite to Windows API. Browser never uses raw `http://` API URLs (`lib/api/config.ts`).
+- **Static export** — only for non-Vercel production builds (e.g. Cloudflare `out/`). Prefer `getStaticProps` for data; no custom Next API routes for cabinet.
+- **Images are unoptimized** — `next/image` optimization is disabled for export compatibility. Use `<img>` or `next/image` with standard props.
 - **Single-language (Russian)** — all UI text lives in `/translations/ru.ts` and `/lib/dictionary/ru.ts`. Pages receive the dictionary via `getStaticProps`.
 
 ### Directory structure
@@ -40,9 +43,15 @@ This is a **Next.js 14 static site** (Pages Router, `output: 'export'`) for the 
 - Use `cn()` from `lib/utils.ts` for conditional/merged class names.
 - Primary brand color: green (`#22c55e` / `hsl(var(--primary))`).
 
-### Deployment (Cloudflare Pages)
+### Deployment (Vercel — production)
 
-Config: `wrangler.toml` (`name` = Pages project, `pages_build_output_dir` = `out`).
+- Live site: **Vercel** (`vercel.json`, framework Next.js).
+- Env: `API_URL` (server-only) pointing at Windows API, e.g. `http://91.149.133.54`. Do **not** set `NEXT_PUBLIC_API_URL` to `http://` on HTTPS.
+- Browser → same-origin `/api/v1/*` → Next rewrite → Windows API.
+
+### Alternate: Cloudflare Pages (legacy / optional)
+
+Config: `wrangler.toml` (`pages_build_output_dir` = `out`). Pages Functions under `functions/` proxy `/api`.
 
 ```bash
 npm run cf:login          # one-time OAuth
@@ -50,9 +59,6 @@ npm run deploy            # build + wrangler pages deploy
 npm run pages:deploy      # deploy existing /out
 ```
 
-CI: pushes to `main` → `.github/workflows/deploy.yml` (`npm ci && npm run build` → wrangler pages deploy).
-
-GitHub secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.  
-Optional vars: `CLOUDFLARE_PROJECT_NAME` (default `multiglobalgroup-website`), `NEXT_PUBLIC_CF_WORKER_URL`.
+GitHub Actions `.github/workflows/deploy.yml` still targets Cloudflare Pages — that is **not** the primary production path if the domain points at Vercel.
 
 Quiz/leads Worker URL: `NEXT_PUBLIC_CF_WORKER_URL` → `lib/cloudflare.ts` (`CF_WORKER_URL`).

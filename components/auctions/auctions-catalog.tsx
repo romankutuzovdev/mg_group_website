@@ -251,10 +251,13 @@ export function AuctionsCatalog({
 
   const counts = useMemo(() => {
     if (meta?.counts_by_region) {
+      const encar = meta.counts_by_source?.encar ?? 0;
+      const koreaRaw = meta.counts_by_region.korea ?? 0;
       return {
         usa: meta.counts_by_region.usa ?? 0,
         uk: meta.counts_by_region.uk ?? 0,
-        korea: meta.counts_by_region.korea ?? 0,
+        // Stale API omit/zero korea while encar source has tens of thousands
+        korea: koreaRaw > 0 ? koreaRaw : encar,
         china: meta.counts_by_region.china ?? 0,
       };
     }
