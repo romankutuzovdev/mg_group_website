@@ -34,9 +34,6 @@ export default function OtzyvyPage({ dictionary }: Props) {
           <AnchorButton href={REVIEW_LINKS.telegram} target="_blank" rel="noopener noreferrer">
             Оставить отзыв в Telegram
           </AnchorButton>
-          <LinkButton href="/kuplennye-avto/" variant="secondary">
-            Купленные авто
-          </LinkButton>
           <LinkButton href="/avto/" variant="secondary">
             Каталог
           </LinkButton>

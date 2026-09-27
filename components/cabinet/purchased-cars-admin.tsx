@@ -80,7 +80,7 @@ export function PurchasedCarsAdmin() {
       }
       setForm(emptyForm);
       setPhoto(null);
-      setOk("Авто добавлено и появится на /kuplennye-avto/");
+      setOk("Авто сохранено (раздел «Купленные авто» пока скрыт с сайта)");
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка сохранения");
@@ -131,11 +131,8 @@ export function PurchasedCarsAdmin() {
     <div className="rounded-2xl border border-border bg-bg-elevated p-5 sm:p-6">
       <h2 className="font-display text-lg font-semibold">Купленные авто (витрина)</h2>
       <p className="mt-1 text-sm text-text-secondary">
-        Добавляйте целые авто — они публикуются на странице{" "}
-        <a href="/kuplennye-avto/" className="text-accent-dark underline underline-offset-2">
-          /kuplennye-avto/
-        </a>
-        . Машинокомплекты сюда не входят.
+        Раздел временно скрыт с сайта. Записи можно сохранять в базе — появятся после возврата витрины.
+        Машинокомплекты сюда не входят.
       </p>
 
       {error ? (

@@ -42,7 +42,6 @@ const PRODUCT_GROUPS: NavGroup[] = [
       { href: "/avto/china/", label: "Авто из Китая" },
       { href: "/avto/korea/", label: "Авто из Кореи" },
       { href: "/avto/uk/", label: "Авто из Англии" },
-      { href: "/kuplennye-avto/", label: "Купленные авто" },
     ],
   },
   {

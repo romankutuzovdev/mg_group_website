@@ -61,7 +61,6 @@ const MORE_LINKS = [
   { href: "/avto/", label: "Каталог авто" },
   { href: "/calculator/", label: "Калькулятор" },
   { href: "/otzyvy/", label: "Отзывы" },
-  { href: "/kuplennye-avto/", label: "Купленные авто" },
   { href: "/mashinokomplekt/usa/", label: "Комплекты из США" },
   { href: "/mashinokomplekt/uk/", label: "Комплекты из Англии" },
   { href: "/kuplennye-mashinokomplekty/", label: "Купленные комплекты" },

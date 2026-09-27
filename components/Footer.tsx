@@ -66,9 +66,6 @@ const Footer = ({ dictionary }: FooterProps) => {
               <a href="/avto/uk/" className="hover:text-foreground transition-colors">
                 Авто из Англии
               </a>
-              <a href="/kuplennye-avto/" className="hover:text-foreground transition-colors">
-                Купленные авто
-              </a>
               <a href="/mashinokomplekt/" className="hover:text-foreground transition-colors">
                 Машинокомплекты
               </a>
