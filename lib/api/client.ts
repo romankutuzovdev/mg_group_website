@@ -293,6 +293,11 @@ export type LotFromUrlResponse = {
   location?: string | null;
   odometer?: number | null;
   images?: string[];
+  region?: "usa" | "uk" | string | null;
+  category?: string | null;
+  bodyStyle?: string | null;
+  inlandMiles?: number | null;
+  currency?: string | null;
   via?: string;
   cdp?: string;
 };

@@ -1,5 +1,4 @@
 import { GetStaticProps } from "next";
-import Link from "next/link";
 import SEO from "@/components/SEO";
 import { PageShell } from "@/components/layout/page-shell";
 import { SiteCalculator } from "@/components/pricing/site-calculator";
@@ -28,40 +27,9 @@ export default function CalculatorHubPage({ dictionary }: Props) {
       />
       <PageShell
         title="Калькуляторы просчёта"
-        description="Как в Telegram-боте: машинокомплект и целое авто — разные формулы, разные страницы."
+        description="Три разных просчёта, как в боте: машинокомплект из Англии, машинокомплект из США и авто под восстановление."
       >
-        <div className="mb-6 grid gap-3 sm:grid-cols-2">
-          <Link
-            href="/calculator/mashinokomplekt/"
-            className="rounded-xl border border-border bg-white p-4 transition hover:border-accent-dark/40 hover:shadow-sm"
-          >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">
-              Как в боте
-            </p>
-            <h2 className="mt-1 font-display text-lg font-semibold text-text-primary">
-              Машинокомплект
-            </h2>
-            <p className="mt-1 text-sm text-text-secondary">
-              США и Англия: ставка, сборы, доставка, разбор.
-            </p>
-          </Link>
-          <Link
-            href="/calculator/vosstanovlenie/"
-            className="rounded-xl border border-border bg-white p-4 transition hover:border-accent-dark/40 hover:shadow-sm"
-          >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">
-              Как в боте
-            </p>
-            <h2 className="mt-1 font-display text-lg font-semibold text-text-primary">
-              Авто под восстановление
-            </h2>
-            <p className="mt-1 text-sm text-text-secondary">
-              Целое авто: доставка Klaipeda/Poti и таможня РБ.
-            </p>
-          </Link>
-        </div>
-
-        <SiteCalculator mode="car" showSwitcher />
+        <SiteCalculator mode="kit-uk" showSwitcher />
       </PageShell>
     </>
   );

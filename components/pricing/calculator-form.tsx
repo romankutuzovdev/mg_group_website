@@ -1,28 +1,62 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CopartQuote } from "@/lib/pricing/copart-uk";
 import type { IaaiQuote } from "@/lib/pricing/iaai-usa";
 import {
   listUkDeliveryLocations,
+  resolveRegion,
   VEHICLE_TYPE_OPTIONS,
 } from "@/lib/pricing";
 import { CopartQuoteDisplay, IaaiQuoteDisplay } from "@/components/pricing/quote-display";
 import { computeCalculatorQuote, QuoteTotals } from "@/components/pricing/live-quote";
 import { parseBidInput, useFxRate } from "@/components/pricing/use-fx-rate";
+import { fetchLotFromUrl, type LotFromUrlResponse } from "@/lib/api/client";
+import { isApiEnabled } from "@/lib/api/config";
+import { LotLoadButton, LotLoadStatus, lotLoadErrorMessage } from "@/components/pricing/lot-url-load";
 
 type Tab = "uk" | "usa";
 
 const UK_LOCATIONS = listUkDeliveryLocations();
+const BODY_VALUES = new Set<string>(VEHICLE_TYPE_OPTIONS.map((opt) => opt.value));
+
+function kitMarket(url: string, lot: LotFromUrlResponse): Tab {
+  const hay = `${url} ${lot.url || ""} ${lot.source || ""} ${lot.region || ""}`.toLowerCase();
+  if (lot.region === "uk" || lot.source === "copart_uk" || hay.includes("copart.co.uk")) return "uk";
+  return "usa";
+}
+
+function matchBody(raw: string | null | undefined): string | null {
+  const t = (raw || "").trim();
+  if (!t) return null;
+  if (BODY_VALUES.has(t)) return t;
+  const low = t.toLowerCase();
+  if (/motor|bike|quad|atv|мото/.test(low)) return "motorcycle";
+  if (/van|bus|sprinter|minivan|фургон/.test(low)) return "van";
+  if (/pickup|truck|пикап/.test(low)) return "pickup";
+  if (/suv|crossover|jeep|wagon|джип|кроссовер/.test(low)) return "SUV";
+  if (/sedan|hatch|coupe|saloon|седан/.test(low)) return "sedan";
+  return null;
+}
+
+function matchCategory(lot: LotFromUrlResponse): string {
+  const explicit = (lot.category || "").trim().toUpperCase();
+  if (explicit === "A" || explicit === "B") return explicit;
+  const hay = `${lot.category || ""} ${lot.title || ""}`;
+  const m = hay.match(/\bcat(?:egory)?\s*([AB])\b/i);
+  return m ? m[1].toUpperCase() : "";
+}
 
 type Props = {
   /** Стартовый рынок в калькуляторе */
   defaultTab?: Tab;
   /** Скрыть переключатель рынков (на отдельных SEO-страницах) */
   hideTabs?: boolean;
+  /** Когда ссылка сама переключает Англию и США */
+  onMarketChange?: (tab: Tab) => void;
 };
 
-export function CalculatorForm({ defaultTab = "uk", hideTabs = false }: Props) {
+export function CalculatorForm({ defaultTab = "uk", hideTabs = false, onMarketChange }: Props) {
   const fx = useFxRate();
   const [tab, setTab] = useState<Tab>(defaultTab);
   const [bidText, setBidText] = useState("5000");
@@ -30,6 +64,58 @@ export function CalculatorForm({ defaultTab = "uk", hideTabs = false }: Props) {
   const [category, setCategory] = useState("");
   const [inlandMilesText, setInlandMilesText] = useState("450");
   const [bodyStyle, setBodyStyle] = useState("SUV");
+  const [lotUrl, setLotUrl] = useState("");
+  const [lotLoading, setLotLoading] = useState(false);
+  const [lotError, setLotError] = useState<string | null>(null);
+  const [lotMeta, setLotMeta] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTab(defaultTab);
+  }, [defaultTab]);
+
+  const loadFromUrl = useCallback(async () => {
+    const url = lotUrl.trim();
+    if (!url) {
+      setLotError("Вставьте ссылку Copart, Copart UK, IAAI или Bid.cars");
+      return;
+    }
+    if (!isApiEnabled()) {
+      setLotError("API недоступен");
+      return;
+    }
+    setLotLoading(true);
+    setLotError(null);
+    setLotMeta(null);
+    try {
+      const lot = await fetchLotFromUrl(url);
+      const market = kitMarket(url, lot);
+      setTab(market);
+      onMarketChange?.(market);
+      if (lot.bid != null && Number(lot.bid) > 0) {
+        setBidText(String(Math.round(Number(lot.bid))));
+      }
+      const body = matchBody(lot.bodyStyle) || matchBody(lot.model);
+      if (body) setBodyStyle(body);
+      if (market === "uk") {
+        const yard = resolveRegion(lot.location);
+        if (yard && yard !== "DEFAULT") setLocation(yard);
+        setCategory(matchCategory(lot));
+      } else if (lot.inlandMiles != null && Number(lot.inlandMiles) > 0) {
+        setInlandMilesText(String(Math.round(Number(lot.inlandMiles))));
+      }
+      const label = [lot.year, lot.make, lot.model, lot.lotNumber && `#${lot.lotNumber}`]
+        .filter(Boolean)
+        .join(" ");
+      const place = lot.location ? ` · ${lot.location}` : "";
+      setLotMeta(
+        `${label || "Лот загружен"}${place} · ${market === "uk" ? "Англия" : "США"}`,
+      );
+    } catch (err) {
+      setLotError(lotLoadErrorMessage(err));
+    } finally {
+      setLotLoading(false);
+    }
+  }, [lotUrl, onMarketChange]);
 
   const bid = parseBidInput(bidText);
   const fxRate = fx.rate;
@@ -73,6 +159,36 @@ export function CalculatorForm({ defaultTab = "uk", hideTabs = false }: Props) {
 
       <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
         <div className="card-premium space-y-4 rounded-xl p-4 sm:p-6">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
+            Ссылка на лот (Copart / Copart UK / IAAI / Bid.cars)
+            <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+              <input
+                type="url"
+                value={lotUrl}
+                onChange={(e) => setLotUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void loadFromUrl();
+                  }
+                }}
+                placeholder="https://www.copart.com/lot/… или https://www.copart.co.uk/lot/…"
+                className="w-full flex-1 rounded-lg border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal text-text-primary"
+              />
+              <LotLoadButton loading={lotLoading} onClick={() => void loadFromUrl()} />
+            </div>
+            <LotLoadStatus active={lotLoading} />
+            {lotError ? (
+              <p className="mt-1.5 text-xs font-normal normal-case tracking-normal text-red-600">
+                {lotError}
+              </p>
+            ) : null}
+            {lotMeta ? (
+              <p className="mt-1.5 text-xs font-normal normal-case tracking-normal text-emerald-700">
+                {lotMeta}
+              </p>
+            ) : null}
+          </label>
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
             Ваша ставка ({tab === "uk" ? "GBP" : "USD"})
             <input

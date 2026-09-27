@@ -58,8 +58,9 @@ const LIVE_BID_FEE_BANDS: [number, number][] = [
   [Infinity, 109],
 ];
 
-const DISMANTLE_WEIGHT_BASE = 800;
-const DISMANTLE_WEIGHT_PER_KG = 1.6;
+/** Прайс Англии от 14.09.2026. */
+const DISMANTLE_WEIGHT_BASE = 850;
+const DISMANTLE_WEIGHT_PER_KG = 1.4;
 
 function getBuyerFee(price: number, tier: "A" | "B" = "A"): number {
   if (price >= 10000) return round2(price * (tier === "B" ? 0.065 : 0.055));

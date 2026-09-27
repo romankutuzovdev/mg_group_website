@@ -98,15 +98,57 @@ function notFoundHtml(slug) {
 </html>`;
 }
 
+const JUNK_PHOTO =
+  /daimg\.encar|wt_mark|userdata\/dealer|insur_|listex|sprite|\/logo|avatar|1x1|pixel|blank\.|diagnosis\/option|diagnosis\/sellingpoint/i;
+
+function galleryUrls(lot) {
+  const raw = [lot.imageUrl, ...(Array.isArray(lot.imageUrls) ? lot.imageUrls : [])]
+    .map((u) => String(u || "").trim())
+    .filter((u) => /^https?:\/\//i.test(u));
+  const best = new Map();
+  const score = (url) => {
+    const rh = url.match(/[?&]rh=(\d+)/i);
+    let n = rh ? Number(rh[1]) : 0;
+    if (/_ful\./i.test(url)) n += 5000;
+    if (!url.includes("?")) n += 2000;
+    return n;
+  };
+  const photoId = (url) => {
+    const key = url.match(/[?&]imageKeys=([^&]+)/i);
+    if (key) {
+      try { return `iaai:${decodeURIComponent(key[1]).toLowerCase()}`; }
+      catch (e) { return `iaai:${key[1].toLowerCase()}`; }
+    }
+    const base = (url.split("?")[0].split("/").pop() || "").replace(/_(?:thb|ths|ful|hrs)(?=\.)/i, "");
+    if (!base || /_+$/.test(base)) return "";
+    return base.toLowerCase();
+  };
+  for (const url of raw) {
+    if (JUNK_PHOTO.test(url)) continue;
+    const id = photoId(url);
+    if (!id) continue;
+    const prev = best.get(id);
+    if (!prev || score(url) > prev.score) best.set(id, { url, score: score(url) });
+  }
+  const out = [];
+  const seen = new Set();
+  for (const url of raw) {
+    if (JUNK_PHOTO.test(url)) continue;
+    const id = photoId(url);
+    if (!id || seen.has(id) || !best.has(id)) continue;
+    seen.add(id);
+    out.push(best.get(id).url);
+  }
+  return out;
+}
+
 function lotHtml(lot) {
   const path = `/auctions/${lot.slug}/`;
   const url = `${SITE}${path}`;
   const title = `${lot.year} ${lot.make} ${lot.model} | MG.GROUP`;
   const description = `Лот #${lot.lotNumber}. ${lot.primaryDamage || "Аукцион"}. Ставка от ${money(lot.currentBid, lot.currency)}.`;
-  const image =
-    lot.imageUrl && /^https?:\/\//i.test(lot.imageUrl)
-      ? lot.imageUrl
-      : `${SITE}/logo.png`;
+  const gallery = galleryUrls(lot);
+  const image = gallery[0] || `${SITE}/logo.png`;
   const region =
     REGION_LABELS[lot.region] || String(lot.region || "").toUpperCase();
   const catalogHref =
@@ -203,6 +245,9 @@ function lotHtml(lot) {
     .card{background:var(--card);border:1px solid var(--border);border-radius:.75rem;padding:1.25rem}
     .hero{aspect-ratio:16/10;overflow:hidden;border-radius:.75rem;border:1px solid var(--border);background:#f4f4f5}
     .hero img{width:100%;height:100%;object-fit:cover;display:block}
+    .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:.5rem;margin-top:.75rem}
+    .thumbs a{display:block;aspect-ratio:4/3;overflow:hidden;border-radius:.5rem;border:1px solid var(--border);background:#f4f4f5}
+    .thumbs img{width:100%;height:100%;object-fit:cover;display:block}
     .price{font-size:1.875rem;font-weight:700;color:#166534;margin:.25rem 0}
     .row{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;border-bottom:1px solid var(--border);font-size:.875rem}
     .row:last-child{border-bottom:0}
@@ -230,6 +275,16 @@ function lotHtml(lot) {
       <div class="hero">
         <img src="${esc(image)}" alt="${esc(`${lot.year} ${lot.make} ${lot.model}`)}" width="1200" height="750"/>
       </div>
+      ${
+        gallery.length > 1
+          ? `<div class="thumbs">${gallery
+              .map(
+                (src, i) =>
+                  `<a href="${esc(src)}" target="_blank" rel="noopener noreferrer"><img src="${esc(src)}" alt="${esc(`Фото ${i + 1}`)}" width="160" height="120"/></a>`,
+              )
+              .join("")}</div>`
+          : ""
+      }
       <div class="card" style="margin-top:1.25rem">
         <h2 style="margin:0 0 .5rem;font-size:1.125rem">Характеристики</h2>
         ${rows}

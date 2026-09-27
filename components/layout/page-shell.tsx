@@ -7,6 +7,8 @@ type PageShellProps = {
   children?: ReactNode;
   /** Без блока MG.GROUP / заголовка — только контент */
   bare?: boolean;
+  /** На всю ширину и высоту экрана, без отступа под фиксированную шапку */
+  full?: boolean;
   className?: string;
 };
 
@@ -15,10 +17,18 @@ export function PageShell({
   description,
   children,
   bare = false,
+  full = false,
   className,
 }: PageShellProps) {
   return (
-    <div className={cn("pt-[calc(3.5rem+env(safe-area-inset-top,0px))]", className)}>
+    <div
+      className={cn(
+        full
+          ? "flex min-h-[100dvh] w-full flex-1 flex-col bg-[#f2f2f2]"
+          : "pt-[calc(3.5rem+env(safe-area-inset-top,0px))]",
+        className,
+      )}
+    >
       {!bare && title ? (
         <div className="relative overflow-hidden border-b bg-white">
           <div className="relative mx-auto max-w-7xl px-3 py-3.5 sm:px-4 sm:py-6 lg:px-6">
@@ -36,7 +46,15 @@ export function PageShell({
           </div>
         </div>
       ) : null}
-      <div className="mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-6 lg:px-6">{children}</div>
+      <div
+        className={cn(
+          full
+            ? "flex w-full flex-1 flex-col px-3 py-3 sm:px-5 sm:py-5 lg:px-8"
+            : "mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-6 lg:px-6",
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }

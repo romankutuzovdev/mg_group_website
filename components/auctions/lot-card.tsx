@@ -11,6 +11,7 @@ import {
 } from "@/lib/auctions/lot-quote";
 import type { AuctionLot } from "@/lib/auctions/types";
 import { CLOSED_AUCTION_LABEL, isClosedAuction, REGION_LABELS } from "@/lib/auctions/types";
+import { collectLotPhotoUrls } from "@/lib/auctions/lot-image-url";
 import { formatOdometerKm } from "@/lib/auctions/odometer";
 
 /** Fixed TZ so SSR (UTC) and browser (Minsk) render the same absolute string. */
@@ -87,6 +88,8 @@ export function LotCard({
     setRelative(formatAuctionRelative(lot.auctionDate, Date.now()));
   }, [lot.auctionDate]);
 
+  const photos = collectLotPhotoUrls(lot);
+  const photoCount = photos.length;
   const absolute = formatAuctionAbsolute(lot.auctionDate);
   const damage = shortDamage(lot.primaryDamage);
   const specs = [
@@ -106,7 +109,7 @@ export function LotCard({
       <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
         <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-zinc-100">
           <LotImage
-            src={lot.imageUrl}
+            src={photos[0] || lot.imageUrl}
             alt={`${lot.year} ${lot.make} ${lot.model}`}
             fill
             loading="lazy"
@@ -127,6 +130,11 @@ export function LotCard({
             {lot.buyNowPrice ? (
               <span className="rounded-md bg-accent px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
                 Buy Now
+              </span>
+            ) : null}
+            {photoCount > 1 ? (
+              <span className="rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                {photoCount} фото
               </span>
             ) : null}
             {lot.runsDrives ? (

@@ -47,20 +47,20 @@ export default function LotDetailPage({ dictionary, lot: initialLot, slug: propS
       setLoading(false);
       return;
     }
-    if (initialLot && initialLot.slug === slug) {
-      setLoading(false);
-      setError(null);
-      return;
-    }
+    // SSG HTML is baked with the cover only (`imageUrl`). The live API keeps
+    // the rest of the gallery in `imageUrls`, so always refresh after paint.
+    const hasInitial = Boolean(initialLot && initialLot.slug === slug);
+    if (!hasInitial) setLoading(true);
 
     let cancelled = false;
-    setLoading(true);
     fetchLotBySlug(slug)
       .then((data) => {
         if (cancelled) return;
         if (!data) {
-          setError("Лот не найден или торги завершены");
-          setLot(null);
+          if (!hasInitial) {
+            setError("Лот не найден или торги завершены");
+            setLot(null);
+          }
           return;
         }
         setLot(data);
@@ -68,8 +68,10 @@ export default function LotDetailPage({ dictionary, lot: initialLot, slug: propS
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Ошибка загрузки лота");
-        setLot(null);
+        if (!hasInitial) {
+          setError(err instanceof Error ? err.message : "Ошибка загрузки лота");
+          setLot(null);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

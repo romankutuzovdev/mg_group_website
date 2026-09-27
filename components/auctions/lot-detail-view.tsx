@@ -27,7 +27,7 @@ import {
   formatFuelRu,
   formatTransmissionRu,
 } from "@/lib/auctions/lot-specs";
-import { resolveLotDisplayImage, resolveLotImageUrl } from "@/lib/auctions/lot-image-url";
+import { collectLotPhotoUrls, resolveLotDisplayImage } from "@/lib/auctions/lot-image-url";
 import { CONSULTATION_TG, consultationMessage } from "@/lib/company";
 
 function formatMoney(amount: number, currency: "USD" | "GBP" | "KRW") {
@@ -133,23 +133,15 @@ export function LotDetailView({
   const router = useRouter();
   const lotPath = `/auctions/${lot.slug}/`;
   const backHref = catalogHref(lot.region);
-  const photos = useMemo(() => {
-    const raw = [
-      lot.imageUrl,
-      ...(Array.isArray(lot.imageUrls) ? lot.imageUrls : []),
-    ]
-      .map((u) => (u || "").trim())
-      .filter(Boolean);
-    const uniq = Array.from(new Set(raw));
-    return uniq.map((u) => resolveLotImageUrl(u));
-  }, [lot.imageUrl, lot.imageUrls]);
+  const photos = useMemo(() => collectLotPhotoUrls(lot), [lot]);
 
   const [active, setActive] = useState(0);
   useEffect(() => {
     setActive(0);
   }, [lot.slug]);
 
-  const mainSrc = photos[active] || resolveLotDisplayImage(lot);
+  const safeActive = photos.length ? Math.min(active, photos.length - 1) : 0;
+  const mainSrc = photos[safeActive] || resolveLotDisplayImage(lot);
   const ended = isAuctionEnded(lot);
   const isDemo = Boolean(lot._demo);
   const shouldNoindex = ended || isDemo;
@@ -254,6 +246,11 @@ export function LotDetailView({
                   priority
                   sizes="(max-width: 1024px) 100vw, 66vw"
                 />
+                {photos.length > 1 ? (
+                  <span className="absolute bottom-3 right-3 rounded-md bg-black/70 px-2 py-1 text-xs font-semibold text-white">
+                    {safeActive + 1} / {photos.length}
+                  </span>
+                ) : null}
               </div>
               {photos.length > 1 ? (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
@@ -263,7 +260,7 @@ export function LotDetailView({
                       type="button"
                       onClick={() => setActive(i)}
                       className={`relative aspect-[4/3] overflow-hidden rounded-lg border bg-zinc-100 ${
-                        i === active
+                        i === safeActive
                           ? "border-accent ring-2 ring-accent/30"
                           : "border-border hover:border-zinc-400"
                       }`}

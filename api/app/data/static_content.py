@@ -177,16 +177,16 @@ CITIES = [
 ]
 
 WEIGHT_FORMULA = {
-    "uk": {"base": 800, "per_kg": 1.6, "label": "Англия"},
+    "uk": {"base": 850, "per_kg": 1.4, "label": "Англия"},
     "usa": {"base": 1300, "per_kg": 2.2, "label": "США"},
 }
 
 DISMANTLE_TARIFFS = {
     "uk": [
-        {"id": "sedan", "label": "Седан", "price": 2200},
-        {"id": "suv", "label": "Внедорожник", "price": 2450},
+        {"id": "sedan", "label": "Седан", "price": 2250},
+        {"id": "suv", "label": "Внедорожник", "price": 2550},
         {"id": "sprinter", "label": "Спринтер", "price": 2350},
-        {"id": "pickup", "label": "Пикап / X7 / LR", "price": 2750},
+        {"id": "pickup", "label": "Пикап / X7 / LR", "price": 2850},
     ],
     "usa": [
         {"id": "sedan", "label": "Легковые авто", "price": 4100},
@@ -230,7 +230,7 @@ COMMERCIAL_TERMS = [
     "Доставка товара — 1,5–2 месяца с момента покупки",
 ]
 
-COMMERCIAL_UPDATED = "24.08.2026"
+COMMERCIAL_UPDATED = "14.09.2026"
 USA_DISPATCHING_USD = 200
 
 KIT_SCHEMES = [

@@ -241,7 +241,13 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   };
 
   return (
-    <PageShell bare>
+    <PageShell bare full>
+      <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-3">
+        <Link href="/" className="text-sm font-semibold tracking-tight text-text-primary">
+          MG.GROUP
+        </Link>
+        <span className="text-sm text-text-secondary">Личный кабинет</span>
+      </div>
       {error ? (
         <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
@@ -253,8 +259,8 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
       ) : null}
 
       {!user ? (
-        <div className="mx-auto w-full max-w-3xl space-y-6">
-          <div className="mx-auto max-w-md rounded-xl border border-border bg-bg-elevated p-5 text-center">
+        <div className="flex w-full flex-1 flex-col gap-6">
+          <div className="mx-auto w-full max-w-md rounded-xl border border-border bg-bg-elevated p-5 text-center">
             <p className="text-base font-semibold">
               {webAppAuth || isTelegramWebAppEnv()
                 ? "Вход через Telegram…"
@@ -297,7 +303,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
           <CabinetCalculator />
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="flex w-full flex-1 flex-col space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-bg-elevated p-3">
             <div className="flex items-center gap-2.5">
               {user.photo_url ? (

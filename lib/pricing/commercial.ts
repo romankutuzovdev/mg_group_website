@@ -1,16 +1,16 @@
 export type CommercialOrigin = "uk" | "usa";
 
-export const COMMERCIAL_UPDATED = "24.08.2026";
+export const COMMERCIAL_UPDATED = "14.09.2026";
 
 export const WEIGHT_FORMULA: Record<
   CommercialOrigin,
   { base: number; perKg: number; label: string; hint: string }
 > = {
   uk: {
-    base: 800,
-    perKg: 1.6,
+    base: 850,
+    perKg: 1.4,
     label: "Англия",
-    hint: "800 USD + 1,6 USD × кг — доставка и растаможка до Минска включены",
+    hint: "850 USD + 1,4 USD × кг — доставка и растаможка до Минска включены",
   },
   usa: {
     base: 1300,
@@ -29,10 +29,10 @@ export type DismantleTariff = {
 
 export const DISMANTLE_TARIFFS: Record<CommercialOrigin, DismantleTariff[]> = {
   uk: [
-    { id: "sedan", label: "Седан", price: 2200 },
-    { id: "suv", label: "Внедорожник", price: 2450 },
+    { id: "sedan", label: "Седан", price: 2250 },
+    { id: "suv", label: "Внедорожник", price: 2550 },
     { id: "sprinter", label: "Спринтер", price: 2350 },
-    { id: "pickup", label: "Пикап / X7 / LR", price: 2750 },
+    { id: "pickup", label: "Пикап / X7 / LR", price: 2850 },
   ],
   usa: [
     { id: "sedan", label: "Легковые авто", price: 4100 },

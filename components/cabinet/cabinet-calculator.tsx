@@ -14,7 +14,7 @@ import {
 import type { CopartQuote } from "@/lib/pricing/copart-uk";
 import type { IaaiQuote } from "@/lib/pricing/iaai-usa";
 import { fetchQuote } from "@/lib/api/client";
-import { getApiBaseUrl, isApiEnabled } from "@/lib/api/config";
+import { isApiEnabled } from "@/lib/api/config";
 
 type Mode = "kits" | "car" | "customs";
 type KitTab = "uk" | "usa";
@@ -28,7 +28,6 @@ const UK_LOCATIONS = listUkDeliveryLocations();
  */
 export function CabinetCalculator() {
   const [mode, setMode] = useState<Mode>("kits");
-  const apiBase = getApiBaseUrl();
 
   return (
     <div className="space-y-4">
@@ -37,20 +36,6 @@ export function CabinetCalculator() {
           <h2 className="text-sm font-semibold">Калькулятор просчёта</h2>
           <p className="mt-0.5 text-xs text-text-muted">
             Как в CRM MG.GROUP: машинокомплекты, авто под восстановление, растаможка РБ.
-            {apiBase ? (
-              <>
-                {" "}
-                Сервер:{" "}
-                <a
-                  href={`${apiBase}/docs`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-accent-dark underline underline-offset-2"
-                >
-                  {apiBase}/docs
-                </a>
-              </>
-            ) : null}
           </p>
         </div>
       </div>

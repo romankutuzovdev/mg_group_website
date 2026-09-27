@@ -7,26 +7,34 @@ import { RestorationCalculator } from "@/components/pricing/restoration-calculat
 import { CustomsByPanel } from "@/components/pricing/customs-by-panel";
 import { cn } from "@/lib/utils";
 
-export type CalculatorMode = "kits" | "car" | "customs";
+export type CalculatorMode = "kit-uk" | "kit-usa" | "car" | "customs";
 
-const MODES: { id: CalculatorMode; label: string; href: string; blurb: string }[] = [
+const MODES: {
+  id: Exclude<CalculatorMode, "customs">;
+  label: string;
+  href: string;
+  blurb: string;
+}[] = [
   {
-    id: "kits",
-    label: "Машинокомплект",
+    id: "kit-uk",
+    label: "Комплект · Англия",
     href: "/calculator/mashinokomplekt/",
-    blurb: "США / Англия: ставка, сборы, доставка и разбор — как в боте MG.GROUP.",
+    blurb:
+      "Машинокомплект Copart UK: ставка в фунтах, аукционные сборы, доставка с площадки и разбор.",
+  },
+  {
+    id: "kit-usa",
+    label: "Комплект · США",
+    href: "/calculator/mashinokomplekt/",
+    blurb:
+      "Машинокомплект IAAI / Copart USA: ставка в долларах, сборы, мили до порта и разбор.",
   },
   {
     id: "car",
     label: "Авто под восстановление",
     href: "/calculator/vosstanovlenie/",
-    blurb: "Целое авто: Bid.cars / IAAI / Copart, доставка Klaipeda·Poti и растаможка РБ.",
-  },
-  {
-    id: "customs",
-    label: "Растаможка РБ",
-    href: "/calculator/?mode=customs",
-    blurb: "Только таможенный платёж по правилам РБ.",
+    blurb:
+      "Другая формула: целое авто без разбора, сбор по ставке, доставка Klaipeda или Poti и таможня РБ.",
   },
 ];
 
@@ -35,7 +43,7 @@ type Props = {
   mode?: CalculatorMode;
   /** Show mode switcher */
   showSwitcher?: boolean;
-  /** Kit form: start on USA or UK */
+  /** Kit form: start on USA or UK when mode is a kit */
   kitDefaultTab?: "uk" | "usa";
 };
 
@@ -83,78 +91,73 @@ function CustomsStandalone() {
   );
 }
 
+function kitTabFromMode(mode: CalculatorMode, fallback: "uk" | "usa"): "uk" | "usa" {
+  if (mode === "kit-usa") return "usa";
+  if (mode === "kit-uk") return "uk";
+  return fallback;
+}
+
 /**
- * Public site calculator — same split as Telegram bot / cabinet CRM:
- * машинокомплект | авто под восстановление | растаможка.
+ * Public site calculator — same split as the desktop bot:
+ * машинокомплект Англия, машинокомплект США, авто под восстановление.
  */
 export function SiteCalculator({
-  mode: modeProp = "car",
+  mode: modeProp = "kit-uk",
   showSwitcher = true,
-  kitDefaultTab = "usa",
+  kitDefaultTab = "uk",
 }: Props) {
   const [mode, setMode] = useState<CalculatorMode>(modeProp);
+  const active = MODES.find((item) => item.id === mode) ?? MODES[0];
+  const kitTab = kitTabFromMode(mode, kitDefaultTab);
 
   return (
     <div className="space-y-5">
       {showSwitcher ? (
         <div className="space-y-2">
-          <div className="flex flex-wrap gap-1.5 rounded-xl border border-border bg-zinc-50 p-1">
-            {MODES.map((t) => (
+          <div className="grid gap-1.5 rounded-xl border border-border bg-zinc-50 p-1 sm:grid-cols-3">
+            {MODES.map((item) => (
               <button
-                key={t.id}
+                key={item.id}
                 type="button"
-                onClick={() => setMode(t.id)}
+                onClick={() => setMode(item.id)}
                 className={cn(
-                  "min-h-11 flex-1 rounded-lg px-3 py-2.5 text-sm font-semibold transition sm:flex-none sm:px-4",
-                  mode === t.id
+                  "min-h-11 rounded-lg px-3 py-2.5 text-sm font-semibold transition",
+                  mode === item.id
                     ? "bg-white text-zinc-900 shadow-sm"
                     : "text-text-secondary hover:text-zinc-900",
                 )}
               >
-                {t.label}
+                {item.label}
               </button>
             ))}
           </div>
-          <p className="text-xs text-text-muted">
-            {MODES.find((m) => m.id === mode)?.blurb}{" "}
-            {mode !== "customs" ? (
-              <>
-                Отдельная страница:{" "}
-                <Link
-                  href={MODES.find((m) => m.id === mode)!.href}
-                  className="font-medium text-accent-dark underline underline-offset-2"
-                >
-                  открыть →
-                </Link>
-              </>
-            ) : null}
-          </p>
+          <p className="text-sm text-text-secondary">{active.blurb}</p>
         </div>
       ) : null}
 
-      {mode === "kits" ? (
-        <div className="space-y-3">
-          {!showSwitcher ? (
-            <p className="text-sm text-text-secondary">
-              Просчёт машинокомплекта: сборы аукциона, доставка и разбор (США / Англия).
-            </p>
-          ) : null}
-          <CalculatorForm defaultTab={kitDefaultTab} />
-        </div>
+      {mode === "kit-uk" || mode === "kit-usa" ? (
+        <CalculatorForm
+          defaultTab={kitTab}
+          hideTabs={showSwitcher}
+          onMarketChange={(tab) => setMode(tab === "uk" ? "kit-uk" : "kit-usa")}
+        />
       ) : null}
 
-      {mode === "car" ? (
-        <div className="space-y-3">
-          {!showSwitcher ? (
-            <p className="text-sm text-text-secondary">
-              Целое авто под восстановление: ставка, доставка и таможня РБ.
-            </p>
-          ) : null}
-          <RestorationCalculator />
-        </div>
-      ) : null}
+      {mode === "car" ? <RestorationCalculator /> : null}
 
       {mode === "customs" ? <CustomsStandalone /> : null}
+
+      {showSwitcher && mode !== "customs" ? (
+        <p className="text-xs text-text-muted">
+          Отдельная страница:{" "}
+          <Link
+            href={active.href}
+            className="font-medium text-accent-dark underline underline-offset-2"
+          >
+            открыть →
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

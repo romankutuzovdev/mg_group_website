@@ -12,7 +12,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
 from playwright.async_api import Browser, Page
 
@@ -77,6 +77,20 @@ EXTRACT_GALLERY_JS = """
     if (m) push(m[1]);
   });
 
+  // IAA identifies each shot by imageKeys. Thumbs and the main viewer share that id.
+  document.querySelectorAll('[data-imagekey], [data-image-key]').forEach((el) => {
+    const key = el.getAttribute('data-imagekey') || el.getAttribute('data-image-key');
+    if (key) push('https://vis.iaai.com/resizer?imageKeys=' + key + '&width=845&height=633');
+  });
+  const html = document.documentElement ? document.documentElement.innerHTML : '';
+  const keyRe = /imageKeys=([^&"'\\s<>]+)/gi;
+  let km;
+  while ((km = keyRe.exec(html))) {
+    let key = km[1];
+    try { key = decodeURIComponent(key); } catch (e) {}
+    push('https://vis.iaai.com/resizer?imageKeys=' + key + '&width=845&height=633');
+  }
+
   return [...new Set(urls)];
 }
 """
@@ -84,6 +98,7 @@ EXTRACT_GALLERY_JS = """
 COPART_API_JS = """
 async (lotNumber) => {
   const tryUrls = [
+    `https://www.copart.com/public/data/lotdetails/solr/lotImages/${lotNumber}`,
     `https://www.copart.com/public/data/lotdetails/solr/${lotNumber}`,
     `https://www.copart.co.uk/public/data/lotdetails/solr/${lotNumber}`,
   ];
@@ -95,28 +110,22 @@ async (lotNumber) => {
       const data = await res.json();
       const lot = data?.data?.lotDetails || data?.lotDetails || data?.data || data;
       const candidates = [];
-      const walk = (obj) => {
-        if (!obj) return;
-        if (typeof obj === 'string' && /^https?:\\/\\//i.test(obj)) {
-          candidates.push(obj);
+      const walk = (obj, depth) => {
+        if (!obj || depth > 8) return;
+        if (typeof obj === 'string') {
+          if (/^https?:\\/\\//i.test(obj) && /\\.(jpe?g|png|webp)(\\?|$)|imageKeys=|cs\\.copart|c-static\\.copart/i.test(obj))
+            candidates.push(obj);
           return;
         }
         if (Array.isArray(obj)) {
-          obj.forEach(walk);
+          obj.forEach((v) => walk(v, depth + 1));
           return;
         }
         if (typeof obj === 'object') {
-          for (const [k, v] of Object.entries(obj)) {
-            if (/image|tims|img|photo|picture/i.test(k)) walk(v);
-          }
+          Object.values(obj).forEach((v) => walk(v, depth + 1));
         }
       };
-      walk(lot);
-      // Known Copart fields
-      if (lot?.imagesList) walk(lot.imagesList);
-      if (lot?.imageList) walk(lot.imageList);
-      if (lot?.lotImages) walk(lot.lotImages);
-      if (Array.isArray(lot?.tims)) walk(lot.tims);
+      walk(lot, 0);
       out.push(...candidates);
       if (out.length) break;
     } catch (e) {}
@@ -126,6 +135,37 @@ async (lotNumber) => {
 """
 
 
+def _canonical_iaai_photo(url: str) -> str:
+    """Keep imageKeys. Dropping the query collapses every IAA shot to /resizer."""
+    parsed = urlparse(url)
+    if "iaai" not in parsed.netloc.lower():
+        return url
+    key = ""
+    for name, value in parse_qsl(parsed.query, keep_blank_values=False):
+        if name.lower() == "imagekeys" and value.strip():
+            key = value.strip()
+            break
+    if not key:
+        if "resizer" in parsed.path.lower():
+            return ""
+        return url
+    return f"https://vis.iaai.com/resizer?imageKeys={key}&width=845&height=633"
+
+
+def _is_useless_photo(url: str) -> bool:
+    u = (url or "").strip()
+    if not u:
+        return True
+    parsed = urlparse(u)
+    if "iaai" in parsed.netloc.lower() and "resizer" in parsed.path.lower():
+        has_key = any(
+            name.lower() == "imagekeys" and value.strip()
+            for name, value in parse_qsl(parsed.query, keep_blank_values=False)
+        )
+        return not has_key
+    return False
+
+
 def _normalize_photo_url(url: str, source: str) -> str:
     u = (url or "").strip()
     if not u.startswith("http"):
@@ -133,16 +173,21 @@ def _normalize_photo_url(url: str, source: str) -> str:
     # Drop tiny thumbs / icons
     if re.search(r"(sprite|icon|logo|avatar|1x1|pixel|blank\.)", u, re.I):
         return ""
-    if source in ("copart", "copart_uk"):
+    if source in ("copart", "copart_uk") or "copart" in urlparse(u).netloc.lower():
         u = copart_image(u)
         # Prefer full-size variants
         u = re.sub(r"_th[sb]\.", "_ful.", u)
         u = re.sub(r"/thumbs?/", "/full/", u, flags=re.I)
-    # Strip query size knobs when they shrink images
     parsed = urlparse(u)
-    if "encar" in parsed.netloc and "imagedata" in u.lower():
+    host = parsed.netloc.lower()
+    if "iaai" in host or source == "iaai":
+        return _canonical_iaai_photo(u)
+    if "encar" in host and "imagedata" in u.lower():
         return u
-    return u.split("?")[0] if "copart.com" in parsed.netloc or "iaai.com" in parsed.netloc else u
+    # Copart photo id lives in the path; the query is a short-lived token.
+    if "copart.com" in host or "copart.co.uk" in host:
+        return u.split("?")[0]
+    return u
 
 
 def _dedupe(urls: list[str], source: str) -> list[str]:
@@ -162,8 +207,9 @@ def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> boo
     if not lot.lotUrl:
         return False
     day = today or datetime.now(timezone.utc).date()
-    imgs = [u for u in (lot.imageUrls or []) if u]
-    # Already enriched today with a real gallery
+    imgs = [u for u in (lot.imageUrls or []) if u and not _is_useless_photo(u)]
+    # Already enriched today with a real gallery. A bare vis.iaai.com/resizer
+    # is the collapsed gallery and must be fetched again.
     if lot.photosEnrichedAt:
         try:
             enriched_day = datetime.fromisoformat(
@@ -307,12 +353,12 @@ class PhotoEnrichmentAgent:
                 btn = page.locator(sel).first
                 if await btn.count() == 0:
                     continue
-                for _ in range(8):
+                for _ in range(12):
                     await btn.click(timeout=1500)
-                    await page.wait_for_timeout(300)
-                more = await page.evaluate(EXTRACT_GALLERY_JS)
-                if isinstance(more, list):
-                    collected.extend(str(x) for x in more)
+                    await page.wait_for_timeout(250)
+                    more = await page.evaluate(EXTRACT_GALLERY_JS)
+                    if isinstance(more, list):
+                        collected.extend(str(x) for x in more)
                 break
             except Exception:
                 continue
@@ -323,7 +369,12 @@ class PhotoEnrichmentAgent:
         if lot.imageUrls:
             collected.extend(lot.imageUrls)
 
-        return _dedupe(collected, lot.source)
+        urls = _dedupe(collected, lot.source)
+        if lot.source == "iaai" and lot.lotNumber:
+            own = [u for u in urls if lot.lotNumber in u]
+            if len(own) >= 2:
+                urls = own
+        return urls[:40]
 
     async def run_batch(self, browser: Browser, *, limit: int | None = None) -> dict[str, Any]:
         """Process up to `limit` lots (None = settings batch size)."""

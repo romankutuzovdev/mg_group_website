@@ -8,7 +8,7 @@ from typing import Any
 
 TRANSFER_FEE_RATE = 0.03
 
-UK_DISMANTLE = {"sedan": 2200, "suv": 2450, "sprinter": 2350, "pickup": 2650}
+UK_DISMANTLE = {"sedan": 2250, "suv": 2550, "sprinter": 2350, "pickup": 2850}
 USA_DISMANTLE = {"sedan": 4100, "suv": 4450, "frame_suv": 4850}
 USA_ALIASES = {"sedan": "sedan", "sprinter": "sedan", "suv": "suv", "pickup": "frame_suv", "frame_suv": "frame_suv"}
 
@@ -258,7 +258,7 @@ def quote_copart_uk(
 
     kg = dismantle_kg if dismantle_kg and dismantle_kg > 0 else None
     if kg:
-        dismantle_usd = round2(800 + 1.6 * kg)
+        dismantle_usd = round2(850 + 1.4 * kg)
         dismantle_mode = "weight"
     else:
         dismantle_usd = UK_DISMANTLE.get(classified["dismantleType"], UK_DISMANTLE["sedan"])
@@ -400,5 +400,5 @@ def quote_iaai_usa(
 
 def price_by_weight(origin: str, kg: float) -> float:
     if origin == "uk":
-        return round(800 + 1.6 * kg)
+        return round(850 + 1.4 * kg)
     return round(1300 + 2.2 * kg)

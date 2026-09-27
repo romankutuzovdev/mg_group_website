@@ -38,7 +38,8 @@ async (lotId) => {
   const out = { lotNumber: String(lotId), bid: null, year: null, make: null,
     model: null, title: null, location: null, odometer: null, images: [] };
   try {
-    const r = await fetch('https://www.copart.com/public/data/lotdetails/solr/' + lotId, {
+    const origin = (location && location.origin) || 'https://www.copart.com';
+    const r = await fetch(origin + '/public/data/lotdetails/solr/' + lotId, {
       credentials: 'include',
       headers: { 'Accept': 'application/json' },
     });
@@ -173,6 +174,10 @@ def lot_to_calculator_payload(
         "location": lot.location or None,
         "odometer": lot.odometer if lot.odometer else None,
         "images": images[:12],
+        "category": lot.category,
+        "bodyStyle": lot.bodyStyle,
+        "inlandMiles": lot.inlandMiles,
+        "currency": lot.currency,
         "via": via,
         "lot_id": lot.id,
         "slug": lot.slug,
@@ -291,12 +296,18 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
                 )
                 if auction not in ("copart", "iaai"):
                     auction = "copart" if "copart" in canonical.lower() else "iaai"
+                is_uk = "copart.co.uk" in canonical.lower()
+                title_text = str(data.get("title") or "")
+                cat_m = re.search(r"\bCat(?:egory)?\s*([ABNS])\b", title_text, re.I)
+                source = "copart_uk" if is_uk else platform
 
                 chrome_payload = {
                     "ok": True,
                     "url": canonical,
-                    "source": platform,
+                    "source": source,
+                    "region": "uk" if is_uk else "usa",
                     "auction_platform": auction,
+                    "category": cat_m.group(1).upper() if cat_m else None,
                     "lotNumber": data.get("lotNumber") or lot_number,
                     "bid": data.get("bid"),
                     "year": data.get("year"),

@@ -14,6 +14,7 @@ import { listTitleTariffs } from "@/lib/pricing/usa-title";
 import { listYards, type VehicleSize } from "@/lib/pricing/usa-delivery";
 import { fetchLotFromUrl } from "@/lib/api/client";
 import { isApiEnabled } from "@/lib/api/config";
+import { LotLoadButton, LotLoadStatus, lotLoadErrorMessage } from "@/components/pricing/lot-url-load";
 
 function usd(n: number, digits = 0) {
   return `$${n.toLocaleString("en-US", {
@@ -51,7 +52,6 @@ export function RestorationCalculator() {
   const [lotError, setLotError] = useState<string | null>(null);
   const [lotMeta, setLotMeta] = useState<string | null>(null);
   const [bidText, setBidText] = useState("8000");
-  const [feesOverride, setFeesOverride] = useState("");
   const [platform, setPlatform] = useState<"iaai" | "copart">("iaai");
   const [location, setLocation] = useState(DEFAULT_IAAI);
   const [yardFilter, setYardFilter] = useState("");
@@ -107,19 +107,16 @@ export function RestorationCalculator() {
       const label = [lot.year, lot.make, lot.model, lot.lotNumber && `#${lot.lotNumber}`]
         .filter(Boolean)
         .join(" ");
-      setLotMeta(
-        `${label || "Лот загружен"} · Chrome CDP (${lot.via || "headless"})`,
-      );
+      setLotMeta(label || "Лот загружен");
     } catch (err) {
-      setLotError(err instanceof Error ? err.message : "Не удалось открыть лот");
+      setLotError(lotLoadErrorMessage(err));
     } finally {
       setLotLoading(false);
     }
   }, [lotUrl]);
 
   const bid = Number(bidText) || 0;
-  const autoFees = estimateIaaiAuctionFeesUsd(bid);
-  const fees = feesOverride !== "" ? Number(feesOverride) || 0 : autoFees;
+  const fees = estimateIaaiAuctionFeesUsd(bid);
   const year = Number(yearText) || null;
 
   const yards = platform === "copart" ? COPART_YARDS : IAAI_YARDS;
@@ -169,12 +166,6 @@ export function RestorationCalculator() {
 
   return (
     <div className="space-y-8">
-      <p className="max-w-3xl text-sm text-text-secondary">
-        Просчёт авто: вставьте ссылку Copart / Bid.cars — сервер откроет лот в
-        headless Google Chrome (не падает при отключении AnyDesk), подтянет ставку
-        и площадку. Дальше: сборы, Title, доставка и растаможка РБ.
-      </p>
-
       <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
         <div className="card-premium space-y-4 rounded-xl p-4 sm:p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
@@ -197,15 +188,9 @@ export function RestorationCalculator() {
                 placeholder="https://www.copart.com/lot/… или https://bid.cars/…"
                 className="w-full flex-1 rounded-lg border border-border px-3 py-2 text-sm text-text-primary"
               />
-              <button
-                type="button"
-                onClick={() => void loadFromUrl()}
-                disabled={lotLoading}
-                className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-              >
-                {lotLoading ? "Открываем Chrome…" : "Подтянуть из Chrome"}
-              </button>
+              <LotLoadButton loading={lotLoading} onClick={() => void loadFromUrl()} />
             </div>
+            <LotLoadStatus active={lotLoading} />
             {lotError ? (
               <p className="mt-1.5 text-xs font-normal normal-case tracking-normal text-red-600">
                 {lotError}
@@ -218,32 +203,19 @@ export function RestorationCalculator() {
             ) : null}
           </label>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
-              Ставка, USD
-              <input
-                type="number"
-                min={0}
-                value={bidText}
-                onChange={(e) => setBidText(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-lg font-semibold text-text-primary"
-              />
-            </label>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
-              Аукционный сбор IAAI, USD
-              <input
-                type="number"
-                min={0}
-                placeholder={String(autoFees)}
-                value={feesOverride}
-                onChange={(e) => setFeesOverride(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-lg font-semibold text-text-primary"
-              />
-              <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-text-muted">
-                По умолчанию ${autoFees.toLocaleString("en-US")} по таблице IAAI от ставки
-              </span>
-            </label>
-          </div>
+          <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
+            Ставка, USD
+            <input
+              type="number"
+              min={0}
+              value={bidText}
+              onChange={(e) => setBidText(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-lg font-semibold text-text-primary"
+            />
+            <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-text-muted">
+              Аукционный сбор считается сам по ставке: {usd(fees)}
+            </span>
+          </label>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">

@@ -28,9 +28,9 @@ export default function KitCalculatorPage({ dictionary }: Props) {
       />
       <PageShell
         title="Калькулятор машинокомплекта"
-        description="Отдельный расчёт комплекта: ставка, аукционные сборы, доставка и разбор (США / Англия)."
+        description="Вставьте ссылку Copart, Copart UK или IAAI — ставка и рынок (США или Англия) подтянутся в расчёт комплекта."
       >
-        <SiteCalculator mode="kits" showSwitcher={false} kitDefaultTab="usa" />
+        <SiteCalculator mode="kit-usa" showSwitcher={false} kitDefaultTab="usa" />
         <p className="mt-8 text-sm text-text-muted">
           Нужен расчёт целого авто?{" "}
           <Link

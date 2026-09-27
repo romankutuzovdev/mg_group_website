@@ -76,9 +76,21 @@
   }
 }
 
+/* Кабинет — на весь экран, без шапки, подвала и нижней панели */
+.app-main.app-main--full {
+  padding-bottom: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Telegram Mini App: ещё плотнее */
 .tg-miniapp .app-main {
   padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.tg-miniapp .app-main.app-main--full {
+  padding-bottom: 0;
 }
 
 .tg-miniapp body {

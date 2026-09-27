@@ -280,7 +280,7 @@ function UkKitPanel({ lot }: { lot: AuctionLot }) {
           <input
             type="text"
             inputMode="decimal"
-            placeholder="800 + 1.6×кг (UK)"
+            placeholder="850 + 1.4×кг (UK)"
             value={dismantleKg}
             onChange={(e) => setDismantleKg(e.target.value)}
             className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"

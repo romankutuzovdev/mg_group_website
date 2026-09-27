@@ -145,11 +145,12 @@ export function getDelivery(
   };
 }
 
+/** Прайс Англии от 14.09.2026 — как в калькуляторе на рабочем столе. */
 export const DISMANTLE_TARIFFS_USD: Record<string, number> = {
-  sedan: 2200,
-  suv: 2450,
+  sedan: 2250,
+  suv: 2550,
   sprinter: 2350,
-  pickup: 2650,
+  pickup: 2850,
 };
 
 export const DISMANTLE_FROM_TYPE: Record<string, string> = {

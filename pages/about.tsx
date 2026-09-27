@@ -76,7 +76,7 @@ export default function AboutPage({ dictionary }: Props) {
 
         <Team embedded />
 
-        <div className="mt-12 flex flex-wrap gap-3">
+        <div className="mt-12 flex flex-wrap justify-center gap-3">
           <AnchorButton href={CONSULTATION_TG} target="_blank" rel="noopener noreferrer">
             Нужна консультация
           </AnchorButton>
