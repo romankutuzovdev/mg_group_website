@@ -137,7 +137,8 @@ function Start-ChromeCdp(
     }
   }
 
-  $argList.Add("about:blank")
+  $argList.Add("https://www.copart.com/lotSearchResults/?free=true&query=*")
+  $argList.Add("https://www.copart.co.uk/lotSearchResults/?free=true&query=*")
 
   Write-Host "  launching YOUR Chrome profile: $Profile ($ProfileName)"
   if ($IsHeadless) {
@@ -175,20 +176,29 @@ Write-Host "  directory=$ProfileName"
 Write-Host "Close other Chrome windows - this is your real browser profile."
 Write-Host "Disconnect AnyDesk only - do NOT Log off Windows."
 
+$script:lastChromeStart = [datetime]::MinValue
+
 while ($true) {
   if (-not (Test-Cdp $Port)) {
-    Write-Host "$(Get-Date -Format o) CDP down - restarting $mode Chrome"
+    $sinceStart = ((Get-Date) - $script:lastChromeStart).TotalSeconds
+    if ($sinceStart -lt 50) {
+      Write-Host "$(Get-Date -Format o) Chrome is still opening Copart — not closing it"
+      Start-Sleep -Seconds $CheckSeconds
+      continue
+    }
+    Write-Host "$(Get-Date -Format o) Chrome CDP is down — opening Copart USA and Copart UK"
     Stop-PortListeners $Port
     Start-Sleep -Seconds 1
     try {
       Start-ChromeCdp -ChromeExe $chrome -Port $Port -Profile $ProfileDir -ProfileName $ProfileName -IsHeadless $IsHeadless -ExtraExtRoot $extraExt
+      $script:lastChromeStart = Get-Date
     } catch {
       Write-Host "  start failed: $_"
     }
     for ($i = 0; $i -lt 20; $i++) {
       Start-Sleep -Seconds 2
       if (Test-Cdp $Port) {
-        Write-Host "$(Get-Date -Format o) CDP ready on :$Port"
+        Write-Host "$(Get-Date -Format o) Chrome is open, Copart USA and UK should be on screen, CDP :$Port"
         break
       }
     }

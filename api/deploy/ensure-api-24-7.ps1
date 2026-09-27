@@ -130,7 +130,7 @@ if (-not (Ok-Http `$health)) {
 
 # 3) Chrome CDP (trigger existing chrome keepalive task if CDP down)
 if (-not (Ok-Cdp)) {
-  Log "CDP down — Start-ScheduledTask MG-Chrome-CDP-Keepalive / MG-Chrome-CDP"
+  Log "Chrome window is not open — asking the desktop task to open Copart"
   try { Start-ScheduledTask -TaskName 'MG-Chrome-CDP-Keepalive' -EA SilentlyContinue } catch {}
   try { Start-ScheduledTask -TaskName 'MG-Chrome-CDP' -EA SilentlyContinue } catch {}
 }

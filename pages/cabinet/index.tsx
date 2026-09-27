@@ -241,7 +241,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   };
 
   return (
-    <PageShell bare full>
+    <PageShell bare>
       <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-3">
         <Link href="/" className="text-sm font-semibold tracking-tight text-text-primary">
           MG.GROUP

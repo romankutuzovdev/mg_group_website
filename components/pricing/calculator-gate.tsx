@@ -100,23 +100,29 @@ export function CalculatorGate({ children }: { children: React.ReactNode }) {
   }, [status, authEnabled, botUsername]);
 
   if (status === "loading") {
-    return <p className="text-sm text-text-muted">Проверяем вход через Telegram…</p>;
+    return (
+      <div className="flex min-h-[calc(100dvh-8rem)] items-center justify-center">
+        <p className="text-sm text-text-muted">Проверяем вход через Telegram…</p>
+      </div>
+    );
   }
 
   if (status === "guest") {
     return (
-      <div className="rounded-xl border border-border bg-white p-6">
-        <h2 className="text-lg font-semibold text-text-primary">
-          Калькуляторы доступны только авторизованным пользователям
-        </h2>
-        <p className="mt-2 text-sm text-text-secondary">
-          Войдите через Telegram, чтобы считать машинокомплект, авто под восстановление и растаможку.
-        </p>
-        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-        <div ref={widgetRef} className="mt-4 min-h-10" />
-        {configReady && !authEnabled ? (
-          <p className="mt-3 text-sm text-text-muted">Вход через Telegram сейчас недоступен.</p>
-        ) : null}
+      <div className="flex min-h-[calc(100dvh-8rem)] items-center justify-center px-4">
+        <div className="w-full max-w-md rounded-xl border border-border bg-white p-6 text-center">
+          <h2 className="text-lg font-semibold text-text-primary">
+            Калькуляторы доступны только авторизованным пользователям
+          </h2>
+          <p className="mt-2 text-sm text-text-secondary">
+            Войдите через Telegram, чтобы считать машинокомплект, авто под восстановление и растаможку.
+          </p>
+          {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+          <div ref={widgetRef} className="mt-5 flex min-h-10 items-center justify-center" />
+          {configReady && !authEnabled ? (
+            <p className="mt-3 text-sm text-text-muted">Вход через Telegram сейчас недоступен.</p>
+          ) : null}
+        </div>
       </div>
     );
   }

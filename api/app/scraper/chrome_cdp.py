@@ -337,36 +337,32 @@ def ensure_chrome_cdp(
             logger.info("Chrome CDP already up: %s", url)
             return True
 
-        port = _parse_cdp_port(url)
-        if port is None:
+        if _parse_cdp_port(url) is None:
             logger.warning("cannot parse CDP port from %s", url)
             return False
 
-        host = urlparse(url).hostname or "127.0.0.1"
-
         if not autostart:
             logger.warning(
-                "Chrome CDP not responding at %s — start start-chrome-cdp.bat "
-                "or enable SCRAPER_CDP_AUTOSTART",
+                "Chrome CDP not responding at %s — start chrome-cdp-watchdog in the desktop session",
                 url,
             )
             return False
 
-        if force_restart or (_port_open(host, port) and not cdp_responsive(url)):
-            logger.warning("CDP port %s stuck — freeing and relaunching Chrome", port)
-            _kill_listeners_on_port(port)
-            time.sleep(1.0)
-
-        _launch_chrome(port, headless=headless)
-
+        # Do not taskkill and do not start Chrome from the API service.
+        # That process has no desktop: the window never appears, the real Chrome
+        # is killed, and the keepalive log only records the time.
+        logger.warning(
+            "Chrome CDP not responding at %s — waiting for the desktop window",
+            url,
+        )
         deadline = time.time() + max(8.0, wait_seconds)
         while time.time() < deadline:
             if cdp_responsive(url, timeout=1.2):
                 logger.info("Chrome CDP ready: %s", url)
                 return True
-            time.sleep(0.5)
+            time.sleep(1.0)
 
-        logger.warning("Chrome CDP did not become ready within %.0fs (%s)", wait_seconds, url)
+        logger.warning("Chrome CDP still down after %.0fs (%s)", wait_seconds, url)
         return False
     except Exception as exc:
         logger.exception("ensure_chrome_cdp failed (API continues): %s", exc)
