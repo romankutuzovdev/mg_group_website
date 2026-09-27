@@ -76,16 +76,28 @@ function matchBodyFromLot(lot: LotFromUrlResponse): {
 }
 
 function matchCategory(lot: LotFromUrlResponse): string {
+  const url = String(lot.url || "");
+  const title = String(lot.title || "");
+  const cleanTitle = /clean[-_\s]?title|clear[-_\s]?title/i.test(`${url} ${title}`);
+
   const explicit = (lot.category || "").trim().toUpperCase();
-  if (/^[ABNSCDXU]$/.test(explicit)) return explicit;
-  const hay = [lot.category, lot.title, lot.make, lot.model, lot.location]
-    .filter(Boolean)
-    .join(" ");
+  if (/^[ABNSCDXU]$/.test(explicit)) {
+    // Clean/Clear title lots are not Cat A/B — drop false positives from page scrape
+    if (cleanTitle && (explicit === "A" || explicit === "B")) return "";
+    return explicit;
+  }
+
+  // Only look at short lot fields — never location (yards) or long blobs
+  const hay = [lot.category, lot.title].filter(Boolean).join(" ");
+  if (!hay || hay.length > 120) return "";
+  if (/buying\s+cat/i.test(hay)) return "";
   const m =
-    hay.match(/\bcat(?:egory)?\s*[-:]?\s*([ABNSCDXU])\b/i) ||
-    hay.match(/\bкатегор(?:ия)?\s*[-:]?\s*([ABNSCDXU])\b/i) ||
-    hay.match(/\b([AB])\s*[-–]?\s*(?:category|cat)\b/i);
-  return m ? m[1].toUpperCase() : "";
+    hay.match(/\b(?:cat(?:egory)?|категор(?:ия)?)\s*[-:.]?\s*([ABNSCDXU])(?![A-Za-z])/i) ||
+    hay.match(/\b([ABNSCDXU])\s*[-–]?\s*(?:category|cat)\b/i);
+  if (!m) return "";
+  const cat = m[1].toUpperCase();
+  if (cleanTitle && (cat === "A" || cat === "B")) return "";
+  return cat;
 }
 
 type InlandRoute = {

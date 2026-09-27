@@ -42,8 +42,11 @@ async (lotId) => {
     bodyStyle: null, category: null };
   const pickCat = (text) => {
     if (!text) return null;
-    const m = String(text).match(/\\b(?:cat(?:egory)?\\s*[-:]?\\s*|категор(?:ия)?\\s*[-:]?\\s*)([ABNSCDXU])\\b/i)
-      || String(text).match(/\\b([AB])\\s*[-–]?\\s*(?:category|cat)\\b/i);
+    const s = String(text);
+    // Ignore nav/marketing: "Buying Cat Bs", long page blobs
+    if (s.length > 120 || /buying\\s+cat/i.test(s)) return null;
+    const m = s.match(/\\b(?:cat(?:egory)?|категор(?:ия)?)\\s*[-:.]?\\s*([ABNSCDXU])(?![A-Za-z])/i)
+      || s.match(/\\b([ABNSCDXU])\\s*[-–]?\\s*(?:category|cat)\\b/i);
     return m ? m[1].toUpperCase() : null;
   };
   const textOf = (el) => (el && (el.textContent || el.innerText) || '').replace(/\\s+/g, ' ').trim();
@@ -74,6 +77,7 @@ async (lotId) => {
     }
     out.odometer = Number(d.orr || d.odometer || d.oDoMeter) || null;
     out.bodyStyle = d.vehTypDesc || d.bodyStyle || d.bt || d.vehicleTypeDesc || null;
+    // Only short lot-detail fields — never full page text (menu "Buying Cat Bs")
     out.category = pickCat(d.td) || pickCat(d.tgd) || pickCat(d.ft) || pickCat(d.tsn)
       || pickCat(d.lotCondDesc) || pickCat(d.lcd) || pickCat(d.scc)
       || pickCat(d.category) || pickCat(d.damageCategory) || null;
@@ -83,17 +87,15 @@ async (lotId) => {
     out.error = String(e && e.message || e);
   }
   try {
-    // Bot-compatible DOM: Copart UK puts the yard on #locationInfoButton
     const btn = document.querySelector('#locationInfoButton, [id*="locationInfo"], a[href*="yard"], [data-uname="lotdetailSaleLocation"]');
     const fromBtn = textOf(btn);
     if (fromBtn && fromBtn.length >= 3 && fromBtn.length < 80) out.location = fromBtn;
-    const text = (document.body && document.body.innerText) || '';
-    if (!out.location) {
-      const m = text.match(/(?:Sale\\s*location|Location|Yard|Площадка|Местоположение)\\s*:?\\s*([^\\n]{3,60})/i)
-        || text.match(/Location\\s*:?\\s*([A-Z][A-Z0-9 \\-/]{2,40})/i);
-      if (m) out.location = m[1].trim();
+    // Clean / Clear title in URL or title ⇒ not Cat A/B
+    const path = String((location && location.pathname) || '');
+    const titleBlob = String(out.title || '');
+    if (/clean[-_\\s]?title|clear[-_\\s]?title/i.test(path + ' ' + titleBlob)) {
+      if (out.category === 'A' || out.category === 'B') out.category = null;
     }
-    if (!out.category) out.category = pickCat(text);
   } catch (e) {}
   return out;
 }
@@ -114,8 +116,10 @@ BIDCars_JS = """
   };
   const pickCat = (t) => {
     if (!t) return null;
-    const m = String(t).match(/\\b(?:cat(?:egory)?\\s*[-:]?\\s*|категор(?:ия)?\\s*[-:]?\\s*)([ABNSCDXU])\\b/i)
-      || String(t).match(/\\b([AB])\\s*[-–]?\\s*(?:category|cat)\\b/i);
+    const s = String(t);
+    if (s.length > 120 || /buying\\s+cat/i.test(s)) return null;
+    const m = s.match(/\\b(?:cat(?:egory)?|категор(?:ия)?)\\s*[-:.]?\\s*([ABNSCDXU])(?![A-Za-z])/i)
+      || s.match(/\\b([ABNSCDXU])\\s*[-–]?\\s*(?:category|cat)\\b/i);
     return m ? m[1].toUpperCase() : null;
   };
   const h1 = ((document.querySelector('h1') || {}).textContent || '').trim();
@@ -143,7 +147,9 @@ BIDCars_JS = """
     titleDoc: pick(/Документы о продаже\\s*:?\\s*([^\\n]{3,80})/i)
       || pick(/Sale documents?\\s*:?\\s*([^\\n]{3,80})/i),
     bodyStyle,
-    category: pickCat(text),
+    category: pickCat(pick(/Категор(?:ия)?\\s*:?\\s*([^\\n]{1,20})/i)
+      || pick(/Cat(?:egory)?\\s*:?\\s*([^\\n]{1,20})/i)
+      || ''),
     odometer: odo,
     auction_platform: platform,
     images: Array.from(document.querySelectorAll('img'))
@@ -170,6 +176,29 @@ def clean_auction_location(raw: str | None) -> str | None:
     if re.fullmatch(r"(?:UK|USA|United Kingdom|Great Britain)", text or "", re.I):
         return None
     return text[:80] or None
+
+
+def sanitize_uk_category(
+    category: str | None,
+    *,
+    url: str = "",
+    title: str = "",
+) -> str | None:
+    """Keep only real Copart UK Cat letters; drop Clean-title false Cat A/B."""
+    raw = (category or "").strip().upper()
+    if not raw:
+        return None
+    if len(raw) > 1:
+        m = re.search(r"\b(?:CAT(?:EGORY)?|КАТЕГОР(?:ИЯ)?)\s*[-:.]?\s*([ABNSCDXU])\b", raw, re.I)
+        if not m:
+            m = re.search(r"\b([ABNSCDXU])\b", raw)
+        raw = m.group(1).upper() if m else ""
+    if raw not in {"A", "B", "N", "S", "C", "D", "X", "U"}:
+        return None
+    blob = f"{url} {title}"
+    if re.search(r"clean[-_\s]?title|clear[-_\s]?title", blob, re.I) and raw in {"A", "B"}:
+        return None
+    return raw
 
 
 def yard_from_copart_uk_url(url: str) -> str | None:
@@ -200,7 +229,6 @@ def yard_from_copart_uk_url(url: str) -> str | None:
             return yard
         if re.search(rf"\b{re.escape(yard)}\b", slug):
             return yard
-    # Last token might still map via resolve_region soft rules
     if parts:
         resolved = resolve_region(parts[-1])
         if resolved != "DEFAULT":
@@ -212,10 +240,15 @@ def apply_uk_url_yard(payload: dict[str, Any], url: str) -> dict[str, Any]:
     """Prefer yard encoded in the Copart UK URL when catalog/Solr disagree."""
     from app.services.pricing import resolve_region
 
+    out = dict(payload)
+    out["category"] = sanitize_uk_category(
+        out.get("category"),
+        url=url or str(out.get("url") or ""),
+        title=str(out.get("title") or ""),
+    )
     slug_yard = yard_from_copart_uk_url(url)
     if not slug_yard:
-        return payload
-    out = dict(payload)
+        return out
     current = resolve_region(out.get("location"))
     if current != slug_yard:
         out["location"] = slug_yard
@@ -482,6 +515,12 @@ def lot_to_calculator_payload(
         "slug": lot.slug,
         "region": lot.region,
     }
+    if str(lot.region or "").lower() == "uk" or lot.source == "copart_uk":
+        payload["category"] = sanitize_uk_category(
+            lot.category,
+            url=url or lot.lotUrl or "",
+            title=str(_title_label(lot) or ""),
+        )
     # Miles resolved async in fetch_lot_from_url (Bid.cars / Copart / IAAI USA).
     if lot.inlandMiles is not None and float(lot.inlandMiles or 0) > 0:
         payload["inlandOk"] = True
@@ -694,6 +733,10 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
     }
     if data.get("chrome_error"):
         chrome_payload["chrome_error"] = data["chrome_error"]
+    if is_uk:
+        chrome_payload["category"] = sanitize_uk_category(
+            category, url=canonical, title=title_text
+        )
     return chrome_payload
 
 
@@ -837,6 +880,10 @@ def _payload_from_copart_js(
         "images": raw.get("images") or [],
         "via": via,
     }
+    if is_uk:
+        payload["category"] = sanitize_uk_category(
+            category, url=url, title=str(raw.get("title") or "")
+        )
     return payload
 
 
