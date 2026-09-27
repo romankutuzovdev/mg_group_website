@@ -11,6 +11,19 @@ from app.models.lots import AuctionLot
 from app.services.auction_date import is_auction_ended
 
 
+_IAAI_LISTING_BLOB = re.compile(r"stock\s*#:|view all images|pre-?bid or buy now", re.I)
+
+
+def _repair_iaai_blobs(lots: list[AuctionLot]) -> list[AuctionLot]:
+    if not any(_IAAI_LISTING_BLOB.search(lot.primaryDamage or "") for lot in lots):
+        return lots
+    try:
+        from app.scraper.iaai import repair_iaai_listing_blob
+    except Exception:
+        return lots
+    return [repair_iaai_listing_blob(lot) for lot in lots]
+
+
 def _dedupe_urls(urls: list[str]) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
@@ -80,6 +93,7 @@ class LotStore:
                     lots.append(AuctionLot.model_validate(item))
                 except Exception:
                     continue
+        lots = _repair_iaai_blobs(lots)
         with self._lock:
             self._by_id = {lot.id: lot for lot in lots}
             self._by_slug = {lot.slug: lot for lot in lots}

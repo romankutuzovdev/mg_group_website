@@ -34,7 +34,12 @@ EXTRACT_ROWS_JS = """
       const m = (row.innerText || '').match(/\\b(19|20)\\d{2}\\s+[A-Z0-9][^|\\n]{2,60}/);
       title = m ? m[0].trim() : '';
     }
-    const text = (row.innerText || '').replace(/\\s+/g, ' ').trim();
+    const cells = [...row.querySelectorAll(':scope > .table-cell, :scope > [class*="table-cell"]')]
+      .map((cell) => (cell.innerText || '').replace(/\\s+/g, ' ').trim())
+      .filter(Boolean);
+    const text = cells.length >= 3
+      ? cells.join(' | ')
+      : (row.innerText || '').replace(/\\s+/g, ' ').trim();
     return { id, url: href, title, image, text };
   }).filter((x) => x.id && x.image);
 }
@@ -151,26 +156,192 @@ async def scrape_iaai_usa(
     return lots
 
 
+# Longest phrases first so "rear end" wins over "rear".
+_DAMAGE_PHRASES: tuple[str, ...] = tuple(
+    sorted(
+        {
+            "minor dent/scratches",
+            "minor dents/scratches",
+            "normal wear & tear",
+            "normal wear and tear",
+            "normal wear",
+            "biohazard/chemical",
+            "biohazard",
+            "water/flood",
+            "fresh water",
+            "salt water",
+            "front & rear",
+            "front and rear",
+            "cash for clunkers",
+            "transmission damage",
+            "engine damage",
+            "frame damage",
+            "storm damage",
+            "damage history",
+            "partial repair",
+            "rejected repair",
+            "missing/altered vin",
+            "replaced vin",
+            "undercarriage",
+            "under carriage",
+            "top/roof",
+            "left front",
+            "left rear",
+            "left side",
+            "right front",
+            "right rear",
+            "right side",
+            "front end",
+            "rear end",
+            "all over",
+            "rollover",
+            "mechanical",
+            "vandalism",
+            "repossession",
+            "suspension",
+            "electrical",
+            "stripped",
+            "hail",
+            "flood",
+            "burn",
+            "side",
+            "rear",
+            "front",
+            "roof",
+            "theft",
+            "unknown",
+        },
+        key=len,
+        reverse=True,
+    )
+)
+
+_LISTING_BLOB = re.compile(r"stock\s*#:|view all images|pre-?bid or buy now", re.I)
+
+
+def _title_case(value: str) -> str:
+    return " ".join(w[:1].upper() + w[1:].lower() for w in value.split())
+
+
+def _damage_window(text: str) -> str:
+    """Slice between stock number and odometer — that is where IAA puts damage."""
+    m = re.search(r"Stock\s*#:\s*[\d*]+\s+(.+?)\s+[\d,]+\s*mi\b", text, re.I)
+    if m:
+        return m.group(1)
+    parts = [p.strip() for p in text.split("|") if p.strip()]
+    short = [p for p in parts if len(p) <= 48]
+    if len(short) >= 2:
+        return " | ".join(short)
+    return text
+
+
+def extract_iaai_damages(text: str) -> tuple[str | None, str | None]:
+    window = _damage_window(text)
+    occupied = [False] * (len(window) + 1)
+    found: list[tuple[int, str]] = []
+    for phrase in _DAMAGE_PHRASES:
+        for m in re.finditer(rf"\b{re.escape(phrase)}\b", window, re.I):
+            if any(occupied[m.start() : m.end()]):
+                continue
+            for i in range(m.start(), m.end()):
+                occupied[i] = True
+            found.append((m.start(), _title_case(phrase)))
+            break
+    found.sort()
+    if not found:
+        return None, None
+    secondary = found[1][1] if len(found) > 1 else None
+    return found[0][1], secondary
+
+
+def _parse_bid_and_acv(text: str) -> tuple[float | None, float | None]:
+    acv_m = re.search(r"ACV:\s*\$\s*([\d,]+)", text, re.I)
+    acv = float(acv_m.group(1).replace(",", "")) if acv_m else None
+    bid_m = re.search(
+        r"(?:Buy\s*Now|Current\s*Bid|Pre-?\s*bid)[^$\n]{0,40}\$\s*([\d,]+)",
+        text,
+        re.I,
+    )
+    if bid_m:
+        return float(bid_m.group(1).replace(",", "")), acv
+    bid: float | None = None
+    for m in re.finditer(r"\$\s*([\d,]+)\s*USD", text, re.I):
+        prefix = text[max(0, m.start() - 16) : m.start()]
+        if re.search(r"ACV:\s*$", prefix, re.I):
+            continue
+        bid = float(m.group(1).replace(",", ""))
+    return bid, acv
+
+
+def _parse_location(text: str) -> str | None:
+    for m in re.finditer(
+        r"\b([A-Za-z][A-Za-z .'-]{1,40}?)\s*\(\s*([A-Za-z][A-Za-z .]{1,24})\s*\)",
+        text,
+    ):
+        city, state = m.group(1).strip(), m.group(2).strip()
+        if city.lower() in {"mi", "km", "usd", "vin"}:
+            continue
+        if state.lower() in {"actual", "exempt", "not actual", "missing"}:
+            continue
+        state_fmt = state.upper() if len(state) <= 3 and " " not in state else _title_case(state)
+        return f"{_title_case(city)} ({state_fmt})"
+    return None
+
+
 def parse_iaai_text_fields(text: str) -> dict[str, Any]:
     out: dict[str, Any] = {}
     m = re.search(r"([\d,]+)\s*mi\b", text, re.I)
     if m:
         out["odometer"] = int(m.group(1).replace(",", ""))
-    m = re.search(r"\$([\d,]+)\s*USD", text, re.I)
-    if m:
-        out["bid"] = float(m.group(1).replace(",", ""))
-    parts = [p.strip() for p in text.split("|")]
-    for p in parts:
-        if re.search(r"wear|collision|front|rear|side|hail|flood|burn|vandal", p, re.I):
-            out["damage"] = p
-            break
-    m = re.search(r"\b([A-HJ-NPR-Z0-9*]{11,17})\b", text)
+    bid, acv = _parse_bid_and_acv(text)
+    if bid is not None:
+        out["bid"] = bid
+    if acv is not None:
+        out["acv"] = acv
+    primary, secondary = extract_iaai_damages(text)
+    if primary:
+        out["damage"] = primary
+    if secondary:
+        out["secondary_damage"] = secondary
+    # IAA masks the tail with asterisks, so a word-boundary cannot end the match.
+    m = re.search(r"VIN:\s*([A-HJ-NPR-Z0-9*]{11,17})(?![A-HJ-NPR-Z0-9*])", text, re.I)
+    if not m:
+        m = re.search(r"(?<![A-HJ-NPR-Z0-9*])([A-HJ-NPR-Z0-9*]{11,17})(?![A-HJ-NPR-Z0-9*])", text)
     if m:
         out["vin"] = m.group(1)
-    for p in parts:
-        if re.search(r"\([A-Za-z ]+\)", p) and "IAA" not in p and "USD" not in p:
-            out["location"] = p.strip()
-            break
+    location = _parse_location(text)
+    if location:
+        out["location"] = location
     out["runs"] = bool(re.search(r"Run\s*&\s*Drive|Runs?\s*and\s*Drive", text, re.I))
-    out["has_keys"] = bool(re.search(r"Key Available", text, re.I))
+    out["has_keys"] = bool(re.search(r"Key Available|Keys?\s*:\s*Present", text, re.I))
     return out
+
+
+def repair_iaai_listing_blob(lot: Any) -> Any:
+    """If primaryDamage is the whole search row, pull the real damage back out."""
+    from app.models.lots import AuctionLot
+
+    if not isinstance(lot, AuctionLot):
+        return lot
+    text = lot.primaryDamage or ""
+    if len(text) < 80 or not _LISTING_BLOB.search(text):
+        return lot
+    fields = parse_iaai_text_fields(text)
+    data = lot.model_dump()
+    if fields.get("damage"):
+        data["primaryDamage"] = fields["damage"]
+    if fields.get("secondary_damage") and not lot.secondaryDamage:
+        data["secondaryDamage"] = fields["secondary_damage"]
+    if fields.get("location") and lot.location in {"", "USA", "Unknown"}:
+        data["location"] = fields["location"]
+    acv = fields.get("acv")
+    bid = fields.get("bid")
+    if (
+        isinstance(bid, (int, float))
+        and isinstance(acv, (int, float))
+        and lot.currentBid
+        and abs(lot.currentBid - float(acv)) < 0.01
+        and abs(float(bid) - float(acv)) > 0.01
+    ):
+        data["currentBid"] = float(bid)
+    return AuctionLot.model_validate(data)

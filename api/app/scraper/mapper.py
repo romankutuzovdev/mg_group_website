@@ -303,9 +303,47 @@ def copart_image(url: str | None) -> str:
 
 
 def map_copart_row(row: dict[str, Any]) -> AuctionLot | None:
-    ln = str(row.get("ln") or row.get("lotNumberStr") or "").strip()
+    ln = str(row.get("ln") or row.get("lotNumberStr") or row.get("id") or "").strip()
     if not ln:
         return None
+
+    # DOM fallback (same shape as Copart UK page scrape)
+    if row.get("title") and not row.get("mkn"):
+        year, make, model = parse_title_year_make_model(str(row.get("title") or ""))
+        img = str(row.get("image") or "")
+        if not img:
+            return None
+        text = str(row.get("text") or "")
+        bid_m = re.search(r"\$\s*([\d,]+)", text)
+        bid = float(bid_m.group(1).replace(",", "")) if bid_m else 0.0
+        return AuctionLot(
+            id=f"usa-copart-{ln}",
+            slug=f"copart-{year}-{slugify(make)}-{slugify(model)}-{ln}",
+            region="usa",
+            source="copart",
+            lotNumber=ln,
+            vin="*****************",
+            make=make,
+            model=model,
+            year=year,
+            titleType="salvage",
+            titleLabel="Salvage",
+            primaryDamage="Unknown",
+            odometer=0,
+            odometerUnit="mi",
+            currentBid=bid,
+            currency="USD",
+            location="USA",
+            auctionDate=datetime.now(timezone.utc).isoformat(),
+            imageUrl=img,
+            imageUrls=[img],
+            transmission="—",
+            fuel="—",
+            drive="—",
+            exteriorColor="—",
+            lotUrl=str(row.get("url") or f"https://www.copart.com/lot/{ln}"),
+        )
+
     make = title_case(str(row.get("mkn") or "Unknown"))
     model = title_case(str(row.get("lmg") or row.get("lm") or "Unknown"))
     year = int(row.get("lcy") or 2018)
@@ -497,6 +535,7 @@ def map_iaai_row(row: dict[str, Any]) -> AuctionLot | None:
         titleType="salvage",
         titleLabel="Salvage Certificate",
         primaryDamage=title_case(str(fields.get("damage") or "Unknown")) or "Unknown",
+        secondaryDamage=title_case(str(fields.get("secondary_damage") or "")) or None,
         odometer=int(fields.get("odometer") or 0),
         odometerUnit="mi",
         currentBid=float(fields.get("bid") or 0),

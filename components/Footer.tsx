@@ -79,7 +79,19 @@ const Footer = ({ dictionary }: FooterProps) => {
                 Купленные комплекты
               </a>
               <a href="/calculator/" className="hover:text-foreground transition-colors">
-                Калькулятор
+                Калькуляторы
+              </a>
+              <a
+                href="/calculator/mashinokomplekt/"
+                className="hover:text-foreground transition-colors"
+              >
+                Просчёт комплекта
+              </a>
+              <a
+                href="/calculator/vosstanovlenie/"
+                className="hover:text-foreground transition-colors"
+              >
+                Просчёт авто
               </a>
               <a href="/otzyvy/" className="hover:text-foreground transition-colors">
                 Отзывы
