@@ -48,7 +48,8 @@ async def launch_chromium(
                 autostart=cdp_autostart,
                 headless=cdp_headless,
                 wait_seconds=50.0 if attempt == 1 else 30.0,
-                force_restart=attempt > 1,
+                # Do not kill headed Chrome on retry — that wipes all tabs
+                force_restart=False,
             )
             if not ready:
                 last_exc = RuntimeError(f"Chrome CDP not ready at {url}")

@@ -352,24 +352,38 @@ class MultiAgentOrchestrator:
         self._supervisor: asyncio.Task | None = None
 
     async def _warm_agent_tabs(self, names: set[str] | None = None) -> None:
-        """Navigate tabs to auction URLs (not about:blank) for login / VPN."""
-
-        async def _one(agent: SourceAgent) -> None:
+        """Navigate tabs one-by-one (never in parallel — parallel goto kills CDP/Chrome)."""
+        for agent in self._agents.values():
             if names is not None and agent.name not in names:
+                continue
+            if self._stop.is_set():
                 return
             url = AGENT_WARM_URLS.get(agent.name)
             page = agent._page
             if not url or page is None or page.is_closed():
-                return
+                # Tab missing after Chrome restart — recreate blank, then navigate
+                if self._browser is None:
+                    continue
+                try:
+                    await agent.attach_tab(self._browser, warm=False)
+                    page = agent._page
+                except Exception as exc:
+                    logger.warning("re-attach tab %s failed: %s", agent.name, exc)
+                    continue
+            if not url or page is None or page.is_closed():
+                continue
             try:
                 logger.info("warming tab %s → %s", agent.name, url[:90])
-                await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+                await page.goto(url, wait_until="domcontentloaded", timeout=45_000)
                 await mark_agent_tab(page, agent.name)
                 agent.status.tab_open = True
             except Exception as exc:
-                logger.warning("warm tab %s failed: %s", agent.name, exc)
-
-        await asyncio.gather(*[_one(a) for a in self._agents.values()])
+                logger.warning("warm tab %s failed (Chrome stays open): %s", agent.name, exc)
+                try:
+                    await mark_agent_tab(page, agent.name)
+                except Exception:
+                    pass
+            await asyncio.sleep(1.5)
 
     async def _ensure_calc_tab(self) -> None:
         """Keep site calculator open in Chrome permanently."""
@@ -582,7 +596,8 @@ class MultiAgentOrchestrator:
                         settings.scraper_cdp_url,
                         autostart=True,
                         headless=settings.scraper_cdp_headless,
-                        force_restart=True,
+                        # Never kill user's Chrome — only start if CDP is down
+                        force_restart=False,
                         wait_seconds=45.0,
                     )
                     force_chrome = False
@@ -620,9 +635,11 @@ class MultiAgentOrchestrator:
                 early = [a for n, a in self._agents.items() if n not in vpn_names]
                 late = [a for n, a in self._agents.items() if n in vpn_names]
 
-                # Open real auction URLs (esp. Copart) + permanent calculator tab
-                await self._warm_agent_tabs()
+                # Calculator first, then ONLY Copart tabs (sequential). Do NOT warm all
+                # sources at once — that crashes CDP and Chrome reloads empty.
                 await self._ensure_calc_tab()
+                if late:
+                    await self._warm_agent_tabs({a.name for a in late})
 
                 for agent in early:
                     agent.status.waiting_for_vpn = False
@@ -636,7 +653,7 @@ class MultiAgentOrchestrator:
                         agent.status.last_error = f"waiting_for_vpn_{delay}s"
                     logger.info(
                         "waiting %ss for VPN before scraping: %s "
-                        "(tabs already on Copart — enable VPN / login now)",
+                        "(Copart tabs should show the site — enable VPN / login)",
                         delay,
                         ", ".join(a.name for a in late),
                     )
@@ -645,8 +662,8 @@ class MultiAgentOrchestrator:
                         break
                     except asyncio.TimeoutError:
                         pass
-                    # Re-warm after VPN (Incapsula page → real search)
-                    await self._warm_agent_tabs(vpn_names)
+                    await self._warm_agent_tabs({a.name for a in late})
+                    await self._ensure_calc_tab()
 
                 for agent in late:
                     if self._stop.is_set():
