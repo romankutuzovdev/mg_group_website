@@ -28,21 +28,26 @@ export function serializeLot<T>(value: T): T {
 
 /**
  * Read `.cache/catalog-lots.json` written by `catalog:sync`.
- * Uses dynamic require so the client webpack bundle never resolves `fs`/`path`.
+ * Dynamic import so the client bundle never resolves `fs`.
+ * `new Function("return require")` does not work inside the Next server
+ * bundle (`require` is not global), so SSG used to skip the cache and
+ * download the whole catalog — that blew the 60s page-data timeout.
  */
-function readCatalogLotsCache(): AuctionLot[] | null {
+async function readCatalogLotsCache(): Promise<AuctionLot[] | null> {
   if (typeof window !== "undefined") return null;
   try {
-    // eslint-disable-next-line no-new-func
-    const req = new Function("return require")() as NodeRequire;
-    const fs = req("fs") as typeof import("fs");
-    const path = req("path") as typeof import("path");
+    const fs = (await import(/* webpackIgnore: true */ "node:fs")) as typeof import("node:fs");
+    const path = (await import(/* webpackIgnore: true */ "node:path")) as typeof import("node:path");
     const file = path.join(process.cwd(), ".cache", "catalog-lots.json");
     if (!fs.existsSync(file)) return null;
     const raw = JSON.parse(fs.readFileSync(file, "utf8")) as { lots?: AuctionLot[] };
     if (!Array.isArray(raw?.lots) || raw.lots.length === 0) return null;
     return raw.lots;
-  } catch {
+  } catch (err) {
+    console.warn(
+      "[auctions] catalog cache unreadable:",
+      err instanceof Error ? err.message : err,
+    );
     return null;
   }
 }
@@ -61,8 +66,9 @@ let catalogMemo: Promise<AuctionLot[]> | null = null;
 export async function loadCatalogLots(): Promise<AuctionLot[]> {
   if (!catalogMemo) {
     catalogMemo = (async () => {
-      const cached = readCatalogLotsCache();
+      const cached = await readCatalogLotsCache();
       if (cached) {
+        console.log(`[auctions] catalog cache: ${cached.length} lots`);
         return finalizeCatalog(cached);
       }
       if (!isApiEnabled()) {
@@ -70,7 +76,12 @@ export async function loadCatalogLots(): Promise<AuctionLot[]> {
         return [];
       }
       try {
-        const lots = await fetchAllLots(100);
+        const lots = await Promise.race([
+          fetchAllLots(100),
+          new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("catalog API timeout")), 20_000);
+          }),
+        ]);
         return finalizeCatalog(lots);
       } catch (err) {
         console.warn("[auctions] API catalog unavailable:", err);
@@ -157,5 +168,5 @@ export async function loadAllSlugs(): Promise<string[]> {
 }
 
 export function hasGeneratedCatalog(): boolean {
-  return isApiEnabled() || Boolean(readCatalogLotsCache()?.length);
+  return isApiEnabled();
 }

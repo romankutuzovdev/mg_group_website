@@ -22,6 +22,8 @@ function apiUpstream() {
 
 const nextConfig = {
   ...(useStaticExport ? { output: "export" } : {}),
+  // Default is 60s. One slow getStaticPaths restarts the whole worker pool.
+  staticPageGenerationTimeout: 180,
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
   async rewrites() {
