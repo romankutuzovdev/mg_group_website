@@ -9,6 +9,7 @@ Every lot then gets the full lotImages gallery (highResUrl), not one thumb.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -203,6 +204,117 @@ async def _attach_galleries(tab: Page, rows: list[dict[str, Any]], *, origin: st
             row["images"] = urls
             row.setdefault("tims", urls[0])
             row.setdefault("image", urls[0])
+
+
+# One Copart market at a time. Two parallel gotos in the same Chrome drop the CDP session.
+_WALK_LOCK = asyncio.Lock()
+_LOTS_TO_OPEN = 25
+
+
+async def _gallery_on_lot_page(tab: Page, origin: str, lot_number: str) -> list[str]:
+    try:
+        batch = await tab.evaluate(
+            FETCH_GALLERIES_JS,
+            {"origin": origin, "lotNumbers": [lot_number]},
+        )
+    except Exception:
+        batch = {}
+    urls: list[str] = []
+    if isinstance(batch, dict):
+        raw = batch.get(str(lot_number)) or batch.get(lot_number) or []
+        if isinstance(raw, list):
+            urls = [str(u) for u in raw if str(u).startswith("http")]
+    if urls:
+        return urls
+    try:
+        dom = await tab.evaluate(
+            """() => [...document.querySelectorAll('img')]
+              .map((img) => img.currentSrc || img.src || '')
+              .filter((u) => /copart/i.test(u))"""
+        )
+    except Exception:
+        dom = []
+    return [str(u).split("?")[0] for u in (dom or []) if str(u).startswith("http")]
+
+
+async def _open_lot_pages(
+    tab: Page,
+    rows: list[dict[str, Any]],
+    *,
+    origin: str,
+    timeout_ms: int,
+    limit: int,
+) -> int:
+    """Open lot cards one by one so photos are taken from the lot page, not only the search."""
+    opened = 0
+    base = origin.rstrip("/")
+    for row in rows:
+        if opened >= limit:
+            break
+        ln = _lot_number(row)
+        if not ln:
+            continue
+        url = str(row.get("url") or f"{base}/lot/{ln}")
+        if "/lot/" not in url:
+            url = f"{base}/lot/{ln}"
+        try:
+            logger.info("copart %s opening lot %s", origin, ln)
+            await tab.goto(url, wait_until="domcontentloaded", timeout=min(timeout_ms, 45_000))
+            await _accept_cookies(tab)
+            await tab.wait_for_timeout(600)
+            images = await _gallery_on_lot_page(tab, origin, ln)
+            if images:
+                row["images"] = images
+                row.setdefault("tims", images[0])
+                row["image"] = images[0]
+            opened += 1
+        except Exception as exc:
+            logger.warning("copart lot %s: %s", ln, exc)
+    logger.info("copart %s opened %s lot pages", origin, opened)
+    return opened
+
+
+async def _collect_dom_pages(tab: Page, *, max_pages: int) -> list[dict[str, Any]]:
+    """Read lot links from the search table, then the next result pages."""
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for page_idx in range(max_pages):
+        await _settle_page(tab, 12000)
+        try:
+            found = await tab.evaluate(EXTRACT_DOM_JS)
+        except Exception as exc:
+            logger.warning("copart DOM page %s: %s", page_idx, exc)
+            break
+        added = 0
+        for row in found or []:
+            if not isinstance(row, dict):
+                continue
+            ln = _lot_number(row)
+            if not ln or ln in seen:
+                continue
+            seen.add(ln)
+            rows.append(row)
+            added += 1
+        logger.info("copart DOM page %s: +%s links", page_idx, added)
+        if added == 0:
+            break
+        try:
+            clicked = await tab.evaluate(
+                """() => {
+                  const next = document.querySelector(
+                    '.p-paginator-next:not(.p-disabled), button[aria-label="Next Page"]:not([disabled])'
+                  );
+                  if (!next) return false;
+                  next.click();
+                  return true;
+                }"""
+            )
+        except Exception:
+            clicked = False
+        if not clicked:
+            break
+        await tab.wait_for_timeout(1500)
+    return rows
 
 
 async def scrape_copart_inventory(

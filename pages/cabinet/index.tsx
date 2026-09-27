@@ -11,6 +11,7 @@ import { DealPhotos, dealCoverPhotoUrl } from "@/components/cabinet/deal-photos"
 import { DealPaymentStatus, paymentProgressLabel } from "@/components/cabinet/deal-payment-status";
 import { DealClosingStages } from "@/components/cabinet/deal-closing-stages";
 import { AdminDealsPanel } from "@/components/cabinet/admin-deals-panel";
+import { PurchasedCarsAdmin } from "@/components/cabinet/purchased-cars-admin";
 import { QuoteHistoryPanel } from "@/components/cabinet/quote-history-panel";
 import { FavoriteButton } from "@/components/auctions/favorite-button";
 import { getDictionary } from "@/lib/dictionary";
