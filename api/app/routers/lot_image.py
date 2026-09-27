@@ -1,7 +1,7 @@
-"""Same-origin image proxy for auction CDNs (Copart / IAAI / Encar).
+"""Same-origin image proxy for auction CDNs that hotlink-protect (IAAI / Encar).
 
-Browsers block or hotlink-break many auction images; locally no-referrer often
-works, but production needs /api/lot-image like the Cloudflare Pages Function.
+Copart cs.*/c-static.* are public and should be loaded directly from the browser
+(see lib/auctions/lot-image-url.ts) — proxying them via Windows often 502s.
 """
 
 from __future__ import annotations
@@ -30,6 +30,11 @@ _ALLOWED = re.compile(
     re.I,
 )
 
+_JUNK = re.compile(
+    r"\.svg(?:$|\?)|/content/[a-z]{2}\.svg|www\.copart\.(?:com|co\.uk)/content/|\bflag\b|/logo|sprite|1x1|pixel|blank\.",
+    re.I,
+)
+
 
 def _referer_for(host: str, url: str) -> str:
     h = host.lower()
@@ -55,6 +60,8 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
         raise HTTPException(status_code=400, detail="Bad URL") from exc
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise HTTPException(status_code=400, detail="Bad URL")
+    if _JUNK.search(target):
+        raise HTTPException(status_code=404, detail="Not a lot photo")
     host = parsed.hostname
     if not _ALLOWED.search(host):
         raise HTTPException(status_code=403, detail="Host not allowed")
@@ -65,10 +72,11 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
         ),
         "Referer": _referer_for(host, target),
+        "Origin": _referer_for(host, target).rstrip("/"),
         "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
     }
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=25.0) as client:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=12.0) as client:
             upstream = await client.get(target, headers=headers)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Upstream fetch failed: {exc}") from exc
@@ -80,7 +88,6 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
 
     ctype = upstream.headers.get("content-type") or "image/jpeg"
     if "image" not in ctype.lower() and "octet-stream" not in ctype.lower():
-        # some CDNs return weird types; still pass through if body looks ok
         ctype = "image/jpeg"
 
     return Response(

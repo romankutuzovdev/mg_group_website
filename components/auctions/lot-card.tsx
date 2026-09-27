@@ -11,7 +11,7 @@ import {
 } from "@/lib/auctions/lot-quote";
 import type { AuctionLot } from "@/lib/auctions/types";
 import { CLOSED_AUCTION_LABEL, isClosedAuction, REGION_LABELS } from "@/lib/auctions/types";
-import { collectLotPhotoUrls } from "@/lib/auctions/lot-image-url";
+import { collectLotPhotoUrls, resolveLotCardImage } from "@/lib/auctions/lot-image-url";
 import { displayDamage, presentLot } from "@/lib/auctions/listing-blob";
 import { formatOdometerKm } from "@/lib/auctions/odometer";
 
@@ -90,6 +90,7 @@ export function LotCard({
 
   const photos = collectLotPhotoUrls(lot);
   const photoCount = photos.length;
+  const cover = resolveLotCardImage(lot);
   const absolute = formatAuctionAbsolute(lot.auctionDate);
   const damage = shortDamage(lot.primaryDamage);
   const specs = [
@@ -109,10 +110,11 @@ export function LotCard({
       <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
         <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-zinc-100">
           <LotImage
-            src={photos[0] || lot.imageUrl}
+            src={cover}
             alt={`${lot.year} ${lot.make} ${lot.model}`}
             fill
             loading="lazy"
+            decoding="async"
             className="object-cover transition duration-500 group-hover:scale-[1.04]"
             sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />

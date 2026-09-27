@@ -338,9 +338,13 @@ def _copart_gallery(row: dict[str, Any], cover: str) -> list[str]:
             urls.append(copart_image(item) if "copart" in item else item)
     seen: set[str] = set()
     out: list[str] = []
+    junk = re.compile(
+        r"\.svg(?:$|\?)|/content/[a-z]{2}\.svg|www\.copart\.(?:com|co\.uk)/content/|\bflag\b|/logo|sprite|1x1|pixel",
+        re.I,
+    )
     for raw in urls:
         u = (raw or "").strip()
-        if not u.startswith("http") or u in seen:
+        if not u.startswith("http") or u in seen or junk.search(u):
             continue
         seen.add(u)
         out.append(u)

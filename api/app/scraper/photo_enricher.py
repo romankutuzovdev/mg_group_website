@@ -32,7 +32,7 @@ EXTRACT_GALLERY_JS = """
     if (!u || typeof u !== 'string') return;
     const s = u.trim();
     if (!s.startsWith('http')) return;
-    if (/sprite|icon|logo|avatar|flag|pixel|1x1|blank\\./i.test(s)) return;
+    if (/sprite|icon|logo|avatar|flag|pixel|1x1|blank\\.|\\.svg(?:$|\\?)|\\/content\\/[a-z]{2}\\.svg/i.test(s)) return;
     urls.push(s);
   };
 
@@ -143,6 +143,12 @@ def _canonical_iaai_photo(url: str) -> str:
 def _is_useless_photo(url: str) -> bool:
     u = (url or "").strip()
     if not u:
+        return True
+    if re.search(
+        r"\.svg(?:$|\?)|/content/[a-z]{2}\.svg|www\.copart\.(?:com|co\.uk)/content/|\bflag\b|/logo|sprite|1x1|pixel|blank\.",
+        u,
+        re.I,
+    ):
         return True
     parsed = urlparse(u)
     if "iaai" in parsed.netloc.lower() and "resizer" in parsed.path.lower():

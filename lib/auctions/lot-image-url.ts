@@ -43,9 +43,40 @@ export function isRealLotPhotoUrl(url: string | undefined | null): boolean {
 }
 
 /**
+ * Flags / icons scraped into galleries (www.copart.com/content/us.svg etc.).
+ * Not car photos — proxy rejects www.copart.com → 403, and they slow the grid.
+ */
+export function isJunkLotImageUrl(url: string): boolean {
+  const u = (url || "").trim();
+  if (!u) return true;
+  if (/unsplash\.com/i.test(u)) return true;
+  if (/\.svg(?:$|\?)/i.test(u)) return true;
+  if (/\/content\/[a-z]{2}\.svg/i.test(u)) return true;
+  if (/www\.copart\.(?:com|co\.uk)\/content\//i.test(u)) return true;
+  if (
+    /daimg\.encar|wt_mark|userdata\/dealer|insur_|listex|sprite|\/logo|avatar|1x1|pixel|blank\.|diagnosis\/option|diagnosis\/sellingpoint|\bicon\b|\bflag\b/i.test(
+      u,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Copart object storage is public (CORS *) and works with referrerPolicy=no-referrer.
+ * Proxying via Windows API doubles latency and often returns 502 when outbound is blocked.
+ */
+function shouldProxyAuctionUrl(url: string): boolean {
+  if (isCopartCdnUrl(url)) return false;
+  if (/images\.bid\.cars|cdn\.bid\.cars|mercury\.bid\.cars/i.test(url)) return false;
+  // IAAI / Encar often hotlink-protect — keep same-origin proxy.
+  return /iaai\.com|anvis|encar\.com|cloudfront\.net|amazonaws\.com/i.test(url);
+}
+
+/**
  * Normalize lot image for display.
- * Production / static site: proxy auction CDNs via `/api/lot-image` (like CF Function).
- * next dev: keep direct CDN + LotImage referrerPolicy=no-referrer.
+ * Copart/Bid.cars: direct CDN. IAAI/Encar: `/api/lot-image` proxy.
  */
 export function resolveLotImageUrl(
   url: string | undefined | null,
@@ -56,13 +87,14 @@ export function resolveLotImageUrl(
   if (trimmed.startsWith("/api/lot-image")) return trimmed;
   if (trimmed.startsWith("/api/lot-photos/")) return trimmed;
   if (trimmed.startsWith("/auctions/lots/")) return trimmed;
-  if (/unsplash\.com/i.test(trimmed)) return LOT_IMAGE_FALLBACK;
+  if (isJunkLotImageUrl(trimmed)) return LOT_IMAGE_FALLBACK;
 
   if (/^https?:\/\//i.test(trimmed)) {
     const useProxy =
-      process.env.NODE_ENV === "production" ||
-      Boolean(imageProxyBase()) ||
-      process.env.NEXT_PUBLIC_FORCE_IMAGE_PROXY === "1";
+      (process.env.NODE_ENV === "production" ||
+        Boolean(imageProxyBase()) ||
+        process.env.NEXT_PUBLIC_FORCE_IMAGE_PROXY === "1") &&
+      shouldProxyAuctionUrl(trimmed);
     if (useProxy) {
       return proxyLotImageUrl(trimmed);
     }
@@ -71,9 +103,26 @@ export function resolveLotImageUrl(
   return LOT_IMAGE_FALLBACK;
 }
 
-/** Ads, avatars and inspection icons scraped together with the car gallery. */
-const JUNK_PHOTO =
-  /daimg\.encar|wt_mark|userdata\/dealer|insur_|listex|sprite|\/logo|avatar|1x1|pixel|blank\.|diagnosis\/option|diagnosis\/sellingpoint|\bicon\b/i;
+/** Smaller Copart thumb for catalog cards (faster than _ful). */
+export function toLotThumbUrl(url: string): string {
+  const raw = (url || "").trim();
+  if (!raw) return raw;
+  // Unwrap proxy so we can rewrite size, then resolve again.
+  let target = raw;
+  const proxied = raw.match(/[?&]u=([^&]+)/);
+  if (raw.includes("/api/lot-image") && proxied) {
+    try {
+      target = decodeURIComponent(proxied[1]);
+    } catch {
+      return raw;
+    }
+  }
+  if (isCopartCdnUrl(target)) {
+    const thumb = target.replace(/_(?:ful|hrs)\./i, "_thb.");
+    return resolveLotImageUrl(thumb);
+  }
+  return resolveLotImageUrl(target);
+}
 
 function photoIdentity(url: string): string {
   const keyMatch = url.match(/[?&]imageKeys=([^&]+)/i);
@@ -118,7 +167,7 @@ export function collectLotPhotoUrls(lot: {
 
   const best = new Map<string, { url: string; score: number }>();
   for (const url of raw) {
-    if (JUNK_PHOTO.test(url) || /unsplash\.com/i.test(url)) continue;
+    if (isJunkLotImageUrl(url)) continue;
     const id = photoIdentity(url);
     if (!id) continue;
     const score = photoScore(url);
@@ -129,7 +178,7 @@ export function collectLotPhotoUrls(lot: {
   const ordered: string[] = [];
   const seen = new Set<string>();
   for (const url of raw) {
-    if (JUNK_PHOTO.test(url) || /unsplash\.com/i.test(url)) continue;
+    if (isJunkLotImageUrl(url)) continue;
     const id = photoIdentity(url);
     if (!id || seen.has(id) || !best.has(id)) continue;
     seen.add(id);
@@ -147,6 +196,16 @@ export function collectLotPhotoUrls(lot: {
 
   const cover = resolveLotImageUrl(lot.imageUrl);
   return cover.includes("_placeholder") ? [] : [cover];
+}
+
+/** Catalog card cover — prefer thumb size for speed. */
+export function resolveLotCardImage(lot: {
+  imageUrl?: string | null;
+  imageUrls?: string[] | null;
+}): string {
+  const photos = collectLotPhotoUrls(lot);
+  if (!photos.length) return LOT_IMAGE_FALLBACK;
+  return toLotThumbUrl(photos[0]);
 }
 
 /** Pick best display URL from lot fields, then resolve. */
