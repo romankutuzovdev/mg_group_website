@@ -26,6 +26,7 @@ from app.scraper.browser import (
     close_browser,
     get_shared_context,
     launch_chromium,
+    mark_agent_tab,
     open_agent_tab,
 )
 from app.scraper.copart_usa import scrape_copart_usa
@@ -86,6 +87,7 @@ class AgentStatus:
     last_mapped: int = 0
     last_new: int = 0
     tab_open: bool = False
+    waiting_for_vpn: bool = False
 
 
 @dataclass
@@ -295,7 +297,7 @@ class SourceAgent:
             # Recreate tab if Chrome closed it
             if self._page is None or self._page.is_closed():
                 try:
-                    await self.attach_tab(browser)
+                    await self.attach_tab(browser, warm=True)
                 except Exception as exc:
                     self.status.last_error = f"tab_reopen: {exc}"
                     logger.exception("agent %s tab reopen failed", self.name)
@@ -307,7 +309,7 @@ class SourceAgent:
             await self.run_once(browser)
             if self._browser_dead.is_set():
                 break
-            # After bot-wall: drop poisoned tab and retry sooner (VPN may come up later)
+            # After bot-wall: force-close poisoned tab, reopen on real URL next cycle
             blocked = self.status.last_blocked
             if blocked:
                 logger.info(
@@ -317,10 +319,11 @@ class SourceAgent:
                     settings.scraper_blocked_retry_seconds,
                 )
                 try:
-                    await self.detach_tab()
+                    await close_agent_tab(self._page, force=True)
                 except Exception:
-                    self._page = None
-                    self.status.tab_open = False
+                    pass
+                self._page = None
+                self.status.tab_open = False
             sleep_for = (
                 max(30, settings.scraper_blocked_retry_seconds)
                 if blocked
@@ -341,11 +344,55 @@ class MultiAgentOrchestrator:
         self.status = OrchestratorStatus()
         self._agents: dict[str, SourceAgent] = {}
         self._photo_agent: PhotoEnrichmentAgent | None = None
+        self._calc_page: Page | None = None
         self._lock = asyncio.Lock()
         self._browser: Browser | None = None
         self._pw = None
         self._stop = asyncio.Event()
         self._supervisor: asyncio.Task | None = None
+
+    async def _warm_agent_tabs(self, names: set[str] | None = None) -> None:
+        """Navigate tabs to auction URLs (not about:blank) for login / VPN."""
+
+        async def _one(agent: SourceAgent) -> None:
+            if names is not None and agent.name not in names:
+                return
+            url = AGENT_WARM_URLS.get(agent.name)
+            page = agent._page
+            if not url or page is None or page.is_closed():
+                return
+            try:
+                logger.info("warming tab %s → %s", agent.name, url[:90])
+                await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+                await mark_agent_tab(page, agent.name)
+                agent.status.tab_open = True
+            except Exception as exc:
+                logger.warning("warm tab %s failed: %s", agent.name, exc)
+
+        await asyncio.gather(*[_one(a) for a in self._agents.values()])
+
+    async def _ensure_calc_tab(self) -> None:
+        """Keep site calculator open in Chrome permanently."""
+        settings = get_settings()
+        if not settings.scraper_calc_tab_enabled:
+            return
+        url = (settings.scraper_calc_tab_url or "").strip()
+        if not url or self._browser is None:
+            return
+        try:
+            page = self._calc_page
+            if page is not None and not page.is_closed():
+                try:
+                    await mark_agent_tab(page, "calculator")
+                except Exception:
+                    pass
+                return
+            ctx = await get_shared_context(self._browser)
+            self._calc_page = await open_agent_tab(ctx, label="calculator", url=url)
+            logger.info("calculator tab open: %s", url)
+        except Exception as exc:
+            logger.warning("calculator tab failed: %s", exc)
+            self._calc_page = None
 
     def _enabled_sources(self) -> list[str]:
         settings = get_settings()
@@ -396,6 +443,7 @@ class MultiAgentOrchestrator:
                 "last_raw": a.status.last_raw,
                 "last_mapped": a.status.last_mapped,
                 "last_new": a.status.last_new,
+                "waiting_for_vpn": a.status.waiting_for_vpn,
             }
             for name, a in self._agents.items()
         }
@@ -413,6 +461,8 @@ class MultiAgentOrchestrator:
             "agents": agents,
             "photos": photos,
             "photos_enabled": settings.scraper_photos_enabled,
+            "calc_tab_url": settings.scraper_calc_tab_url if settings.scraper_calc_tab_enabled else None,
+            "calc_tab_open": bool(self._calc_page and not self._calc_page.is_closed()),
             "mode": "multi_agent_one_chrome_tabs",
             "cycles": sum(a.status.cycles for a in self._agents.values()),
             "total_new": sum(a.status.total_new for a in self._agents.values()),
@@ -560,7 +610,7 @@ class MultiAgentOrchestrator:
                 for i, agent in enumerate(self._agents.values()):
                     agent._browser_dead = asyncio.Event()
                     await agent.attach_tab(self._browser, warm=False)
-                    await asyncio.sleep(0.4)
+                    await asyncio.sleep(0.35)
 
                 vpn_names = {
                     s.strip().lower()
@@ -570,28 +620,39 @@ class MultiAgentOrchestrator:
                 early = [a for n, a in self._agents.items() if n not in vpn_names]
                 late = [a for n, a in self._agents.items() if n in vpn_names]
 
+                # Open real auction URLs (esp. Copart) + permanent calculator tab
+                await self._warm_agent_tabs()
+                await self._ensure_calc_tab()
+
                 for agent in early:
+                    agent.status.waiting_for_vpn = False
                     await agent.start(self._browser)
                     await asyncio.sleep(0.8)
 
                 delay = max(0, int(settings.scraper_startup_delay_seconds or 0))
                 if late and delay > 0:
+                    for agent in late:
+                        agent.status.waiting_for_vpn = True
+                        agent.status.last_error = f"waiting_for_vpn_{delay}s"
                     logger.info(
-                        "waiting %ss for VPN before starting: %s "
-                        "(enable VPN now; or POST /scraper/stop+start after VPN)",
+                        "waiting %ss for VPN before scraping: %s "
+                        "(tabs already on Copart — enable VPN / login now)",
                         delay,
                         ", ".join(a.name for a in late),
                     )
                     try:
                         await asyncio.wait_for(self._stop.wait(), timeout=delay)
-                        # stop requested during wait
                         break
                     except asyncio.TimeoutError:
                         pass
+                    # Re-warm after VPN (Incapsula page → real search)
+                    await self._warm_agent_tabs(vpn_names)
 
                 for agent in late:
                     if self._stop.is_set():
                         break
+                    agent.status.waiting_for_vpn = False
+                    agent.status.last_error = None
                     await agent.start(self._browser)
                     await asyncio.sleep(0.8)
 
@@ -618,6 +679,7 @@ class MultiAgentOrchestrator:
                 # Stay until stop, CDP death, or an agent reports browser dead
                 while not self._stop.is_set():
                     await asyncio.sleep(8)
+                    await self._ensure_calc_tab()
                     if any(a._browser_dead.is_set() for a in self._agents.values()):
                         logger.warning("agent reported dead Chrome — reconnecting")
                         force_chrome = True
@@ -644,6 +706,7 @@ class MultiAgentOrchestrator:
                 logger.exception("supervisor session failed (will retry): %s", exc)
                 force_chrome = True
             finally:
+                self._calc_page = None
                 if self._photo_agent:
                     try:
                         await self._photo_agent.stop()

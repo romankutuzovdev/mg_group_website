@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     scraper_vpn_sources: str = "copart,copart_uk"
     # When Incapsula/bot-wall hits — recreate tab and retry sooner
     scraper_blocked_retry_seconds: int = 90
+    # Permanent Chrome tab with site calculator (kept open 24/7)
+    scraper_calc_tab_enabled: bool = True
+    scraper_calc_tab_url: str = "http://127.0.0.1/calculator/"
     scraper_max_pages_copart: int = 5
     scraper_max_pages_iaai: int = 5
     scraper_max_pages_copart_uk: int = 5

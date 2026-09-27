@@ -101,6 +101,8 @@ if (Test-Path $envFile) {
   Set-EnvValue $envFile "SCRAPER_STARTUP_DELAY_SECONDS" "180"
   Set-EnvValue $envFile "SCRAPER_VPN_SOURCES" "copart,copart_uk"
   Set-EnvValue $envFile "SCRAPER_BLOCKED_RETRY_SECONDS" "90"
+  Set-EnvValue $envFile "SCRAPER_CALC_TAB_ENABLED" "true"
+  Set-EnvValue $envFile "SCRAPER_CALC_TAB_URL" "http://127.0.0.1/calculator/"
   Set-EnvValue $envFile "SCRAPER_SOURCES" "copart,iaai,copart_uk,manheim,salvage_market,encar"
   $userChrome = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data"
   if (Test-Path $userChrome) {
