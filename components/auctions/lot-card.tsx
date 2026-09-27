@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LotImage } from "@/components/auctions/lot-image";
 import { FavoriteButton } from "@/components/auctions/favorite-button";
@@ -10,6 +13,9 @@ import type { AuctionLot } from "@/lib/auctions/types";
 import { CLOSED_AUCTION_LABEL, isClosedAuction, REGION_LABELS } from "@/lib/auctions/types";
 import { formatOdometerKm } from "@/lib/auctions/odometer";
 
+/** Fixed TZ so SSR (UTC) and browser (Minsk) render the same absolute string. */
+const DISPLAY_TZ = "Europe/Minsk";
+
 function formatMoney(amount: number, currency: "USD" | "GBP" | "KRW") {
   const locale = currency === "GBP" ? "en-GB" : currency === "KRW" ? "ko-KR" : "en-US";
   return new Intl.NumberFormat(locale, {
@@ -19,40 +25,37 @@ function formatMoney(amount: number, currency: "USD" | "GBP" | "KRW") {
   }).format(amount);
 }
 
-function formatAuctionWhen(iso: string): { absolute: string; relative: string | null } {
+function formatAuctionAbsolute(iso: string): string {
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return { absolute: "—", relative: null };
-  }
-  const absolute = new Intl.DateTimeFormat("ru-RU", {
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: DISPLAY_TZ,
     weekday: "short",
     day: "numeric",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
 
-  const diffMs = date.getTime() - Date.now();
-  if (diffMs <= 0) return { absolute, relative: "сейчас" };
+function formatAuctionRelative(iso: string, nowMs: number): string | null {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const diffMs = date.getTime() - nowMs;
+  if (diffMs <= 0) return "сейчас";
 
   const hours = Math.floor(diffMs / 3_600_000);
   const days = Math.floor(hours / 24);
   if (days >= 1) {
     const remH = hours % 24;
-    return {
-      absolute,
-      relative: remH > 0 ? `через ${days} дн. ${remH} ч` : `через ${days} дн.`,
-    };
+    return remH > 0 ? `через ${days} дн. ${remH} ч` : `через ${days} дн.`;
   }
   if (hours >= 1) {
     const mins = Math.floor((diffMs % 3_600_000) / 60_000);
-    return {
-      absolute,
-      relative: mins > 0 ? `через ${hours} ч ${mins} мин` : `через ${hours} ч`,
-    };
+    return mins > 0 ? `через ${hours} ч ${mins} мин` : `через ${hours} ч`;
   }
   const mins = Math.max(1, Math.floor(diffMs / 60_000));
-  return { absolute, relative: `через ${mins} мин` };
+  return `через ${mins} мин`;
 }
 
 function shortDamage(value: string): string {
@@ -78,7 +81,13 @@ export function LotCard({
     turnkey = null;
   }
 
-  const when = formatAuctionWhen(lot.auctionDate);
+  // Relative time only after mount — Date.now() differs between SSR and hydrate.
+  const [relative, setRelative] = useState<string | null>(null);
+  useEffect(() => {
+    setRelative(formatAuctionRelative(lot.auctionDate, Date.now()));
+  }, [lot.auctionDate]);
+
+  const absolute = formatAuctionAbsolute(lot.auctionDate);
   const damage = shortDamage(lot.primaryDamage);
   const specs = [
     formatOdometerKm(lot.odometer, lot.odometerUnit),
@@ -88,10 +97,11 @@ export function LotCard({
 
   return (
     <Link
-      href={`/auctions/${lot.slug}/`}
+      href={`/auctions/${encodeURIComponent(lot.slug)}/`}
       className="group block h-full min-w-0"
       data-lot-slug={lot.slug}
       onClick={() => onNavigate?.(lot.slug)}
+      prefetch={false}
     >
       <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
         <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-zinc-100">
@@ -140,9 +150,12 @@ export function LotCard({
                 {formatMoney(lot.currentBid, lot.currency)}
               </p>
             </div>
-            {when.relative ? (
-              <span className="shrink-0 rounded-lg bg-black/55 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm sm:text-[11px]">
-                {when.relative}
+            {relative ? (
+              <span
+                className="shrink-0 rounded-lg bg-black/55 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm sm:text-[11px]"
+                suppressHydrationWarning
+              >
+                {relative}
               </span>
             ) : null}
           </div>
@@ -159,7 +172,9 @@ export function LotCard({
           </div>
 
           <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
-            <span className="font-medium text-zinc-600">{when.absolute}</span>
+            <span className="font-medium text-zinc-600" suppressHydrationWarning>
+              {absolute}
+            </span>
             {lot.location ? (
               <>
                 <span className="mx-1.5 text-zinc-300">·</span>

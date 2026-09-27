@@ -30,10 +30,12 @@ import { getRegionVisual } from "@/lib/catalog/region-visual";
 import { CITIES, cityPath } from "@/lib/seo/cities";
 import { catalogMakeFaq } from "@/lib/seo/copy";
 import { getDictionary } from "@/lib/dictionary";
-import { loadCatalogLots } from "@/lib/auctions/repository";
+import {
+  loadLotsPageLite,
+  loadRegionCountsLite,
+} from "@/lib/auctions/ssg-lite";
 import type { AuctionLot } from "@/lib/auctions/types";
 import type { LotPricingMode } from "@/lib/auctions/lot-quote";
-import { filterLotsForMake, countLotsByModel, countLotsByRegion } from "@/lib/catalog/match-lots";
 
 type Props = {
   region: CatalogRegion;
@@ -155,28 +157,14 @@ export default function AvtoMakePage({
           <CatalogSection
             id="lots"
             title={`Актуальные лоты ${make.name}`}
-            subtitle={
-              lots.length
-                ? "Ставка и ориентир стоимости под ключ."
-                : "Пока нет живых лотов — подберём под заказ."
-            }
+            subtitle="Ставка и ориентир стоимости под ключ."
           >
-            {lots.length > 0 ? (
-              <AuctionsCatalog
-                lots={lots}
-                region={catalogRegion}
-                pricingMode={pricingMode}
-                initialMake={make.name}
-              />
-            ) : (
-              <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-5 py-8 text-center text-sm text-zinc-500">
-                Сейчас нет живых лотов {make.name} из {region.nameGenitive}. Выберите модель выше или{" "}
-                <a href="/calculator/" className="font-semibold text-primary hover:underline">
-                  сделайте просчёт
-                </a>
-                .
-              </div>
-            )}
+            <AuctionsCatalog
+              lots={lots}
+              region={catalogRegion}
+              pricingMode={pricingMode}
+              initialMake={make.name}
+            />
           </CatalogSection>
 
           <CityNavLinks
@@ -214,9 +202,11 @@ export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
     return { notFound: true };
   }
 
-  const all = await loadCatalogLots();
-  const lots = filterLotsForMake(all, make, region.slug, 500);
-  const modelLotCounts = countLotsByModel(all, make, region.slug);
+  const [{ lots }, regionLotCounts] = await Promise.all([
+    loadLotsPageLite({ region: region.slug, make: make.name, pageSize: 12 }),
+    loadRegionCountsLite(),
+  ]);
+  const modelLotCounts: Record<string, number> = {};
 
   return {
     props: {
@@ -225,8 +215,9 @@ export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
       make,
       lots,
       modelLotCounts,
-      regionLotCounts: countLotsByRegion(all),
+      regionLotCounts,
       pricingMode: regionPricingMode(region.slug),
     },
+    ...(process.env.VERCEL === "1" ? { revalidate: 120 } : {}),
   };
 };

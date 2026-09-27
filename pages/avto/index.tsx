@@ -23,13 +23,11 @@ import {
 } from "@/lib/catalog";
 import { catalogHubFaq } from "@/lib/seo/copy";
 import { getDictionary } from "@/lib/dictionary";
-import { loadCatalogLots } from "@/lib/auctions/repository";
-import type { AuctionLot } from "@/lib/auctions/types";
 import {
-  countLotsByMake,
-  countLotsByRegion,
-  sortMakesByInventory,
-} from "@/lib/catalog/match-lots";
+  loadLotsPageLite,
+  loadRegionCountsLite,
+} from "@/lib/auctions/ssg-lite";
+import type { AuctionLot } from "@/lib/auctions/types";
 
 type Props = {
   popularByRegion: {
@@ -115,15 +113,13 @@ export default function AvtoHubPage({
             <RegionMosaic lotCounts={regionLotCounts} />
           </CatalogSection>
 
-          {lots.length > 0 ? (
-            <CatalogSection
-              id="lots"
-              title="Лоты со ставкой и просчётом"
-              subtitle="Текущая ставка и ориентир стоимости доставки + таможни."
-            >
-              <AuctionsCatalog lots={lots} />
-            </CatalogSection>
-          ) : null}
+          <CatalogSection
+            id="lots"
+            title="Лоты со ставкой и просчётом"
+            subtitle="Текущая ставка и ориентир стоимости доставки + таможни."
+          >
+            <AuctionsCatalog lots={lots} />
+          </CatalogSection>
 
           {popularByRegion.map(({ regionSlug, makes, lotCounts }) => {
             const region = REGIONS[regionSlug];
@@ -158,13 +154,18 @@ export default function AvtoHubPage({
 }
 
 export const getStaticProps: GetStaticProps<Props> = async () => {
-  const lots = await loadCatalogLots();
-  const regionLotCounts = countLotsByRegion(lots);
+  const [{ lots }, regionLotCounts] = await Promise.all([
+    loadLotsPageLite({ pageSize: 12 }),
+    loadRegionCountsLite(),
+  ]);
+
+  // Popular makes from static catalog — live counts come from API on the client.
   const popularByRegion = REGION_ORDER.map((regionSlug) => {
-    const lotCounts = countLotsByMake(lots, regionSlug);
-    const makes = sortMakesByInventory(getMakesForRegion(regionSlug), lotCounts).slice(0, 12);
+    const makes = getMakesForRegion(regionSlug).slice(0, 12);
+    const lotCounts: Record<string, number> = {};
     return { regionSlug, makes, lotCounts };
   });
+
   return {
     props: {
       dictionary: getDictionary(),
@@ -172,5 +173,6 @@ export const getStaticProps: GetStaticProps<Props> = async () => {
       regionLotCounts,
       lots,
     },
+    ...(process.env.VERCEL === "1" ? { revalidate: 120 } : {}),
   };
 };

@@ -26,10 +26,12 @@ import { getRegionVisual } from "@/lib/catalog/region-visual";
 import { CITIES, cityPath } from "@/lib/seo/cities";
 import { catalogRegionFaq } from "@/lib/seo/copy";
 import { getDictionary } from "@/lib/dictionary";
-import { loadCatalogLots } from "@/lib/auctions/repository";
+import {
+  loadLotsPageLite,
+  loadRegionCountsLite,
+} from "@/lib/auctions/ssg-lite";
 import type { AuctionLot } from "@/lib/auctions/types";
 import type { LotPricingMode } from "@/lib/auctions/lot-quote";
-import { countLotsByMake, countLotsByRegion, sortMakesByInventory } from "@/lib/catalog/match-lots";
 
 type Props = {
   region: CatalogRegion;
@@ -180,19 +182,22 @@ export const getStaticPaths: GetStaticPaths = async () => ({
 export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
   const region = getRegion(ctx.params?.region as string);
   if (!region) return { notFound: true };
-  const all = await loadCatalogLots();
-  const lots = all.filter((l) => l.region === region.slug);
-  const lotCounts = countLotsByMake(all, region.slug);
-  const makes = sortMakesByInventory(getMakesForRegion(region.slug), lotCounts);
+  const [{ lots }, regionLotCounts] = await Promise.all([
+    loadLotsPageLite({ region: region.slug, pageSize: 12 }),
+    loadRegionCountsLite(),
+  ]);
+  const makes = getMakesForRegion(region.slug);
+  const lotCounts: Record<string, number> = {};
   return {
     props: {
       dictionary: getDictionary(),
       region,
       makes,
       lotCounts,
-      regionLotCounts: countLotsByRegion(all),
+      regionLotCounts,
       lots,
       pricingMode: regionPricingMode(region.slug),
     },
+    ...(process.env.VERCEL === "1" ? { revalidate: 120 } : {}),
   };
 };

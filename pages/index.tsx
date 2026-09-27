@@ -2,7 +2,10 @@ import { GetStaticProps } from "next";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
 import type { AuctionLot } from "@/lib/auctions/types";
-import { loadCatalogLots, loadFeaturedLiveLots } from "@/lib/auctions/repository";
+import {
+  loadFeaturedLite,
+  loadLotsPageLite,
+} from "@/lib/auctions/ssg-lite";
 import { pickDiverseAuctionLotsFrom } from "@/lib/auctions/example-picks";
 import Hero from "@/components/Hero";
 import Benefits from "@/components/Benefits";
@@ -58,17 +61,19 @@ export default function Home({ dictionary, featuredLots, showcase, popularLots }
 
 export const getStaticProps: GetStaticProps = async () => {
   const dictionary = getDictionary();
-  const [featuredLots, catalogLots] = await Promise.all([
-    loadFeaturedLiveLots(4),
-    loadCatalogLots(),
+  const [featuredLots, page] = await Promise.all([
+    loadFeaturedLite(4),
+    loadLotsPageLite({ pageSize: 24 }),
   ]);
+  const seed = page.lots.length ? page.lots : featuredLots;
 
   return {
     props: {
       dictionary,
       featuredLots,
-      showcase: buildCatalogShowcaseData(catalogLots),
-      popularLots: pickDiverseAuctionLotsFrom(catalogLots, 6),
+      showcase: buildCatalogShowcaseData(seed),
+      popularLots: pickDiverseAuctionLotsFrom(seed, 6),
     },
+    ...(process.env.VERCEL === "1" ? { revalidate: 120 } : {}),
   };
 };

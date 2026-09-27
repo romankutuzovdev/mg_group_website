@@ -9,7 +9,9 @@ import { CityNavLinks } from "@/components/seo/seo-blocks";
 import { AnchorButton, LinkButton } from "@/components/site/button";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
-import { loadCatalogLots } from "@/lib/auctions/repository";
+import {
+  loadLotsPageLite,
+} from "@/lib/auctions/ssg-lite";
 import type { AuctionLot } from "@/lib/auctions/types";
 import { CONSULTATION_TG, PARTS } from "@/lib/company";
 import { CITIES, kitCityPath, kitOriginPath } from "@/lib/seo/cities";
@@ -159,9 +161,13 @@ export default function MashinokomplektPage({ dictionary, lots }: Props) {
   );
 }
 
-export const getStaticProps: GetStaticProps = async () => ({
-  props: {
-    dictionary: getDictionary(),
-    lots: await loadCatalogLots(),
-  },
-});
+export const getStaticProps: GetStaticProps = async () => {
+  const { lots } = await loadLotsPageLite({ pageSize: 12 });
+  return {
+    props: {
+      dictionary: getDictionary(),
+      lots,
+    },
+    ...(process.env.VERCEL === "1" ? { revalidate: 120 } : {}),
+  };
+};

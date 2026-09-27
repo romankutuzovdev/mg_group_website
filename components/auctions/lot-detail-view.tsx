@@ -41,6 +41,7 @@ function formatMoney(amount: number, currency: "USD" | "GBP" | "KRW") {
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Minsk",
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -297,7 +298,9 @@ export function LotDetailView({
 
                 <div className="mt-4 rounded-lg bg-accent/10 p-3 text-sm">
                   <p className="font-medium text-accent-dark">Дата торгов</p>
-                  <p className="mt-0.5 text-text-secondary">{formatDate(lot.auctionDate)}</p>
+                  <p className="mt-0.5 text-text-secondary" suppressHydrationWarning>
+                    {formatDate(lot.auctionDate)}
+                  </p>
                 </div>
 
                 {isClosedAuction(lot) ? (

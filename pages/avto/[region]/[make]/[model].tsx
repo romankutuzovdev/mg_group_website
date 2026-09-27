@@ -1,5 +1,4 @@
 import { GetStaticPaths, GetStaticProps } from "next";
-import Link from "next/link";
 import { AuctionsCatalog } from "@/components/auctions/auctions-catalog";
 import { CatalogHero, CatalogSection } from "@/components/catalog/catalog-hero";
 import {
@@ -31,10 +30,12 @@ import { getRegionVisual } from "@/lib/catalog/region-visual";
 import { CITIES, cityPath } from "@/lib/seo/cities";
 import { catalogModelFaq } from "@/lib/seo/copy";
 import { getDictionary } from "@/lib/dictionary";
-import { loadCatalogLots } from "@/lib/auctions/repository";
+import {
+  loadLotsPageLite,
+  loadRegionCountsLite,
+} from "@/lib/auctions/ssg-lite";
 import type { AuctionLot } from "@/lib/auctions/types";
 import type { LotPricingMode } from "@/lib/auctions/lot-quote";
-import { filterLotsForModel, countLotsByRegion } from "@/lib/catalog/match-lots";
 import { RegionMosaic } from "@/components/catalog/region-mosaic";
 
 type Props = {
@@ -132,31 +133,19 @@ export default function AvtoModelPage({
         <div className="mx-auto max-w-7xl space-y-12 px-3 py-8 sm:px-4 sm:py-12 lg:px-6">
           <RegionMosaic lotCounts={regionLotCounts} active={region.slug} variant="strip" />
 
-          {lots.length > 0 ? (
-            <CatalogSection
-              id="lots"
-              title={`${make.name} ${model.name} — лоты`}
-              subtitle="Ставка и ориентир стоимости под ключ."
-            >
-              <AuctionsCatalog
-                lots={lots}
-                region={catalogRegion}
-                pricingMode={pricingMode}
-                initialMake={make.name}
-                initialModel={model.name}
-              />
-            </CatalogSection>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-5 py-10 text-center">
-              <p className="text-sm text-zinc-500">
-                Сейчас нет живых лотов этой модели.{" "}
-                <Link href="/calculator/" className="font-semibold text-primary hover:underline">
-                  Рассчитайте стоимость
-                </Link>{" "}
-                или оставьте заявку на подбор.
-              </p>
-            </div>
-          )}
+          <CatalogSection
+            id="lots"
+            title={`${make.name} ${model.name} — лоты`}
+            subtitle="Ставка и ориентир стоимости под ключ."
+          >
+            <AuctionsCatalog
+              lots={lots}
+              region={catalogRegion}
+              pricingMode={pricingMode}
+              initialMake={make.name}
+              initialModel={model.name}
+            />
+          </CatalogSection>
 
           <CityNavLinks cities={CITIES} hrefFor={(s) => cityPath(s, region.slug, make.slug)} />
           <SeoFaq items={faq} />
@@ -201,8 +190,15 @@ export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
     return { notFound: true };
   }
 
-  const all = await loadCatalogLots();
-  const lots = filterLotsForModel(all, make, model.slug, region.slug, 500);
+  const [{ lots }, regionLotCounts] = await Promise.all([
+    loadLotsPageLite({
+      region: region.slug,
+      make: make.name,
+      model: model.name,
+      pageSize: 12,
+    }),
+    loadRegionCountsLite(),
+  ]);
 
   return {
     props: {
@@ -211,8 +207,9 @@ export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
       make,
       model,
       lots,
-      regionLotCounts: countLotsByRegion(all),
+      regionLotCounts,
       pricingMode: regionPricingMode(region.slug),
     },
+    ...(process.env.VERCEL === "1" ? { revalidate: 120 } : {}),
   };
 };

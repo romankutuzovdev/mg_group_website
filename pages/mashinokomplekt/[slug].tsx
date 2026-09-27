@@ -10,7 +10,7 @@ import {
 } from "@/components/catalog/seo";
 import { PageShell } from "@/components/layout/page-shell";
 import { CityNavLinks, SeoCta, SeoFaq } from "@/components/seo/seo-blocks";
-import { loadCatalogLots } from "@/lib/auctions/repository";
+import { loadLotsPageLite } from "@/lib/auctions/ssg-lite";
 import type { AuctionLot } from "@/lib/auctions/types";
 import { getDictionary } from "@/lib/dictionary";
 import {
@@ -181,14 +181,15 @@ export const getStaticPaths: GetStaticPaths = async () => ({
 export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
   const slug = ctx.params?.slug as string;
   if (slug === "usa" || slug === "uk") {
-    const all = await loadCatalogLots();
+    const { lots } = await loadLotsPageLite({ region: slug, pageSize: 12 });
     return {
       props: {
         dictionary: getDictionary(),
         kind: "origin",
         origin: slug,
-        lots: all.filter((lot) => lot.region === slug),
+        lots,
       },
+      ...(process.env.VERCEL === "1" ? { revalidate: 120 } : {}),
     };
   }
   const city = getCity(slug);

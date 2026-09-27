@@ -18,14 +18,18 @@ interface Props {
   slug: string;
 }
 
-const isVercel = process.env.VERCEL === "1";
-const isDev = process.env.NODE_ENV === "development";
-/** Dynamic lot pages with full _app shell (Header/Footer) */
-const useDynamicLots = isVercel || isDev;
-
+/**
+ * Lot pages must be served by Next.js (Header/Footer), never rewritten to the
+ * Windows FastAPI fallback HTML ("Rebuild website").
+ */
 export default function LotDetailPage({ dictionary, lot: initialLot, slug: propSlug }: Props) {
   const router = useRouter();
-  const routeSlug = typeof router.query.slug === "string" ? router.query.slug : "";
+  const routeSlug =
+    typeof router.query.slug === "string"
+      ? decodeURIComponent(router.query.slug)
+      : Array.isArray(router.query.slug)
+        ? decodeURIComponent(router.query.slug[0] || "")
+        : "";
   const slug = (routeSlug || propSlug || "").trim();
 
   const [lot, setLot] = useState<AuctionLot | null>(initialLot);
@@ -37,6 +41,7 @@ export default function LotDetailPage({ dictionary, lot: initialLot, slug: propS
   }, [initialLot]);
 
   useEffect(() => {
+    if (!router.isReady) return;
     if (!slug || slug === "__live__") {
       setError("Не указан лот");
       setLoading(false);
@@ -73,9 +78,9 @@ export default function LotDetailPage({ dictionary, lot: initialLot, slug: propS
     return () => {
       cancelled = true;
     };
-  }, [slug, initialLot]);
+  }, [router.isReady, slug, initialLot]);
 
-  if (loading) {
+  if (!router.isReady || loading) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-24 text-center text-sm text-text-secondary">
         Загрузка лота…
@@ -99,11 +104,12 @@ export default function LotDetailPage({ dictionary, lot: initialLot, slug: propS
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  if (useDynamicLots) {
-    // On-demand pages with full _app shell (Header / Footer / nav).
+  // Vercel / next dev: generate on demand (full _app shell).
+  if (process.env.VERCEL === "1" || process.env.NODE_ENV === "development") {
     return { paths: [], fallback: "blocking" };
   }
 
+  // Static export (Windows): only prebuilt slugs; otherwise FastAPI __live__ / CF Function.
   const limit = getAuctionSsgLimit();
   if (limit <= 0) {
     return { paths: [], fallback: false };
@@ -118,18 +124,19 @@ export const getStaticPaths: GetStaticPaths = async () => {
 export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
   const slug = String(ctx.params?.slug ?? "").trim();
   const dictionary = getDictionary();
+  const dynamic =
+    process.env.VERCEL === "1" || process.env.NODE_ENV === "development";
 
-  if (useDynamicLots) {
+  if (dynamic) {
     let lot: AuctionLot | null = null;
     try {
-      // Direct slug fetch only — never loadCatalogLots() (25k items).
       lot = await fetchLotBySlug(slug);
     } catch {
       lot = null;
     }
     return {
       props: { dictionary, lot, slug },
-      ...(isVercel ? { revalidate: 60 } : {}),
+      ...(process.env.VERCEL === "1" ? { revalidate: 60 } : {}),
     };
   }
 

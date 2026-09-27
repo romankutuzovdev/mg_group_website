@@ -203,7 +203,9 @@ const Footer = ({ dictionary }: FooterProps) => {
           </div>
         </div>
         <div className="mt-6 border-t pt-4 text-center text-xs text-muted-foreground">
-          <p>{dictionary.footer.copyright.replace('{year}', new Date().getFullYear().toString())}</p>
+          <p suppressHydrationWarning>
+            {dictionary.footer.copyright.replace("{year}", new Date().getFullYear().toString())}
+          </p>
         </div>
       </div>
     </footer>
