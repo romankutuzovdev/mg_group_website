@@ -119,7 +119,8 @@ function quoteUk(lot: AuctionLot, fxRate: number, fxMarketRate: number) {
   });
 }
 
-function breakdownFromRestoration(quote: RestorationQuote): LotTurnkeyBreakdown {
+function breakdownFromRestoration(quote: RestorationQuote): LotTurnkeyBreakdown | null {
+  if (!quote.delivery) return null;
   const auctionTotal = Math.round(quote.auctionTotal);
   const delivery = Math.round(
     (quote.delivery?.inlandUsd ?? 0) + (quote.delivery?.oceanUsd ?? 0),
@@ -226,7 +227,7 @@ export function estimateLotBreakdown(
       return breakdownFromUsaKit(quote);
     }
     const quote = quoteUsaRestoration(lot);
-    if (!quote) return null;
+    if (!quote?.delivery) return null;
     return breakdownFromRestoration(quote);
   } catch {
     return null;

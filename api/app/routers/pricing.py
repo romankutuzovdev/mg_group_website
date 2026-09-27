@@ -85,10 +85,7 @@ def calc_weight(body: WeightPriceRequest) -> dict:
 
 @router.post("/lot-from-url")
 async def lot_from_url(body: LotFromUrlRequest) -> dict:
-    """Open lot URL in Chrome (CDP) and return fields for the calculator.
-
-    Chrome must run headed via ``mg-chrome-cdp`` / scheduled task (Autologon).
-    """
+    """Resolve lot for calculator: production catalog first, then Chrome CDP."""
     try:
         return await fetch_lot_from_url(body.url)
     except ValueError as exc:
@@ -96,7 +93,7 @@ async def lot_from_url(body: LotFromUrlRequest) -> dict:
     except Exception as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"Не удалось открыть лот в Chrome: {exc}",
+            detail=f"Не удалось открыть лот (каталог + Chrome): {exc}",
         ) from exc
 
 

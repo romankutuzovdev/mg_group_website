@@ -159,11 +159,12 @@ export function RestorationCalculator() {
     [bid, fees, location, platform, size, oceanDest, titleCode, isSublot, inlandOverride, oceanOverride],
   );
 
+  const pricedQuote = quote?.delivery ? quote : null;
   const grandWithCustoms =
-    quote && customs?.ok && customs.totalUsd != null
-      ? Math.round(quote.grandUsd + customs.totalUsd)
-      : quote
-        ? Math.round(quote.grandUsd)
+    pricedQuote && customs?.ok && customs.totalUsd != null
+      ? Math.round(pricedQuote.grandUsd + customs.totalUsd)
+      : pricedQuote
+        ? Math.round(pricedQuote.grandUsd)
         : null;
 
   return (
@@ -310,7 +311,9 @@ export function RestorationCalculator() {
               Выбрано: <span className="font-medium text-text-secondary">{location || "—"}</span>
               {quote?.delivery?.fromTariff
                 ? ` · прайс: inland $${Math.round(quote.delivery.inlandUsd)}`
-                : " · прайс не найден"}
+                : quote?.delivery
+                  ? ` · вручную: inland $${Math.round(quote.delivery.inlandUsd)}`
+                  : " · прайс не найден"}
             </p>
           </div>
 
@@ -401,9 +404,16 @@ export function RestorationCalculator() {
                   Просчёт авто
                 </p>
                 <p className="mt-1 text-xs text-text-muted">Расходы до Беларуси (без таможни)</p>
-                <p className="mt-2 font-display text-3xl font-semibold text-accent-dark">
-                  {usd(Math.round(quote.grandUsd))}
-                </p>
+                {quote.delivery ? (
+                  <p className="mt-2 font-display text-3xl font-semibold text-accent-dark">
+                    {usd(Math.round(quote.grandUsd))}
+                  </p>
+                ) : (
+                  <p className="mt-3 text-sm text-amber-700">
+                    Площадка не найдена в прайсе. Выберите город из списка или укажите inland и
+                    ocean вручную.
+                  </p>
+                )}
                 <dl className="mt-4 space-y-2 text-sm">
                   <Line label="Ставка" value={usd(quote.bid)} />
                   <Line label="Аукционный сбор" value={usd(quote.auctionFeesUsd)} />
@@ -415,7 +425,7 @@ export function RestorationCalculator() {
                         hint={
                           quote.delivery.fromTariff
                             ? quote.delivery.matchedLocation || undefined
-                            : "ручной / fallback"
+                            : "ручной ввод"
                         }
                       />
                       <Line
@@ -430,23 +440,23 @@ export function RestorationCalculator() {
                   ) : (
                     <Line label="Title / Sale Doc" value="без доплат" />
                   )}
-                  {quote.isSublot ? <Line label="Sublot / Offsite" value={usd(quote.sublotUsd)} /> : null}
-                  <Line label="Диспетчинг" value={usd(quote.dispatchingUsd)} />
-                  <Line
-                    label={`Комиссия ${(quote.transferFeeRate * 100).toFixed(1)}%`}
-                    value={usd(quote.transferFee, 2)}
-                  />
-                  <Line label="Итого США" value={usd(Math.round(quote.usaWithFees))} total />
+                  {quote.delivery ? (
+                    <>
+                      {quote.isSublot ? (
+                        <Line label="Sublot / Offsite" value={usd(quote.sublotUsd)} />
+                      ) : null}
+                      <Line label="Диспетчинг" value={usd(quote.dispatchingUsd)} />
+                      <Line
+                        label={`Комиссия ${(quote.transferFeeRate * 100).toFixed(1)}%`}
+                        value={usd(quote.transferFee, 2)}
+                      />
+                      <Line label="Итого США" value={usd(Math.round(quote.usaWithFees))} total />
+                    </>
+                  ) : null}
                 </dl>
                 {quote.titleFeeInfo?.unmatched ? (
                   <p className="mt-3 text-xs text-amber-700">
                     Title не сопоставлен с прайсом — доплата 0. Выберите тип из списка.
-                  </p>
-                ) : null}
-                {quote.delivery && !quote.delivery.fromTariff ? (
-                  <p className="mt-3 text-xs text-amber-700">
-                    Площадка не найдена в прайсе — inland/ocean по fallback. Уточните город или
-                    задайте вручную.
                   </p>
                 ) : null}
               </>
@@ -457,7 +467,7 @@ export function RestorationCalculator() {
 
           <div className="card-premium rounded-xl p-5 sm:p-6">
             <CustomsByPanel
-              priceUsd={quote?.grandUsd ?? null}
+              priceUsd={pricedQuote?.grandUsd ?? null}
               year={year}
               onResult={onCustoms}
             />

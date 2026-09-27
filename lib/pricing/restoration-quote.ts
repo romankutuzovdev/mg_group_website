@@ -10,12 +10,6 @@ export const USA_TRANSFER_FEE_RATE = 0.035;
 export const USA_DISPATCHING_USD = 250;
 export const SUBLOT_FEE_USD = 100;
 
-export const RESTORATION_OCEAN_USD: Record<VehicleSize, number> = {
-  regular: 1095,
-  oversize: 1595,
-  moto: 650,
-};
-
 export const RESTORATION_SIZE_LABELS: Record<VehicleSize, string> = {
   regular: "Regular / Large",
   oversize: "Oversize",
@@ -30,7 +24,7 @@ export type RestorationQuoteInput = {
   auctionPlatform?: "iaai" | "copart" | string | null;
   vehicleSize?: VehicleSize | string | null;
   oceanDestination?: "klaipeda" | "poti" | string | null;
-  /** Ручной inland / ocean (если площадка не найдена в прайсе) */
+  /** Ручной inland / ocean, если площадки нет в прайсе. Нужны оба значения. */
   inlandUsd?: number | null;
   oceanUsd?: number | null;
   titleCode?: string | null;
@@ -107,40 +101,40 @@ export function quoteRestoration(input: RestorationQuoteInput): RestorationQuote
       dest,
     );
 
-    let inland: number;
-    let ocean: number;
+    const manualInland =
+      input.inlandUsd != null && input.inlandUsd >= 0 ? round2(input.inlandUsd) : null;
+    const manualOcean =
+      input.oceanUsd != null && input.oceanUsd >= 0 ? round2(input.oceanUsd) : null;
+
+    let inland: number | null = null;
+    let ocean: number | null = null;
     let fromTariff = false;
 
     if (tariff) {
       inland = round2(tariff.inlandUsd);
-      ocean =
-        input.oceanUsd != null && input.oceanUsd >= 0
-          ? round2(input.oceanUsd)
-          : round2(tariff.oceanUsd);
+      ocean = manualOcean != null ? manualOcean : round2(tariff.oceanUsd);
       fromTariff = true;
-    } else {
-      inland =
-        input.inlandUsd != null && input.inlandUsd >= 0
-          ? round2(input.inlandUsd)
-          : 450;
-      ocean =
-        input.oceanUsd != null && input.oceanUsd >= 0
-          ? round2(input.oceanUsd)
-          : round2(RESTORATION_OCEAN_USD[size]);
+    } else if (manualInland != null && manualOcean != null) {
+      inland = manualInland;
+      ocean = manualOcean;
     }
 
-    americaSubtotal = round2(fees.iaaiTotal + inland + ocean + titleDocUsd + sublotUsd);
-    delivery = {
-      location: input.location ?? null,
-      matchedLocation: tariff?.matchedLocation ?? null,
-      matchedAuction: tariff?.matchedAuction ?? null,
-      usPort: tariff?.usPort ?? null,
-      usPortLabel: tariff?.usPortLabel ?? null,
-      inlandUsd: inland,
-      oceanUsd: ocean,
-      oceanDestination: dest,
-      fromTariff,
-    };
+    if (inland != null && ocean != null) {
+      americaSubtotal = round2(fees.iaaiTotal + inland + ocean + titleDocUsd + sublotUsd);
+      delivery = {
+        location: input.location ?? null,
+        matchedLocation: tariff?.matchedLocation ?? null,
+        matchedAuction: tariff?.matchedAuction ?? null,
+        usPort: tariff?.usPort ?? null,
+        usPortLabel: tariff?.usPortLabel ?? null,
+        inlandUsd: inland,
+        oceanUsd: ocean,
+        oceanDestination: dest,
+        fromTariff,
+      };
+    } else {
+      americaSubtotal = round2(fees.iaaiTotal + titleDocUsd + sublotUsd);
+    }
   } else {
     americaSubtotal = round2(fees.iaaiTotal + titleDocUsd + sublotUsd);
   }

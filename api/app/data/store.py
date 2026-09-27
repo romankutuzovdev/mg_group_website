@@ -101,6 +101,36 @@ class LotStore:
         with self._lock:
             return self._by_slug.get(slug)
 
+    def find_by_lot_number(
+        self,
+        lot_number: str,
+        *,
+        sources: set[str] | None = None,
+    ) -> AuctionLot | None:
+        """Lookup in production catalog by auction lot # (optional source filter)."""
+        ln = (lot_number or "").strip()
+        if not ln:
+            return None
+        with self._lock:
+            matches = [
+                lot
+                for lot in self._by_id.values()
+                if (lot.lotNumber or "").strip() == ln
+                and (sources is None or lot.source in sources)
+            ]
+        if not matches:
+            return None
+        # Prefer lot with bid + photo
+        matches.sort(
+            key=lambda l: (
+                1 if l.currentBid and l.currentBid > 0 else 0,
+                1 if l.imageUrl else 0,
+                l.year or 0,
+            ),
+            reverse=True,
+        )
+        return matches[0]
+
     def _find_alias_locked(self, lot: AuctionLot) -> AuctionLot | None:
         """Same auction lot under an old id (usa-123 vs usa-copart-123)."""
         existing = self._by_id.get(lot.id)

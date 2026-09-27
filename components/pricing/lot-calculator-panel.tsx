@@ -62,7 +62,7 @@ function RestorationQuoteLines({ quote }: { quote: RestorationQuote }) {
             hint={
               quote.delivery.fromTariff
                 ? quote.delivery.matchedLocation || undefined
-                : "ручной / fallback"
+                : "ручной ввод"
             }
           />
           <Line
@@ -203,20 +203,24 @@ function UsaRestorationPanel({ lot }: { lot: AuctionLot }) {
           {lot.location}
           {quote?.delivery?.fromTariff
             ? ` · прайс: inland $${Math.round(quote.delivery.inlandUsd)}`
-            : " · прайс не найден — fallback"}
+            : " · прайс не найден"}
         </p>
 
-        {quote ? (
+        {quote?.delivery ? (
           <p className="rounded-lg bg-accent/10 px-3 py-2 text-sm">
             Расчёт для ${bid.toLocaleString("ru-RU")} →{" "}
             <span className="font-display font-bold text-accent-dark">
               ${Math.round(quote.grandUsd).toLocaleString("en-US")}
             </span>
           </p>
-        ) : null}
+        ) : (
+          <p className="text-xs text-amber-700">
+            Площадка не найдена в прайсе. Доставка в расчёт не входит.
+          </p>
+        )}
       </div>
 
-      {quote ? (
+      {quote?.delivery ? (
         <div className="mt-6 border-t border-border pt-4">
           <RestorationQuoteLines quote={quote} />
         </div>
