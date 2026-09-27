@@ -157,8 +157,8 @@ export function CalculatorForm({
         const yard = resolveRegion(lot.location);
         if (yard && yard !== "DEFAULT") {
           setLocation(yard);
-        } else if (lot.location) {
-          setLotError(null);
+        } else {
+          setLocation("DEFAULT");
         }
         setCategory(matchCategory(lot));
       } else {
@@ -176,10 +176,12 @@ export function CalculatorForm({
           ok: Boolean(lot.inlandOk),
         });
       }
+      const yardResolved =
+        market === "uk" && lot.location ? resolveRegion(lot.location) : "";
       const yardLabel =
         market === "uk" && lot.location
-          ? resolveRegion(lot.location) !== "DEFAULT"
-            ? resolveRegion(lot.location)
+          ? yardResolved !== "DEFAULT"
+            ? yardResolved
             : String(lot.location)
           : lot.location;
       const label = [lot.year, lot.make, lot.model, lot.lotNumber && `#${lot.lotNumber}`]
@@ -192,8 +194,14 @@ export function CalculatorForm({
         market === "usa" && lot.inlandMiles != null
           ? ` · ${Math.round(Number(lot.inlandMiles))} mi`
           : "";
+      const yardMiss =
+        market === "uk" && lot.location && yardResolved === "DEFAULT"
+          ? " · площадка не в прайсе — выберите вручную"
+          : market === "uk" && !lot.location
+            ? " · площадка не найдена — выберите вручную"
+            : "";
       setLotMeta(
-        `${label || "Лот загружен"}${place}${catLabel}${milesLabel} · ${market === "uk" ? "Англия" : "США"}`,
+        `${label || "Лот загружен"}${place}${catLabel}${milesLabel}${yardMiss} · ${market === "uk" ? "Англия" : "США"}`,
       );
       setTouched(true);
     } catch (err) {

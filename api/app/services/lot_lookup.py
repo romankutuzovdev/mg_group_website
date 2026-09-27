@@ -10,14 +10,15 @@ import logging
 import re
 from typing import Any
 
-from playwright.async_api import async_playwright
+from playwright.async_api import Page
 
-from app.config import get_settings
 from app.data.store import lot_store
 from app.models.lots import AuctionLot
-from app.scraper.browser import close_agent_tab, get_shared_context, launch_chromium
+from app.services.calc_chrome import get_calc_chrome_pool
 
 logger = logging.getLogger("mg.pricing.lot_lookup")
+
+_CHROME_GOTO_MS = 12_000
 
 COPART_LOT_RE = re.compile(
     r"copart\.(?:com|co\.uk)/lot/(?:details/)?(\d+)",
@@ -44,6 +45,7 @@ async (lotId) => {
       || String(text).match(/\\b([AB])\\s*[-–]?\\s*(?:category|cat)\\b/i);
     return m ? m[1].toUpperCase() : null;
   };
+  const textOf = (el) => (el && (el.textContent || el.innerText) || '').replace(/\\s+/g, ' ').trim();
   try {
     const origin = (location && location.origin) || 'https://www.copart.com';
     const r = await fetch(origin + '/public/data/lotdetails/solr/' + lotId, {
@@ -58,10 +60,12 @@ async (lotId) => {
     out.make = d.mkn || d.make || d.mn || null;
     out.model = d.lm || d.model || d.md || null;
     out.title = d.td || d.titleDesc || d.title || d.tsn || d.tgd || d.ft || null;
-    out.location = d.yn || d.yardName || d.yard_name || d.loc || d.facilityName
-      || d.facility_name || d.saleLocation || d.salelocation || d.location || null;
+    out.location = d.yn || d.yardName || d.yard_name || d.aname || d.loc
+      || d.facilityName || d.facility_name || d.saleLocation || d.salelocation
+      || d.physicalYardName || d.yard || d.location || null;
     if (out.location && typeof out.location === 'object') {
-      out.location = out.location.name || out.location.yardName || out.location.value || null;
+      out.location = out.location.name || out.location.yardName || out.location.value
+        || out.location.yn || null;
     }
     out.odometer = Number(d.orr || d.odometer || d.oDoMeter) || null;
     out.bodyStyle = d.vehTypDesc || d.bodyStyle || d.bt || d.vehicleTypeDesc || null;
@@ -74,9 +78,14 @@ async (lotId) => {
     out.error = String(e && e.message || e);
   }
   try {
+    // Bot-compatible DOM: Copart UK puts the yard on #locationInfoButton
+    const btn = document.querySelector('#locationInfoButton, [id*="locationInfo"], a[href*="yard"], [data-uname="lotdetailSaleLocation"]');
+    const fromBtn = textOf(btn);
+    if (fromBtn && fromBtn.length >= 3 && fromBtn.length < 80) out.location = fromBtn;
     const text = (document.body && document.body.innerText) || '';
     if (!out.location) {
-      const m = text.match(/(?:Sale\\s*location|Location|Yard|Площадка|Местоположение)\\s*:?\\s*([^\\n]{3,60})/i);
+      const m = text.match(/(?:Sale\\s*location|Location|Yard|Площадка|Местоположение)\\s*:?\\s*([^\\n]{3,60})/i)
+        || text.match(/Location\\s*:?\\s*([A-Z][A-Z0-9 \\-/]{2,40})/i);
       if (m) out.location = m[1].trim();
     }
     if (!out.category) out.category = pickCat(text);
@@ -148,12 +157,30 @@ def clean_auction_location(raw: str | None) -> str | None:
     text = re.sub(r"\s+", " ", str(raw)).strip()
     text = re.split(
         r"\s+(?:Отправка из|Shipping from|Продавец|Seller|Одометр|Odometer|"
-        r"Документ|Title|Пробег|VIN)\b",
+        r"Документ|Title|Пробег|VIN|Current Bid|Текущая ставка)\b",
         text,
         maxsplit=1,
     )[0].strip(" :-")
-    text = re.sub(r"^(?:IAAI|Copart)\s*[-:]\s*", "", text, flags=re.I).strip()
+    text = re.sub(r"^(?:IAAI|Copart(?:\s+UK)?)\s*[-:]\s*", "", text, flags=re.I).strip()
+    if re.fullmatch(r"(?:UK|USA|United Kingdom|Great Britain)", text or "", re.I):
+        return None
     return text[:80] or None
+
+
+def _is_uk_payload(payload: dict[str, Any]) -> bool:
+    region = str(payload.get("region") or "").lower()
+    source = str(payload.get("source") or "").lower()
+    url = str(payload.get("url") or "").lower()
+    return region == "uk" or source == "copart_uk" or "copart.co.uk" in url
+
+
+def uk_location_needs_refresh(payload: dict[str, Any] | None) -> bool:
+    """Catalog often stores location='UK' — need Chrome for real yard name."""
+    if not payload or not _is_uk_payload(payload):
+        return False
+    from app.services.pricing import resolve_region
+
+    return resolve_region(payload.get("location")) == "DEFAULT"
 
 
 def title_from_bidcars_url(url: str) -> tuple[int | None, str | None, str | None]:
@@ -324,199 +351,250 @@ def lookup_in_production_catalog(url: str) -> dict[str, Any] | None:
     return lot_to_calculator_payload(lot, url=canonical, via="catalog")
 
 
-async def fetch_lot_from_url(url: str) -> dict[str, Any]:
-    """Resolve lot for calculator: production catalog first, Chrome CDP fallback."""
-    from_store = lookup_in_production_catalog(url)
-    if from_store and (from_store.get("bid") or from_store.get("make")):
-        return from_store
-
-    settings = get_settings()
+async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
+    """Scrape calculator fields on an already-open page (pool owns open/close)."""
     canonical = normalize_lot_url(url)
     platform = detect_platform(canonical)
     lot_number = extract_lot_number(canonical, platform)
-    cdp = (settings.scraper_cdp_url or "").strip() or "http://127.0.0.1:9223"
 
-    try:
-        async with async_playwright() as pw:
-            browser = await launch_chromium(
-                pw,
-                headless=settings.scraper_headless,
-                cdp_url=cdp,
-                cdp_autostart=settings.scraper_cdp_autostart,
-                cdp_fallback_launch=False,
-                cdp_headless=settings.scraper_cdp_headless,
+    await page.goto(
+        canonical,
+        wait_until="domcontentloaded",
+        timeout=_CHROME_GOTO_MS,
+    )
+    if platform == "bidcars":
+        try:
+            await page.wait_for_function(
+                """() => /Местоположение|Location|Текущая ставка|Current Bid/i.test(
+                  (document.body && document.body.innerText) || ''
+                )""",
+                timeout=8000,
             )
-            page = None
-            try:
-                ctx = await get_shared_context(browser)
-                page = await ctx.new_page()
-                await page.goto(
-                    canonical,
-                    wait_until="domcontentloaded",
-                    timeout=settings.scraper_timeout_ms,
-                )
-                if platform == "bidcars":
-                    try:
-                        await page.wait_for_function(
-                            """() => /Местоположение|Location|Текущая ставка|Current Bid/i.test(
-                              (document.body && document.body.innerText) || ''
-                            )""",
-                            timeout=12000,
-                        )
-                    except Exception:
-                        await page.wait_for_timeout(2000)
-                else:
-                    await page.wait_for_timeout(1800)
+        except Exception:
+            await page.wait_for_timeout(1500)
+    elif platform == "copart":
+        try:
+            await page.wait_for_function(
+                """() => Boolean(
+                  document.querySelector('#locationInfoButton') ||
+                  /Sale\\s*location|Location\\s*:/i.test(
+                    (document.body && document.body.innerText) || ''
+                  )
+                )""",
+                timeout=8000,
+            )
+        except Exception:
+            await page.wait_for_timeout(1500)
+    else:
+        await page.wait_for_timeout(1200)
 
-                data: dict[str, Any] = {
-                    "url": canonical,
-                    "platform": platform,
-                    "lotNumber": lot_number,
-                }
+    data: dict[str, Any] = {
+        "url": canonical,
+        "platform": platform,
+        "lotNumber": lot_number,
+    }
 
-                if platform == "iaai":
-                    from app.scraper.iaai import parse_iaai_text_fields
+    if platform == "iaai":
+        from app.scraper.iaai import parse_iaai_text_fields
 
-                    body = await page.inner_text("body")
-                    fields = parse_iaai_text_fields(body or "")
-                    if fields.get("location"):
-                        data["location"] = fields["location"]
-                    if fields.get("bid") is not None:
-                        data["bid"] = fields["bid"]
-                    if fields.get("year"):
-                        data["year"] = fields["year"]
-                    if fields.get("make"):
-                        data["make"] = fields["make"]
-                    if fields.get("model"):
-                        data["model"] = fields["model"]
-                    if fields.get("odometer"):
-                        data["odometer"] = fields["odometer"]
+        body = await page.inner_text("body")
+        fields = parse_iaai_text_fields(body or "")
+        if fields.get("location"):
+            data["location"] = fields["location"]
+        if fields.get("bid") is not None:
+            data["bid"] = fields["bid"]
+        if fields.get("year"):
+            data["year"] = fields["year"]
+        if fields.get("make"):
+            data["make"] = fields["make"]
+        if fields.get("model"):
+            data["model"] = fields["model"]
+        if fields.get("odometer"):
+            data["odometer"] = fields["odometer"]
 
-                if platform == "copart" and lot_number:
-                    api = await page.evaluate(COPART_JS, lot_number)
-                    if isinstance(api, dict):
-                        data.update({k: v for k, v in api.items() if v is not None})
-                        if api.get("error") and not api.get("bid"):
-                            raise RuntimeError(
-                                f"Copart не отдал данные ({api.get('error')}). "
-                                "Залогиньтесь в Chrome-профиле скрапера."
-                            )
-                elif platform == "bidcars":
-                    dom = await page.evaluate(BIDCars_JS)
-                    if isinstance(dom, dict):
-                        data["bid"] = dom.get("bid")
-                        data["year"] = dom.get("year")
-                        data["location"] = clean_auction_location(dom.get("location"))
-                        data["title"] = dom.get("titleDoc") or dom.get("title")
-                        data["odometer"] = dom.get("odometer")
-                        data["images"] = dom.get("images") or []
-                        year_u, make_u, model_u = title_from_bidcars_url(canonical)
-                        doc_title = str(dom.get("docTitle") or "")
-                        if year_u:
-                            data["year"] = year_u
-                            data["make"] = make_u
-                            data["model"] = model_u
-                        elif re.match(r"^(?:19|20)\d{2}\b", doc_title):
-                            parts = doc_title.split()
-                            if len(parts) >= 3 and parts[0].isdigit():
-                                data["year"] = int(parts[0])
-                                data["make"] = parts[1]
-                                data["model"] = " ".join(parts[2:5]).strip("|,")
-                        if dom.get("title") and not data.get("make"):
-                            parts = str(dom["title"]).split()
-                            if len(parts) >= 3 and parts[0].isdigit():
-                                data["year"] = data.get("year") or int(parts[0])
-                                data["make"] = parts[1]
-                                data["model"] = " ".join(parts[2:5])
-                        if dom.get("auction_platform") == "copart_uk":
-                            data["auction_platform"] = "copart"
-                            data["platform"] = "copart"
-                            data["region"] = "uk"
-                        elif dom.get("auction_platform") in ("copart", "iaai"):
-                            data["auction_platform"] = dom["auction_platform"]
-                            data["platform"] = dom["auction_platform"]
-                        if dom.get("bodyStyle"):
-                            data["bodyStyle"] = dom["bodyStyle"]
-                        if dom.get("category"):
-                            data["category"] = dom["category"]
-                elif platform != "iaai":
-                    title = await page.title()
-                    text = await page.inner_text("body")
-                    data["title"] = title
-                    m_bid = re.search(
-                        r"(?:Current Bid|High Bid|Ставка)[^\d$]*\$?\s*([0-9][0-9,]*)",
-                        text,
-                        re.I,
-                    )
-                    if m_bid:
-                        data["bid"] = float(m_bid.group(1).replace(",", ""))
-                    m_year = re.search(r"\b((?:19|20)\d{2})\b", title or text)
-                    if m_year:
-                        data["year"] = int(m_year.group(1))
+    if platform == "copart" and lot_number:
+        api = await page.evaluate(COPART_JS, lot_number)
+        if isinstance(api, dict):
+            data.update({k: v for k, v in api.items() if v is not None})
+            if api.get("error") and not api.get("bid") and not api.get("location"):
+                data["chrome_error"] = f"Copart API: {api.get('error')}"
+    elif platform == "bidcars":
+        dom = await page.evaluate(BIDCars_JS)
+        if isinstance(dom, dict):
+            data["bid"] = dom.get("bid")
+            data["year"] = dom.get("year")
+            data["location"] = clean_auction_location(dom.get("location"))
+            data["title"] = dom.get("titleDoc") or dom.get("title")
+            data["odometer"] = dom.get("odometer")
+            data["images"] = dom.get("images") or []
+            year_u, make_u, model_u = title_from_bidcars_url(canonical)
+            doc_title = str(dom.get("docTitle") or "")
+            if year_u:
+                data["year"] = year_u
+                data["make"] = make_u
+                data["model"] = model_u
+            elif re.match(r"^(?:19|20)\d{2}\b", doc_title):
+                parts = doc_title.split()
+                if len(parts) >= 3 and parts[0].isdigit():
+                    data["year"] = int(parts[0])
+                    data["make"] = parts[1]
+                    data["model"] = " ".join(parts[2:5]).strip("|,")
+            if dom.get("title") and not data.get("make"):
+                parts = str(dom["title"]).split()
+                if len(parts) >= 3 and parts[0].isdigit():
+                    data["year"] = data.get("year") or int(parts[0])
+                    data["make"] = parts[1]
+                    data["model"] = " ".join(parts[2:5])
+            if dom.get("auction_platform") == "copart_uk":
+                data["auction_platform"] = "copart"
+                data["platform"] = "copart"
+                data["region"] = "uk"
+            elif dom.get("auction_platform") in ("copart", "iaai"):
+                data["auction_platform"] = dom["auction_platform"]
+                data["platform"] = dom["auction_platform"]
+            if dom.get("bodyStyle"):
+                data["bodyStyle"] = dom["bodyStyle"]
+            if dom.get("category"):
+                data["category"] = dom["category"]
+    elif platform != "iaai":
+        title = await page.title()
+        text = await page.inner_text("body")
+        data["title"] = title
+        m_bid = re.search(
+            r"(?:Current Bid|High Bid|Ставка)[^\d$]*\$?\s*([0-9][0-9,]*)",
+            text,
+            re.I,
+        )
+        if m_bid:
+            data["bid"] = float(m_bid.group(1).replace(",", ""))
+        m_year = re.search(r"\b((?:19|20)\d{2})\b", title or text)
+        if m_year:
+            data["year"] = int(m_year.group(1))
 
-                auction = data.get("auction_platform") or (
-                    "copart" if data.get("platform") == "copart" else "iaai"
-                )
-                if auction not in ("copart", "iaai"):
-                    auction = "copart" if "copart" in canonical.lower() else "iaai"
-                is_uk = "copart.co.uk" in canonical.lower() or data.get("region") == "uk"
-                title_text = str(data.get("title") or "")
-                category = str(data.get("category") or "").strip().upper() or None
-                if category and len(category) > 1:
-                    cat_m = re.search(r"\b([ABNSCDXU])\b", category, re.I)
-                    category = cat_m.group(1).upper() if cat_m else None
-                if not category:
-                    cat_m = re.search(
-                        r"\bCat(?:egory)?\s*[-:]?\s*([ABNSCDXU])\b",
-                        title_text,
-                        re.I,
-                    )
-                    category = cat_m.group(1).upper() if cat_m else None
-                source = "copart_uk" if is_uk else platform
+    auction = data.get("auction_platform") or (
+        "copart" if data.get("platform") == "copart" else "iaai"
+    )
+    if auction not in ("copart", "iaai"):
+        auction = "copart" if "copart" in canonical.lower() else "iaai"
+    is_uk = "copart.co.uk" in canonical.lower() or data.get("region") == "uk"
+    title_text = str(data.get("title") or "")
+    category = str(data.get("category") or "").strip().upper() or None
+    if category and len(category) > 1:
+        cat_m = re.search(r"\b([ABNSCDXU])\b", category, re.I)
+        category = cat_m.group(1).upper() if cat_m else None
+    if not category:
+        cat_m = re.search(
+            r"\bCat(?:egory)?\s*[-:]?\s*([ABNSCDXU])\b",
+            title_text,
+            re.I,
+        )
+        category = cat_m.group(1).upper() if cat_m else None
+    source = "copart_uk" if is_uk else platform
 
-                chrome_payload = {
-                    "ok": True,
-                    "url": canonical,
-                    "source": source,
-                    "region": "uk" if is_uk else "usa",
-                    "auction_platform": auction,
-                    "category": category,
-                    "lotNumber": data.get("lotNumber") or lot_number,
-                    "bid": data.get("bid"),
-                    "year": data.get("year"),
-                    "make": data.get("make"),
-                    "model": data.get("model"),
-                    "title": data.get("title"),
-                    "location": clean_auction_location(data.get("location")),
-                    "odometer": data.get("odometer"),
-                    "bodyStyle": data.get("bodyStyle"),
-                    "images": data.get("images") or [],
-                    "via": "chrome_cdp",
-                    "cdp": cdp,
-                }
-                if not chrome_payload.get("bid") and not chrome_payload.get("make"):
-                    if from_store:
-                        return from_store
-                    again = lookup_in_production_catalog(url)
-                    if again:
-                        return again
-                if not is_uk:
-                    chrome_payload = enrich_usa_inland(chrome_payload)
-                return chrome_payload
-            finally:
-                if page is not None:
-                    await close_agent_tab(page, force=True)
+    chrome_payload = {
+        "ok": True,
+        "url": canonical,
+        "source": source,
+        "region": "uk" if is_uk else "usa",
+        "auction_platform": auction,
+        "category": category,
+        "lotNumber": data.get("lotNumber") or lot_number,
+        "bid": data.get("bid"),
+        "year": data.get("year"),
+        "make": data.get("make"),
+        "model": data.get("model"),
+        "title": data.get("title"),
+        "location": clean_auction_location(data.get("location")),
+        "odometer": data.get("odometer"),
+        "bodyStyle": data.get("bodyStyle"),
+        "images": data.get("images") or [],
+        "via": "chrome_cdp",
+    }
+    if data.get("chrome_error"):
+        chrome_payload["chrome_error"] = data["chrome_error"]
+    if not is_uk:
+        chrome_payload = enrich_usa_inland(chrome_payload)
+    return chrome_payload
+
+
+async def _fetch_lot_via_chrome(url: str, *, optional: bool = False) -> dict[str, Any] | None:
+    """Run lot scrape under the shared calc Chrome pool (tabs always closed)."""
+    pool = get_calc_chrome_pool()
+
+    async def worker(page: Page) -> dict[str, Any]:
+        return await _scrape_lot_on_page(page, url)
+
+    return await pool.run(worker, optional=optional)
+
+
+def _merge_chrome_into_catalog(
+    catalog: dict[str, Any], chrome: dict[str, Any]
+) -> dict[str, Any]:
+    merged = dict(catalog)
+    if chrome.get("location"):
+        merged["location"] = chrome["location"]
+    if chrome.get("category") and not merged.get("category"):
+        merged["category"] = chrome["category"]
+    if chrome.get("bodyStyle") and not merged.get("bodyStyle"):
+        merged["bodyStyle"] = chrome["bodyStyle"]
+    if chrome.get("bid") and not merged.get("bid"):
+        merged["bid"] = chrome["bid"]
+    merged["via"] = "catalog+chrome"
+    return merged
+
+
+async def fetch_lot_from_url(url: str) -> dict[str, Any]:
+    """Resolve lot for calculator: catalog first; Chrome only as enrich/fallback.
+
+    Concurrent users: catalog answers without Chrome. Chrome enrich is capped
+    (default 3 tabs) and optional when catalog already has the lot — so a busy
+    Chrome never 502s the calculator.
+    """
+    from_store = lookup_in_production_catalog(url)
+    catalog_ok = bool(from_store and (from_store.get("bid") or from_store.get("make")))
+    need_yard = uk_location_needs_refresh(from_store)
+
+    # Fast path: catalog is enough
+    if catalog_ok and not need_yard:
+        return from_store  # type: ignore[return-value]
+
+    # Catalog has the car but yard is weak — try Chrome only if a slot is free
+    if catalog_ok and need_yard:
+        try:
+            chrome = await _fetch_lot_via_chrome(url, optional=True)
+        except Exception as exc:
+            logger.warning("chrome enrich (optional) failed: %s", exc)
+            chrome = None
+        if chrome:
+            return _merge_chrome_into_catalog(from_store, chrome)  # type: ignore[arg-type]
+        out = dict(from_store)  # type: ignore[arg-type]
+        out["via"] = "catalog_fallback"
+        out["chrome_error"] = "chrome_busy_or_failed"
+        return out
+
+    # No catalog row — must use Chrome (wait for a slot)
+    try:
+        chrome = await _fetch_lot_via_chrome(url, optional=False)
     except Exception as exc:
         logger.warning("chrome lot-from-url failed: %s", exc)
-        if from_store:
-            from_store = dict(from_store)
-            from_store["via"] = "catalog_fallback"
-            from_store["chrome_error"] = str(exc)
-            return from_store
         again = lookup_in_production_catalog(url)
-        if again:
+        if again and (again.get("bid") or again.get("make")):
             again = dict(again)
             again["via"] = "catalog_fallback"
             again["chrome_error"] = str(exc)
             return again
         raise
+
+    if not chrome:
+        again = lookup_in_production_catalog(url)
+        if again:
+            return again
+        raise RuntimeError("Chrome недоступен для загрузки лота")
+
+    if chrome.get("bid") or chrome.get("make") or chrome.get("location"):
+        return chrome
+
+    again = lookup_in_production_catalog(url)
+    if again:
+        return again
+    return chrome

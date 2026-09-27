@@ -176,15 +176,30 @@ def is_category_b(category: str | None, title: str = "") -> bool:
 
 
 def resolve_region(raw: str | None) -> str:
-    name = (raw or "").strip().upper()
+    name = re.sub(r"\s+", " ", str(raw or "")).strip().upper()
     if not name:
+        return "DEFAULT"
+    name = re.sub(
+        r"^(?:COPART(?:\s+UK)?|SALE\s*LOCATION|YARD|LOCATION|FACILITY|ПЛОЩАДКА|МЕСТОПОЛОЖЕНИЕ)\s*[-:]?\s*",
+        "",
+        name,
+        flags=re.I,
+    )
+    name = re.sub(r"\b(?:DNW|DNS|DN[A-Z]{0,2}|YARD|AUCTION|SCOTLAND|ENGLAND|WALES)\b", " ", name)
+    name = re.sub(r"\s*\([^)]*\)\s*", " ", name)
+    name = re.sub(r"[|/·]+", " ", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    if not name or re.fullmatch(r"(?:UK|USA|UNITED\s+KINGDOM|GREAT\s+BRITAIN)", name, re.I):
         return "DEFAULT"
     if name in DELIVERY_RATES:
         return name
-    for key in DELIVERY_RATES:
-        if key == "DEFAULT":
-            continue
-        if key in name or name in key:
+    keys = [key for key in DELIVERY_RATES if key != "DEFAULT"]
+    for key in keys:
+        pattern = re.sub(r"\s+", r"\\s+", re.escape(key))
+        if re.search(rf"\b{pattern}\b", name):
+            return key
+    for key in keys:
+        if len(name) >= 4 and name in key:
             return key
     return "DEFAULT"
 

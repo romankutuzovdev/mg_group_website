@@ -107,27 +107,30 @@ export function resolveRegion(raw: string | null | undefined): string {
 
   // Copart UK labels: "Copart UK - Whitburn", "Sale location: Rochford", "DNW Whitburn"
   name = name
-    .replace(/^(?:COPART(?:\s+UK)?|SALE\s*LOCATION|YARD|LOCATION|FACILITY|ПЛОЩАДКА)\s*[-:]?\s*/i, "")
+    .replace(
+      /^(?:COPART(?:\s+UK)?|SALE\s*LOCATION|YARD|LOCATION|FACILITY|ПЛОЩАДКА|МЕСТОПОЛОЖЕНИЕ)\s*[-:]?\s*/i,
+      "",
+    )
+    .replace(/\b(?:DNW|DNS|DN[A-Z]{0,2}|YARD|AUCTION|SCOTLAND|ENGLAND|WALES)\b/g, " ")
     .replace(/\s*\([^)]*\)\s*/g, " ")
+    .replace(/[|/·]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
-  if (!name) return "DEFAULT";
+  // Bare country / region placeholders from catalog
+  if (!name || /^(?:UK|USA|UNITED\s+KINGDOM|GREAT\s+BRITAIN)$/i.test(name)) {
+    return "DEFAULT";
+  }
   if (name in DELIVERY_RATES) return name;
 
   const keys = Object.keys(DELIVERY_RATES).filter((key) => key !== "DEFAULT");
+  // Prefer whole-word / full multi-word match (avoid MANCHESTER → CHESTER)
   for (const key of keys) {
-    if (name.includes(key) || key.includes(name)) return key;
+    const pattern = key.replace(/\s+/g, "\\s+");
+    if (new RegExp(`\\b${pattern}\\b`).test(name)) return key;
   }
-  // "East Kilbride Yard" / "Whitburn Scotland" — match by first significant token(s)
   for (const key of keys) {
-    const keyParts = key.split(" ");
-    if (keyParts.length >= 2 && name.includes(keyParts[0]) && name.includes(keyParts[1])) {
-      return key;
-    }
-    if (keyParts.length === 1 && new RegExp(`\\b${keyParts[0]}\\b`).test(name)) {
-      return key;
-    }
+    if (name.length >= 4 && key.includes(name)) return key;
   }
   return "DEFAULT";
 }

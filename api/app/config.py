@@ -71,6 +71,11 @@ class Settings(BaseSettings):
     scraper_photo_delay_seconds: float = 2.5  # pause between lot pages
     scraper_photo_idle_seconds: int = 300  # when queue empty, wait then re-check
 
+    # Calculator lot-from-url — shared Chrome tabs (separate from scraper agents)
+    # Max concurrent Copart/IAAI pages opened for /pricing/lot-from-url
+    calc_chrome_max_concurrent: int = 3
+    calc_chrome_timeout_sec: float = 14.0
+
     # Cabinet (Telegram Login Widget + JWT)
     telegram_bot_token: str = ""
     telegram_bot_username: str = ""
