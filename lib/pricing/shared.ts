@@ -129,9 +129,6 @@ export function resolveRegion(raw: string | null | undefined): string {
     const pattern = key.replace(/\s+/g, "\\s+");
     if (new RegExp(`\\b${pattern}\\b`).test(name)) return key;
   }
-  for (const key of keys) {
-    if (name.length >= 4 && key.includes(name)) return key;
-  }
   return "DEFAULT";
 }
 

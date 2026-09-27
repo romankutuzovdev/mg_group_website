@@ -56,7 +56,11 @@ async (lotId) => {
     if (!r.ok) return { ...out, error: 'http_' + r.status };
     const j = await r.json();
     const d = (j && j.data && (j.data.lotDetails || j.data)) || j || {};
-    out.bid = Number(d.highBid || d.hb || d.currentBid || d.buyTodayBid || 0) || null;
+    const dyn = (j && j.data && j.data.dynamicLotDetails) || {};
+    out.bid = Number(
+      (dyn && (dyn.currentBid || dyn.highBid || dyn.buyTodayBid))
+      || d.highBid || d.hb || d.currentBid || d.buyTodayBid || 0
+    ) || null;
     out.year = Number(d.lcy || d.year || d.yr) || null;
     out.make = d.mkn || d.make || d.mn || null;
     out.model = d.lm || d.model || d.md || null;
@@ -166,6 +170,59 @@ def clean_auction_location(raw: str | None) -> str | None:
     if re.fullmatch(r"(?:UK|USA|United Kingdom|Great Britain)", text or "", re.I):
         return None
     return text[:80] or None
+
+
+def yard_from_copart_uk_url(url: str) -> str | None:
+    """Copart UK slug ends with yard: ...-step-auto-corby → CORBY."""
+    if "copart.co.uk" not in (url or "").lower():
+        return None
+    m = re.search(r"/lot/\d+/([^/?#]+)", url or "", re.I)
+    if not m:
+        return None
+    from app.services.pricing import DELIVERY_RATES, resolve_region
+
+    yards = sorted(
+        (k for k in DELIVERY_RATES if k != "DEFAULT"),
+        key=len,
+        reverse=True,
+    )
+    parts = [p for p in m.group(1).lower().split("-") if p]
+    for n in (3, 2, 1):
+        if len(parts) < n:
+            continue
+        candidate = " ".join(parts[-n:]).upper()
+        if candidate in DELIVERY_RATES and candidate != "DEFAULT":
+            return candidate
+    slug = " ".join(parts).upper()
+    for yard in yards:
+        pattern = re.sub(r"\s+", r"[\\s-]+", re.escape(yard))
+        if re.search(rf"(?:^|[\s-]){pattern}(?:$|[\s-])", slug.replace(" ", "-"), re.I):
+            return yard
+        if re.search(rf"\b{re.escape(yard)}\b", slug):
+            return yard
+    # Last token might still map via resolve_region soft rules
+    if parts:
+        resolved = resolve_region(parts[-1])
+        if resolved != "DEFAULT":
+            return resolved
+    return None
+
+
+def apply_uk_url_yard(payload: dict[str, Any], url: str) -> dict[str, Any]:
+    """Prefer yard encoded in the Copart UK URL when catalog/Solr disagree."""
+    from app.services.pricing import resolve_region
+
+    slug_yard = yard_from_copart_uk_url(url)
+    if not slug_yard:
+        return payload
+    out = dict(payload)
+    current = resolve_region(out.get("location"))
+    if current != slug_yard:
+        out["location"] = slug_yard
+        via = str(out.get("via") or "")
+        if "url_yard" not in via:
+            out["via"] = f"{via}+url_yard" if via else "url_yard"
+    return out
 
 
 def _is_uk_payload(payload: dict[str, Any]) -> bool:
@@ -387,19 +444,30 @@ def lookup_in_production_catalog(url: str) -> dict[str, Any] | None:
     lot_number = extract_lot_number(canonical, platform)
     if not lot_number:
         return None
-    sources = _platform_sources(platform) or None
+    is_uk = "copart.co.uk" in canonical.lower()
+    if is_uk:
+        sources: set[str] | None = {"copart_uk"}
+    else:
+        sources = _platform_sources(platform) or None
+        if sources and "copart" in sources:
+            # USA Copart URL — do not pick UK twin by the same lot #
+            sources = {s for s in sources if s != "copart_uk"} or sources
     lot = lot_store.find_by_lot_number(lot_number, sources=sources)
     if lot is None and sources:
         lot = lot_store.find_by_lot_number(lot_number, sources=None)
     if lot is None:
         return None
     logger.info(
-        "lot-from-url from production catalog id=%s ln=%s bid=%s",
+        "lot-from-url from production catalog id=%s ln=%s bid=%s loc=%s",
         lot.id,
         lot.lotNumber,
         lot.currentBid,
+        lot.location,
     )
-    return lot_to_calculator_payload(lot, url=canonical, via="catalog")
+    payload = lot_to_calculator_payload(lot, url=canonical, via="catalog")
+    if is_uk:
+        payload = apply_uk_url_yard(payload, canonical)
+    return payload
 
 
 async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
@@ -599,7 +667,14 @@ def _merge_fields(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]
             if cleaned:
                 merged["location"] = cleaned
             continue
-        if key == "bid" and merged.get("bid"):
+        # Live Solr bid always wins over stale catalog
+        if key == "bid":
+            try:
+                live = float(val)
+            except (TypeError, ValueError):
+                continue
+            if live > 0:
+                merged["bid"] = live
             continue
         merged[key] = val
     return merged
@@ -608,13 +683,7 @@ def _merge_fields(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]
 async def _enrich_uk_via_agent_tab(
     url: str, catalog: dict[str, Any]
 ) -> dict[str, Any] | None:
-    """Fill yard / body / category using the permanent copart_uk scraper tab."""
-    need_loc = uk_location_needs_refresh(catalog)
-    need_body = not (catalog.get("bodyStyle") or "").strip()
-    need_cat = not (catalog.get("category") or "").strip()
-    if not (need_loc or need_body or need_cat):
-        return None
-
+    """Refresh bid / yard / body / category from the permanent copart_uk tab."""
     lot_number = str(catalog.get("lotNumber") or extract_lot_number(url, "copart") or "").strip()
     if not lot_number:
         return None
@@ -631,12 +700,11 @@ async def _enrich_uk_via_agent_tab(
         timeout_sec=6.0,
     )
     if not isinstance(raw, dict):
-        # Fallback: USA Copart tab can still hit .co.uk if user is on UK VPN — try UK origin via goto skip
         raw = await scraper_worker.evaluate_on_agent_tab(
             "copart",
             COPART_JS,
             lot_number,
-            timeout_sec=6.0,
+            timeout_sec=5.0,
         )
     if not isinstance(raw, dict):
         return None
@@ -657,17 +725,8 @@ async def _enrich_uk_via_agent_tab(
         extra["category"] = cat_m.group(1).upper() if cat_m else None
 
     merged = _merge_fields(catalog, extra)
-    # Force-update weak UK placeholder location / empty body
-    if need_loc and extra.get("location"):
-        cleaned = clean_auction_location(str(extra["location"]))
-        if cleaned:
-            merged["location"] = cleaned
-    if need_body and extra.get("bodyStyle"):
-        merged["bodyStyle"] = extra["bodyStyle"]
-    if need_cat and extra.get("category"):
-        merged["category"] = extra["category"]
     merged["via"] = "catalog+agent_tab"
-    return merged
+    return apply_uk_url_yard(merged, url)
 
 
 def _merge_chrome_into_catalog(
@@ -766,6 +825,7 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
     """Catalog first; Copart via scraper tab; Chrome only if needed. Never 502.
 
     Hard total budget ~12s so Vercel rewrites do not time out.
+    UK lots always try a live Solr refresh — catalog yards/bids go stale fast.
     """
     import time
 
@@ -786,19 +846,18 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
     )
 
     if catalog_ok and from_store:
-        # Quick enrich for weak UK yard/body — skip if tab busy
-        if _is_uk_payload(from_store) and (
-            uk_location_needs_refresh(from_store) or not (from_store.get("bodyStyle") or "").strip()
-        ):
+        if _is_uk_payload(from_store):
+            # Always refresh UK bid/yard from live Solr when possible
             try:
                 enriched = await asyncio.wait_for(
                     _enrich_uk_via_agent_tab(url, from_store),
-                    timeout=min(5.0, _remaining()),
+                    timeout=min(6.0, _remaining()),
                 )
                 if enriched:
                     return enriched
             except Exception as exc:
                 logger.warning("uk enrich skipped: %s", exc)
+            return apply_uk_url_yard(from_store, url)
         return from_store
 
     # Lot not in catalog — resolve from the link
@@ -818,7 +877,7 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
             if hit and (
                 hit.get("bid") or hit.get("make") or hit.get("location") or hit.get("bodyStyle")
             ):
-                return hit
+                return apply_uk_url_yard(hit, canonical) if _is_uk_payload(hit) else hit
         except Exception as exc:
             logger.warning("copart agent-tab lookup failed: %s", exc)
 
@@ -830,9 +889,12 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
                 timeout=min(9.0, _remaining()),
             )
             if chrome and (chrome.get("bid") or chrome.get("make") or chrome.get("location")):
+                if _is_uk_payload(chrome):
+                    return apply_uk_url_yard(chrome, canonical)
                 return chrome
         except Exception as exc:
             logger.warning("chrome lot-from-url failed: %s", exc)
             return soft_lot_payload(url, str(exc))
 
-    return soft_lot_payload(url, "lot_not_found")
+    soft = soft_lot_payload(url, "lot_not_found")
+    return apply_uk_url_yard(soft, url) if _is_uk_payload(soft) else soft

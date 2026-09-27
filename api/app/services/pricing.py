@@ -198,9 +198,6 @@ def resolve_region(raw: str | None) -> str:
         pattern = re.sub(r"\s+", r"\\s+", re.escape(key))
         if re.search(rf"\b{pattern}\b", name):
             return key
-    for key in keys:
-        if len(name) >= 4 and name in key:
-            return key
     return "DEFAULT"
 
 
