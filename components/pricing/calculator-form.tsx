@@ -78,7 +78,10 @@ function matchBodyFromLot(lot: LotFromUrlResponse): {
 function matchCategory(lot: LotFromUrlResponse): string {
   const url = String(lot.url || "");
   const title = String(lot.title || "");
-  const cleanTitle = /clean[-_\s]?title|clear[-_\s]?title/i.test(`${url} ${title}`);
+  const blob = `${url} ${title}`;
+  const hasRealCat = /\bCAT(?:EGORY)?\s*[ABNSCDXU]\b/i.test(blob);
+  const cleanTitle =
+    /clean[-_\s]?title|clear[-_\s]?title/i.test(blob) && !hasRealCat;
 
   const explicit = (lot.category || "").trim().toUpperCase();
   if (/^[ABNSCDXU]$/.test(explicit)) {
@@ -93,7 +96,8 @@ function matchCategory(lot: LotFromUrlResponse): string {
   if (/buying\s+cat/i.test(hay)) return "";
   const m =
     hay.match(/\b(?:cat(?:egory)?|категор(?:ия)?)\s*[-:.]?\s*([ABNSCDXU])(?![A-Za-z])/i) ||
-    hay.match(/\b([ABNSCDXU])\s*[-–]?\s*(?:category|cat)\b/i);
+    hay.match(/TITLEGROUP[_\s-]*([ABNSCDXU])\b/i) ||
+    hay.match(/\b([ABNSCDXU])\s*[-–]?\s*(?:category|cat|breaker)\b/i);
   if (!m) return "";
   const cat = m[1].toUpperCase();
   if (cleanTitle && (cat === "A" || cat === "B")) return "";

@@ -46,8 +46,10 @@ async (arg) => {
     if (!text) return null;
     const s = String(text);
     if (s.length > 120 || /buying\\s+cat/i.test(s)) return null;
+    if (/^[ABNSCDXU]$/i.test(s.trim())) return s.trim().toUpperCase();
     const m = s.match(/\\b(?:cat(?:egory)?|категор(?:ия)?)\\s*[-:.]?\\s*([ABNSCDXU])(?![A-Za-z])/i)
-      || s.match(/\\b([ABNSCDXU])\\s*[-–]?\\s*(?:category|cat)\\b/i);
+      || s.match(/TITLEGROUP[_\\s-]*([ABNSCDXU])\\b/i)
+      || s.match(/\\b([ABNSCDXU])\\s*[-–]?\\s*(?:category|cat|breaker)\\b/i);
     return m ? m[1].toUpperCase() : null;
   };
   const textOf = (el) => (el && (el.textContent || el.innerText) || '').replace(/\\s+/g, ' ').trim();
@@ -57,7 +59,7 @@ async (arg) => {
   };
   const moneyFromText = (s) => {
     if (!s) return null;
-    const m = String(s).replace(/\\s+/g, ' ').match(/\\$?\\s*([0-9][0-9,]*(?:\\.\\d+)?)/);
+    const m = String(s).replace(/\\s+/g, ' ').match(/[$£€]?\\s*([0-9][0-9,]*(?:\\.\\d+)?)/);
     return m ? toBid(String(m[1]).replace(/,/g, '')) : null;
   };
   try {
@@ -73,25 +75,36 @@ async (arg) => {
     if (!r.ok) return { ...out, error: 'http_' + r.status };
     const j = await r.json();
     const d = (j && j.data && (j.data.lotDetails || j.data)) || j || {};
-    const dyn = (j && j.data && j.data.dynamicLotDetails) || {};
-    // Live auction bid only — never Buy Today / salePrice as "current bid"
+    // dynamicLotDetails may be nested under lotDetails (UK) or under data
+    const dyn = (j && j.data && j.data.dynamicLotDetails)
+      || d.dynamicLotDetails
+      || {};
+    // Live bid; if NEVER_BID / currentBid=0 Copart shows minimum (ymin) as Current Bid
     const live =
       toBid(dyn.currentBid)
       || toBid(dyn.highBid)
       || toBid(d.currentBid)
       || toBid(d.highBid)
       || toBid(d.hb)
+      || toBid(d.ahb)
       || toBid(d.highBidAmount)
       || toBid(d.bidAmount);
     if (live) {
       out.bid = live;
       out.bidSource = 'solr_live';
+    } else {
+      const start = toBid(d.ymin) || toBid(dyn.ymin) || toBid(d.minimumBid);
+      if (start) {
+        out.bid = start;
+        out.bidSource = 'solr_ymin';
+      }
     }
     out.year = Number(d.lcy || d.year || d.yr) || null;
     out.make = d.mkn || d.make || d.mn || null;
-    out.model = d.lm || d.model || d.md || null;
-    out.title = d.td || d.titleDesc || d.title || d.tsn || d.tgd || d.ft || null;
-    out.location = d.yn || d.yardName || d.yard_name || d.aname || d.loc
+    out.model = d.lmg || d.lm || d.model || d.md || null;
+    // ld = car description; td on UK is often "CAT B - BREAKER" (not the car title)
+    out.title = d.ld || d.titleDesc || d.title || d.tsn || null;
+    out.location = d.yn || d.syn || d.yardName || d.yard_name || d.aname || d.loc
       || d.facilityName || d.facility_name || d.saleLocation || d.salelocation
       || d.physicalYardName || d.yard || d.location || null;
     if (out.location && typeof out.location === 'object') {
@@ -99,10 +112,11 @@ async (arg) => {
         || out.location.yn || null;
     }
     out.odometer = Number(d.orr || d.odometer || d.oDoMeter) || null;
-    out.bodyStyle = d.vehTypDesc || d.bodyStyle || d.bt || d.vehicleTypeDesc || null;
-    out.category = pickCat(d.td) || pickCat(d.tgd) || pickCat(d.ft) || pickCat(d.tsn)
-      || pickCat(d.lotCondDesc) || pickCat(d.lcd) || pickCat(d.scc)
-      || pickCat(d.category) || pickCat(d.damageCategory) || null;
+    out.bodyStyle = d.bstl || d.vehTypDesc || d.bodyStyle || d.bt || d.vehicleTypeDesc || null;
+    // UK Cat: stt="B", tgc="TITLEGROUP_B", td="CAT B - BREAKER"
+    out.category = pickCat(d.stt) || pickCat(d.tgc) || pickCat(d.td) || pickCat(d.tgd)
+      || pickCat(d.ft) || pickCat(d.tsn) || pickCat(d.lotCondDesc) || pickCat(d.lcd)
+      || pickCat(d.scc) || pickCat(d.category) || pickCat(d.damageCategory) || null;
     const tims = d.tims || d.imageUrl || d.img;
     if (tims) out.images.push(String(tims));
   } catch (e) {
@@ -114,10 +128,11 @@ async (arg) => {
     if (fromBtn && fromBtn.length >= 3 && fromBtn.length < 80) out.location = fromBtn;
     const path = String((location && location.pathname) || '');
     const titleBlob = String(out.title || '');
-    if (/clean[-_\\s]?title|clear[-_\\s]?title/i.test(path + ' ' + titleBlob)) {
+    // Only strip Cat A/B when URL/title says Clean/Clear title — not when td is "CAT B"
+    if (/clean[-_\\s]?title|clear[-_\\s]?title/i.test(path + ' ' + titleBlob)
+        && !/\\bcat(?:egory)?\\s*[AB]\\b/i.test(titleBlob)) {
       if (out.category === 'A' || out.category === 'B') out.category = null;
     }
-    // DOM current bid on lot page (overrides stale Solr when present)
     const bidEl = document.querySelector(
       '[data-uname="lotdetailCurrentbid"], [data-uname="lotdetailHighbid"],'
       + ' #lotdetailCurrentbid, .lot-details-currentBid, [class*="currentBid"],'
@@ -129,8 +144,9 @@ async (arg) => {
       out.bidSource = 'dom';
     } else {
       const body = (document.body && document.body.innerText) || '';
-      const m = body.match(/Current\\s*Bid[^\\n$]{0,40}\\$?\\s*([0-9][0-9,]*)/i)
-        || body.match(/High\\s*Bid[^\\n$]{0,40}\\$?\\s*([0-9][0-9,]*)/i);
+      const m = body.match(/Current\\s*Bid[^\\n0-9]{0,40}[$£€]?\\s*([0-9][0-9,]*)/i)
+        || body.match(/High\\s*Bid[^\\n0-9]{0,40}[$£€]?\\s*([0-9][0-9,]*)/i)
+        || body.match(/Minimum\\s*Bid[^\\n0-9]{0,40}[$£€]?\\s*([0-9][0-9,]*)/i);
       if (m) {
         const n = toBid(String(m[1]).replace(/,/g, ''));
         if (n) { out.bid = n; out.bidSource = 'dom_text'; }
@@ -242,13 +258,22 @@ def sanitize_uk_category(
     if not raw:
         return None
     if len(raw) > 1:
-        m = re.search(r"\b(?:CAT(?:EGORY)?|КАТЕГОР(?:ИЯ)?)\s*[-:.]?\s*([ABNSCDXU])\b", raw, re.I)
+        m = re.search(
+            r"\b(?:CAT(?:EGORY)?|КАТЕГОР(?:ИЯ)?)\s*[-:.]?\s*([ABNSCDXU])\b",
+            raw,
+            re.I,
+        )
+        if not m:
+            m = re.search(r"TITLEGROUP[_\\s-]*([ABNSCDXU])\b", raw, re.I)
         if not m:
             m = re.search(r"\b([ABNSCDXU])\b", raw)
         raw = m.group(1).upper() if m else ""
     if raw not in {"A", "B", "N", "S", "C", "D", "X", "U"}:
         return None
     blob = f"{url} {title}"
+    # Real UK Cat B in title/td ("CAT B - BREAKER") must never be stripped
+    if re.search(r"\bCAT(?:EGORY)?\s*[AB]\b", blob, re.I):
+        return raw
     if re.search(r"clean[-_\s]?title|clear[-_\s]?title", blob, re.I) and raw in {"A", "B"}:
         return None
     return raw
@@ -1022,15 +1047,28 @@ def _payload_from_copart_js(
 ) -> dict[str, Any]:
     category = str(raw.get("category") or "").strip().upper() or None
     if category and len(category) > 1:
-        cat_m = re.search(r"\b([ABNSCDXU])\b", category, re.I)
-        category = cat_m.group(1).upper() if cat_m else None
-    if not category:
-        cat_m = re.search(
-            r"\bCat(?:egory)?\s*[-:]?\s*([ABNSCDXU])\b",
-            str(raw.get("title") or ""),
-            re.I,
+        cat_m = (
+            re.search(r"\b(?:CAT(?:EGORY)?)\s*[-:.]?\s*([ABNSCDXU])\b", category, re.I)
+            or re.search(r"TITLEGROUP[_\s-]*([ABNSCDXU])\b", category, re.I)
+            or re.search(r"\b([ABNSCDXU])\b", category, re.I)
         )
         category = cat_m.group(1).upper() if cat_m else None
+    if not category:
+        for blob in (raw.get("title"), raw.get("td"), raw.get("tgc"), raw.get("stt")):
+            cat_m = (
+                re.search(
+                    r"\bCat(?:egory)?\s*[-:]?\s*([ABNSCDXU])\b",
+                    str(blob or ""),
+                    re.I,
+                )
+                or re.search(r"TITLEGROUP[_\s-]*([ABNSCDXU])\b", str(blob or ""), re.I)
+            )
+            if cat_m:
+                category = cat_m.group(1).upper()
+                break
+            if re.fullmatch(r"[ABNSCDXU]", str(blob or "").strip(), re.I):
+                category = str(blob).strip().upper()
+                break
 
     payload = {
         "ok": True,
@@ -1050,11 +1088,17 @@ def _payload_from_copart_js(
         "bodyStyle": raw.get("bodyStyle"),
         "images": raw.get("images") or [],
         "via": via,
+        "bidSource": raw.get("bidSource"),
     }
     if is_uk:
         payload["category"] = sanitize_uk_category(
             category, url=url, title=str(raw.get("title") or "")
         )
+        # Also keep Cat letter when Solr put it only in title-like "CAT B - BREAKER"
+        if not payload["category"]:
+            payload["category"] = sanitize_uk_category(
+                str(raw.get("title") or ""), url=url, title=str(raw.get("title") or "")
+            )
     return payload
 
 
