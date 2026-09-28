@@ -36,35 +36,57 @@ IAAI_LOT_RE = re.compile(
 IAAI_PATH_RE = re.compile(r"iaai\.com/.*/(\d{6,})", re.I)
 
 COPART_JS = """
-async (lotId) => {
+async (arg) => {
+  const lotId = (arg && typeof arg === 'object') ? arg.lotId : arg;
+  const forcedOrigin = (arg && typeof arg === 'object') ? (arg.origin || '') : '';
   const out = { lotNumber: String(lotId), bid: null, year: null, make: null,
     model: null, title: null, location: null, odometer: null, images: [],
-    bodyStyle: null, category: null };
+    bodyStyle: null, category: null, bidSource: null };
   const pickCat = (text) => {
     if (!text) return null;
     const s = String(text);
-    // Ignore nav/marketing: "Buying Cat Bs", long page blobs
     if (s.length > 120 || /buying\\s+cat/i.test(s)) return null;
     const m = s.match(/\\b(?:cat(?:egory)?|категор(?:ия)?)\\s*[-:.]?\\s*([ABNSCDXU])(?![A-Za-z])/i)
       || s.match(/\\b([ABNSCDXU])\\s*[-–]?\\s*(?:category|cat)\\b/i);
     return m ? m[1].toUpperCase() : null;
   };
   const textOf = (el) => (el && (el.textContent || el.innerText) || '').replace(/\\s+/g, ' ').trim();
+  const toBid = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const moneyFromText = (s) => {
+    if (!s) return null;
+    const m = String(s).replace(/\\s+/g, ' ').match(/\\$?\\s*([0-9][0-9,]*(?:\\.\\d+)?)/);
+    return m ? toBid(String(m[1]).replace(/,/g, '')) : null;
+  };
   try {
-    const origin = (location && location.origin) || 'https://www.copart.com';
+    const origin = forcedOrigin
+      || ((location && location.origin && /copart\\.(com|co\\.uk)/i.test(location.origin))
+          ? location.origin
+          : 'https://www.copart.com');
     const r = await fetch(origin + '/public/data/lotdetails/solr/' + lotId, {
       credentials: 'include',
       headers: { 'Accept': 'application/json' },
+      cache: 'no-store',
     });
     if (!r.ok) return { ...out, error: 'http_' + r.status };
     const j = await r.json();
     const d = (j && j.data && (j.data.lotDetails || j.data)) || j || {};
     const dyn = (j && j.data && j.data.dynamicLotDetails) || {};
-    out.bid = Number(
-      (dyn && (dyn.currentBid || dyn.highBid || dyn.buyTodayBid || dyn.salePrice))
-      || d.highBid || d.hb || d.currentBid || d.buyTodayBid
-      || d.highBidAmount || d.bidAmount || d.salePrice || 0
-    ) || null;
+    // Live auction bid only — never Buy Today / salePrice as "current bid"
+    const live =
+      toBid(dyn.currentBid)
+      || toBid(dyn.highBid)
+      || toBid(d.currentBid)
+      || toBid(d.highBid)
+      || toBid(d.hb)
+      || toBid(d.highBidAmount)
+      || toBid(d.bidAmount);
+    if (live) {
+      out.bid = live;
+      out.bidSource = 'solr_live';
+    }
     out.year = Number(d.lcy || d.year || d.yr) || null;
     out.make = d.mkn || d.make || d.mn || null;
     out.model = d.lm || d.model || d.md || null;
@@ -78,7 +100,6 @@ async (lotId) => {
     }
     out.odometer = Number(d.orr || d.odometer || d.oDoMeter) || null;
     out.bodyStyle = d.vehTypDesc || d.bodyStyle || d.bt || d.vehicleTypeDesc || null;
-    // Only short lot-detail fields — never full page text (menu "Buying Cat Bs")
     out.category = pickCat(d.td) || pickCat(d.tgd) || pickCat(d.ft) || pickCat(d.tsn)
       || pickCat(d.lotCondDesc) || pickCat(d.lcd) || pickCat(d.scc)
       || pickCat(d.category) || pickCat(d.damageCategory) || null;
@@ -91,11 +112,29 @@ async (lotId) => {
     const btn = document.querySelector('#locationInfoButton, [id*="locationInfo"], a[href*="yard"], [data-uname="lotdetailSaleLocation"]');
     const fromBtn = textOf(btn);
     if (fromBtn && fromBtn.length >= 3 && fromBtn.length < 80) out.location = fromBtn;
-    // Clean / Clear title in URL or title ⇒ not Cat A/B
     const path = String((location && location.pathname) || '');
     const titleBlob = String(out.title || '');
     if (/clean[-_\\s]?title|clear[-_\\s]?title/i.test(path + ' ' + titleBlob)) {
       if (out.category === 'A' || out.category === 'B') out.category = null;
+    }
+    // DOM current bid on lot page (overrides stale Solr when present)
+    const bidEl = document.querySelector(
+      '[data-uname="lotdetailCurrentbid"], [data-uname="lotdetailHighbid"],'
+      + ' #lotdetailCurrentbid, .lot-details-currentBid, [class*="currentBid"],'
+      + ' [data-uname*="CurrentBid"], [data-uname*="HighBid"]'
+    );
+    const fromDom = moneyFromText(textOf(bidEl));
+    if (fromDom) {
+      out.bid = fromDom;
+      out.bidSource = 'dom';
+    } else {
+      const body = (document.body && document.body.innerText) || '';
+      const m = body.match(/Current\\s*Bid[^\\n$]{0,40}\\$?\\s*([0-9][0-9,]*)/i)
+        || body.match(/High\\s*Bid[^\\n$]{0,40}\\$?\\s*([0-9][0-9,]*)/i);
+      if (m) {
+        const n = toBid(String(m[1]).replace(/,/g, ''));
+        if (n) { out.bid = n; out.bidSource = 'dom_text'; }
+      }
     }
   } catch (e) {}
   return out;
@@ -113,7 +152,7 @@ BIDCars_JS = """
     const m = text.match(re);
     if (!m) return null;
     const n = Number(String(m[1]).replace(/[\\s,]/g, ''));
-    return Number.isFinite(n) ? n : null;
+    return Number.isFinite(n) && n > 0 ? n : null;
   };
   const pickCat = (t) => {
     if (!t) return null;
@@ -129,9 +168,22 @@ BIDCars_JS = """
   if (/copart\\.co\\.uk|copart uk|united kingdom|great britain/i.test(text)) platform = 'copart_uk';
   else if (/\\biaai\\b/i.test(text)) platform = 'iaai';
   else if (/copart/i.test(text)) platform = 'copart';
-  const bid = money(/Текущая ставка[^0-9$]*\\$?\\s*([0-9][0-9\\s,]*)/i)
-    || money(/Current Bid[^0-9$]*\\$?\\s*([0-9][0-9,]*)/i)
-    || money(/Ставка[^0-9$]*\\$?\\s*([0-9][0-9\\s,]*)/i);
+  // Prefer labeled current/high bid — not Buy Now / ACV
+  let bid = money(/Текущая\\s*ставка[^0-9$£€]{0,40}[$£€]?\\s*([0-9][0-9\\s,]*)/i)
+    || money(/Current\\s*Bid[^0-9$£€]{0,40}[$£€]?\\s*([0-9][0-9,]*)/i)
+    || money(/High\\s*Bid[^0-9$£€]{0,40}[$£€]?\\s*([0-9][0-9,]*)/i)
+    || money(/Последняя\\s*ставка[^0-9$£€]{0,40}[$£€]?\\s*([0-9][0-9\\s,]*)/i)
+    || money(/Last\\s*Bid[^0-9$£€]{0,40}[$£€]?\\s*([0-9][0-9,]*)/i);
+  if (!bid) {
+    const el = document.querySelector(
+      '[class*="current-bid"], [class*="currentBid"], [data-testid*="bid"],'
+      + ' [class*="lot-bid"], .bid-value, .auction-bid'
+    );
+    if (el) {
+      const n = Number(String(el.textContent || '').replace(/[^0-9.]/g, ''));
+      if (Number.isFinite(n) && n > 0) bid = n;
+    }
+  }
   const odo = money(/Одометр[^0-9]*([0-9][0-9\\s,]*)/i)
     || money(/Odometer[^0-9]*([0-9][0-9,]*)/i);
   const bodyStyle = pick(/Тип кузова\\s*:?\\s*([^\\n]{3,40})/i)
@@ -510,30 +562,52 @@ def _apply_inland_route(payload: dict[str, Any], route: dict[str, Any]) -> dict[
 async def enrich_usa_inland_async(
     payload: dict[str, Any],
     *,
-    timeout: float = 4.0,
+    timeout: float = 8.0,
 ) -> dict[str, Any]:
-    """Resolve NJ/Houston miles off the event loop (thread) with a hard timeout."""
+    """Resolve NJ/Houston miles off the event loop (thread) with a hard timeout.
+
+    Always hits live distance APIs when location is known (fast path, no Nominatim).
+    Never returns catalog / silent 450 without attempting the request.
+    """
     out = dict(payload)
     if _is_uk_payload(out):
         return out
     if (
-        out.get("inlandOk")
+        out.get("inlandOk") is True
         and out.get("milesToNewJersey") is not None
         and out.get("milesToHouston") is not None
         and float(out.get("inlandMiles") or 0) > 0
+        and out.get("distanceSource")
     ):
         return out
     location = clean_auction_location(str(out.get("location") or "")) or str(out.get("location") or "").strip()
     if not location:
-        return enrich_usa_inland(out, live=False)
+        out = enrich_usa_inland(out, live=False)
+        out["inlandError"] = out.get("inlandError") or "no_location"
+        return out
+    # Drop stale fallback before live resolve
+    for key in (
+        "inlandMiles",
+        "inlandUsd",
+        "milesToNewJersey",
+        "milesToHouston",
+        "usPort",
+        "usPortLabel",
+        "distanceSource",
+        "inlandOk",
+        "inlandError",
+    ):
+        out.pop(key, None)
     try:
         from app.services.usa_distance import resolve_us_inland
 
         route = await asyncio.wait_for(
             asyncio.to_thread(
-                lambda: resolve_us_inland(location, None, allow_chrome_maps=False)
+                lambda: resolve_us_inland(
+                    location, None, allow_chrome_maps=False, fast=True
+                )
             ),
-            timeout=max(1.0, timeout),
+            timeout=max(3.0, timeout),
         )
         if isinstance(route, dict):
             return _apply_inland_route(out, route)
@@ -543,7 +617,24 @@ async def enrich_usa_inland_async(
     except Exception as exc:
         logger.warning("usa inland async failed: %s", exc)
         out["inlandError"] = str(exc)[:200]
-    return enrich_usa_inland(out, live=False)
+    # Last attempt without asyncio wait (still live APIs, fast)
+    try:
+        from app.services.usa_distance import resolve_us_inland
+
+        route = resolve_us_inland(location, None, allow_chrome_maps=False, fast=True)
+        if isinstance(route, dict):
+            applied = _apply_inland_route(out, route)
+            if applied.get("inlandOk"):
+                return applied
+            out = applied
+    except Exception as exc:
+        logger.warning("usa inland sync retry failed: %s", exc)
+        out["inlandError"] = str(exc)[:200]
+    if out.get("inlandMiles") is None:
+        out["inlandMiles"] = 450
+    out["inlandOk"] = False
+    out.setdefault("inlandError", "miles_unavailable")
+    return out
 
 
 def lot_to_calculator_payload(
@@ -583,8 +674,13 @@ def lot_to_calculator_payload(
             url=url or lot.lotUrl or "",
             title=str(_title_label(lot) or ""),
         )
-    # Miles resolved async in fetch_lot_from_url (Bid.cars / Copart / IAAI USA).
-    if lot.inlandMiles is not None and float(lot.inlandMiles or 0) > 0:
+    # Catalog inlandMiles alone is not enough (often stale 450 without NJ/Houston).
+    if (
+        lot.inlandMiles is not None
+        and float(lot.inlandMiles or 0) > 0
+        and getattr(lot, "milesToNewJersey", None) is not None
+        and getattr(lot, "milesToHouston", None) is not None
+    ):
         payload["inlandOk"] = True
     return payload
 
@@ -651,14 +747,17 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
             await page.wait_for_function(
                 """() => Boolean(
                   document.querySelector('#locationInfoButton') ||
-                  /Sale\\s*location|Location\\s*:/i.test(
+                  document.querySelector('[data-uname="lotdetailCurrentbid"]') ||
+                  /Sale\\s*location|Location\\s*:|Current\\s*Bid|High\\s*Bid/i.test(
                     (document.body && document.body.innerText) || ''
                   )
                 )""",
-                timeout=8000,
+                timeout=10000,
             )
         except Exception:
-            await page.wait_for_timeout(1500)
+            await page.wait_for_timeout(2000)
+        # Give dynamicLotDetails a moment to hydrate
+        await page.wait_for_timeout(800)
     else:
         await page.wait_for_timeout(1200)
 
@@ -687,7 +786,14 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
             data["odometer"] = fields["odometer"]
 
     if platform == "copart" and lot_number:
-        api = await page.evaluate(COPART_JS, lot_number)
+        origin = (
+            "https://www.copart.co.uk"
+            if "copart.co.uk" in canonical.lower()
+            else "https://www.copart.com"
+        )
+        api = await page.evaluate(
+            COPART_JS, {"lotId": lot_number, "origin": origin}
+        )
         if isinstance(api, dict):
             data.update({k: v for k, v in api.items() if v is not None})
             if api.get("error") and not api.get("bid") and not api.get("location"):
@@ -859,17 +965,20 @@ async def _enrich_uk_via_agent_tab(
     except Exception:
         return None
 
+    is_uk = "copart.co.uk" in (url or "").lower()
+    origin = "https://www.copart.co.uk" if is_uk else "https://www.copart.com"
+    js_arg = {"lotId": lot_number, "origin": origin}
     raw = await scraper_worker.evaluate_on_agent_tab(
         "copart_uk",
         COPART_JS,
-        lot_number,
+        js_arg,
         timeout_sec=6.0,
     )
     if not isinstance(raw, dict):
         raw = await scraper_worker.evaluate_on_agent_tab(
             "copart",
             COPART_JS,
-            lot_number,
+            js_arg,
             timeout_sec=5.0,
         )
     if not isinstance(raw, dict):
@@ -891,7 +1000,7 @@ async def _enrich_uk_via_agent_tab(
         extra["category"] = cat_m.group(1).upper() if cat_m else None
 
     merged = _merge_fields(catalog, extra)
-    merged["via"] = "catalog+agent_tab"
+    merged["via"] = "agent_tab"
     return apply_uk_url_yard(merged, url)
 
 
@@ -962,19 +1071,21 @@ async def _fetch_copart_via_agent_tab(url: str) -> dict[str, Any] | None:
         return None
 
     source = "copart_uk" if is_uk else "copart"
+    origin = "https://www.copart.co.uk" if is_uk else "https://www.copart.com"
+    js_arg = {"lotId": lot_number, "origin": origin}
     raw = await scraper_worker.evaluate_on_agent_tab(
         source,
         COPART_JS,
-        lot_number,
-        timeout_sec=6.0,
+        js_arg,
+        timeout_sec=8.0,
     )
     if not isinstance(raw, dict):
         alt = "copart" if is_uk else "copart_uk"
         raw = await scraper_worker.evaluate_on_agent_tab(
             alt,
             COPART_JS,
-            lot_number,
-            timeout_sec=5.0,
+            js_arg,
+            timeout_sec=6.0,
         )
     if not isinstance(raw, dict):
         return None
@@ -1002,16 +1113,19 @@ async def _finalize_lot_payload(payload: dict[str, Any], remaining: float) -> di
 async def fetch_lot_from_url(url: str) -> dict[str, Any]:
     """Open lot for calculator from the live auction page only.
 
-    Never reads the production catalog — always Solr/Chrome for current data.
-    UK yard is overlaid from the URL slug. USA: reserve time for NJ/Houston miles.
+    Never reads the production catalog. Flow:
+      1) Copart Solr (live cookies) when applicable
+      2) Chrome page scrape (USA always)
+      3) Dedicated USA inland miles request (NJ/Houston)
     """
     import time
 
-    # Solr + Chrome ~12s; keep ≥4s for USA inland miles
-    deadline = time.monotonic() + 20.0
+    # Chrome up to ~14s; always keep ≥8s afterwards for miles
+    MILES_BUDGET = 8.0
+    deadline = time.monotonic() + 28.0
 
     def _remaining() -> float:
-        return max(0.5, deadline - time.monotonic())
+        return max(0.0, deadline - time.monotonic())
 
     try:
         canonical = normalize_lot_url(url)
@@ -1025,21 +1139,21 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
         return soft_lot_payload(canonical, str(exc))
 
     is_usa = (not is_uk_url) and platform in ("copart", "iaai", "bidcars")
-    miles_reserve = 4.0 if is_usa else 0.0
 
-    # Seed from URL only (UK yard from slug) — no catalog
     result: dict[str, Any] = soft_lot_payload(canonical, "")
     result.pop("error", None)
     if is_uk_url:
         result = apply_uk_url_yard(result, canonical)
 
-    # 1) Live Copart Solr (UK + USA)
     live_bid = False
-    if (is_uk_url or platform == "copart") and _remaining() > 1.0 + miles_reserve:
+
+    # 1) Live Copart Solr — leave room for Chrome + miles on USA
+    solr_reserve = (12.0 + MILES_BUDGET) if is_usa else MILES_BUDGET
+    if (is_uk_url or platform == "copart") and _remaining() > 2.0 + (MILES_BUDGET if is_usa else 0):
         try:
             hit = await asyncio.wait_for(
                 _fetch_copart_via_agent_tab(canonical),
-                timeout=min(7.0, max(1.0, _remaining() - miles_reserve)),
+                timeout=min(7.0, max(2.0, _remaining() - solr_reserve + 12.0)),
             )
             if hit:
                 live_bid_val = hit.get("bid")
@@ -1055,25 +1169,31 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
             elif is_uk_url or _is_uk_payload(result):
                 enriched = await asyncio.wait_for(
                     _enrich_uk_via_agent_tab(canonical, result),
-                    timeout=min(5.0, max(1.0, _remaining() - miles_reserve)),
+                    timeout=min(5.0, max(1.0, _remaining() - 2.0)),
                 )
                 if enriched:
                     if enriched.get("bid") is not None and float(enriched.get("bid") or 0) > 0:
                         live_bid = True
                         enriched["bidLive"] = True
                     result = apply_uk_url_yard(enriched, canonical)
+                    result["via"] = "agent_tab"
         except Exception as exc:
             logger.warning("live copart bid refresh skipped: %s", exc)
 
-    # 2) Chrome — always for USA; also UK if Solr missed bid/location
+    # 2) Chrome — always open the lot page for a fresh bid (USA always;
+    #    UK/others when Solr missed bid or yard/make)
     need_chrome = (
         is_usa
         or not live_bid
         or (is_uk_url and not result.get("location"))
         or not (result.get("make") or result.get("lotNumber"))
+        or not (result.get("bid") and float(result.get("bid") or 0) > 0)
     )
-    if need_chrome and _remaining() > 1.5 + miles_reserve:
-        chrome_budget = min(10.0, max(2.0, _remaining() - miles_reserve))
+    if need_chrome and _remaining() > 2.0 + (MILES_BUDGET if is_usa else 0):
+        chrome_budget = min(
+            14.0,
+            max(4.0, _remaining() - (MILES_BUDGET if is_usa else 0.5)),
+        )
         try:
             chrome = await asyncio.wait_for(
                 _fetch_lot_via_chrome(canonical, optional=False),
@@ -1090,7 +1210,7 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
                     if chrome.get(key) is not None:
                         result[key] = chrome[key]
                 result["ok"] = True
-                result["via"] = str(result.get("via") or "chrome")
+                result["via"] = str(chrome.get("via") or "chrome_cdp")
                 result.setdefault("region", "usa" if is_usa else result.get("region"))
                 if is_uk_url or _is_uk_payload(result):
                     result = apply_uk_url_yard(result, canonical)
@@ -1102,7 +1222,7 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
     elif result.get("bid") is not None:
         result.setdefault("bidLive", False)
 
-    # 3) Finalize
+    # 3) Finalize UK
     if is_uk_url or _is_uk_payload(result):
         result = apply_uk_url_yard(result, canonical)
         if result.get("location") or result.get("make") or result.get("lotNumber"):
@@ -1113,11 +1233,16 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
         result["ok"] = True
         result.setdefault("region", "usa")
 
-    # USA miles after live location is known
+    # 4) USA miles — dedicated window (always attempt when location known)
     if result.get("location"):
-        result = await enrich_usa_inland_async(
-            result, timeout=min(5.0, max(3.0, _remaining()))
+        miles_timeout = max(MILES_BUDGET, min(10.0, _remaining() + MILES_BUDGET * 0.25))
+        logger.info(
+            "usa inland resolve location=%r timeout=%.1fs via=%s",
+            str(result.get("location"))[:80],
+            miles_timeout,
+            result.get("via"),
         )
+        result = await enrich_usa_inland_async(result, timeout=miles_timeout)
     else:
         result = enrich_usa_inland(result, live=False)
         result["inlandError"] = result.get("inlandError") or "no_location"

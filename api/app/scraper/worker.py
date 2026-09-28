@@ -366,8 +366,9 @@ class MultiAgentOrchestrator:
         If another calc lookup is in progress, returns None immediately.
         """
         try:
-            await asyncio.wait_for(self._calc_lookup_lock.acquire(), timeout=0.05)
+            await asyncio.wait_for(self._calc_lookup_lock.acquire(), timeout=3.0)
         except asyncio.TimeoutError:
+            logger.warning("evaluate_on_agent_tab %s: calc lock busy", source)
             return None
         try:
             agent = self._agents.get(source)

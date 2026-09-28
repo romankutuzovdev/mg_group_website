@@ -276,8 +276,13 @@ export function CalculatorForm({
             ? " · ставка live"
             : " · ставка со страницы"
           : "";
+      const viaLabel = lot.via ? ` · ${lot.via}` : "";
+      const milesErr =
+        market === "usa" && lot.inlandOk === false && lot.inlandError
+          ? ` · мили: ${lot.inlandError}`
+          : "";
       setLotMeta(
-        `${label || "Лот загружен"}${place}${catLabel}${milesLabel}${yardMiss}${bidLiveLabel} · ${market === "uk" ? "Англия" : "США"}`,
+        `${label || "Лот загружен"}${place}${catLabel}${milesLabel}${yardMiss}${bidLiveLabel}${viaLabel}${milesErr} · ${market === "uk" ? "Англия" : "США"}`,
       );
       setTouched(true);
     } catch (err) {

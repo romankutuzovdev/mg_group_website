@@ -174,7 +174,7 @@ def google_distance_matrix_miles(origin: str, destinations: list[str]) -> list[f
     )
     data = _http_json(
         f"https://maps.googleapis.com/maps/api/distancematrix/json?{params}",
-        timeout=20.0,
+        timeout=6.0,
     )
     if not isinstance(data, dict):
         return None
@@ -281,7 +281,7 @@ def osrm_table_miles(origin: tuple[float, float], destinations: list[tuple[float
         f"https://routing.openstreetmap.de/routed-car/table/v1/driving/{path}?sources=0&destinations={dest_idx}&annotations=distance",
     ]
     for url in urls:
-        data = _http_json(url, timeout=20.0)
+        data = _http_json(url, timeout=6.0)
         if not isinstance(data, dict) or data.get("code") != "Ok":
             continue
         distances = data.get("distances")
@@ -301,11 +301,13 @@ def osrm_table_miles(origin: tuple[float, float], destinations: list[tuple[float
     return None
 
 
-def driving_miles_to_export_ports(place: str) -> tuple[dict[str, float], str] | None:
+def driving_miles_to_export_ports(
+    place: str, *, fast: bool = False
+) -> tuple[dict[str, float], str] | None:
     """
     Площадка → NJ и Houston по дороге.
     Порядок: Google Distance Matrix → OpenRouteService → OSRM Table.
-    Без Chrome.
+    Без Chrome. fast=True — короткие HTTP-таймауты для калькулятора.
     """
     variants = place_query_variants(place)
     if not variants:
@@ -315,7 +317,7 @@ def driving_miles_to_export_ports(place: str) -> tuple[dict[str, float], str] | 
     dest_coords = [(float(US_EXPORT_PORTS[k]["lat"]), float(US_EXPORT_PORTS[k]["lon"])) for k in dest_keys]
 
     # 1) Google Distance Matrix (если есть ключ)
-    for origin in variants:
+    for origin in variants[: 2 if fast else None]:
         miles = google_distance_matrix_miles(origin, dest_queries)
         if miles and all(m is not None for m in miles):
             result = {key: float(miles[i]) for i, key in enumerate(dest_keys)}
@@ -328,7 +330,7 @@ def driving_miles_to_export_ports(place: str) -> tuple[dict[str, float], str] | 
             return result, "google_maps"
 
     # 2–3) Геокод + OpenRouteService / OSRM matrix
-    origin_ll = geocode(place)
+    origin_ll = geocode(place, fast=fast)
     if not origin_ll:
         return None
 
@@ -432,7 +434,7 @@ def geocode_nominatim(place: str) -> tuple[float, float] | None:
     time.sleep(1.05)
     data = _http_json(
         f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=5&countrycodes=us",
-        timeout=15.0,
+        timeout=6.0,
     )
     if not isinstance(data, list) or not data:
         return None
@@ -444,7 +446,7 @@ def geocode_photon(place: str) -> tuple[float, float] | None:
     q = urllib.parse.quote(place)
     data = _http_json(
         f"https://photon.komoot.io/api/?q={q}&limit=8&lang=en&osm_tag=place",
-        timeout=12.0,
+        timeout=5.0,
     )
     if not isinstance(data, dict):
         return None
@@ -461,16 +463,22 @@ def geocode_photon(place: str) -> tuple[float, float] | None:
     return None
 
 
-def geocode(place: str | None) -> tuple[float, float] | None:
+def geocode(place: str | None, *, fast: bool = False) -> tuple[float, float] | None:
     variants = place_query_variants(place)
     if not variants:
         return None
     cache_key = variants[0].lower()
     if cache_key in _GEO_CACHE:
         return _GEO_CACHE[cache_key]
+    # Nominatim sleeps ~1s/call — skip for calculator
+    providers = (geocode_open_meteo, geocode_photon) if fast else (
+        geocode_open_meteo,
+        geocode_nominatim,
+        geocode_photon,
+    )
     point = None
-    for q in variants:
-        for fn in (geocode_open_meteo, geocode_nominatim, geocode_photon):
+    for q in variants[: 2 if fast else None]:
+        for fn in providers:
             try:
                 point = fn(q)
             except Exception as exc:
@@ -494,7 +502,7 @@ def osrm_driving_miles(origin: tuple[float, float], dest: tuple[float, float]) -
         f"https://routing.openstreetmap.de/routed-car/route/v1/driving/{path}?overview=false",
     ]
     for url in urls:
-        data = _http_json(url, timeout=15.0)
+        data = _http_json(url, timeout=6.0)
         if not isinstance(data, dict) or data.get("code") != "Ok":
             continue
         routes = data.get("routes") or []
@@ -523,20 +531,22 @@ def resolve_us_inland(
     ship_from: str | None = None,
     *,
     allow_chrome_maps: bool = False,
+    fast: bool = False,
 ) -> dict[str, Any]:
     """
     Мили от «Местоположение» до New Jersey и Houston.
     Google Distance Matrix → OpenRouteService → OSRM (без Chrome).
     inland = мили × $1.
+    fast=True — для калькулятора (без Nominatim sleep, меньше вариантов).
     """
     place = _clean_place(location) or _clean_place(ship_from)
     options: list[dict[str, Any]] = []
     origin = None
     source = "unknown"
 
-    got = driving_miles_to_export_ports(place) if place else None
+    got = driving_miles_to_export_ports(place, fast=fast) if place else None
     if not got and place and _clean_place(ship_from) and _clean_place(ship_from) != place:
-        got = driving_miles_to_export_ports(ship_from)
+        got = driving_miles_to_export_ports(ship_from, fast=fast)
         if got:
             place = _clean_place(ship_from)
 
@@ -553,7 +563,7 @@ def resolve_us_inland(
                     "source": source,
                 }
             )
-        origin = geocode(place)
+        origin = geocode(place, fast=fast)
     elif allow_chrome_maps:
         log.debug("Chrome Maps для миль отключён на сайте API")
 
