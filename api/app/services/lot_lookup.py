@@ -1,7 +1,7 @@
 """Fetch lot details for the calculator.
 
-1) Prefer production catalog (scraped lots on Windows API)
-2) Fall back to Chrome CDP when lot is not in the store
+Always opens the auction URL live (Copart Solr / Chrome). Does not read the
+production catalog — calculator must show current bid, yard, and miles.
 """
 
 from __future__ import annotations
@@ -1000,14 +1000,15 @@ async def _finalize_lot_payload(payload: dict[str, Any], remaining: float) -> di
 
 
 async def fetch_lot_from_url(url: str) -> dict[str, Any]:
-    """Open lot for calculator.
+    """Open lot for calculator from the live auction page only.
 
-    Catalog is only a cache. Always overlay UK yard from the URL slug and
-    always try a live Solr/Chrome refresh — even when the lot is already in DB.
+    Never reads the production catalog — always Solr/Chrome for current data.
+    UK yard is overlaid from the URL slug. USA: reserve time for NJ/Houston miles.
     """
     import time
 
-    deadline = time.monotonic() + 14.0
+    # Solr + Chrome ~12s; keep ≥4s for USA inland miles
+    deadline = time.monotonic() + 20.0
 
     def _remaining() -> float:
         return max(0.5, deadline - time.monotonic())
@@ -1023,39 +1024,22 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
     except ValueError as exc:
         return soft_lot_payload(canonical, str(exc))
 
-    # 1) Seed from URL so UK location is never empty
+    is_usa = (not is_uk_url) and platform in ("copart", "iaai", "bidcars")
+    miles_reserve = 4.0 if is_usa else 0.0
+
+    # Seed from URL only (UK yard from slug) — no catalog
     result: dict[str, Any] = soft_lot_payload(canonical, "")
     result.pop("error", None)
     if is_uk_url:
         result = apply_uk_url_yard(result, canonical)
 
-    # 2) Merge catalog if present — do NOT return early
-    try:
-        from_store = lookup_in_production_catalog(canonical)
-    except Exception as exc:
-        logger.warning("catalog lookup failed: %s", exc)
-        from_store = None
-
-    if from_store and (
-        from_store.get("bid") or from_store.get("make") or from_store.get("lotNumber")
-    ):
-        result = _merge_fields(result, from_store)
-        for key in ("via", "lot_id", "slug", "region", "source", "auction_platform", "images"):
-            if from_store.get(key) is not None:
-                result[key] = from_store[key]
-        result["ok"] = True
-        result["via"] = str(result.get("via") or "catalog")
-        if is_uk_url or _is_uk_payload(result):
-            result = apply_uk_url_yard(result, canonical)
-
-    # 3) ALWAYS live bid from Copart Solr (UK + USA) — catalog bid is stale
+    # 1) Live Copart Solr (UK + USA)
     live_bid = False
-    is_usa = (not is_uk_url) and platform in ("copart", "iaai", "bidcars")
-    if (is_uk_url or platform == "copart") and _remaining() > 1.0:
+    if (is_uk_url or platform == "copart") and _remaining() > 1.0 + miles_reserve:
         try:
             hit = await asyncio.wait_for(
                 _fetch_copart_via_agent_tab(canonical),
-                timeout=min(7.0, _remaining()),
+                timeout=min(7.0, max(1.0, _remaining() - miles_reserve)),
             )
             if hit:
                 live_bid_val = hit.get("bid")
@@ -1071,7 +1055,7 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
             elif is_uk_url or _is_uk_payload(result):
                 enriched = await asyncio.wait_for(
                     _enrich_uk_via_agent_tab(canonical, result),
-                    timeout=min(5.0, _remaining()),
+                    timeout=min(5.0, max(1.0, _remaining() - miles_reserve)),
                 )
                 if enriched:
                     if enriched.get("bid") is not None and float(enriched.get("bid") or 0) > 0:
@@ -1081,17 +1065,19 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
         except Exception as exc:
             logger.warning("live copart bid refresh skipped: %s", exc)
 
-    # 4) Chrome — ALWAYS for USA (IAAI / Bid.cars / Copart.com), also UK if no live bid
+    # 2) Chrome — always for USA; also UK if Solr missed bid/location
     need_chrome = (
         is_usa
         or not live_bid
         or (is_uk_url and not result.get("location"))
+        or not (result.get("make") or result.get("lotNumber"))
     )
-    if need_chrome and _remaining() > 1.5:
+    if need_chrome and _remaining() > 1.5 + miles_reserve:
+        chrome_budget = min(10.0, max(2.0, _remaining() - miles_reserve))
         try:
             chrome = await asyncio.wait_for(
                 _fetch_lot_via_chrome(canonical, optional=False),
-                timeout=min(10.0, _remaining()),
+                timeout=chrome_budget,
             )
             if chrome and (chrome.get("bid") or chrome.get("make") or chrome.get("location")):
                 chrome_bid = chrome.get("bid")
@@ -1104,6 +1090,7 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
                     if chrome.get(key) is not None:
                         result[key] = chrome[key]
                 result["ok"] = True
+                result["via"] = str(result.get("via") or "chrome")
                 result.setdefault("region", "usa" if is_usa else result.get("region"))
                 if is_uk_url or _is_uk_payload(result):
                     result = apply_uk_url_yard(result, canonical)
@@ -1115,15 +1102,23 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
     elif result.get("bid") is not None:
         result.setdefault("bidLive", False)
 
-    # 5) Finalize
+    # 3) Finalize
     if is_uk_url or _is_uk_payload(result):
         result = apply_uk_url_yard(result, canonical)
         if result.get("location") or result.get("make") or result.get("lotNumber"):
             result["ok"] = True
         return result
 
-    # USA: mark ok if we got a usable lot (catalog + live/chrome)
     if result.get("bid") or result.get("make") or result.get("lotNumber") or result.get("location"):
         result["ok"] = True
         result.setdefault("region", "usa")
-    return await _finalize_lot_payload(result, _remaining())
+
+    # USA miles after live location is known
+    if result.get("location"):
+        result = await enrich_usa_inland_async(
+            result, timeout=min(5.0, max(3.0, _remaining()))
+        )
+    else:
+        result = enrich_usa_inland(result, live=False)
+        result["inlandError"] = result.get("inlandError") or "no_location"
+    return result

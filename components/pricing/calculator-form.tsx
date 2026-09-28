@@ -213,7 +213,7 @@ export function CalculatorForm({
         setTouched(true);
         return;
       }
-      // Partial load (e.g. yard from URL, catalog without bid) — still fill the form
+      // Partial load (e.g. yard from URL) — still fill the form
       if (lot.ok === false && (lot.location || lot.make || lot.lotNumber)) {
         setLotError(null);
       }
@@ -274,7 +274,7 @@ export function CalculatorForm({
         lot.bid != null && Number(lot.bid) > 0
           ? lot.bidLive
             ? " · ставка live"
-            : " · ставка из каталога"
+            : " · ставка со страницы"
           : "";
       setLotMeta(
         `${label || "Лот загружен"}${place}${catLabel}${milesLabel}${yardMiss}${bidLiveLabel} · ${market === "uk" ? "Англия" : "США"}`,
