@@ -23,7 +23,7 @@ T = TypeVar("T")
 # Concurrent calculator tabs in the shared Chrome window.
 # Scrapers already use ~5–6 tabs — keep calc headroom small.
 _DEFAULT_MAX_CONCURRENT = 3
-_DEFAULT_TIMEOUT_SEC = 14.0
+_DEFAULT_TIMEOUT_SEC = 28.0
 
 
 class CalcChromePool:

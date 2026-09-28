@@ -18,7 +18,7 @@ from app.services.calc_chrome import get_calc_chrome_pool
 
 logger = logging.getLogger("mg.pricing.lot_lookup")
 
-_CHROME_GOTO_MS = 12_000
+_CHROME_GOTO_MS = 20_000
 
 COPART_LOT_RE = re.compile(
     r"copart\.(?:com|co\.uk)/lot/(?:details/)?(\d+)",
@@ -1153,14 +1153,13 @@ async def _finalize_lot_payload(payload: dict[str, Any], remaining: float) -> di
 async def fetch_lot_from_url(url: str) -> dict[str, Any]:
     """Open lot for calculator via Chrome only.
 
-    Never reads the production catalog / lots.json. Always opens the auction
-    URL in Chrome so bid, category, and yard are live from the page/Solr
-    on that tab.
+    Never reads the production catalog. Always opens the auction URL in Chrome.
     """
     import time
 
     MILES_BUDGET = 8.0
-    deadline = time.monotonic() + 28.0
+    # USA Chrome alone often needs 20s+; keep room for miles after
+    deadline = time.monotonic() + 40.0
 
     def _remaining() -> float:
         return max(0.0, deadline - time.monotonic())
@@ -1184,11 +1183,12 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
         result = apply_uk_url_yard(result, canonical)
 
     live_bid = False
+    chrome_ok = False
 
-    # Always Chrome — open the lot URL (no catalog, no agent-tab cache path)
+    # Chrome budget: USA needs more time (Bid.cars/IAAI), not less
     chrome_budget = min(
-        18.0 if not is_usa else 14.0,
-        max(6.0, _remaining() - (MILES_BUDGET if is_usa else 0.5)),
+        28.0,
+        max(12.0, _remaining() - (MILES_BUDGET if is_usa else 0.5)),
     )
     try:
         chrome = await asyncio.wait_for(
@@ -1196,15 +1196,15 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
             timeout=chrome_budget,
         )
         if chrome and (
-            chrome.get("bid")
+            chrome.get("bid") is not None
             or chrome.get("make")
             or chrome.get("location")
             or chrome.get("category")
             or chrome.get("lotNumber")
         ):
+            chrome_ok = True
             chrome_bid = chrome.get("bid")
             result = _merge_fields(result, chrome)
-            # Chrome fields win for live calculator
             for key in (
                 "via",
                 "region",
@@ -1223,18 +1223,26 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
                 live_bid = True
             result["ok"] = True
             result["via"] = str(chrome.get("via") or "chrome_cdp")
-            result.setdefault("region", "uk" if is_uk_url else ("usa" if is_usa else result.get("region")))
+            result.pop("error", None)
+            result.setdefault(
+                "region",
+                "uk" if is_uk_url else ("usa" if is_usa else result.get("region")),
+            )
             if is_uk_url or _is_uk_payload(result):
                 result = apply_uk_url_yard(result, canonical)
-                # Preserve Chrome Cat A/B/S/N after yard overlay
                 if chrome.get("category"):
                     result["category"] = sanitize_uk_category(
                         str(chrome.get("category")),
                         url=canonical,
                         title=str(chrome.get("title") or result.get("title") or ""),
                     )
+        elif chrome is None:
+            result["error"] = "chrome_unavailable"
+            result["via"] = "soft_fallback"
     except Exception as exc:
         logger.warning("chrome lot-from-url failed: %s", exc)
+        result["error"] = f"chrome_failed:{exc}"[:300]
+        result["via"] = "soft_fallback"
 
     if live_bid:
         result["bidLive"] = True
@@ -1253,13 +1261,24 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
             result["ok"] = True
         return result
 
-    if result.get("bid") or result.get("make") or result.get("lotNumber") or result.get("location"):
+    if chrome_ok and (
+        result.get("bid") is not None
+        or result.get("make")
+        or result.get("lotNumber")
+        or result.get("location")
+    ):
         result["ok"] = True
         result.setdefault("region", "usa")
 
-    if result.get("location"):
-        miles_timeout = max(MILES_BUDGET, min(10.0, _remaining() + MILES_BUDGET * 0.25))
+    # Miles only after a real Chrome open with location — never silent 450 on soft fail
+    if chrome_ok and result.get("location"):
+        miles_timeout = max(MILES_BUDGET, min(10.0, _remaining() + 2.0))
         result = await enrich_usa_inland_async(result, timeout=miles_timeout)
+    elif not chrome_ok:
+        result["ok"] = False
+        result["inlandOk"] = False
+        result["inlandError"] = "chrome_failed"
+        result.pop("inlandMiles", None)
     else:
         result = enrich_usa_inland(result, live=False)
         result["inlandError"] = result.get("inlandError") or "no_location"

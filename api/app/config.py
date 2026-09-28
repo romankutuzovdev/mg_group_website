@@ -74,9 +74,9 @@ class Settings(BaseSettings):
     scraper_photo_download_concurrency: int = 8
 
     # Calculator lot-from-url — shared Chrome tabs (separate from scraper agents)
-    # Max concurrent Copart/IAAI pages opened for /pricing/lot-from-url
+    # Must be > page goto+scrape (Bid.cars / Copart / IAAI often 15–25s)
     calc_chrome_max_concurrent: int = 2
-    calc_chrome_timeout_sec: float = 9.0
+    calc_chrome_timeout_sec: float = 28.0
 
     # Cabinet (Telegram Login Widget + JWT)
     telegram_bot_token: str = ""

@@ -315,7 +315,7 @@ export type LotFromUrlResponse = {
 
 export async function fetchLotFromUrl(url: string): Promise<LotFromUrlResponse> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 40_000);
+  const timer = setTimeout(() => ctrl.abort(), 45_000);
   try {
     return await apiFetch("/api/v1/pricing/lot-from-url", {
       method: "POST",
