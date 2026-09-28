@@ -221,7 +221,7 @@ export function CalculatorForm({
       if (lot.ok === false && (lot.location || lot.make || lot.lotNumber)) {
         setLotError(null);
       }
-      if (lot.bid != null && Number(lot.bid) > 0) {
+      if (lot.bid != null && !Number.isNaN(Number(lot.bid)) && Number(lot.bid) >= 0) {
         setBidText(String(Math.round(Number(lot.bid))));
       }
       const body = matchBodyFromLot(lot);
@@ -275,7 +275,7 @@ export function CalculatorForm({
             ? " · площадка не найдена — выберите вручную"
             : "";
       const bidLiveLabel =
-        lot.bid != null && Number(lot.bid) > 0
+        lot.bid != null && !Number.isNaN(Number(lot.bid)) && Number(lot.bid) >= 0
           ? lot.bidLive
             ? " · ставка live"
             : " · ставка со страницы"

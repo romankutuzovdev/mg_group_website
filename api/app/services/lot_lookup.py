@@ -1,7 +1,6 @@
 """Fetch lot details for the calculator.
 
-Always opens the auction URL live (Copart Solr / Chrome). Does not read the
-production catalog — calculator must show current bid, yard, and miles.
+Always opens the auction URL in Chrome. Does not read the production catalog.
 """
 
 from __future__ import annotations
@@ -54,8 +53,9 @@ async (arg) => {
   };
   const textOf = (el) => (el && (el.textContent || el.innerText) || '').replace(/\\s+/g, ' ').trim();
   const toBid = (v) => {
+    if (v === null || v === undefined || v === '') return null;
     const n = Number(v);
-    return Number.isFinite(n) && n > 0 ? n : null;
+    return Number.isFinite(n) && n >= 0 ? n : null;
   };
   const moneyFromText = (s) => {
     if (!s) return null;
@@ -79,25 +79,18 @@ async (arg) => {
     const dyn = (j && j.data && j.data.dynamicLotDetails)
       || d.dynamicLotDetails
       || {};
-    // Live bid; if NEVER_BID / currentBid=0 Copart shows minimum (ymin) as Current Bid
-    const live =
-      toBid(dyn.currentBid)
-      || toBid(dyn.highBid)
-      || toBid(d.currentBid)
-      || toBid(d.highBid)
-      || toBid(d.hb)
-      || toBid(d.ahb)
-      || toBid(d.highBidAmount)
-      || toBid(d.bidAmount);
-    if (live) {
+    // Keep explicit 0 (NEVER_BID) — do not substitute ymin / Buy Now
+    const live = toBid(dyn.currentBid);
+    if (live === null) {
+      const alt = toBid(dyn.highBid) ?? toBid(d.currentBid) ?? toBid(d.highBid)
+        ?? toBid(d.hb) ?? toBid(d.ahb) ?? toBid(d.highBidAmount) ?? toBid(d.bidAmount);
+      if (alt !== null) {
+        out.bid = alt;
+        out.bidSource = 'solr_live';
+      }
+    } else {
       out.bid = live;
       out.bidSource = 'solr_live';
-    } else {
-      const start = toBid(d.ymin) || toBid(dyn.ymin) || toBid(d.minimumBid);
-      if (start) {
-        out.bid = start;
-        out.bidSource = 'solr_ymin';
-      }
     }
     out.year = Number(d.lcy || d.year || d.yr) || null;
     out.make = d.mkn || d.make || d.mn || null;
@@ -139,17 +132,16 @@ async (arg) => {
       + ' [data-uname*="CurrentBid"], [data-uname*="HighBid"]'
     );
     const fromDom = moneyFromText(textOf(bidEl));
-    if (fromDom) {
+    if (fromDom !== null) {
       out.bid = fromDom;
       out.bidSource = 'dom';
     } else {
       const body = (document.body && document.body.innerText) || '';
       const m = body.match(/Current\\s*Bid[^\\n0-9]{0,40}[$£€]?\\s*([0-9][0-9,]*)/i)
-        || body.match(/High\\s*Bid[^\\n0-9]{0,40}[$£€]?\\s*([0-9][0-9,]*)/i)
-        || body.match(/Minimum\\s*Bid[^\\n0-9]{0,40}[$£€]?\\s*([0-9][0-9,]*)/i);
+        || body.match(/High\\s*Bid[^\\n0-9]{0,40}[$£€]?\\s*([0-9][0-9,]*)/i);
       if (m) {
         const n = toBid(String(m[1]).replace(/,/g, ''));
-        if (n) { out.bid = n; out.bidSource = 'dom_text'; }
+        if (n !== null) { out.bid = n; out.bidSource = 'dom_text'; }
       }
     }
   } catch (e) {}
@@ -168,7 +160,7 @@ BIDCars_JS = """
     const m = text.match(re);
     if (!m) return null;
     const n = Number(String(m[1]).replace(/[\\s,]/g, ''));
-    return Number.isFinite(n) && n > 0 ? n : null;
+    return Number.isFinite(n) && n >= 0 ? n : null;
   };
   const pickCat = (t) => {
     if (!t) return null;
@@ -676,7 +668,11 @@ def lot_to_calculator_payload(
         "source": lot.source,
         "auction_platform": auction,
         "lotNumber": lot.lotNumber,
-        "bid": lot.currentBid if lot.currentBid and lot.currentBid > 0 else None,
+        "bid": (
+            float(lot.currentBid)
+            if lot.currentBid is not None and float(lot.currentBid) >= 0
+            else None
+        ),
         "year": lot.year or None,
         "make": lot.make or None,
         "model": lot.model or None,
@@ -964,13 +960,13 @@ def _merge_fields(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]
             if cleaned:
                 merged["location"] = cleaned
             continue
-        # Live Solr bid always wins over stale catalog
+        # Live Solr/Chrome bid — keep explicit 0 (do not skip)
         if key == "bid":
             try:
                 live = float(val)
             except (TypeError, ValueError):
                 continue
-            if live > 0:
+            if live >= 0:
                 merged["bid"] = live
             continue
         merged[key] = val
@@ -1155,16 +1151,14 @@ async def _finalize_lot_payload(payload: dict[str, Any], remaining: float) -> di
 
 
 async def fetch_lot_from_url(url: str) -> dict[str, Any]:
-    """Open lot for calculator from the live auction page only.
+    """Open lot for calculator via Chrome only.
 
-    Never reads the production catalog. Flow:
-      1) Copart Solr (live cookies) when applicable
-      2) Chrome page scrape (USA always)
-      3) Dedicated USA inland miles request (NJ/Houston)
+    Never reads the production catalog / lots.json. Always opens the auction
+    URL in Chrome so bid, category, and yard are live from the page/Solr
+    on that tab.
     """
     import time
 
-    # Chrome up to ~14s; always keep ≥8s afterwards for miles
     MILES_BUDGET = 8.0
     deadline = time.monotonic() + 28.0
 
@@ -1191,84 +1185,70 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
 
     live_bid = False
 
-    # 1) Live Copart Solr — leave room for Chrome + miles on USA
-    solr_reserve = (12.0 + MILES_BUDGET) if is_usa else MILES_BUDGET
-    if (is_uk_url or platform == "copart") and _remaining() > 2.0 + (MILES_BUDGET if is_usa else 0):
-        try:
-            hit = await asyncio.wait_for(
-                _fetch_copart_via_agent_tab(canonical),
-                timeout=min(7.0, max(2.0, _remaining() - solr_reserve + 12.0)),
-            )
-            if hit:
-                live_bid_val = hit.get("bid")
-                result = _merge_fields(result, hit)
-                if live_bid_val is not None and float(live_bid_val or 0) > 0:
-                    result["bid"] = float(live_bid_val)
-                    result["bidLive"] = True
-                    live_bid = True
-                result["ok"] = True
-                result["via"] = str(hit.get("via") or "agent_tab")
-                if is_uk_url or _is_uk_payload(result):
-                    result = apply_uk_url_yard(result, canonical)
-            elif is_uk_url or _is_uk_payload(result):
-                enriched = await asyncio.wait_for(
-                    _enrich_uk_via_agent_tab(canonical, result),
-                    timeout=min(5.0, max(1.0, _remaining() - 2.0)),
-                )
-                if enriched:
-                    if enriched.get("bid") is not None and float(enriched.get("bid") or 0) > 0:
-                        live_bid = True
-                        enriched["bidLive"] = True
-                    result = apply_uk_url_yard(enriched, canonical)
-                    result["via"] = "agent_tab"
-        except Exception as exc:
-            logger.warning("live copart bid refresh skipped: %s", exc)
-
-    # 2) Chrome — always open the lot page for a fresh bid (USA always;
-    #    UK/others when Solr missed bid or yard/make)
-    need_chrome = (
-        is_usa
-        or not live_bid
-        or (is_uk_url and not result.get("location"))
-        or not (result.get("make") or result.get("lotNumber"))
-        or not (result.get("bid") and float(result.get("bid") or 0) > 0)
+    # Always Chrome — open the lot URL (no catalog, no agent-tab cache path)
+    chrome_budget = min(
+        18.0 if not is_usa else 14.0,
+        max(6.0, _remaining() - (MILES_BUDGET if is_usa else 0.5)),
     )
-    if need_chrome and _remaining() > 2.0 + (MILES_BUDGET if is_usa else 0):
-        chrome_budget = min(
-            14.0,
-            max(4.0, _remaining() - (MILES_BUDGET if is_usa else 0.5)),
+    try:
+        chrome = await asyncio.wait_for(
+            _fetch_lot_via_chrome(canonical, optional=False),
+            timeout=chrome_budget,
         )
-        try:
-            chrome = await asyncio.wait_for(
-                _fetch_lot_via_chrome(canonical, optional=False),
-                timeout=chrome_budget,
-            )
-            if chrome and (chrome.get("bid") or chrome.get("make") or chrome.get("location")):
-                chrome_bid = chrome.get("bid")
-                result = _merge_fields(result, chrome)
-                if chrome_bid is not None and float(chrome_bid or 0) > 0:
-                    result["bid"] = float(chrome_bid)
-                    result["bidLive"] = True
-                    live_bid = True
-                for key in ("via", "region", "source", "auction_platform", "images", "bodyStyle"):
-                    if chrome.get(key) is not None:
-                        result[key] = chrome[key]
-                result["ok"] = True
-                result["via"] = str(chrome.get("via") or "chrome_cdp")
-                result.setdefault("region", "usa" if is_usa else result.get("region"))
-                if is_uk_url or _is_uk_payload(result):
-                    result = apply_uk_url_yard(result, canonical)
-        except Exception as exc:
-            logger.warning("chrome lot-from-url failed: %s", exc)
+        if chrome and (
+            chrome.get("bid")
+            or chrome.get("make")
+            or chrome.get("location")
+            or chrome.get("category")
+            or chrome.get("lotNumber")
+        ):
+            chrome_bid = chrome.get("bid")
+            result = _merge_fields(result, chrome)
+            # Chrome fields win for live calculator
+            for key in (
+                "via",
+                "region",
+                "source",
+                "auction_platform",
+                "images",
+                "bodyStyle",
+                "category",
+                "bidSource",
+            ):
+                if chrome.get(key) is not None and chrome.get(key) != "":
+                    result[key] = chrome[key]
+            if chrome_bid is not None and float(chrome_bid) >= 0:
+                result["bid"] = float(chrome_bid)
+                result["bidLive"] = True
+                live_bid = True
+            result["ok"] = True
+            result["via"] = str(chrome.get("via") or "chrome_cdp")
+            result.setdefault("region", "uk" if is_uk_url else ("usa" if is_usa else result.get("region")))
+            if is_uk_url or _is_uk_payload(result):
+                result = apply_uk_url_yard(result, canonical)
+                # Preserve Chrome Cat A/B/S/N after yard overlay
+                if chrome.get("category"):
+                    result["category"] = sanitize_uk_category(
+                        str(chrome.get("category")),
+                        url=canonical,
+                        title=str(chrome.get("title") or result.get("title") or ""),
+                    )
+    except Exception as exc:
+        logger.warning("chrome lot-from-url failed: %s", exc)
 
     if live_bid:
         result["bidLive"] = True
     elif result.get("bid") is not None:
         result.setdefault("bidLive", False)
 
-    # 3) Finalize UK
     if is_uk_url or _is_uk_payload(result):
         result = apply_uk_url_yard(result, canonical)
+        if result.get("category"):
+            result["category"] = sanitize_uk_category(
+                str(result.get("category")),
+                url=canonical,
+                title=str(result.get("title") or ""),
+            )
         if result.get("location") or result.get("make") or result.get("lotNumber"):
             result["ok"] = True
         return result
@@ -1277,15 +1257,8 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
         result["ok"] = True
         result.setdefault("region", "usa")
 
-    # 4) USA miles — dedicated window (always attempt when location known)
     if result.get("location"):
         miles_timeout = max(MILES_BUDGET, min(10.0, _remaining() + MILES_BUDGET * 0.25))
-        logger.info(
-            "usa inland resolve location=%r timeout=%.1fs via=%s",
-            str(result.get("location"))[:80],
-            miles_timeout,
-            result.get("via"),
-        )
         result = await enrich_usa_inland_async(result, timeout=miles_timeout)
     else:
         result = enrich_usa_inland(result, live=False)

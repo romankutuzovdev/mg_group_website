@@ -17,6 +17,34 @@ def title_case(value: str | None) -> str:
     return " ".join(w[:1].upper() + w[1:].lower() for w in str(value).split())
 
 
+def extract_uk_category(row: dict[str, Any] | None, *extra: str) -> str | None:
+    """Copart UK category letter from Solr: stt / tgc / td (e.g. CAT B - BREAKER)."""
+    row = row or {}
+    blobs: list[str] = []
+    for key in ("stt", "tgc", "td", "tgd", "category", "titleLabel", "title"):
+        val = row.get(key)
+        if val is None or val == "":
+            continue
+        blobs.append(str(val))
+    for item in extra:
+        if item:
+            blobs.append(str(item))
+    for blob in blobs:
+        s = blob.strip()
+        if re.fullmatch(r"[ABNSCDXU]", s, re.I):
+            return s.upper()
+        m = re.search(r"\b(?:Cat(?:egory)?|Категор(?:ия)?)\s*[-:.]?\s*([ABNSCDXU])\b", s, re.I)
+        if m:
+            return m.group(1).upper()
+        m = re.search(r"TITLEGROUP[_\s-]*([ABNSCDXU])\b", s, re.I)
+        if m:
+            return m.group(1).upper()
+        m = re.search(r"\b([ABNSCDXU])\s*[-–]?\s*(?:category|cat|breaker)\b", s, re.I)
+        if m:
+            return m.group(1).upper()
+    return None
+
+
 def _clean_spec(value: Any, *, fallback: str = "—") -> str:
     text = str(value or "").strip()
     if not text or text in {"—", "-", "N/A", "NA", "Na", "null", "None", "UNKNOWN", "Unknown"}:
@@ -556,7 +584,7 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
         text = str(row.get("text") or "")
         bid_m = re.search(r"£\s*([\d,]+)", text)
         bid = float(bid_m.group(1).replace(",", "")) if bid_m else 0.0
-        cat_m = re.search(r"\bCat(?:egory)?\s*([ABNSCDXU])\b", text, re.I)
+        cat = extract_uk_category(row, text, str(row.get("title") or ""))
         body = extract_body_style(
             row, text, str(row.get("title") or ""), make=make, model=model, allow_infer=True
         )
@@ -572,7 +600,7 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
             model=model,
             year=year,
             titleType="salvage",
-            titleLabel=f"Category {cat_m.group(1).upper()}" if cat_m else "Salvage",
+            titleLabel=f"Category {cat}" if cat else "Salvage",
             primaryDamage="Unknown",
             odometer=0,
             odometerUnit="mi",
@@ -589,7 +617,7 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
             hasKeys=False,
             runsDrives=False,
             bodyStyle=body,
-            category=cat_m.group(1).upper() if cat_m else None,
+            category=cat,
             lotUrl=str(row.get("url") or f"https://www.copart.co.uk/lot/{ln}"),
         )
 
@@ -605,6 +633,8 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
         return None
 
     dyn = row.get("dynamicLotDetails") or {}
+    if not isinstance(dyn, dict):
+        dyn = {}
     bid = float(dyn.get("currentBid") or row.get("hb") or 0)
     buy_now = float(row.get("bnp") or dyn.get("buyTodayBid") or 0) or None
     odo = int(row.get("orr") or 0)
@@ -612,18 +642,12 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
     location = extract_copart_location(row, region="uk") or "UK"
     vin = str(row.get("fv") or "*****************")
     title_desc = str(row.get("td") or row.get("tgd") or row.get("ft") or "Salvage")
-    cat = None
-    cat_m = re.search(r"\bCat(?:egory)?\s*([ABNSCDXU])\b", title_desc, re.I)
-    if cat_m:
-        cat = cat_m.group(1).upper()
-    else:
-        m = re.search(r"\b([ABNSCDXU])\b", title_desc)
-        if m:
-            cat = m.group(1).upper()
+    lot_desc = str(row.get("ld") or "")
+    cat = extract_uk_category(row, title_desc, lot_desc)
     body = extract_body_style(
         row,
         title_desc,
-        str(row.get("text") or ""),
+        lot_desc or str(row.get("text") or ""),
         make=make,
         model=model,
         allow_infer=True,
@@ -640,7 +664,7 @@ def map_copart_uk_row(row: dict[str, Any]) -> AuctionLot | None:
         model=model,
         year=year,
         titleType=_infer_title_type(title_desc),  # type: ignore[arg-type]
-        titleLabel=(f"Category {cat}" if cat else title_desc[:80]) or "Salvage",
+        titleLabel=(f"Category {cat}" if cat else (lot_desc or title_desc)[:80]) or "Salvage",
         primaryDamage=damage,
         secondaryDamage=title_case(str(row.get("sdd") or "")) or None,
         odometer=odo,
