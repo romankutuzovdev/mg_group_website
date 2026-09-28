@@ -61,8 +61,9 @@ async (lotId) => {
     const d = (j && j.data && (j.data.lotDetails || j.data)) || j || {};
     const dyn = (j && j.data && j.data.dynamicLotDetails) || {};
     out.bid = Number(
-      (dyn && (dyn.currentBid || dyn.highBid || dyn.buyTodayBid))
-      || d.highBid || d.hb || d.currentBid || d.buyTodayBid || 0
+      (dyn && (dyn.currentBid || dyn.highBid || dyn.buyTodayBid || dyn.salePrice))
+      || d.highBid || d.hb || d.currentBid || d.buyTodayBid
+      || d.highBidAmount || d.bidAmount || d.salePrice || 0
     ) || null;
     out.year = Number(d.lcy || d.year || d.yr) || null;
     out.make = d.mkn || d.make || d.mn || null;
@@ -236,25 +237,79 @@ def yard_from_copart_uk_url(url: str) -> str | None:
     return None
 
 
-def apply_uk_url_yard(payload: dict[str, Any], url: str) -> dict[str, Any]:
-    """Prefer yard encoded in the Copart UK URL when catalog/Solr disagree."""
-    from app.services.pricing import resolve_region
+def title_from_copart_uk_url(url: str) -> tuple[int | None, str | None, str | None]:
+    """Slug .../lot/123/clean-title-2018-mercedes-benz-gla-...-rochford → year/make/model."""
+    if "copart.co.uk" not in (url or "").lower():
+        return None, None, None
+    m = re.search(r"/lot/\d+/([^/?#]+)", url or "", re.I)
+    if not m:
+        return None, None, None
+    from app.services.pricing import DELIVERY_RATES
 
+    parts = [p for p in m.group(1).lower().split("-") if p]
+    yard_tokens: set[str] = set()
+    for key in DELIVERY_RATES:
+        if key == "DEFAULT":
+            continue
+        toks = key.lower().split()
+        yard_tokens.add(toks[-1])
+        if len(toks) >= 2:
+            yard_tokens.add("-".join(toks))
+    # Strip trailing yard (rochford / east-kilbride)
+    if len(parts) >= 2 and f"{parts[-2]}-{parts[-1]}" in yard_tokens:
+        parts = parts[:-2]
+    elif parts and parts[-1] in yard_tokens:
+        parts = parts[:-1]
+    # Drop leading junk before year
+    while parts and not re.fullmatch(r"(?:19|20)\d{2}", parts[0]):
+        parts = parts[1:]
+    if len(parts) < 2:
+        return None, None, None
+    year = int(parts[0])
+    rest = parts[1:]
+    if len(rest) >= 2 and rest[1] in {"benz", "romeo", "martin", "rover"}:
+        make = f"{rest[0].title()}-{rest[1].title()}"
+        model_parts = rest[2:5]
+    else:
+        make = rest[0].title()
+        model_parts = rest[1:4]
+    if make.upper() == "BMW":
+        make = "BMW"
+    model = " ".join(model_parts).upper() if model_parts else None
+    return year, make, model
+
+
+def apply_uk_url_yard(payload: dict[str, Any], url: str) -> dict[str, Any]:
+    """URL slug is source of truth for UK yard (+ fill year/make when missing)."""
     out = dict(payload)
+    canonical = url or str(out.get("url") or "")
     out["category"] = sanitize_uk_category(
         out.get("category"),
-        url=url or str(out.get("url") or ""),
+        url=canonical,
         title=str(out.get("title") or ""),
     )
-    slug_yard = yard_from_copart_uk_url(url)
-    if not slug_yard:
-        return out
-    current = resolve_region(out.get("location"))
-    if current != slug_yard:
+    slug_yard = yard_from_copart_uk_url(canonical)
+    if slug_yard:
+        # Always prefer yard from the link over stale catalog / wrong Solr
         out["location"] = slug_yard
         via = str(out.get("via") or "")
         if "url_yard" not in via:
             out["via"] = f"{via}+url_yard" if via else "url_yard"
+    year_u, make_u, model_u = title_from_copart_uk_url(canonical)
+    if year_u and not out.get("year"):
+        out["year"] = year_u
+    if make_u and not out.get("make"):
+        out["make"] = make_u
+    if model_u and not out.get("model"):
+        out["model"] = model_u
+    if not out.get("lotNumber"):
+        out["lotNumber"] = extract_lot_number(canonical, "copart")
+    # Enough to open the calculator even when Chrome/catalog failed
+    if out.get("location") or out.get("make") or out.get("lotNumber"):
+        out["ok"] = True
+        out.setdefault("region", "uk")
+        out.setdefault("source", "copart_uk")
+        out.setdefault("auction_platform", "copart")
     return out
 
 
@@ -350,14 +405,18 @@ def soft_lot_payload(url: str, error: str) -> dict[str, Any]:
         canonical = (url or "").strip()
         platform = "copart"
         lot_number = None
-    is_uk = "copart.co.uk" in canonical.lower() or platform == "copart" and "uk" in canonical.lower()
+    is_uk = "copart.co.uk" in canonical.lower() or (platform == "copart" and "uk" in canonical.lower())
     year_u, make_u, model_u = (None, None, None)
+    location = None
     try:
         if "bid.cars" in canonical.lower():
             year_u, make_u, model_u = title_from_bidcars_url(canonical)
+        elif is_uk:
+            year_u, make_u, model_u = title_from_copart_uk_url(canonical)
+            location = yard_from_copart_uk_url(canonical)
     except Exception:
         pass
-    return {
+    payload: dict[str, Any] = {
         "ok": False,
         "url": canonical,
         "source": (
@@ -373,7 +432,7 @@ def soft_lot_payload(url: str, error: str) -> dict[str, Any]:
         "make": make_u,
         "model": model_u,
         "title": None,
-        "location": None,
+        "location": location,
         "odometer": None,
         "bodyStyle": None,
         "category": None,
@@ -381,6 +440,9 @@ def soft_lot_payload(url: str, error: str) -> dict[str, Any]:
         "via": "soft_fallback",
         "error": (error or "lot_lookup_failed")[:300],
     }
+    if is_uk:
+        return apply_uk_url_yard(payload, canonical)
+    return payload
 
 
 def enrich_usa_inland(payload: dict[str, Any], *, live: bool = False) -> dict[str, Any]:
@@ -938,7 +1000,11 @@ async def _finalize_lot_payload(payload: dict[str, Any], remaining: float) -> di
 
 
 async def fetch_lot_from_url(url: str) -> dict[str, Any]:
-    """Catalog → agent/Chrome → USA miles. Soft 200, never hang past budget."""
+    """Open lot for calculator.
+
+    Catalog is only a cache. Always overlay UK yard from the URL slug and
+    always try a live Solr/Chrome refresh — even when the lot is already in DB.
+    """
     import time
 
     deadline = time.monotonic() + 14.0
@@ -947,68 +1013,117 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
         return max(0.5, deadline - time.monotonic())
 
     try:
-        from_store = lookup_in_production_catalog(url)
+        canonical = normalize_lot_url(url)
+    except ValueError as exc:
+        return soft_lot_payload(url, str(exc))
+
+    is_uk_url = "copart.co.uk" in canonical.lower()
+    try:
+        platform = detect_platform(canonical)
+    except ValueError as exc:
+        return soft_lot_payload(canonical, str(exc))
+
+    # 1) Seed from URL so UK location is never empty
+    result: dict[str, Any] = soft_lot_payload(canonical, "")
+    result.pop("error", None)
+    if is_uk_url:
+        result = apply_uk_url_yard(result, canonical)
+
+    # 2) Merge catalog if present — do NOT return early
+    try:
+        from_store = lookup_in_production_catalog(canonical)
     except Exception as exc:
         logger.warning("catalog lookup failed: %s", exc)
         from_store = None
 
-    catalog_ok = bool(
-        from_store
-        and (from_store.get("bid") or from_store.get("make") or from_store.get("lotNumber"))
-    )
+    if from_store and (
+        from_store.get("bid") or from_store.get("make") or from_store.get("lotNumber")
+    ):
+        result = _merge_fields(result, from_store)
+        for key in ("via", "lot_id", "slug", "region", "source", "auction_platform", "images"):
+            if from_store.get(key) is not None:
+                result[key] = from_store[key]
+        result["ok"] = True
+        result["via"] = str(result.get("via") or "catalog")
+        if is_uk_url or _is_uk_payload(result):
+            result = apply_uk_url_yard(result, canonical)
 
-    if catalog_ok and from_store:
-        if _is_uk_payload(from_store):
-            try:
-                enriched = await asyncio.wait_for(
-                    _enrich_uk_via_agent_tab(url, from_store),
-                    timeout=min(6.0, _remaining()),
-                )
-                if enriched:
-                    return enriched
-            except Exception as exc:
-                logger.warning("uk enrich skipped: %s", exc)
-            return apply_uk_url_yard(from_store, url)
-        return await _finalize_lot_payload(from_store, _remaining())
-
-    try:
-        canonical = normalize_lot_url(url)
-        platform = detect_platform(canonical)
-    except ValueError as exc:
-        return soft_lot_payload(url, str(exc))
-
-    is_copart = platform == "copart" or "copart." in canonical.lower()
-    if is_copart and _remaining() > 1.0:
+    # 3) ALWAYS live bid from Copart Solr (UK + USA) — catalog bid is stale
+    live_bid = False
+    is_usa = (not is_uk_url) and platform in ("copart", "iaai", "bidcars")
+    if (is_uk_url or platform == "copart") and _remaining() > 1.0:
         try:
             hit = await asyncio.wait_for(
                 _fetch_copart_via_agent_tab(canonical),
                 timeout=min(7.0, _remaining()),
             )
-            if hit and (
-                hit.get("bid") or hit.get("make") or hit.get("location") or hit.get("bodyStyle")
-            ):
-                if _is_uk_payload(hit):
-                    return apply_uk_url_yard(hit, canonical)
-                return await _finalize_lot_payload(hit, _remaining())
+            if hit:
+                live_bid_val = hit.get("bid")
+                result = _merge_fields(result, hit)
+                if live_bid_val is not None and float(live_bid_val or 0) > 0:
+                    result["bid"] = float(live_bid_val)
+                    result["bidLive"] = True
+                    live_bid = True
+                result["ok"] = True
+                result["via"] = str(hit.get("via") or "agent_tab")
+                if is_uk_url or _is_uk_payload(result):
+                    result = apply_uk_url_yard(result, canonical)
+            elif is_uk_url or _is_uk_payload(result):
+                enriched = await asyncio.wait_for(
+                    _enrich_uk_via_agent_tab(canonical, result),
+                    timeout=min(5.0, _remaining()),
+                )
+                if enriched:
+                    if enriched.get("bid") is not None and float(enriched.get("bid") or 0) > 0:
+                        live_bid = True
+                        enriched["bidLive"] = True
+                    result = apply_uk_url_yard(enriched, canonical)
         except Exception as exc:
-            logger.warning("copart agent-tab lookup failed: %s", exc)
+            logger.warning("live copart bid refresh skipped: %s", exc)
 
-    # Bid.cars / IAAI / Copart fallback — short Chrome window
-    if _remaining() > 1.5:
+    # 4) Chrome — ALWAYS for USA (IAAI / Bid.cars / Copart.com), also UK if no live bid
+    need_chrome = (
+        is_usa
+        or not live_bid
+        or (is_uk_url and not result.get("location"))
+    )
+    if need_chrome and _remaining() > 1.5:
         try:
             chrome = await asyncio.wait_for(
                 _fetch_lot_via_chrome(canonical, optional=False),
-                timeout=min(9.0, _remaining()),
+                timeout=min(10.0, _remaining()),
             )
             if chrome and (chrome.get("bid") or chrome.get("make") or chrome.get("location")):
-                if _is_uk_payload(chrome):
-                    return apply_uk_url_yard(chrome, canonical)
-                return await _finalize_lot_payload(chrome, _remaining())
+                chrome_bid = chrome.get("bid")
+                result = _merge_fields(result, chrome)
+                if chrome_bid is not None and float(chrome_bid or 0) > 0:
+                    result["bid"] = float(chrome_bid)
+                    result["bidLive"] = True
+                    live_bid = True
+                for key in ("via", "region", "source", "auction_platform", "images", "bodyStyle"):
+                    if chrome.get(key) is not None:
+                        result[key] = chrome[key]
+                result["ok"] = True
+                result.setdefault("region", "usa" if is_usa else result.get("region"))
+                if is_uk_url or _is_uk_payload(result):
+                    result = apply_uk_url_yard(result, canonical)
         except Exception as exc:
             logger.warning("chrome lot-from-url failed: %s", exc)
-            return soft_lot_payload(url, str(exc))
 
-    soft = soft_lot_payload(url, "lot_not_found")
-    if _is_uk_payload(soft):
-        return apply_uk_url_yard(soft, url)
-    return await _finalize_lot_payload(soft, _remaining())
+    if live_bid:
+        result["bidLive"] = True
+    elif result.get("bid") is not None:
+        result.setdefault("bidLive", False)
+
+    # 5) Finalize
+    if is_uk_url or _is_uk_payload(result):
+        result = apply_uk_url_yard(result, canonical)
+        if result.get("location") or result.get("make") or result.get("lotNumber"):
+            result["ok"] = True
+        return result
+
+    # USA: mark ok if we got a usable lot (catalog + live/chrome)
+    if result.get("bid") or result.get("make") or result.get("lotNumber") or result.get("location"):
+        result["ok"] = True
+        result.setdefault("region", "usa")
+    return await _finalize_lot_payload(result, _remaining())

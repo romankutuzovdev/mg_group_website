@@ -307,6 +307,7 @@ export type LotFromUrlResponse = {
   inlandError?: string | null;
   currency?: string | null;
   via?: string;
+  bidLive?: boolean;
   cdp?: string;
   error?: string | null;
   chrome_error?: string | null;

@@ -176,15 +176,46 @@ export function CalculatorForm({
       }
       setTab(market);
       onMarketChange?.(market);
-      if (lot.ok === false && lot.bid == null && !lot.make) {
+
+      const applyUkLocation = (rawLoc: string | null | undefined) => {
+        const yard = resolveRegion(rawLoc);
+        if (yard && yard !== "DEFAULT") {
+          setLocation(yard);
+          return yard;
+        }
+        // Client-side fallback: yard is the last token of Copart UK slug
+        const slug = (url.match(/\/lot\/\d+\/([^/?#]+)/i) || [])[1] || "";
+        const token = slug.split("-").filter(Boolean).pop()?.toUpperCase() || "";
+        const fromSlug = token ? resolveRegion(token) : "DEFAULT";
+        if (fromSlug !== "DEFAULT") {
+          setLocation(fromSlug);
+          return fromSlug;
+        }
+        setLocation("DEFAULT");
+        return "";
+      };
+
+      if (lot.ok === false && lot.bid == null && !lot.make && !lot.location) {
+        let yardApplied = "";
+        if (market === "uk") {
+          yardApplied = applyUkLocation(lot.location);
+        }
         setLotError(
-          "Лот не загрузился автоматически — введите ставку и площадку вручную",
+          yardApplied
+            ? `Площадка ${yardApplied} из ссылки — введите ставку вручную`
+            : "Лот не загрузился автоматически — введите ставку и площадку вручную",
         );
         if (lot.lotNumber) {
-          setLotMeta(`#${lot.lotNumber} · введите данные вручную`);
+          setLotMeta(
+            `#${lot.lotNumber}${yardApplied ? ` · ${yardApplied}` : ""} · введите ставку вручную`,
+          );
         }
         setTouched(true);
         return;
+      }
+      // Partial load (e.g. yard from URL, catalog without bid) — still fill the form
+      if (lot.ok === false && (lot.location || lot.make || lot.lotNumber)) {
+        setLotError(null);
       }
       if (lot.bid != null && Number(lot.bid) > 0) {
         setBidText(String(Math.round(Number(lot.bid))));
@@ -198,12 +229,7 @@ export function CalculatorForm({
       );
       if (market === "uk") {
         setInlandRoute(null);
-        const yard = resolveRegion(lot.location);
-        if (yard && yard !== "DEFAULT") {
-          setLocation(yard);
-        } else {
-          setLocation("DEFAULT");
-        }
+        applyUkLocation(lot.location);
         setCategory(matchCategory(lot));
       } else {
         setUsaLocation(String(lot.location || ""));
@@ -244,8 +270,14 @@ export function CalculatorForm({
           : market === "uk" && !lot.location
             ? " · площадка не найдена — выберите вручную"
             : "";
+      const bidLiveLabel =
+        lot.bid != null && Number(lot.bid) > 0
+          ? lot.bidLive
+            ? " · ставка live"
+            : " · ставка из каталога"
+          : "";
       setLotMeta(
-        `${label || "Лот загружен"}${place}${catLabel}${milesLabel}${yardMiss} · ${market === "uk" ? "Англия" : "США"}`,
+        `${label || "Лот загружен"}${place}${catLabel}${milesLabel}${yardMiss}${bidLiveLabel} · ${market === "uk" ? "Англия" : "США"}`,
       );
       setTouched(true);
     } catch (err) {
