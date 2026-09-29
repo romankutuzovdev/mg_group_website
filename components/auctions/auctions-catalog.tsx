@@ -305,10 +305,11 @@ export function AuctionsCatalog({
   }, [meta, apiOn, lots, initialLots, f.make]);
 
   const regionOptions = useMemo(() => {
-    const order = auctions?.length
-      ? REGION_FILTER_ORDER.filter((r) => r === "usa" || r === "uk")
-      : REGION_FILTER_ORDER;
-    return order.filter((r) =>
+    // Kit catalog: always show USA + England chips (even if UK count is 0)
+    if (auctions?.length) {
+      return REGION_FILTER_ORDER.filter((r) => r === "usa" || r === "uk");
+    }
+    return REGION_FILTER_ORDER.filter((r) =>
       meta?.regions?.length
         ? meta.regions.includes(r)
         : (apiOn ? lots : initialLots).some((l) => l.region === r),

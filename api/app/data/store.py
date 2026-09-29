@@ -244,8 +244,17 @@ class LotStore:
             self._by_slug.pop(lot.slug, None)
             return True
 
-    def prune_ended(self, *, grace_hours: float | None = None) -> int:
-        """Remove lots whose auctionDate is in the past (plus grace). Returns deleted count."""
+    def prune_ended(
+        self,
+        *,
+        grace_hours: float | None = None,
+        sources: set[str] | None = None,
+    ) -> int:
+        """Remove lots whose auctionDate is in the past (plus grace). Returns deleted count.
+
+        If sources is set, only those auction sources are pruned (so a blocked
+        Copart UK cycle does not wipe England kits while scrape is down).
+        """
         settings = get_settings()
         if not settings.scraper_prune_ended:
             return 0
@@ -260,7 +269,8 @@ class LotStore:
             to_drop = [
                 lot.id
                 for lot in self._by_id.values()
-                if is_auction_ended(lot, now=now, grace_hours=hours)
+                if (sources is None or lot.source in sources)
+                and is_auction_ended(lot, now=now, grace_hours=hours)
             ]
             for lot_id in to_drop:
                 lot = self._by_id.pop(lot_id, None)

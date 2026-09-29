@@ -124,6 +124,26 @@ export function toLotThumbUrl(url: string): string {
   return resolveLotImageUrl(target);
 }
 
+/** Hero / main photo — Copart mid-res (_hrs), not huge _ful. */
+export function toLotHeroUrl(url: string): string {
+  const raw = (url || "").trim();
+  if (!raw) return LOT_IMAGE_FALLBACK;
+  let target = raw;
+  const proxied = raw.match(/[?&]u=([^&]+)/);
+  if (raw.includes("/api/lot-image") && proxied) {
+    try {
+      target = decodeURIComponent(proxied[1]);
+    } catch {
+      return resolveLotImageUrl(raw);
+    }
+  }
+  if (isCopartCdnUrl(target)) {
+    const mid = target.replace(/_th[sb]\./i, "_hrs.").replace(/_ful\./i, "_hrs.");
+    return resolveLotImageUrl(mid);
+  }
+  return resolveLotImageUrl(raw);
+}
+
 function photoIdentity(url: string): string {
   if (url.startsWith("/api/lot-photos/")) {
     const base = (url.split("/").pop() || "").replace(/\.[^.]+$/, "");
@@ -147,15 +167,21 @@ function photoIdentity(url: string): string {
 
 function photoScore(url: string): number {
   let score = 0;
-  // Prefer our archived copies over auction CDN
-  if (url.startsWith("/api/lot-photos/")) score += 20_000;
+  // Prefer direct Copart/Bid.cars CDN — Vercel→Windows /api/lot-photos is slow.
+  if (isCopartCdnUrl(url)) score += 30_000;
+  else if (/images\.bid\.cars|cdn\.bid\.cars|mercury\.bid\.cars/i.test(url)) score += 28_000;
+  else if (url.startsWith("/api/lot-photos/")) score += 12_000;
+  else if (url.startsWith("/api/lot-image")) score += 8_000;
+  else if (/^https?:\/\//i.test(url)) score += 10_000;
+
   const rh = url.match(/[?&]rh=(\d+)/i);
   if (rh) score += Number(rh[1]);
   const width = url.match(/[?&](?:width|cw)=(\d+)/i);
   if (width) score += Number(width[1]);
-  if (/_ful\./i.test(url)) score += 5000;
-  else if (/_hrs\./i.test(url)) score += 4000;
-  else if (/_th[sb]\./i.test(url)) score += 100;
+  // Mid-res for display; full _ful is heavy for grids
+  if (/_hrs\./i.test(url)) score += 5000;
+  else if (/_ful\./i.test(url)) score += 4200;
+  else if (/_th[sb]\./i.test(url)) score += 800;
   if (!url.includes("?")) score += 2000;
   return score;
 }

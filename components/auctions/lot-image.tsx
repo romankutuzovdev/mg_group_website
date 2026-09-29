@@ -20,6 +20,8 @@ export function LotImage({
   priority,
   className,
   sizes,
+  loading,
+  decoding = "async",
   ...props
 }: LotImageProps) {
   const [url, setUrl] = useState(src);
@@ -27,6 +29,8 @@ export function LotImage({
   useEffect(() => {
     setUrl(src);
   }, [src]);
+
+  const load = loading ?? (priority ? "eager" : "lazy");
 
   if (fill) {
     return (
@@ -36,7 +40,9 @@ export function LotImage({
         src={url}
         alt={alt}
         sizes={sizes}
-        loading={priority ? "eager" : "lazy"}
+        loading={load}
+        decoding={decoding}
+        fetchPriority={priority ? "high" : "auto"}
         referrerPolicy="no-referrer"
         className={cn("absolute inset-0 h-full w-full", className)}
         onError={() => {
@@ -53,7 +59,9 @@ export function LotImage({
       src={url}
       alt={alt}
       sizes={sizes}
-      loading={priority ? "eager" : "lazy"}
+      loading={load}
+      decoding={decoding}
+      fetchPriority={priority ? "high" : "auto"}
       referrerPolicy="no-referrer"
       className={className}
       onError={() => {

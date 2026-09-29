@@ -249,7 +249,26 @@ class SourceAgent:
             upserted, new_count = lot_store.upsert_many(mapped)
             stats["upserted"] = upserted
             stats["new"] = new_count
-            pruned = lot_store.prune_ended()
+            # Only prune this agent's source after a successful scrape.
+            # When Incapsula blocks Copart UK, keep existing UK kits on the site.
+            source_key = {
+                "copart": {"copart"},
+                "copart_uk": {"copart_uk"},
+                "iaai": {"iaai"},
+                "manheim": {"manheim"},
+                "salvage_market": {"salvage_market"},
+                "encar": {"encar"},
+            }.get(self.name, {self.name})
+            if mapped:
+                pruned = lot_store.prune_ended(sources=source_key)
+            elif stats.get("blocked"):
+                pruned = 0
+                logger.warning(
+                    "agent %s blocked — skip prune so region kits stay visible",
+                    self.name,
+                )
+            else:
+                pruned = lot_store.prune_ended(sources=source_key)
             stats["pruned"] = pruned
             self.status.last_raw = len(raw)
             self.status.last_mapped = len(mapped)

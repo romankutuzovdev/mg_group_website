@@ -705,6 +705,14 @@ def map_iaai_row(row: dict[str, Any]) -> AuctionLot | None:
     year, make, model = parse_title_year_make_model(title)
     fields = parse_iaai_text_fields(text)
     slug = f"iaai-{year}-{slugify(make)}-{slugify(model)}-{lot_number}"
+    gallery: list[str] = []
+    for item in row.get("images") or []:
+        if isinstance(item, str) and item.startswith("http"):
+            gallery.append(item)
+    if image and image.startswith("http") and image not in gallery:
+        gallery.insert(0, image)
+    if not gallery and image:
+        gallery = [image]
 
     return AuctionLot(
         id=f"usa-iaai-{lot_number}",
@@ -726,8 +734,8 @@ def map_iaai_row(row: dict[str, Any]) -> AuctionLot | None:
         currency="USD",
         location=str(fields.get("location") or "USA"),
         auctionDate=(datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
-        imageUrl=image,
-        imageUrls=[image],
+        imageUrl=gallery[0] if gallery else image,
+        imageUrls=gallery[:20] if gallery else ([image] if image else []),
         transmission="—",
         fuel="—",
         drive="—",

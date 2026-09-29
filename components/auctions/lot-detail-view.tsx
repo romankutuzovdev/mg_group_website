@@ -27,7 +27,7 @@ import {
   formatFuelRu,
   formatTransmissionRu,
 } from "@/lib/auctions/lot-specs";
-import { collectLotPhotoUrls, resolveLotDisplayImage } from "@/lib/auctions/lot-image-url";
+import { collectLotPhotoUrls, toLotHeroUrl, toLotThumbUrl } from "@/lib/auctions/lot-image-url";
 import { presentLot } from "@/lib/auctions/listing-blob";
 import { CONSULTATION_TG, consultationMessage } from "@/lib/company";
 
@@ -64,7 +64,8 @@ function SpecRow({ label, value }: { label: string; value: string | boolean }) {
 
 function lotVehicleJsonLd(lot: AuctionLot, path: string) {
   const url = absoluteUrl(path);
-  const image = resolveLotDisplayImage(lot);
+  const photos = collectLotPhotoUrls(lot);
+  const image = toLotHeroUrl(photos[0] || "");
   const imageAbs =
     image.startsWith("http") ? image : absoluteUrl(image || "/logo.png");
   const ended = isAuctionEnded(lot);
@@ -143,7 +144,7 @@ export function LotDetailView({
   }, [lot.slug]);
 
   const safeActive = photos.length ? Math.min(active, photos.length - 1) : 0;
-  const mainSrc = photos[safeActive] || resolveLotDisplayImage(lot);
+  const mainSrc = toLotHeroUrl(photos[safeActive] || photos[0] || "");
   const ended = isAuctionEnded(lot);
   const isDemo = Boolean(lot._demo);
   const shouldNoindex = ended || isDemo;
@@ -268,11 +269,13 @@ export function LotDetailView({
                       }`}
                     >
                       <LotImage
-                        src={src}
+                        src={toLotThumbUrl(src)}
                         alt=""
                         fill
                         className="object-cover"
                         sizes="120px"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </button>
                   ))}

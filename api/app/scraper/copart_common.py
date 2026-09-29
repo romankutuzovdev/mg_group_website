@@ -290,7 +290,8 @@ async def _attach_lot_details(tab: Page, rows: list[dict[str, Any]], *, origin: 
 
 # One Copart market at a time. Two parallel gotos in the same Chrome drop the CDP session.
 _WALK_LOCK = asyncio.Lock()
-_LOTS_TO_OPEN = 25
+# Page-open fallback only for lots where lotImages API returned <2 photos
+_LOTS_TO_OPEN = 80
 
 
 async def _gallery_on_lot_page(tab: Page, origin: str, lot_number: str) -> list[str]:
@@ -518,14 +519,29 @@ async def _scrape_copart_inventory(
     if not lots:
         return [{"_blocked": True, "reason": "empty" if state != "incapsula" else "incapsula"}]
 
-    # Yard + body from Solr before opening photo pages (calculator needs these).
+    # Yard + body from Solr before galleries (calculator needs these).
     await _attach_lot_details(tab, lots, origin=origin)
 
-    await _open_lot_pages(
-        tab,
-        lots,
-        origin=origin,
-        timeout_ms=timeout_ms,
-        limit=_LOTS_TO_OPEN,
+    # Full lotImages gallery for EVERY lot (not only 25 page opens).
+    await _attach_galleries(tab, lots, origin=origin)
+    with_gallery = sum(1 for r in lots if len(r.get("images") or []) >= 2)
+    logger.info(
+        "copart %s galleries: %s/%s lots with 2+ photos",
+        origin,
+        with_gallery,
+        len(lots),
     )
+
+    # Fallback: open pages only for lots that still lack a multi-photo gallery
+    need_open = [
+        r for r in lots if len(r.get("images") or []) < 2 and _lot_number(r)
+    ]
+    if need_open:
+        await _open_lot_pages(
+            tab,
+            need_open,
+            origin=origin,
+            timeout_ms=timeout_ms,
+            limit=min(_LOTS_TO_OPEN, len(need_open)),
+        )
     return lots

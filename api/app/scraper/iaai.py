@@ -24,6 +24,9 @@ EXTRACT_ROWS_JS = """
     const href = link ? link.href : '';
     const img = row.querySelector('img');
     const image = img ? (img.src || img.getAttribute('data-src') || '') : '';
+    const images = [...row.querySelectorAll('img')]
+      .map((el) => el.src || el.getAttribute('data-src') || el.getAttribute('data-lazy') || '')
+      .filter((u) => typeof u === 'string' && /^https?:/i.test(u) && !/svg|sprite|1x1|pixel|logo/i.test(u));
     const titleEl = row.querySelector('.heading-7 a, .heading-7, a[href*="VehicleDetail"]');
     let title = '';
     if (titleEl) {
@@ -40,8 +43,8 @@ EXTRACT_ROWS_JS = """
     const text = cells.length >= 3
       ? cells.join(' | ')
       : (row.innerText || '').replace(/\\s+/g, ' ').trim();
-    return { id, url: href, title, image, text };
-  }).filter((x) => x.id && x.image);
+    return { id, url: href, title, image: image || images[0] || '', images, text };
+  }).filter((x) => x.id && (x.image || (x.images && x.images.length)));
 }
 """
 
