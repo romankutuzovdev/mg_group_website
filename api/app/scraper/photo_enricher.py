@@ -202,7 +202,7 @@ def normalize_gallery(urls: list[str], source: str) -> list[str]:
 
 
 def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> bool:
-    """True if lot still needs local gallery files on our server."""
+    """True if lot still needs a full local gallery on our server."""
     if not lot.lotUrl:
         return False
     day = today or datetime.now(timezone.utc).date()
@@ -211,23 +211,28 @@ def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> boo
         for u in (list(lot.imageUrls or []) + ([lot.imageUrl] if lot.imageUrl else []))
         if u and (u.startswith("/api/lot-photos/") or not _is_useless_photo(u))
     ]
-    local = [u for u in imgs if (u or "").startswith("/api/lot-photos/")]
-    # Enough local copies — skip until remotes suggest a richer gallery.
-    if len(local) >= 1 and lot.photosEnrichedAt:
+    local = [
+        u
+        for u in imgs
+        if (u or "").startswith("/api/lot-photos/") and not (u or "").endswith("-th.jpg")
+    ]
+    remotes = [u for u in imgs if (u or "").startswith("http")]
+    # Need a real gallery locally (not a single cover). Keep going until we
+    # archive enough shots or remotes are exhausted.
+    min_local = 3
+    if len(local) >= min_local and lot.photosEnrichedAt:
         try:
             enriched_day = datetime.fromisoformat(
                 lot.photosEnrichedAt.replace("Z", "+00:00")
             ).astimezone(timezone.utc).date()
-            remotes = [u for u in imgs if (u or "").startswith("http")]
             if enriched_day == day:
-                # Done for today when we archived at least as many as remotes,
-                # or we already have a solid gallery (3+).
-                if len(local) >= 3 or len(local) >= max(1, len(remotes)):
+                # Done when we have 3+ locals and either no remotes left to chase
+                # or locals already cover most of the remote gallery.
+                if not remotes or len(local) >= min(8, max(min_local, len(remotes))):
                     return False
         except Exception:
-            if len(local) >= 3:
+            if len(local) >= min_local and not remotes:
                 return False
-    # No local files yet (or only remote CDN) — keep trying.
     return True
 
 
@@ -383,10 +388,8 @@ class PhotoEnrichmentAgent:
             collected.extend(lot.imageUrls)
 
         urls = _dedupe(collected, lot.source)
-        if lot.source == "iaai" and lot.lotNumber:
-            own = [u for u in urls if lot.lotNumber in u]
-            if len(own) >= 2:
-                urls = own
+        # IAAI vis.iaai.com URLs use imageKeys — lot number is rarely in the URL.
+        # Do not filter by lotNumber or we keep only the listing thumb.
         return urls[:40]
 
     async def run_batch(self, browser: Browser, *, limit: int | None = None) -> dict[str, Any]:
@@ -415,29 +418,55 @@ class PhotoEnrichmentAgent:
                 hint = "uk" if (
                     lot.region == "uk" or lot.source == "copart_uk"
                 ) else (lot.source or lot.region or "")
-                from app.services.lot_photos import archive_gallery
+                from app.services.lot_photos import (
+                    archive_gallery,
+                    merge_gallery_urls,
+                )
 
                 # Always open the lot page in Chrome — never skip via DB CDN alone.
                 urls = await self.enrich_lot(page, lot)
                 saved: list[str] = []
                 if urls:
+                    # Download with Chrome cookies so USA CDNs succeed.
                     saved = await archive_gallery(
-                        lot.id, urls[:16], referer_hint=hint
+                        lot.id,
+                        urls[:24],
+                        referer_hint=hint,
+                        page=page,
                     )
 
-                if saved:
+                # Locals first for speed; keep CDN remotes so UI shows full gallery
+                # even when only part of the archive succeeded.
+                existing = list(lot.imageUrls or []) + (
+                    [lot.imageUrl] if lot.imageUrl else []
+                )
+                merged = merge_gallery_urls(saved, urls, existing)
+                local_count = sum(
+                    1 for u in merged if (u or "").startswith("/api/lot-photos/")
+                )
+
+                if merged and (saved or len(urls) >= 2):
                     updated = lot_store.update_photos(
-                        lot.id, saved, enriched_at=now
+                        lot.id, merged, enriched_at=now
                     )
                     if updated:
                         enriched += 1
                         photos += len(saved)
                         self.status.total_enriched += 1
                         self.status.total_photos += len(saved)
-                    self._processed_ids.add(lot.id)
-                    self.status.processed_today += 1
+                    # Only mark done when we archived a real gallery (3+).
+                    # Thin archives stay in queue for retry.
+                    if local_count >= 3 or (urls and local_count >= len(urls)):
+                        self._processed_ids.add(lot.id)
+                        self.status.processed_today += 1
+                    else:
+                        logger.info(
+                            "photo enrich partial %s locals=%s remotes=%s — retry later",
+                            lot.id,
+                            local_count,
+                            len([u for u in merged if u.startswith("http")]),
+                        )
                 elif urls:
-                    # Page opened but CDN download failed — retry later
                     errors += 1
                     self.status.last_error = f"archive_empty:{lot.id}"
                     logger.warning("photo archive empty %s — will retry", lot.id)

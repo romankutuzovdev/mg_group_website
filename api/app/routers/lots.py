@@ -113,8 +113,8 @@ def list_lots(
     start = (page - 1) * page_size
     page_items = items[start : start + page_size]
 
-    # List cards only need a cover — prefer archived local file (no client VPN).
-    # Detail `GET /lots/{slug}` still returns full imageUrls.
+    # List cards: prefer archived local thumb as cover (no client VPN).
+    # Keep full imageUrls so the card can show photo count / detail prefetch.
     slim_items: list[AuctionLot] = []
     for lot in page_items:
         imgs = [
@@ -123,13 +123,22 @@ def list_lots(
             + list(lot.imageUrls or [])
             if (u or "").strip()
         ]
+        # Dedupe preserving order; drop catalog -th duplicates of same shot
+        seen: set[str] = set()
+        gallery: list[str] = []
+        for u in imgs:
+            key = u[:-7] if u.endswith("-th.jpg") else u
+            if key in seen:
+                continue
+            seen.add(key)
+            gallery.append(u)
+
         locals_ = [
             u
-            for u in imgs
+            for u in gallery
             if u.startswith("/api/lot-photos/") and not u.endswith("-th.jpg")
         ]
-        cover = locals_[0] if locals_ else (imgs[0] if imgs else "")
-        # Catalog thumb sibling when present on disk
+        cover = locals_[0] if locals_ else (gallery[0] if gallery else "")
         if cover.startswith("/api/lot-photos/"):
             try:
                 from app.services.lot_photos import (
@@ -141,11 +150,16 @@ def list_lots(
                     cover = to_catalog_thumb_url(cover)
             except Exception:
                 pass
+        # Cover first for fast card paint; rest of gallery kept for count/UI.
+        ordered = [cover] if cover else []
+        for u in gallery:
+            if u != cover and u not in ordered:
+                ordered.append(u)
         slim_items.append(
             lot.model_copy(
                 update={
                     "imageUrl": cover,
-                    "imageUrls": [cover] if cover else None,
+                    "imageUrls": ordered or None,
                 }
             )
         )

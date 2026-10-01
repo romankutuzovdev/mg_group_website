@@ -735,7 +735,7 @@ def map_iaai_row(row: dict[str, Any]) -> AuctionLot | None:
         location=str(fields.get("location") or "USA"),
         auctionDate=(datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
         imageUrl=gallery[0] if gallery else image,
-        imageUrls=gallery[:20] if gallery else ([image] if image else []),
+        imageUrls=gallery[:24] if gallery else ([image] if image else []),
         transmission="—",
         fuel="—",
         drive="—",

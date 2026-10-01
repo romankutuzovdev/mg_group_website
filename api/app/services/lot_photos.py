@@ -15,6 +15,7 @@ import logging
 import re
 import shutil
 from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import httpx
@@ -193,8 +194,51 @@ def _compress_image(
         return raw, ".jpg"
 
 
+async def _fetch_image_bytes(
+    url: str,
+    *,
+    referer_hint: str | None,
+    client: httpx.AsyncClient | None = None,
+    pw_request: Any | None = None,
+) -> tuple[bytes, str] | None:
+    """Fetch image bytes via Playwright request (cookies) or httpx."""
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/131.0.0.0 Safari/537.36"
+        ),
+        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        "Referer": _referer(url, hint=referer_hint),
+    }
+    # Prefer Chrome context — Copart/IAAI CDN often needs auction cookies.
+    if pw_request is not None:
+        try:
+            resp = await pw_request.get(url, headers=headers, timeout=15_000)
+            if resp.status >= 400:
+                return None
+            body = await resp.body()
+            ctype = (resp.headers.get("content-type") or "").lower()
+            if len(body) >= 800 and ("image" in ctype or "octet-stream" in ctype or body[:3] == b"\xff\xd8\xff"):
+                return body, ctype
+        except Exception as exc:
+            logger.debug("pw photo %s: %s", url[:80], exc)
+    if client is not None:
+        try:
+            response = await client.get(url, headers=headers)
+        except Exception as exc:
+            logger.debug("httpx photo %s: %s", url[:80], exc)
+            return None
+        if response.status_code >= 400 or len(response.content) < 800:
+            return None
+        ctype = (response.headers.get("content-type") or "").lower()
+        if "image" not in ctype and "octet-stream" not in ctype:
+            return None
+        return response.content, ctype
+    return None
+
+
 async def _download_one(
-    client: httpx.AsyncClient,
     *,
     lot_id: str,
     folder: Path,
@@ -202,6 +246,8 @@ async def _download_one(
     url: str,
     referer_hint: str | None,
     sem: asyncio.Semaphore,
+    client: httpx.AsyncClient | None = None,
+    pw_request: Any | None = None,
 ) -> str | None:
     url = _prefer_download_url(url)
     if not url.startswith("http") or _is_junk_url(url):
@@ -227,28 +273,14 @@ async def _download_one(
         return public_path(lot_id, existing[0].name)
 
     async with sem:
-        try:
-            headers = {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/131.0.0.0 Safari/537.36"
-                ),
-                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-                "Referer": _referer(url, hint=referer_hint),
-            }
-            response = await client.get(url, headers=headers)
-        except Exception as exc:
-            logger.debug("photo download %s: %s", url[:80], exc)
-            return None
-
-    if response.status_code >= 400 or len(response.content) < 800:
+        fetched = await _fetch_image_bytes(
+            url, referer_hint=referer_hint, client=client, pw_request=pw_request
+        )
+    if not fetched:
         return None
-    ctype = (response.headers.get("content-type") or "").lower()
-    if "image" not in ctype and "octet-stream" not in ctype:
-        return None
+    raw, _ctype = fetched
 
-    data, ext = _compress_image(response.content)
+    data, ext = _compress_image(raw)
     if len(data) < 600:
         return None
     filename = f"{index:02d}-{digest}{ext}"
@@ -257,7 +289,7 @@ async def _download_one(
     # Catalog thumb (smaller JPEG)
     try:
         thumb, _ = _compress_image(
-            response.content,
+            raw,
             max_side=_THUMB_SIDE_PX,
             quality=_THUMB_QUALITY,
         )
@@ -267,6 +299,29 @@ async def _download_one(
         pass
 
     return public_path(lot_id, filename)
+
+
+def merge_gallery_urls(
+    saved_locals: list[str],
+    *extra_url_lists: list[str],
+) -> list[str]:
+    """Locals first (fast same-origin), then CDN remotes so the UI keeps full gallery."""
+    locals_: list[str] = []
+    remotes: list[str] = []
+    seen: set[str] = set()
+    for raw in list(saved_locals) + [u for group in extra_url_lists for u in group]:
+        u = (raw or "").strip()
+        if not u or u in seen:
+            continue
+        if u.endswith("-th.jpg"):
+            continue
+        if is_local_photo(u):
+            seen.add(u)
+            locals_.append(u)
+        elif u.startswith("http") and not _is_junk_url(u):
+            seen.add(u)
+            remotes.append(u)
+    return (locals_ + remotes)[:40]
 
 
 def to_catalog_thumb_url(local_url: str) -> str:
@@ -297,9 +352,11 @@ async def archive_gallery(
     urls: list[str],
     *,
     referer_hint: str | None = None,
+    page: Any | None = None,
 ) -> list[str]:
     """Download remote gallery URLs in parallel, compress, store on disk.
 
+    Pass Playwright ``page`` to download with Chrome cookies (Copart/IAAI).
     Already-local paths are kept. Returns only `/api/lot-photos/...` URLs
     (empty list if nothing could be saved).
     """
@@ -328,18 +385,26 @@ async def archive_gallery(
     if not remote and local_kept:
         return local_kept
 
+    pw_request = None
+    if page is not None:
+        try:
+            pw_request = page.context.request
+        except Exception:
+            pw_request = None
+
     sem = asyncio.Semaphore(_download_concurrency())
     timeout = httpx.Timeout(12.0, connect=5.0)
     async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
         tasks = [
             _download_one(
-                client,
                 lot_id=lot_id,
                 folder=folder,
                 index=i,
                 url=url,
                 referer_hint=referer_hint,
                 sem=sem,
+                client=client,
+                pw_request=pw_request,
             )
             for i, url in enumerate(remote, start=1)
         ]
@@ -362,11 +427,12 @@ async def archive_gallery(
 
     if out:
         logger.info(
-            "archived %s/%s photos for %s (parallel=%s)",
+            "archived %s/%s photos for %s (parallel=%s chrome=%s)",
             len(out),
             len(remote) + len(local_kept),
             lot_id,
             _download_concurrency(),
+            bool(pw_request),
         )
     else:
         logger.warning("archive empty for %s (%s remote urls)", lot_id, len(remote))

@@ -346,11 +346,16 @@ class SourceAgent:
 
     async def _archive_mapped_photos(self, lot_ids: list[str]) -> None:
         """Save every remote gallery URL for these lots as compressed local JPEGs."""
-        from app.services.lot_photos import archive_gallery, is_local_photo
+        from app.services.lot_photos import (
+            archive_gallery,
+            is_local_photo,
+            merge_gallery_urls,
+        )
 
         settings = get_settings()
         archived_lots = 0
         archived_files = 0
+        page = self._page if self._page is not None and not self._page.is_closed() else None
         for lot_id in lot_ids:
             if self._stop.is_set():
                 break
@@ -366,12 +371,12 @@ class SourceAgent:
                 if (u or "").strip()
             ]
             remotes = [u for u in imgs if u.startswith("http")]
-            locals_ = [u for u in imgs if is_local_photo(u)]
+            locals_ = [u for u in imgs if is_local_photo(u) and not u.endswith("-th.jpg")]
             # Already fully local — nothing to fetch
             if not remotes:
                 continue
             # Have locals covering most remotes already
-            if len(locals_) >= min(3, len(remotes)) and len(locals_) >= len(remotes):
+            if len(locals_) >= 3 and len(locals_) >= min(8, len(remotes)):
                 continue
             hint = (
                 "uk"
@@ -380,22 +385,25 @@ class SourceAgent:
             )
             try:
                 saved = await archive_gallery(
-                    current.id, remotes[:24], referer_hint=hint
+                    current.id,
+                    remotes[:24],
+                    referer_hint=hint,
+                    page=page,
                 )
             except Exception as exc:
                 logger.debug("archive photos %s: %s", current.id, exc)
                 continue
-            if not saved:
+            if not saved and not remotes:
                 continue
-            # Locals first for the site; keep remotes so enricher can top up if needed
-            merged = list(saved)
-            for u in remotes:
-                if u not in merged:
-                    merged.append(u)
+            # Locals first for the site; keep remotes so detail page shows all
+            # photos even before every file is archived.
+            merged = merge_gallery_urls(saved or [], remotes, locals_)
+            if not merged:
+                continue
             updated = lot_store.update_photos(current.id, merged)
             if updated:
                 archived_lots += 1
-                archived_files += len(saved)
+                archived_files += len(saved or [])
 
         if archived_lots and settings.scraper_persist:
             lot_store.persist()

@@ -48,6 +48,96 @@ EXTRACT_ROWS_JS = """
 }
 """
 
+# Full gallery from VehicleDetail (imageKeys → vis.iaai.com resizer).
+EXTRACT_IAAI_GALLERY_JS = """
+() => {
+  const urls = [];
+  const push = (u) => {
+    if (!u || typeof u !== 'string') return;
+    const s = u.trim();
+    if (!s.startsWith('http')) return;
+    if (/sprite|icon|logo|avatar|flag|pixel|1x1|blank\\.|\\.svg(?:$|\\?)/i.test(s)) return;
+    urls.push(s);
+  };
+  document.querySelectorAll('meta[property="og:image"], meta[name="og:image"]').forEach((m) => {
+    push(m.getAttribute('content'));
+  });
+  document.querySelectorAll('[data-imagekey], [data-image-key]').forEach((el) => {
+    const key = el.getAttribute('data-imagekey') || el.getAttribute('data-image-key');
+    if (key) push('https://vis.iaai.com/resizer?imageKeys=' + key + '&width=845&height=633');
+  });
+  const html = document.documentElement ? document.documentElement.innerHTML : '';
+  const keyRe = /imageKeys=([^&"'\\s<>]+)/gi;
+  let km;
+  while ((km = keyRe.exec(html))) {
+    let key = km[1];
+    try { key = decodeURIComponent(key); } catch (e) {}
+    push('https://vis.iaai.com/resizer?imageKeys=' + key + '&width=845&height=633');
+  }
+  document.querySelectorAll('img[src*="iaai"], img[src*="anvis"], img[data-src*="iaai"]').forEach((el) => {
+    push(el.getAttribute('src') || el.getAttribute('data-src') || '');
+  });
+  return [...new Set(urls)];
+}
+"""
+
+# Open this many detail pages per scrape cycle to fill multi-photo galleries.
+_IAAI_GALLERY_LIMIT = 80
+
+
+async def _attach_iaai_galleries(
+    tab: Page,
+    lots: list[dict[str, Any]],
+    *,
+    timeout_ms: int,
+    limit: int = _IAAI_GALLERY_LIMIT,
+) -> None:
+    """Open VehicleDetail pages and collect full image galleries during parse."""
+    need = [
+        row
+        for row in lots
+        if (row.get("url") or "").strip()
+        and len([u for u in (row.get("images") or []) if str(u).startswith("http")]) < 2
+    ][: max(0, limit)]
+    if not need:
+        return
+    filled = 0
+    for row in need:
+        url = str(row.get("url") or "").strip()
+        if not url:
+            continue
+        try:
+            await tab.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+            await tab.wait_for_timeout(600)
+            imgs = await tab.evaluate(EXTRACT_IAAI_GALLERY_JS)
+            urls = [
+                str(u).strip()
+                for u in (imgs or [])
+                if isinstance(u, str) and u.startswith("http")
+            ]
+            # Dedupe preserving order
+            seen: set[str] = set()
+            gallery: list[str] = []
+            for u in urls:
+                if u in seen:
+                    continue
+                seen.add(u)
+                gallery.append(u)
+            if len(gallery) >= 2:
+                row["images"] = gallery[:24]
+                if not (row.get("image") or "").startswith("http"):
+                    row["image"] = gallery[0]
+                filled += 1
+        except Exception as exc:
+            logger.debug("iaai gallery %s: %s", url[:80], exc)
+            continue
+    logger.info(
+        "iaai galleries: filled %s/%s detail pages (need was %s)",
+        filled,
+        len(need),
+        len(need),
+    )
+
 
 async def _click_new_inventory(page: Page) -> None:
     for sel in (
@@ -160,6 +250,9 @@ async def scrape_iaai_usa(
                 break
             if new == 0:
                 break
+
+        # Full multi-photo galleries from VehicleDetail (not only listing thumbs).
+        await _attach_iaai_galleries(tab, lots, timeout_ms=timeout_ms)
     finally:
         await session.close()
 
