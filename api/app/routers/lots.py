@@ -113,6 +113,43 @@ def list_lots(
     start = (page - 1) * page_size
     page_items = items[start : start + page_size]
 
+    # List cards only need a cover — prefer archived local file (no client VPN).
+    # Detail `GET /lots/{slug}` still returns full imageUrls.
+    slim_items: list[AuctionLot] = []
+    for lot in page_items:
+        imgs = [
+            u.strip()
+            for u in ([lot.imageUrl] if lot.imageUrl else [])
+            + list(lot.imageUrls or [])
+            if (u or "").strip()
+        ]
+        locals_ = [
+            u
+            for u in imgs
+            if u.startswith("/api/lot-photos/") and not u.endswith("-th.jpg")
+        ]
+        cover = locals_[0] if locals_ else (imgs[0] if imgs else "")
+        # Catalog thumb sibling when present on disk
+        if cover.startswith("/api/lot-photos/"):
+            try:
+                from app.services.lot_photos import (
+                    thumb_file_exists,
+                    to_catalog_thumb_url,
+                )
+
+                if thumb_file_exists(cover):
+                    cover = to_catalog_thumb_url(cover)
+            except Exception:
+                pass
+        slim_items.append(
+            lot.model_copy(
+                update={
+                    "imageUrl": cover,
+                    "imageUrls": [cover] if cover else None,
+                }
+            )
+        )
+
     # Always emit all catalog regions (even 0) so clients never hide Korea/China.
     counts = {"usa": 0, "uk": 0, "korea": 0, "china": 0}
     for x in items:
@@ -120,7 +157,7 @@ def list_lots(
             counts[x.region] += 1
 
     return LotListResponse(
-        items=page_items,
+        items=slim_items,
         total=total,
         page=page,
         page_size=page_size,

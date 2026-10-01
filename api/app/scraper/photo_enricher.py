@@ -1,7 +1,8 @@
-"""Visit every lot detail page and collect full photo galleries.
+"""Visit every lot detail page in Chrome and collect full photo galleries.
 
-Runs nonstop until all lots in the store are enriched for the current UTC day,
-then waits for new lots / next day and continues.
+Always opens the auction URL in the photos tab — never skips via CDN URLs
+already stored in the catalog DB. Runs nonstop until all lots are enriched
+for the current UTC day, then waits for new lots / next day and continues.
 """
 
 from __future__ import annotations
@@ -211,14 +212,18 @@ def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> boo
         if u and (u.startswith("/api/lot-photos/") or not _is_useless_photo(u))
     ]
     local = [u for u in imgs if (u or "").startswith("/api/lot-photos/")]
-    # Enough local copies already archived today — skip.
-    if len(local) >= 2 and lot.photosEnrichedAt:
+    # Enough local copies — skip until remotes suggest a richer gallery.
+    if len(local) >= 1 and lot.photosEnrichedAt:
         try:
             enriched_day = datetime.fromisoformat(
                 lot.photosEnrichedAt.replace("Z", "+00:00")
             ).astimezone(timezone.utc).date()
+            remotes = [u for u in imgs if (u or "").startswith("http")]
             if enriched_day == day:
-                return False
+                # Done for today when we archived at least as many as remotes,
+                # or we already have a solid gallery (3+).
+                if len(local) >= 3 or len(local) >= max(1, len(remotes)):
+                    return False
         except Exception:
             if len(local) >= 3:
                 return False
@@ -316,14 +321,19 @@ class PhotoEnrichmentAgent:
         self.status.running = False
 
     async def enrich_lot(self, page: Page, lot: AuctionLot) -> list[str]:
+        """Always open the lot detail page in Chrome and collect gallery URLs."""
         settings = get_settings()
         url = (lot.lotUrl or "").strip()
         if not url:
             return []
 
+        try:
+            await page.bring_to_front()
+        except Exception:
+            pass
         await page.goto(url, wait_until="domcontentloaded", timeout=settings.scraper_timeout_ms)
-        # Let carousels hydrate
-        await page.wait_for_timeout(1500)
+        # Brief hydrate — keep short so catalog photos archive quickly
+        await page.wait_for_timeout(700)
 
         collected: list[str] = []
 
@@ -344,28 +354,29 @@ class PhotoEnrichmentAgent:
         except Exception as exc:
             logger.debug("dom photos %s: %s", lot.id, exc)
 
-        # Click through a few next-arrows to force lazy loads
-        for sel in (
-            'button[aria-label*="next" i]',
-            'button[class*="next" i]',
-            '[class*="swiper-button-next"]',
-            ".slick-next",
-        ):
-            try:
-                btn = page.locator(sel).first
-                if await btn.count() == 0:
+        # Click next-arrows only when API/DOM gave a thin gallery
+        if len(_dedupe(collected, lot.source)) < 4:
+            for sel in (
+                'button[aria-label*="next" i]',
+                'button[class*="next" i]',
+                '[class*="swiper-button-next"]',
+                ".slick-next",
+            ):
+                try:
+                    btn = page.locator(sel).first
+                    if await btn.count() == 0:
+                        continue
+                    for _ in range(6):
+                        await btn.click(timeout=800)
+                        await page.wait_for_timeout(120)
+                        more = await page.evaluate(EXTRACT_GALLERY_JS)
+                        if isinstance(more, list):
+                            collected.extend(str(x) for x in more)
+                    break
+                except Exception:
                     continue
-                for _ in range(12):
-                    await btn.click(timeout=1500)
-                    await page.wait_for_timeout(250)
-                    more = await page.evaluate(EXTRACT_GALLERY_JS)
-                    if isinstance(more, list):
-                        collected.extend(str(x) for x in more)
-                break
-            except Exception:
-                continue
 
-        # Keep existing thumbs as fallback
+        # Store remotes only as last-resort extras (never skip opening the page)
         if lot.imageUrl:
             collected.append(lot.imageUrl)
         if lot.imageUrls:
@@ -406,28 +417,13 @@ class PhotoEnrichmentAgent:
                 ) else (lot.source or lot.region or "")
                 from app.services.lot_photos import archive_gallery
 
-                # Fast path: catalog already has CDN URLs — download in parallel,
-                # no need to open the lot page one-by-one.
-                existing_remote = [
-                    u
-                    for u in (
-                        list(lot.imageUrls or [])
-                        + ([lot.imageUrl] if lot.imageUrl else [])
-                    )
-                    if (u or "").startswith("http") and not _is_useless_photo(u)
-                ]
+                # Always open the lot page in Chrome — never skip via DB CDN alone.
+                urls = await self.enrich_lot(page, lot)
                 saved: list[str] = []
-                if len(existing_remote) >= 2:
+                if urls:
                     saved = await archive_gallery(
-                        lot.id, existing_remote, referer_hint=hint
+                        lot.id, urls[:16], referer_hint=hint
                     )
-
-                if not saved:
-                    urls = await self.enrich_lot(page, lot)
-                    if urls:
-                        saved = await archive_gallery(
-                            lot.id, urls, referer_hint=hint
-                        )
 
                 if saved:
                     updated = lot_store.update_photos(
@@ -440,8 +436,8 @@ class PhotoEnrichmentAgent:
                         self.status.total_photos += len(saved)
                     self._processed_ids.add(lot.id)
                     self.status.processed_today += 1
-                elif existing_remote:
-                    # Had CDN urls but download failed — retry later (no mark)
+                elif urls:
+                    # Page opened but CDN download failed — retry later
                     errors += 1
                     self.status.last_error = f"archive_empty:{lot.id}"
                     logger.warning("photo archive empty %s — will retry", lot.id)
@@ -453,7 +449,7 @@ class PhotoEnrichmentAgent:
                 self.status.last_error = str(exc)
                 logger.warning("photo enrich failed %s: %s", lot.id, exc)
 
-            delay = max(0.5, settings.scraper_photo_delay_seconds)
+            delay = max(0.3, settings.scraper_photo_delay_seconds)
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=delay)
                 break

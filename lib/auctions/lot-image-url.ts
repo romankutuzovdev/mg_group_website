@@ -9,7 +9,9 @@ export function isCopartCdnUrl(url: string): boolean {
 export function isAuctionCdnUrl(url: string): boolean {
   return (
     isCopartCdnUrl(url) ||
-    /iaai\.com|anvis|encar\.com|bid\.cars|cloudfront\.net|amazonaws\.com/i.test(url)
+    /iaai\.com|anvis|encar\.com|bid\.cars|autoimg\.cn|che168\.com|autohome\.com|cloudfront\.net|amazonaws\.com/i.test(
+      url,
+    )
   );
 }
 
@@ -64,19 +66,41 @@ export function isJunkLotImageUrl(url: string): boolean {
 }
 
 /**
- * Copart object storage is public (CORS *) and works with referrerPolicy=no-referrer.
- * Proxying via Windows API doubles latency and often returns 502 when outbound is blocked.
+ * Auction CDNs (Copart / IAAI / Encar / Bid.cars) are often unreachable from BY
+ * without a VPN. Always route them through same-origin `/api/lot-image`
+ * (Vercel → Windows API, which has outbound/VPN). Direct `<img src=cdn>` breaks
+ * for visitors without VPN.
  */
 function shouldProxyAuctionUrl(url: string): boolean {
-  if (isCopartCdnUrl(url)) return false;
-  if (/images\.bid\.cars|cdn\.bid\.cars|mercury\.bid\.cars/i.test(url)) return false;
-  // IAAI / Encar often hotlink-protect — keep same-origin proxy.
-  return /iaai\.com|anvis|encar\.com|cloudfront\.net|amazonaws\.com/i.test(url);
+  return isAuctionCdnUrl(url);
+}
+
+function unwrapProxiedUrl(raw: string): string {
+  const proxied = raw.match(/[?&]u=([^&]+)/);
+  if (raw.includes("/api/lot-image") && proxied) {
+    try {
+      return decodeURIComponent(proxied[1]);
+    } catch {
+      return raw;
+    }
+  }
+  return raw;
+}
+
+/** Rewrite IAAI resizer width/height (catalog thumbs vs hero). */
+function rewriteIaaiSize(url: string, width: number, height: number): string {
+  let u = url;
+  if (/[?&]width=/i.test(u)) u = u.replace(/([?&]width=)\d+/i, `$1${width}`);
+  else u += `${u.includes("?") ? "&" : "?"}width=${width}`;
+  if (/[?&]height=/i.test(u)) u = u.replace(/([?&]height=)\d+/i, `$1${height}`);
+  else u += `&height=${height}`;
+  return u;
 }
 
 /**
  * Normalize lot image for display.
- * Copart/Bid.cars: direct CDN. IAAI/Encar: `/api/lot-image` proxy.
+ * Production: auction CDNs → `/api/lot-image` (works without client VPN).
+ * Prefer already-archived `/api/lot-photos/...` when the lot has them.
  */
 export function resolveLotImageUrl(
   url: string | undefined | null,
@@ -91,11 +115,10 @@ export function resolveLotImageUrl(
 
   if (/^https?:\/\//i.test(trimmed)) {
     const useProxy =
-      (process.env.NODE_ENV === "production" ||
-        Boolean(imageProxyBase()) ||
-        process.env.NEXT_PUBLIC_FORCE_IMAGE_PROXY === "1") &&
-      shouldProxyAuctionUrl(trimmed);
-    if (useProxy) {
+      process.env.NODE_ENV === "production" ||
+      Boolean(imageProxyBase()) ||
+      process.env.NEXT_PUBLIC_FORCE_IMAGE_PROXY === "1";
+    if (useProxy && shouldProxyAuctionUrl(trimmed)) {
       return proxyLotImageUrl(trimmed);
     }
     return trimmed;
@@ -103,52 +126,46 @@ export function resolveLotImageUrl(
   return LOT_IMAGE_FALLBACK;
 }
 
-/** Smaller Copart thumb for catalog cards (faster than _ful). */
+/** Smaller thumb for catalog cards (local archive / Copart _thb / IAAI 320px). */
 export function toLotThumbUrl(url: string): string {
   const raw = (url || "").trim();
   if (!raw) return raw;
-  // Unwrap proxy so we can rewrite size, then resolve again.
-  let target = raw;
-  const proxied = raw.match(/[?&]u=([^&]+)/);
-  if (raw.includes("/api/lot-image") && proxied) {
-    try {
-      target = decodeURIComponent(proxied[1]);
-    } catch {
-      return raw;
-    }
+  const target = unwrapProxiedUrl(raw);
+  // Local archives are already JPEG-compressed on Windows; list API may already
+  // point at *-th.jpg. Don't invent a -th path (404 → empty card).
+  if (target.startsWith("/api/lot-photos/")) {
+    return target;
   }
   if (isCopartCdnUrl(target)) {
     const thumb = target.replace(/_(?:ful|hrs)\./i, "_thb.");
     return resolveLotImageUrl(thumb);
   }
+  if (/vis\.iaai\.com/i.test(target)) {
+    return resolveLotImageUrl(rewriteIaaiSize(target, 320, 240));
+  }
   return resolveLotImageUrl(target);
 }
 
-/** Hero / main photo — Copart mid-res (_hrs), not huge _ful. */
+/** Hero / main photo — Copart mid-res (_hrs), IAAI ~640px. */
 export function toLotHeroUrl(url: string): string {
   const raw = (url || "").trim();
   if (!raw) return LOT_IMAGE_FALLBACK;
-  let target = raw;
-  const proxied = raw.match(/[?&]u=([^&]+)/);
-  if (raw.includes("/api/lot-image") && proxied) {
-    try {
-      target = decodeURIComponent(proxied[1]);
-    } catch {
-      return resolveLotImageUrl(raw);
-    }
-  }
+  const target = unwrapProxiedUrl(raw);
   if (isCopartCdnUrl(target)) {
     const mid = target.replace(/_th[sb]\./i, "_hrs.").replace(/_ful\./i, "_hrs.");
     return resolveLotImageUrl(mid);
   }
-  return resolveLotImageUrl(raw);
+  if (/vis\.iaai\.com/i.test(target)) {
+    return resolveLotImageUrl(rewriteIaaiSize(target, 640, 480));
+  }
+  return resolveLotImageUrl(target);
 }
 
 function photoIdentity(url: string): string {
   if (url.startsWith("/api/lot-photos/")) {
     const base = (url.split("/").pop() || "").replace(/\.[^.]+$/, "");
-    // 01-abc123def456 → prefer hash part
-    const hash = base.replace(/^\d+-/, "");
+    // 01-abc123def456 or 01-abc123def456-th → same shot
+    const hash = base.replace(/^\d+-/, "").replace(/-th$/, "");
     return hash ? `local:${hash}` : `local:${base}`;
   }
   const keyMatch = url.match(/[?&]imageKeys=([^&]+)/i);
@@ -167,11 +184,13 @@ function photoIdentity(url: string): string {
 
 function photoScore(url: string): number {
   let score = 0;
-  // Prefer direct Copart/Bid.cars CDN — Vercel→Windows /api/lot-photos is slow.
-  if (isCopartCdnUrl(url)) score += 30_000;
+  // Local archive on Windows — works without client VPN, no CDN re-fetch.
+  if (url.startsWith("/api/lot-photos/")) score += 50_000;
+  else if (url.startsWith("/api/lot-image")) score += 15_000;
+  else if (isCopartCdnUrl(url)) score += 30_000;
   else if (/images\.bid\.cars|cdn\.bid\.cars|mercury\.bid\.cars/i.test(url)) score += 28_000;
-  else if (url.startsWith("/api/lot-photos/")) score += 12_000;
-  else if (url.startsWith("/api/lot-image")) score += 8_000;
+  else if (/vis\.iaai\.com|anvisimages\.com/i.test(url)) score += 27_000;
+  else if (/encar\.com/i.test(url)) score += 26_000;
   else if (/^https?:\/\//i.test(url)) score += 10_000;
 
   const rh = url.match(/[?&]rh=(\d+)/i);

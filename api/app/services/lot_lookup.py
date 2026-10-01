@@ -1,6 +1,7 @@
 """Fetch lot details for the calculator.
 
-Always opens the auction URL in Chrome. Does not read the production catalog.
+Opens the auction URL in Chrome (permanent ``lot_lookup`` tab via the scraper
+session). Never fills the calculator from the production catalog / DB.
 """
 
 from __future__ import annotations
@@ -930,13 +931,36 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
 
 
 async def _fetch_lot_via_chrome(url: str, *, optional: bool = False) -> dict[str, Any] | None:
-    """Run lot scrape under the shared calc Chrome pool (tabs always closed)."""
-    pool = get_calc_chrome_pool()
+    """Open auction URL on permanent lot_lookup tab and scrape.
+
+    Prefers scraper's Playwright session (same Chrome). Falls back to calc pool
+    only if the scraper browser is not attached.
+    """
 
     async def worker(page: Page) -> dict[str, Any]:
         return await _scrape_lot_on_page(page, url)
 
-    return await pool.run(worker, optional=optional)
+    # 1) Same CDP session as scrapers — reliable and visible in Chrome
+    try:
+        from app.scraper.worker import scraper_worker
+
+        if getattr(scraper_worker, "_browser", None) is not None:
+            opened = await scraper_worker.open_lot_on_lookup_tab(
+                worker,
+                timeout_sec=28.0,
+            )
+            if opened is not None:
+                opened["via"] = "lot_lookup_tab"
+                return opened
+    except Exception as exc:
+        logger.warning("scraper lot_lookup tab failed: %s", exc)
+
+    # 2) Separate CDP attach (last resort)
+    pool = get_calc_chrome_pool()
+    chrome = await pool.run(worker, optional=optional)
+    if chrome is not None:
+        chrome["via"] = chrome.get("via") or "chrome_cdp"
+    return chrome
 
 
 def _merge_fields(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
@@ -1151,18 +1175,55 @@ async def _finalize_lot_payload(payload: dict[str, Any], remaining: float) -> di
 
 
 async def fetch_lot_from_url(url: str) -> dict[str, Any]:
-    """Open lot for calculator via Chrome only.
+    """Resolve lot for calculator by opening the URL in Chrome.
 
-    Never reads the production catalog. Always opens the auction URL in Chrome.
+    Never uses production catalog / DB. Opens a permanent ``lot_lookup`` tab
+    so the lot page is visible on the Windows host.
     """
     import time
 
     MILES_BUDGET = 8.0
-    # USA Chrome alone often needs 20s+; keep room for miles after
     deadline = time.monotonic() + 40.0
 
     def _remaining() -> float:
         return max(0.0, deadline - time.monotonic())
+
+    def _apply_live(chrome: dict[str, Any], *, via: str) -> None:
+        nonlocal result, chrome_ok, live_bid
+        chrome_ok = True
+        chrome_bid = chrome.get("bid")
+        result = _merge_fields(result, chrome)
+        for key in (
+            "via",
+            "region",
+            "source",
+            "auction_platform",
+            "images",
+            "bodyStyle",
+            "category",
+            "bidSource",
+        ):
+            if chrome.get(key) is not None and chrome.get(key) != "":
+                result[key] = chrome[key]
+        if chrome_bid is not None and float(chrome_bid) >= 0:
+            result["bid"] = float(chrome_bid)
+            result["bidLive"] = True
+            live_bid = True
+        result["ok"] = True
+        result["via"] = via
+        result.pop("error", None)
+        result.setdefault(
+            "region",
+            "uk" if is_uk_url else ("usa" if is_usa else result.get("region")),
+        )
+        if is_uk_url or _is_uk_payload(result):
+            result = apply_uk_url_yard(result, canonical)
+            if chrome.get("category"):
+                result["category"] = sanitize_uk_category(
+                    str(chrome.get("category")),
+                    url=canonical,
+                    title=str(chrome.get("title") or result.get("title") or ""),
+                )
 
     try:
         canonical = normalize_lot_url(url)
@@ -1185,7 +1246,7 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
     live_bid = False
     chrome_ok = False
 
-    # Chrome budget: USA needs more time (Bid.cars/IAAI), not less
+    # Open the auction URL in Chrome (lot_lookup tab) and scrape live fields
     chrome_budget = min(
         28.0,
         max(12.0, _remaining() - (MILES_BUDGET if is_usa else 0.5)),
@@ -1201,48 +1262,22 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
             or chrome.get("location")
             or chrome.get("category")
             or chrome.get("lotNumber")
+            or chrome.get("title")
         ):
-            chrome_ok = True
-            chrome_bid = chrome.get("bid")
-            result = _merge_fields(result, chrome)
-            for key in (
-                "via",
-                "region",
-                "source",
-                "auction_platform",
-                "images",
-                "bodyStyle",
-                "category",
-                "bidSource",
-            ):
-                if chrome.get(key) is not None and chrome.get(key) != "":
-                    result[key] = chrome[key]
-            if chrome_bid is not None and float(chrome_bid) >= 0:
-                result["bid"] = float(chrome_bid)
-                result["bidLive"] = True
-                live_bid = True
-            result["ok"] = True
-            result["via"] = str(chrome.get("via") or "chrome_cdp")
-            result.pop("error", None)
-            result.setdefault(
-                "region",
-                "uk" if is_uk_url else ("usa" if is_usa else result.get("region")),
-            )
-            if is_uk_url or _is_uk_payload(result):
-                result = apply_uk_url_yard(result, canonical)
-                if chrome.get("category"):
-                    result["category"] = sanitize_uk_category(
-                        str(chrome.get("category")),
-                        url=canonical,
-                        title=str(chrome.get("title") or result.get("title") or ""),
-                    )
+            _apply_live(chrome, via=str(chrome.get("via") or "lot_lookup_tab"))
         elif chrome is None:
             result["error"] = "chrome_unavailable"
             result["via"] = "soft_fallback"
+            result["ok"] = False
+        else:
+            result["error"] = "lot_page_empty"
+            result["via"] = str(chrome.get("via") or "lot_lookup_tab")
+            result["ok"] = False
     except Exception as exc:
         logger.warning("chrome lot-from-url failed: %s", exc)
         result["error"] = f"chrome_failed:{exc}"[:300]
         result["via"] = "soft_fallback"
+        result["ok"] = False
 
     if live_bid:
         result["bidLive"] = True
@@ -1257,7 +1292,9 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
                 url=canonical,
                 title=str(result.get("title") or ""),
             )
-        if result.get("location") or result.get("make") or result.get("lotNumber"):
+        if chrome_ok and (
+            result.get("location") or result.get("make") or result.get("lotNumber")
+        ):
             result["ok"] = True
         return result
 
@@ -1270,12 +1307,11 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
         result["ok"] = True
         result.setdefault("region", "usa")
 
-    # Miles only after a real Chrome open with location — never silent 450 on soft fail
     if chrome_ok and result.get("location"):
         miles_timeout = max(MILES_BUDGET, min(10.0, _remaining() + 2.0))
         result = await enrich_usa_inland_async(result, timeout=miles_timeout)
     elif not chrome_ok:
-        result["ok"] = False
+        result.setdefault("ok", False)
         result["inlandOk"] = False
         result["inlandError"] = "chrome_failed"
         result.pop("inlandMiles", None)

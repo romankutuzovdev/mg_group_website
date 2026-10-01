@@ -56,9 +56,12 @@ def merge_lot(old: AuctionLot | None, new: AuctionLot) -> AuctionLot:
     new_imgs = _dedupe_urls(list(new.imageUrls or []) + ([new.imageUrl] if new.imageUrl else []))
     old_local = [u for u in old_imgs if u.startswith("/api/lot-photos/")]
 
-    # A saved gallery must survive the next search scrape, which only has thumbs.
-    if len(old_local) >= 2 and len(old_local) >= len(new_imgs):
-        data["imageUrls"] = old_local
+    # Archived photos must survive CDN-only scrapes — BY visitors need
+    # same-origin `/api/lot-photos` (auction CDNs often need a VPN).
+    if old_local:
+        remotes = [u for u in (new_imgs + old_imgs) if u.startswith("http")]
+        merged = _dedupe_urls(old_local + remotes)
+        data["imageUrls"] = merged
         data["imageUrl"] = old_local[0]
     elif len(old_imgs) > len(new_imgs):
         merged = _dedupe_urls(old_imgs + new_imgs)

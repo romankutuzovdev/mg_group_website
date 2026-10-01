@@ -68,10 +68,13 @@ export function LotCard({
   lot: rawLot,
   pricingMode,
   onNavigate,
+  priority = false,
 }: {
   lot: AuctionLot;
   pricingMode?: LotPricingMode;
   onNavigate?: (slug: string) => void;
+  /** First-row cards: eager load cover for faster LCP. */
+  priority?: boolean;
 }) {
   const lot = presentLot(rawLot);
   const mode = pricingMode ?? defaultPricingMode(lot);
@@ -113,7 +116,8 @@ export function LotCard({
             src={cover}
             alt={`${lot.year} ${lot.make} ${lot.model}`}
             fill
-            loading="lazy"
+            priority={priority}
+            loading={priority ? "eager" : "lazy"}
             decoding="async"
             className="object-cover transition duration-500 group-hover:scale-[1.04]"
             sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 33vw"

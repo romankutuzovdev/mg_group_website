@@ -1117,28 +1117,94 @@ def map_encar_row(row: dict[str, Any]) -> AuctionLot | None:
 
 
 def china_lot_url(row: dict[str, Any], lot_number: str) -> str:
-    """Prefer scraped detail URL; otherwise Che168 dealer/detail fallback by id."""
+    """Prefer Autohome Global detail URL; otherwise Che168 dealer/detail fallback."""
     for key in ("lotUrl", "url", "detailUrl", "href", "link", "pcUrl", "mUrl"):
         u = str(row.get(key) or "").strip()
         if u.startswith("http"):
             return u
+    lid = str(lot_number or "").strip()
+    if lid.isdigit():
+        return f"https://global.autohome.com/en/detail/{lid}"
     return f"https://www.che168.com/dealer/{lot_number}.html"
 
 
+def _china_year(row: dict[str, Any]) -> int:
+    for key in ("year", "Year", "regYear", "reg_year"):
+        try:
+            y = int(row.get(key) or 0)
+            if 1980 <= y <= 2100:
+                return y
+        except (TypeError, ValueError):
+            pass
+    # Prefer model year from title / trim (e.g. "… GL8 2018 28T …")
+    title = str(
+        row.get("carname")
+        or row.get("title")
+        or row.get("Title")
+        or row.get("specname")
+        or ""
+    )
+    m = re.search(r"\b((?:19|20)\d{2})\b", title)
+    if m:
+        return int(m.group(1))
+    # Fallback: first registration "2019.10"
+    reg = str(row.get("regdate") or row.get("regDate") or row.get("firstreg") or "").strip()
+    m = re.match(r"(19|20)\d{2}", reg)
+    if m:
+        return int(m.group(0))
+    return 0
+
+
+def _china_mileage(row: dict[str, Any]) -> int:
+    raw = row.get("odometer") or row.get("mileage") or row.get("Mileage") or 0
+    if isinstance(raw, (int, float)):
+        return int(raw)
+    s = str(raw or "").replace(",", "").replace(" ", "").replace("km", "").replace("KM", "")
+    try:
+        return int(float(s)) if s else 0
+    except (TypeError, ValueError):
+        return 0
+
+
 def map_china_market_row(row: dict[str, Any]) -> AuctionLot | None:
-    """China used-car / export marketplace row → AuctionLot (always with lotUrl)."""
+    """China used-car / Autohome Global row → AuctionLot (always with lotUrl)."""
     lid = str(
         row.get("id")
         or row.get("lotNumber")
+        or row.get("infoid")
         or row.get("InfoId")
         or row.get("carId")
         or row.get("CarId")
         or ""
     ).strip()
-    title = str(row.get("title") or row.get("Title") or "").strip()
-    year = int(row.get("year") or row.get("Year") or 0)
-    make = title_case(str(row.get("make") or row.get("Make") or row.get("brand") or ""))
-    model = title_case(str(row.get("model") or row.get("Model") or row.get("series") or ""))
+    title = str(
+        row.get("carname")
+        or row.get("title")
+        or row.get("Title")
+        or ""
+    ).strip()
+    year = _china_year(row)
+    make = title_case(
+        str(
+            row.get("make")
+            or row.get("Make")
+            or row.get("brand")
+            or row.get("brandname")
+            or row.get("BrandName")
+            or ""
+        )
+    )
+    model = title_case(
+        str(
+            row.get("model")
+            or row.get("Model")
+            or row.get("series")
+            or row.get("seriesname")
+            or row.get("SeriesName")
+            or row.get("specname")
+            or ""
+        )
+    )
 
     if not year or not make:
         if title:
@@ -1149,7 +1215,7 @@ def map_china_market_row(row: dict[str, Any]) -> AuctionLot | None:
         lid = f"{year}-{slugify(make)}-{slugify(model)}"
 
     images: list[str] = []
-    for key in ("imageUrl", "image", "ImageUrl", "pic", "Pic"):
+    for key in ("imageUrl", "imageurl", "image", "ImageUrl", "pic", "Pic"):
         u = str(row.get(key) or "").strip()
         if u.startswith("http"):
             images.append(u)
@@ -1171,8 +1237,21 @@ def map_china_market_row(row: dict[str, Any]) -> AuctionLot | None:
         or row.get("priceUsd")
         or 0
     )
-    odo = int(row.get("odometer") or row.get("mileage") or row.get("Mileage") or 0)
+    try:
+        price = float(str(price).replace(",", "").strip() or 0)
+    except (TypeError, ValueError):
+        price = 0.0
+    odo = _china_mileage(row)
     lot_url = china_lot_url(row, lid)
+    city = str(row.get("location") or row.get("city") or row.get("cname") or "").strip()
+    location = f"{title_case(city)}, China" if city and city.lower() != "china" else "China"
+    fuel = _clean_spec(
+        row.get("fuel")
+        or row.get("Fuel")
+        or row.get("fuelType")
+        or row.get("fuelname")
+        or row.get("FuelName")
+    )
 
     return AuctionLot(
         id=f"china-{lid}",
@@ -1185,14 +1264,14 @@ def map_china_market_row(row: dict[str, Any]) -> AuctionLot | None:
         model=model or "Unknown",
         year=year,
         titleType="clean",
-        titleLabel=str(row.get("titleLabel") or "China market"),
+        titleLabel=str(row.get("titleLabel") or "China market · Autohome"),
         primaryDamage=title_case(str(row.get("primaryDamage") or row.get("damage") or "—")) or "—",
         odometer=odo,
         odometerUnit="km",
         currentBid=price,
         buyNowPrice=float(row.get("buyNowPrice") or 0) or (price or None),
         currency="USD",
-        location=str(row.get("location") or row.get("city") or "China"),
+        location=location,
         auctionDate=str(
             row.get("auctionDate")
             or (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
@@ -1200,7 +1279,7 @@ def map_china_market_row(row: dict[str, Any]) -> AuctionLot | None:
         imageUrl=images[0],
         imageUrls=images[:12],
         transmission=_clean_spec(row.get("transmission") or row.get("Transmission")),
-        fuel=_clean_spec(row.get("fuel") or row.get("Fuel") or row.get("fuelType")),
+        fuel=fuel,
         drive=_clean_spec(row.get("drive") or row.get("Drive")),
         exteriorColor=title_case(str(row.get("exteriorColor") or row.get("color") or "")) or "—",
         hasKeys=bool(row.get("hasKeys", True)),

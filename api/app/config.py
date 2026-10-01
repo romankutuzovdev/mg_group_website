@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # Scraper — one Google Chrome, one tab per source (CDP on Windows)
     scraper_autostart: bool = True
-    scraper_sources: str = "copart,iaai,copart_uk,manheim,salvage_market,encar"
+    scraper_sources: str = "copart,iaai,copart_uk,manheim,salvage_market,encar,china_market"
     scraper_interval_seconds: int = 600  # 10 min
     # After Chrome CDP is up — wait so you can enable VPN before Copart hits Incapsula
     scraper_startup_delay_seconds: int = 180
@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     scraper_max_pages_manheim: int = 5
     scraper_max_pages_salvage_market: int = 5
     scraper_max_pages_encar: int = 5
+    scraper_max_pages_china_market: int = 8
     scraper_page_size: int = 100
     scraper_timeout_ms: int = 60000
     scraper_headless: bool = False
@@ -68,10 +69,10 @@ class Settings(BaseSettings):
     # Photo enricher — visits every lot card, collects full galleries, nonstop daily
     scraper_photos_enabled: bool = True
     scraper_photo_batch_size: int = 40  # lots per cycle before status tick
-    scraper_photo_delay_seconds: float = 1.5  # pause between lot pages
+    scraper_photo_delay_seconds: float = 0.6  # pause between lot pages (always open)
     scraper_photo_idle_seconds: int = 120  # when queue empty, wait then re-check
     # Parallel CDN downloads inside one lot gallery (UK + USA)
-    scraper_photo_download_concurrency: int = 10
+    scraper_photo_download_concurrency: int = 12
 
     # Calculator lot-from-url — shared Chrome tabs (separate from scraper agents)
     # Must be > page goto+scrape (Bid.cars / Copart / IAAI often 15–25s)
@@ -83,13 +84,13 @@ class Settings(BaseSettings):
     telegram_bot_username: str = ""
     jwt_secret: str = "dev-change-me"
     jwt_ttl_days: int = 30
-    cabinet_admin_telegram_ids: str = ""  # comma-separated telegram user ids
+    cabinet_admin_telegram_ids: str = "8257414851"  # comma-separated telegram user ids
     cabinet_db_path: str = str(DEFAULT_CABINET_DB)
     cabinet_uploads_dir: str = str(DEFAULT_UPLOADS_DIR)
     telegram_auth_max_age_seconds: int = 86400  # 24h
     # Local-only: POST /auth/dev + кнопки тестового входа в /cabinet/
     cabinet_dev_auth: bool = False
-    cabinet_dev_telegram_id: int = 900001  # менеджер (обычно в CABINET_ADMIN_TELEGRAM_IDS)
+    cabinet_dev_telegram_id: int = 8257414851  # менеджер (в CABINET_ADMIN_TELEGRAM_IDS)
     cabinet_dev_client_telegram_id: int = 900002  # обычный клиент (не admin)
 
 

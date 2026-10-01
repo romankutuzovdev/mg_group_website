@@ -89,7 +89,7 @@ def calc_weight(body: WeightPriceRequest) -> dict:
 
 @router.post("/lot-from-url")
 async def lot_from_url(body: LotFromUrlRequest) -> dict:
-    """Resolve lot for calculator: Chrome only (no catalog), soft 200."""
+    """Open auction URL in Chrome and scrape live fields (never from catalog DB)."""
     from app.services.lot_lookup import soft_lot_payload
 
     try:

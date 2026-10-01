@@ -22,12 +22,13 @@ export function LotGrid({
 
   return (
     <div className="grid content-start gap-3 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
-      {lots.map((lot) => (
+      {lots.map((lot, index) => (
         <LotCard
           key={lot.id}
           lot={lot}
           pricingMode={pricingMode}
           onNavigate={onLotNavigate}
+          priority={index < 3}
         />
       ))}
     </div>

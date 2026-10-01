@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import { DisableStaticExportPrefetch } from "@/components/layout/disable-static-export-prefetch";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { TelegramWebAppInit } from "@/components/layout/telegram-webapp-init";
+import { CookieConsent } from "@/components/site/cookie-consent";
 import { getDictionary } from "@/lib/dictionary";
 import "@/styles/globals.css";
 
@@ -23,6 +24,7 @@ export default function App({ Component, pageProps }: AppProps) {
       </main>
       <Footer dictionary={dictionary} />
       <MobileBottomNav />
+      <CookieConsent />
     </div>
   );
 }

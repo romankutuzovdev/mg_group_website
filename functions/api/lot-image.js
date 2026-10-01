@@ -1,6 +1,7 @@
 /**
- * Cloudflare Pages Function — proxies hotlink-protected auction CDNs.
- * Copart cs.*/c-static.* should load directly (see lot-image-url.ts).
+ * Cloudflare Pages Function — proxies auction CDNs for visitors without VPN
+ * (BY / blocked Copart·IAAI). Production on Vercel uses the Windows FastAPI
+ * `/api/lot-image` instead; this stays for legacy Pages deploys.
  *
  * GET /api/lot-image?u=https://...
  */

@@ -1,6 +1,7 @@
 """Multi-agent auction scrapers — each source runs in its own Chrome tab forever.
 
-Sources: copart (USA), iaai, copart_uk, manheim, salvage_market, encar (Korea).
+Sources: copart (USA), iaai, copart_uk, manheim, salvage_market, encar (Korea),
+china_market (Autohome Global / che168).
 
 On Windows: start ONE Google Chrome with remote debugging (start-chrome-cdp.bat),
 set SCRAPER_CDP_URL=http://127.0.0.1:9223 — all agents attach and open separate tabs
@@ -35,6 +36,7 @@ from app.scraper.iaai import scrape_iaai_usa
 from app.scraper.manheim import scrape_manheim_usa
 from app.scraper.salvage_market import scrape_salvage_market
 from app.scraper.encar import scrape_encar
+from app.scraper.autohome import scrape_autohome
 from app.scraper.mapper import (
     map_copart_row,
     map_copart_uk_row,
@@ -42,13 +44,24 @@ from app.scraper.mapper import (
     map_manheim_row,
     map_salvage_market_row,
     map_encar_row,
+    map_china_market_row,
 )
 from app.scraper.photo_enricher import PhotoEnrichmentAgent
 
 logger = logging.getLogger("mg.scraper")
 
-SourceName = Literal["copart", "iaai", "copart_uk", "manheim", "salvage_market", "encar", "all"]
-ALL_SOURCES: tuple[str, ...] = ("copart", "iaai", "copart_uk", "manheim", "salvage_market", "encar")
+SourceName = Literal[
+    "copart", "iaai", "copart_uk", "manheim", "salvage_market", "encar", "china_market", "all"
+]
+ALL_SOURCES: tuple[str, ...] = (
+    "copart",
+    "iaai",
+    "copart_uk",
+    "manheim",
+    "salvage_market",
+    "encar",
+    "china_market",
+)
 
 # Warm URL opened when the agent's permanent tab is created.
 AGENT_WARM_URLS: dict[str, str] = {
@@ -66,6 +79,7 @@ AGENT_WARM_URLS: dict[str, str] = {
         "?orderBy=10&pageNumber=0&pageSize=20&quickSearch=4"
     ),
     "encar": "https://www.encar.com/dc/dc_carsearchlist.do?carType=kor",
+    "china_market": "https://global.autohome.com/en/used-cars",
 }
 
 MapperFn = Callable[[dict[str, Any]], AuctionLot | None]
@@ -135,6 +149,7 @@ class SourceAgent:
         self._task: asyncio.Task | None = None
         self._page: Page | None = None
         self._browser_dead = asyncio.Event()
+        self._archive_task: asyncio.Task | None = None
 
     async def attach_tab(self, browser: Browser, *, warm: bool = False) -> Page:
         """Open (or reuse) this agent's tab in the shared Chrome window.
@@ -227,6 +242,9 @@ class SourceAgent:
             elif self.name == "encar":
                 kwargs["max_pages"] = settings.scraper_max_pages_encar
                 kwargs["page_size"] = min(50, settings.scraper_page_size)
+            elif self.name == "china_market":
+                kwargs["max_pages"] = settings.scraper_max_pages_china_market
+                kwargs["page_size"] = min(48, settings.scraper_page_size)
 
             raw = await self.scrape(**kwargs)
             if raw and isinstance(raw[0], dict) and raw[0].get("_blocked"):
@@ -258,6 +276,7 @@ class SourceAgent:
                 "manheim": {"manheim"},
                 "salvage_market": {"salvage_market"},
                 "encar": {"encar"},
+                "china_market": {"china_market"},
             }.get(self.name, {self.name})
             if mapped:
                 pruned = lot_store.prune_ended(sources=source_key)
@@ -279,6 +298,11 @@ class SourceAgent:
 
             if settings.scraper_persist and (mapped or pruned):
                 stats["persisted"] = lot_store.persist()
+
+            # Download + compress all CDN photos onto Windows disk so the site
+            # serves `/api/lot-photos/...` (works without client VPN).
+            if mapped and settings.scraper_photos_enabled:
+                self._schedule_archive(mapped)
 
             logger.info(
                 "agent %s cycle: raw=%s mapped=%s new=%s pruned=%s store=%s tab=%s",
@@ -307,6 +331,81 @@ class SourceAgent:
         self.status.last_finished_at = finished
         stats["finished_at"] = finished
         return stats
+
+    def _schedule_archive(self, mapped: list[AuctionLot]) -> None:
+        """Fire-and-forget photo archive; skip if previous batch still running."""
+        if self._archive_task and not self._archive_task.done():
+            return
+        ids = [lot.id for lot in mapped if lot.id]
+        if not ids:
+            return
+        self._archive_task = asyncio.create_task(
+            self._archive_mapped_photos(ids),
+            name=f"archive-photos-{self.name}",
+        )
+
+    async def _archive_mapped_photos(self, lot_ids: list[str]) -> None:
+        """Save every remote gallery URL for these lots as compressed local JPEGs."""
+        from app.services.lot_photos import archive_gallery, is_local_photo
+
+        settings = get_settings()
+        archived_lots = 0
+        archived_files = 0
+        for lot_id in lot_ids:
+            if self._stop.is_set():
+                break
+            current = lot_store.get_by_id(lot_id)
+            if not current:
+                continue
+            imgs = [
+                u
+                for u in (
+                    list(current.imageUrls or [])
+                    + ([current.imageUrl] if current.imageUrl else [])
+                )
+                if (u or "").strip()
+            ]
+            remotes = [u for u in imgs if u.startswith("http")]
+            locals_ = [u for u in imgs if is_local_photo(u)]
+            # Already fully local — nothing to fetch
+            if not remotes:
+                continue
+            # Have locals covering most remotes already
+            if len(locals_) >= min(3, len(remotes)) and len(locals_) >= len(remotes):
+                continue
+            hint = (
+                "uk"
+                if current.region == "uk" or current.source == "copart_uk"
+                else (current.source or current.region or "")
+            )
+            try:
+                saved = await archive_gallery(
+                    current.id, remotes[:24], referer_hint=hint
+                )
+            except Exception as exc:
+                logger.debug("archive photos %s: %s", current.id, exc)
+                continue
+            if not saved:
+                continue
+            # Locals first for the site; keep remotes so enricher can top up if needed
+            merged = list(saved)
+            for u in remotes:
+                if u not in merged:
+                    merged.append(u)
+            updated = lot_store.update_photos(current.id, merged)
+            if updated:
+                archived_lots += 1
+                archived_files += len(saved)
+
+        if archived_lots and settings.scraper_persist:
+            lot_store.persist()
+        if archived_lots:
+            logger.info(
+                "agent %s archived photos: lots=%s files=%s",
+                self.name,
+                archived_lots,
+                archived_files,
+            )
 
     async def _loop(self, browser: Browser) -> None:
         settings = get_settings()
@@ -404,6 +503,47 @@ class MultiAgentOrchestrator:
         finally:
             self._calc_lookup_lock.release()
 
+    async def open_lot_on_lookup_tab(
+        self,
+        scrape,
+        *,
+        timeout_sec: float = 28.0,
+    ):
+        """Open auction URL on a permanent ``lot_lookup`` tab (same Chrome as scrapers).
+
+        Avoids ``new_page`` from a second Playwright CDP session — that often yields
+        ``Connection closed`` while the calculator still soft-fills from the catalog.
+        The tab stays on the lot URL so you can see it open in Chrome.
+        """
+        if self._browser is None:
+            logger.warning("open_lot_on_lookup_tab: scraper browser not ready")
+            return None
+        try:
+            await asyncio.wait_for(self._calc_lookup_lock.acquire(), timeout=8.0)
+        except asyncio.TimeoutError:
+            logger.warning("open_lot_on_lookup_tab: calc lock busy")
+            return None
+        page: Page | None = None
+        try:
+            ctx = await get_shared_context(self._browser)
+            page = await open_agent_tab(ctx, label="lot_lookup", url=None)
+            try:
+                await page.bring_to_front()
+            except Exception:
+                pass
+            result = await asyncio.wait_for(scrape(page), timeout=timeout_sec)
+            try:
+                await mark_agent_tab(page, "lot_lookup")
+            except Exception:
+                pass
+            logger.info("lot_lookup tab opened lot (url≈%s)", (page.url or "")[:100])
+            return result
+        except Exception as exc:
+            logger.warning("open_lot_on_lookup_tab failed: %s", exc)
+            return None
+        finally:
+            self._calc_lookup_lock.release()
+
     async def _warm_agent_tabs(self, names: set[str] | None = None) -> None:
         """Navigate tabs one-by-one (never in parallel — parallel goto kills CDP/Chrome)."""
         for agent in self._agents.values():
@@ -476,6 +616,7 @@ class MultiAgentOrchestrator:
             "manheim": (scrape_manheim_usa, map_manheim_row),
             "salvage_market": (scrape_salvage_market, map_salvage_market_row),
             "encar": (scrape_encar, map_encar_row),
+            "china_market": (scrape_autohome, map_china_market_row),
         }
         agents: dict[str, SourceAgent] = {}
         for name in self._enabled_sources():
@@ -491,6 +632,7 @@ class MultiAgentOrchestrator:
             "manheim": (scrape_manheim_usa, map_manheim_row),
             "salvage_market": (scrape_salvage_market, map_salvage_market_row),
             "encar": (scrape_encar, map_encar_row),
+            "china_market": (scrape_autohome, map_china_market_row),
         }
 
     def snapshot(self) -> dict[str, Any]:

@@ -1,7 +1,9 @@
 """Shared Chrome CDP pool for calculator lot-from-url.
 
-Scrapers keep permanent tabs. Calculator opens short-lived tabs only,
-with a hard concurrency cap so ~10 users do not spawn 10 Copart pages.
+Prefer the scraper's permanent ``lot_lookup`` tab (same Playwright session).
+This pool is only a fallback when the scraper browser is down — it reuses one
+permanent tab instead of ``new_page``+close (second CDP + new tabs often die
+with ``Connection closed``).
 """
 
 from __future__ import annotations
@@ -14,16 +16,30 @@ from typing import TypeVar
 from playwright.async_api import Browser, Page, Playwright, async_playwright
 
 from app.config import get_settings
-from app.scraper.browser import get_shared_context, launch_chromium
+from app.scraper.browser import get_shared_context, launch_chromium, mark_agent_tab, open_agent_tab
 
 logger = logging.getLogger("mg.pricing.calc_chrome")
 
 T = TypeVar("T")
 
-# Concurrent calculator tabs in the shared Chrome window.
-# Scrapers already use ~5–6 tabs — keep calc headroom small.
-_DEFAULT_MAX_CONCURRENT = 3
+_DEFAULT_MAX_CONCURRENT = 2
 _DEFAULT_TIMEOUT_SEC = 28.0
+_LOOKUP_LABEL = "lot_lookup"
+
+_DEAD_CONN = (
+    "connection closed",
+    "target closed",
+    "browser has been closed",
+    "browser closed",
+    "not connected",
+    "websocket",
+    "econnrefused",
+)
+
+
+def _is_dead_conn(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return any(token in msg for token in _DEAD_CONN)
 
 
 class CalcChromePool:
@@ -41,7 +57,7 @@ class CalcChromePool:
             n = int(raw) if raw is not None else _DEFAULT_MAX_CONCURRENT
         except (TypeError, ValueError):
             n = _DEFAULT_MAX_CONCURRENT
-        return max(1, min(n, 6))
+        return max(1, min(n, 4))
 
     def _timeout_sec(self) -> float:
         settings = get_settings()
@@ -50,15 +66,29 @@ class CalcChromePool:
             n = float(raw) if raw is not None else _DEFAULT_TIMEOUT_SEC
         except (TypeError, ValueError):
             n = _DEFAULT_TIMEOUT_SEC
-        return max(6.0, min(n, 30.0))
+        return max(6.0, min(n, 45.0))
 
     def _ensure_sem(self) -> asyncio.Semaphore:
         if self._sem is None:
             self._sem = asyncio.Semaphore(self._max_concurrent())
         return self._sem
 
-    async def _ensure_browser(self) -> Browser:
+    async def _drop_browser(self) -> None:
+        """Forget stale CDP handle so the next call re-attaches."""
         async with self._lock:
+            self._browser = None
+            if self._pw is not None:
+                try:
+                    await self._pw.stop()
+                except Exception:
+                    pass
+                self._pw = None
+
+    async def _ensure_browser(self, *, force: bool = False) -> Browser:
+        async with self._lock:
+            if force:
+                self._browser = None
+
             if self._browser is not None:
                 try:
                     if self._browser.is_connected():
@@ -78,7 +108,6 @@ class CalcChromePool:
                 self._pw = None
 
             self._pw = await async_playwright().start()
-            # Quick attach — do not wait 50s / restart Chrome (scrapers own that).
             try:
                 browser = await self._pw.chromium.connect_over_cdp(cdp, timeout=8_000)
                 browser._mg_via_cdp = True  # type: ignore[attr-defined]
@@ -96,21 +125,11 @@ class CalcChromePool:
             self._browser = browser
             return browser
 
-    async def _close_page(self, page: Page | None) -> None:
-        if page is None:
-            return
-        try:
-            if not page.is_closed():
-                await page.close()
-        except Exception as exc:
-            logger.debug("calc tab close: %s", exc)
-
     @property
     def inflight(self) -> int:
         return self._inflight
 
     def busy(self) -> bool:
-        """True when all calc slots are taken."""
         sem = self._ensure_sem()
         return int(getattr(sem, "_value", 0)) <= 0
 
@@ -120,11 +139,7 @@ class CalcChromePool:
         *,
         optional: bool = False,
     ) -> T | None:
-        """Open one temp tab, run worker, always close the tab.
-
-        optional=True: if Chrome is already at capacity, return None immediately
-        (caller should serve catalog data — keeps 10 concurrent users responsive).
-        """
+        """Reuse permanent ``lot_lookup`` tab — do not open/close disposable pages."""
         sem = self._ensure_sem()
         if optional:
             try:
@@ -139,30 +154,50 @@ class CalcChromePool:
             await sem.acquire()
 
         self._inflight += 1
-        page: Page | None = None
         try:
 
-            async def _work() -> T:
-                nonlocal page
-                browser = await self._ensure_browser()
+            async def _work(*, force_reconnect: bool) -> T:
+                browser = await self._ensure_browser(force=force_reconnect)
                 ctx = await get_shared_context(browser)
-                page = await ctx.new_page()
+                page = await open_agent_tab(ctx, label=_LOOKUP_LABEL, url=None)
+                try:
+                    await page.bring_to_front()
+                except Exception:
+                    pass
                 logger.info(
-                    "calc tab opened (inflight=%s pages≈%s)",
+                    "calc lot_lookup tab ready (inflight=%s pages≈%s reconnect=%s)",
                     self._inflight,
                     len(ctx.pages),
+                    force_reconnect,
                 )
-                return await worker(page)
+                result = await worker(page)
+                try:
+                    await mark_agent_tab(page, _LOOKUP_LABEL)
+                except Exception:
+                    pass
+                return result
 
-            return await asyncio.wait_for(_work(), timeout=self._timeout_sec())
-        except asyncio.TimeoutError:
-            logger.warning("calc chrome timed out after %.0fs", self._timeout_sec())
-            raise
+            try:
+                return await asyncio.wait_for(
+                    _work(force_reconnect=False),
+                    timeout=self._timeout_sec(),
+                )
+            except asyncio.TimeoutError:
+                logger.warning("calc chrome timed out after %.0fs", self._timeout_sec())
+                raise
+            except Exception as exc:
+                if not _is_dead_conn(exc):
+                    raise
+                logger.warning("calc chrome dead pipe — reconnect once: %s", exc)
+                await self._drop_browser()
+                return await asyncio.wait_for(
+                    _work(force_reconnect=True),
+                    timeout=self._timeout_sec(),
+                )
         finally:
-            await self._close_page(page)
             self._inflight = max(0, self._inflight - 1)
             sem.release()
-            logger.info("calc tab closed (inflight=%s)", self._inflight)
+            logger.info("calc lot_lookup done (inflight=%s)", self._inflight)
 
 
 _pool: CalcChromePool | None = None
