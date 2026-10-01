@@ -35,6 +35,9 @@ EXTRACT_JS = """
     const img = card.querySelector('img');
     const image = img ? (img.src || img.getAttribute('data-src') || img.getAttribute('data-lazy') || '') : '';
     if (!image || image.startsWith('data:')) continue;
+    const images = [...card.querySelectorAll('img')]
+      .map((el) => el.src || el.getAttribute('data-src') || el.getAttribute('data-lazy') || '')
+      .filter((u) => typeof u === 'string' && /^https?:/i.test(u) && !/svg|sprite|1x1|pixel|logo|data:/i.test(u));
     const idMatch =
       href.match(/\\/(\\d{4,})\\/?$/) ||
       href.match(/[?&](?:id|lot|vehicle)=([A-Za-z0-9_-]+)/i) ||
@@ -48,7 +51,7 @@ EXTRACT_JS = """
       const m = text.match(/\\b((?:19|20)\\d{2}\\s+[A-Za-z][^£\\n]{2,50})/);
       title = m ? m[1].trim() : title;
     }
-    rows.push({ id, url: href, title, image, text });
+    rows.push({ id, url: href, title, image, images, text });
   }
   return rows;
 }

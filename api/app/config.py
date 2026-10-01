@@ -68,11 +68,11 @@ class Settings(BaseSettings):
 
     # Photo enricher — visits every lot card, collects full galleries, nonstop daily
     scraper_photos_enabled: bool = True
-    scraper_photo_batch_size: int = 40  # lots per cycle before status tick
-    scraper_photo_delay_seconds: float = 0.6  # pause between lot pages (always open)
-    scraper_photo_idle_seconds: int = 120  # when queue empty, wait then re-check
-    # Parallel CDN downloads inside one lot gallery (UK + USA)
-    scraper_photo_download_concurrency: int = 12
+    scraper_photo_batch_size: int = 50  # lots per cycle before status tick
+    scraper_photo_delay_seconds: float = 0.4  # pause between lot pages (always open)
+    scraper_photo_idle_seconds: int = 90  # when queue empty, wait then re-check
+    # Parallel CDN downloads inside one lot gallery (all auctions)
+    scraper_photo_download_concurrency: int = 14
 
     # Calculator lot-from-url — shared Chrome tabs (separate from scraper agents)
     # Must be > page goto+scrape (Bid.cars / Copart / IAAI often 15–25s)

@@ -29,7 +29,7 @@ import {
   REGION_LABELS,
 } from "@/lib/auctions/types";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 24;
 
 const YEAR_OPTIONS = Array.from({ length: 2027 - 1990 }, (_, i) => 2026 - i);
 
@@ -212,6 +212,11 @@ export function AuctionsCatalog({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const skipNextFilterFetch = useRef(false);
   const focusSlugRef = useRef<string | undefined>(undefined);
+  const loadingMoreRef = useRef(false);
+  const apiLoadingRef = useRef(false);
+  const pageRef = useRef(1);
+  const pagesRef = useRef(1);
+  const queryFiltersRef = useRef<FilterState>(f);
 
   const [debouncedQ, setDebouncedQ] = useState(f.q);
 
@@ -222,6 +227,22 @@ export function AuctionsCatalog({
 
   const queryFilters = useMemo(() => ({ ...f, q: debouncedQ }), [f, debouncedQ]);
   const filterKey = JSON.stringify({ ...queryFilters, region: region || "" });
+
+  useEffect(() => {
+    loadingMoreRef.current = loadingMore;
+  }, [loadingMore]);
+  useEffect(() => {
+    apiLoadingRef.current = apiLoading;
+  }, [apiLoading]);
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+  useEffect(() => {
+    pagesRef.current = pages;
+  }, [pages]);
+  useEffect(() => {
+    queryFiltersRef.current = queryFilters;
+  }, [queryFilters]);
 
   // Offline / SSG-only path: filter full snapshot client-side
   const offlineFiltered = useMemo(() => {
@@ -362,18 +383,34 @@ export function AuctionsCatalog({
   const loadPage = useCallback(
     async (targetPage: number, mode: "replace" | "append", filters: FilterState) => {
       if (!apiOn) return;
+      if (mode === "append") {
+        if (loadingMoreRef.current || apiLoadingRef.current) return;
+        if (targetPage > pagesRef.current) return;
+        loadingMoreRef.current = true;
+        setLoadingMore(true);
+      } else {
+        apiLoadingRef.current = true;
+        setApiLoading(true);
+      }
       const query = filtersToQuery(filters, region, targetPage, auctions);
-      if (mode === "replace") setApiLoading(true);
-      else setLoadingMore(true);
       try {
         const res = await fetchLotsPage(query);
         setTotal(res.total);
         setPages(res.pages);
+        pagesRef.current = res.pages;
         setPage(res.page);
-        setLots((prev) => (mode === "append" ? [...prev, ...res.items] : res.items));
+        pageRef.current = res.page;
+        setLots((prev) => {
+          if (mode !== "append") return res.items;
+          const seen = new Set(prev.map((l) => l.id));
+          const extra = res.items.filter((l) => !seen.has(l.id));
+          return extra.length ? [...prev, ...extra] : prev;
+        });
       } catch {
         /* keep current snapshot */
       } finally {
+        apiLoadingRef.current = false;
+        loadingMoreRef.current = false;
         setApiLoading(false);
         setLoadingMore(false);
       }
@@ -468,25 +505,38 @@ export function AuctionsCatalog({
     void loadPage(1, "replace", queryFilters);
   }, [apiOn, restored, filterKey, loadPage, queryFilters]);
 
-  // Infinite scroll
+  // Infinite scroll — stable observer; read page/loading from refs so we don't
+  // miss loads when the sentinel stays in view after an append.
   useEffect(() => {
     const node = sentinelRef.current;
     if (!node || !hasMore) return;
+
+    const tryLoadMore = () => {
+      if (apiOn) {
+        if (loadingMoreRef.current || apiLoadingRef.current) return;
+        const next = pageRef.current + 1;
+        if (next > pagesRef.current) return;
+        void loadPage(next, "append", queryFiltersRef.current);
+      } else {
+        setOfflineVisible((n) => n + PAGE_SIZE);
+      }
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((e) => e.isIntersecting)) return;
-        if (apiOn) {
-          if (loadingMore || apiLoading) return;
-          void loadPage(page + 1, "append", queryFilters);
-        } else {
-          setOfflineVisible((n) => n + PAGE_SIZE);
-        }
+        tryLoadMore();
       },
-      { rootMargin: "400px 0px" },
+      { root: null, rootMargin: "600px 0px", threshold: 0 },
     );
     observer.observe(node);
-    return () => observer.disconnect();
-  }, [hasMore, apiOn, loadingMore, apiLoading, page, queryFilters, loadPage]);
+    // If already visible (short viewport), kick once after paint.
+    const kick = window.setTimeout(tryLoadMore, 50);
+    return () => {
+      window.clearTimeout(kick);
+      observer.disconnect();
+    };
+  }, [hasMore, apiOn, loadPage, filterKey]);
 
   useEffect(() => {
     setF((prev) => ({
@@ -919,8 +969,21 @@ export function AuctionsCatalog({
             />
 
             {hasMore ? (
-              <div ref={sentinelRef} className="flex justify-center py-10" aria-hidden>
-                <span className="h-8 w-8 animate-pulse rounded-full border-2 border-accent/40 border-t-accent" />
+              <div className="flex flex-col items-center gap-3 py-10">
+                <div ref={sentinelRef} className="h-1 w-full" aria-hidden />
+                {loadingMore ? (
+                  <span className="h-8 w-8 animate-pulse rounded-full border-2 border-accent/40 border-t-accent" />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void loadPage(page + 1, "append", queryFilters)
+                    }
+                    className="rounded-full border border-border bg-bg-elevated px-5 py-2.5 text-sm font-semibold text-text-primary shadow-sm transition hover:border-accent hover:text-accent-dark"
+                  >
+                    Показать ещё
+                  </button>
+                )}
               </div>
             ) : foundCount > 0 ? (
               <p className="mt-8 text-center text-sm text-text-muted">Все лоты загружены</p>

@@ -42,20 +42,26 @@ EXTRACT_GALLERY_JS = """
     push(m.getAttribute('content'));
   });
 
-  // Common gallery / carousel images
+  // Common gallery / carousel images (all auction sources)
   const sels = [
     'img[src*="copart"]',
     'img[src*="cs.copart"]',
     'img[src*="iaai"]',
+    'img[src*="anvis"]',
     'img[src*="manheim"]',
     'img[src*="encar"]',
     'img[src*="salvage"]',
+    'img[src*="autoimg"]',
+    'img[src*="che168"]',
+    'img[src*="autohome"]',
+    'img[src*="bid.cars"]',
     '[class*="gallery"] img',
     '[class*="Gallery"] img',
     '[class*="carousel"] img',
     '[class*="Carousel"] img',
     '[class*="photo"] img',
     '[class*="Photo"] img',
+    '[class*="swiper"] img',
     '[id*="image"] img',
     '[data-testid*="image"] img',
     'picture source',
@@ -282,14 +288,21 @@ class PhotoEnrichmentAgent:
             if needs_photo_enrichment(lot, today=self._day)
             and lot.id not in self._processed_ids
         ]
-        # Prefer lots with fewest photos first, then higher bids
-        lots.sort(
-            key=lambda l: (
-                0 if l.region == "uk" or l.source == "copart_uk" else 1 if l.region == "usa" else 2,
-                len([u for u in (l.imageUrls or []) if u and not _is_useless_photo(u)]),
-                -(l.currentBid or 0),
-            )
-        )
+        # Prefer thin galleries first; USA Copart/IAAI before others.
+        def _prio(l: AuctionLot) -> tuple:
+            src = (l.source or "").lower()
+            region = (l.region or "").lower()
+            if src in ("copart", "iaai") or region == "usa":
+                region_rank = 0
+            elif src == "copart_uk" or region == "uk":
+                region_rank = 1
+            else:
+                region_rank = 2
+            imgs = [u for u in (l.imageUrls or []) if u and not _is_useless_photo(u)]
+            locals_n = sum(1 for u in imgs if u.startswith("/api/lot-photos/"))
+            return (locals_n, region_rank, -(l.currentBid or 0))
+
+        lots.sort(key=_prio)
         self.status.queue_remaining = len(lots)
         return lots
 
@@ -427,10 +440,10 @@ class PhotoEnrichmentAgent:
                 urls = await self.enrich_lot(page, lot)
                 saved: list[str] = []
                 if urls:
-                    # Download with Chrome cookies so USA CDNs succeed.
+                    # Download with Chrome cookies so auction CDNs succeed.
                     saved = await archive_gallery(
                         lot.id,
-                        urls[:24],
+                        urls[:40],
                         referer_hint=hint,
                         page=page,
                     )

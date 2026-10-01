@@ -92,7 +92,10 @@ export function LotCard({
   }, [lot.auctionDate]);
 
   const photos = collectLotPhotoUrls(lot);
-  const photoCount = photos.length;
+  const photoCount =
+    typeof lot.photoCount === "number" && lot.photoCount > 0
+      ? lot.photoCount
+      : photos.length;
   const cover = resolveLotCardImage(lot);
   const absolute = formatAuctionAbsolute(lot.auctionDate);
   const damage = shortDamage(lot.primaryDamage);

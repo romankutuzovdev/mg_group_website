@@ -735,7 +735,7 @@ def map_iaai_row(row: dict[str, Any]) -> AuctionLot | None:
         location=str(fields.get("location") or "USA"),
         auctionDate=(datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
         imageUrl=gallery[0] if gallery else image,
-        imageUrls=gallery[:24] if gallery else ([image] if image else []),
+        imageUrls=gallery[:40] if gallery else ([image] if image else []),
         transmission="—",
         fuel="—",
         drive="—",
@@ -817,7 +817,7 @@ def map_manheim_row(row: dict[str, Any]) -> AuctionLot | None:
         location=str(loc),
         auctionDate=auction if "T" in auction else f"{auction}T12:00:00+00:00",
         imageUrl=images[0],
-        imageUrls=images[:12],
+        imageUrls=images[:40],
         transmission=str(row.get("transmission") or "—"),
         fuel=str(row.get("fuelType") or "—"),
         drive=str(row.get("driveTrain") or "—"),
@@ -834,7 +834,13 @@ def map_salvage_market_row(row: dict[str, Any]) -> AuctionLot | None:
     lid = str(row.get("id") or "").strip()
     title = str(row.get("title") or "").strip()
     image = str(row.get("image") or "").strip()
-    if not image:
+    gallery: list[str] = []
+    for item in row.get("images") or []:
+        if isinstance(item, str) and item.startswith("http"):
+            gallery.append(item)
+    if image.startswith("http") and image not in gallery:
+        gallery.insert(0, image)
+    if not gallery:
         return None
     year, make, model = parse_title_year_make_model(title or f"Lot {lid}")
     if not lid:
@@ -866,8 +872,8 @@ def map_salvage_market_row(row: dict[str, Any]) -> AuctionLot | None:
         currency="GBP",
         location=str(row.get("location") or "UK"),
         auctionDate=str(row.get("auctionDate") or (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()),
-        imageUrl=image,
-        imageUrls=[image],
+        imageUrl=gallery[0],
+        imageUrls=gallery[:40],
         transmission="—",
         fuel="—",
         drive="—",
@@ -1013,7 +1019,36 @@ def _encar_photo(row: dict[str, Any]) -> list[str]:
         if u not in seen:
             seen.add(u)
             uniq.append(u)
-    return uniq
+
+    # Expand sequential Encar CDN shots when API only gave a cover.
+    lid = str(row.get("Id") or row.get("id") or "").strip()
+    count_raw = (
+        row.get("PhotoCount")
+        or row.get("photoCount")
+        or row.get("PhotoCnt")
+        or row.get("photoCnt")
+        or 0
+    )
+    try:
+        count = int(float(count_raw or 0))
+    except (TypeError, ValueError):
+        count = 0
+    if lid.isdigit() and count >= 2:
+        bucket = int(lid) % 10
+        for i in range(1, min(count, 40) + 1):
+            u = f"https://ci.encar.com/carpicture{bucket:02d}/pic{lid}_{i:03d}.jpg"
+            if u not in seen:
+                seen.add(u)
+                uniq.append(u)
+    elif lid.isdigit() and len(uniq) <= 1:
+        # Heuristic: try first 12 sequential frames when count unknown
+        bucket = int(lid) % 10
+        for i in range(1, 13):
+            u = f"https://ci.encar.com/carpicture{bucket:02d}/pic{lid}_{i:03d}.jpg"
+            if u not in seen:
+                seen.add(u)
+                uniq.append(u)
+    return uniq[:40]
 
 
 def _encar_year(row: dict[str, Any]) -> int:
@@ -1102,7 +1137,7 @@ def map_encar_row(row: dict[str, Any]) -> AuctionLot | None:
         location=city or "Korea",
         auctionDate=(datetime.now(timezone.utc) + timedelta(days=14)).isoformat(),
         imageUrl=images[0],
-        imageUrls=images[:12],
+        imageUrls=images[:40],
         transmission=trans,
         fuel=fuel,
         drive="—",
@@ -1215,17 +1250,24 @@ def map_china_market_row(row: dict[str, Any]) -> AuctionLot | None:
         lid = f"{year}-{slugify(make)}-{slugify(model)}"
 
     images: list[str] = []
-    for key in ("imageUrl", "imageurl", "image", "ImageUrl", "pic", "Pic"):
+    for key in ("imageUrl", "imageurl", "image", "ImageUrl", "pic", "Pic", "photo", "Photo"):
         u = str(row.get(key) or "").strip()
         if u.startswith("http"):
             images.append(u)
-    for item in row.get("images") or row.get("imageUrls") or []:
-        if isinstance(item, str) and item.startswith("http"):
-            images.append(item)
-        elif isinstance(item, dict):
-            u = str(item.get("url") or item.get("src") or "")
-            if u.startswith("http"):
-                images.append(u)
+        elif u.startswith("//"):
+            images.append("https:" + u)
+    for key in ("images", "imageUrls", "piclist", "picList", "photolist", "photoList"):
+        for item in row.get(key) or []:
+            if isinstance(item, str) and item.startswith("http"):
+                images.append(item)
+            elif isinstance(item, str) and item.startswith("//"):
+                images.append("https:" + item)
+            elif isinstance(item, dict):
+                u = str(item.get("url") or item.get("src") or item.get("pic") or "").strip()
+                if u.startswith("http"):
+                    images.append(u)
+                elif u.startswith("//"):
+                    images.append("https:" + u)
     images = list(dict.fromkeys(images))
     if not images:
         return None
@@ -1277,7 +1319,7 @@ def map_china_market_row(row: dict[str, Any]) -> AuctionLot | None:
             or (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
         ),
         imageUrl=images[0],
-        imageUrls=images[:12],
+        imageUrls=images[:40],
         transmission=_clean_spec(row.get("transmission") or row.get("Transmission")),
         fuel=fuel,
         drive=_clean_spec(row.get("drive") or row.get("Drive")),

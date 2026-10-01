@@ -58,6 +58,8 @@ class AuctionLot(BaseModel):
     imageUrls: list[str] | None = None
     # ISO timestamp when gallery was fetched from lot detail page
     photosEnrichedAt: str | None = None
+    # List endpoint may slim imageUrls to a cover; photoCount keeps the real gallery size.
+    photoCount: int | None = None
 
 
 class LotListResponse(BaseModel):

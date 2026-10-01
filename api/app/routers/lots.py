@@ -113,8 +113,9 @@ def list_lots(
     start = (page - 1) * page_size
     page_items = items[start : start + page_size]
 
-    # List cards: prefer archived local thumb as cover (no client VPN).
-    # Keep full imageUrls so the card can show photo count / detail prefetch.
+    # List cards only need a cover thumb — full galleries live on GET /lots/{slug}.
+    # Sending 40 CDN URLs × N lots made pagination payloads huge and infinite
+    # scroll stalled after the first page(s).
     slim_items: list[AuctionLot] = []
     for lot in page_items:
         imgs = [
@@ -123,7 +124,6 @@ def list_lots(
             + list(lot.imageUrls or [])
             if (u or "").strip()
         ]
-        # Dedupe preserving order; drop catalog -th duplicates of same shot
         seen: set[str] = set()
         gallery: list[str] = []
         for u in imgs:
@@ -150,16 +150,12 @@ def list_lots(
                     cover = to_catalog_thumb_url(cover)
             except Exception:
                 pass
-        # Cover first for fast card paint; rest of gallery kept for count/UI.
-        ordered = [cover] if cover else []
-        for u in gallery:
-            if u != cover and u not in ordered:
-                ordered.append(u)
         slim_items.append(
             lot.model_copy(
                 update={
                     "imageUrl": cover,
-                    "imageUrls": ordered or None,
+                    "imageUrls": [cover] if cover else None,
+                    "photoCount": max(1, len(gallery)) if gallery else 0,
                 }
             )
         )

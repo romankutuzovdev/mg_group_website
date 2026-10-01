@@ -81,6 +81,8 @@ export type AuctionLot = {
   lotUrl?: string;
   imageUrls?: string[];
   photosEnrichedAt?: string;
+  /** Real gallery size when list API returns only a cover in imageUrls */
+  photoCount?: number;
   /** Seeded / placeholder inventory — keep noindex until real feed */
   _demo?: boolean;
 };

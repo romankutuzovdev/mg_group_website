@@ -124,7 +124,7 @@ async def _attach_iaai_galleries(
                 seen.add(u)
                 gallery.append(u)
             if len(gallery) >= 2:
-                row["images"] = gallery[:24]
+                row["images"] = gallery[:40]
                 if not (row.get("image") or "").startswith("http"):
                     row["image"] = gallery[0]
                 filled += 1

@@ -386,7 +386,7 @@ class SourceAgent:
             try:
                 saved = await archive_gallery(
                     current.id,
-                    remotes[:24],
+                    remotes[:40],
                     referer_hint=hint,
                     page=page,
                 )
