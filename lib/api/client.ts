@@ -147,6 +147,7 @@ export type LotMetaResponse = {
   drives?: string[];
   counts_by_region: Record<string, number>;
   counts_by_source: Record<string, number>;
+  top_makes?: { make: string; count: number; min_bid: number; currency: string }[];
 };
 
 export async function fetchLotMeta(opts?: {

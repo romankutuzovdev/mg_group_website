@@ -150,7 +150,15 @@ export function CatalogShowcase({
           </div>
 
           {buckets.length === 0 ? (
-            <p className="mt-4 text-sm text-text-secondary">Лотов США пока нет.</p>
+            <p className="mt-4 text-sm text-text-secondary">
+              {counts.usa > 0 ? (
+                <Link href="/avto/usa/" className="font-medium text-accent-dark underline underline-offset-2">
+                  Открыть {counts.usa.toLocaleString("ru-RU")} лотов из США →
+                </Link>
+              ) : (
+                "Лотов США пока нет."
+              )}
+            </p>
           ) : (
             <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {buckets.map((bucket) => (
