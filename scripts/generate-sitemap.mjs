@@ -91,7 +91,7 @@ async function fetchLotsFromApi() {
   let page = 1;
   let pages = 1;
   const pageSize = 100;
-  while (page <= pages && page <= 80) {
+  while (page <= pages && page <= 5) {
     const url = `${API_BASE}/api/v1/lots?page=${page}&page_size=${pageSize}&sort=date&order=asc`;
     const res = await fetch(url, { headers: { Accept: "application/json" } });
     if (!res.ok) throw new Error(`API ${res.status} ${url}`);
@@ -106,6 +106,10 @@ async function fetchLotsFromApi() {
 }
 
 async function loadLotsForSitemap() {
+  if (process.env.VERCEL === "1" || process.env.SKIP_CATALOG_SYNC === "1") {
+    console.log("sitemap: skipped live lots");
+    return [];
+  }
   const cached = readLotsCache();
   if (cached) {
     console.log(`sitemap: loaded ${cached.length} lots from .cache/catalog-lots.json`);

@@ -79,7 +79,7 @@ async function loadLots() {
     const all = [];
     let page = 1;
     let pages = 1;
-    while (page <= pages && page <= 80) {
+    while (page <= pages && page <= 5) {
       const res = await fetch(
         `${LOTS_API}/api/v1/lots?page=${page}&page_size=100&sort=date&order=desc`,
         { headers: { Accept: "application/json" } },
@@ -101,6 +101,10 @@ async function loadLots() {
 }
 
 async function main() {
+  if (process.env.VERCEL === "1" || process.env.SKIP_CATALOG_SYNC === "1") {
+    console.log("sync-catalog: skipped (build does not download the live catalog)");
+    return;
+  }
   const lots = await loadLots();
   if (!lots) return;
 
