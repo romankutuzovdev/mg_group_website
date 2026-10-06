@@ -88,6 +88,11 @@ class TelegramWebAppAuthPayload(BaseModel):
     init_data: str = Field(..., min_length=1)
 
 
+class PasswordLoginPayload(BaseModel):
+    login: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=128)
+
+
 class UserOut(BaseModel):
     id: int
     telegram_id: int
@@ -96,7 +101,14 @@ class UserOut(BaseModel):
     last_name: str = ""
     photo_url: str = ""
     is_admin: bool = False
+    is_manager: bool = False
     created_at: str
+
+
+class UserRoleUpdate(BaseModel):
+    """Owner admin promotes or demotes a logged-in user to manager."""
+
+    is_manager: bool
 
 
 class AuthResponse(BaseModel):
@@ -139,11 +151,16 @@ class DealOut(BaseModel):
     client_telegram_id: int = 0
     client_name: str = ""
     client_username: str = ""
+    manager_user_id: int = 0
     manager_telegram_id: int = 0
+    manager_name: str = ""
+    manager_username: str = ""
     payment_stage1_paid: bool = False
     payment_stage1_at: str | None = None
+    payment_stage1_due: str | None = None
     payment_stage2_paid: bool = False
     payment_stage2_at: str | None = None
+    payment_stage2_due: str | None = None
     created_at: str
     updated_at: str
     stages: list[DealStageOut] = Field(default_factory=list)
@@ -163,6 +180,9 @@ class DealCreate(BaseModel):
     origin_region: OriginRegion = "usa"
     # Ignored if kind is set — derived from kind on create.
     origin_point: OriginPoint | None = None
+    manager_user_id: int | None = None
+    payment_stage1_due: str = ""
+    payment_stage2_due: str = ""
 
 
 class DealUpdate(BaseModel):
@@ -176,6 +196,9 @@ class DealUpdate(BaseModel):
     kind: DealKind | None = None
     origin_region: OriginRegion | None = None
     origin_point: OriginPoint | None = None
+    manager_user_id: int | None = None
+    payment_stage1_due: str | None = None
+    payment_stage2_due: str | None = None
 
 
 class StageUpdate(BaseModel):

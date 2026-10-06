@@ -505,13 +505,16 @@ export function AuctionsCatalog({
     void loadPage(1, "replace", queryFilters);
   }, [apiOn, restored, filterKey, loadPage, queryFilters]);
 
-  // Infinite scroll — stable observer; read page/loading from refs so we don't
-  // miss loads when the sentinel stays in view after an append.
+  // Infinite scroll — re-bind after each page so IO re-checks intersection.
+  // (IO does not re-fire while the sentinel stays continuously visible.)
   useEffect(() => {
     const node = sentinelRef.current;
     if (!node || !hasMore) return;
 
+    let cancelled = false;
+
     const tryLoadMore = () => {
+      if (cancelled) return;
       if (apiOn) {
         if (loadingMoreRef.current || apiLoadingRef.current) return;
         const next = pageRef.current + 1;
@@ -522,21 +525,30 @@ export function AuctionsCatalog({
       }
     };
 
+    const nearViewport = () => {
+      const rect = node.getBoundingClientRect();
+      const vh = window.innerHeight || 0;
+      return rect.top < vh + 900 && rect.bottom > -200;
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((e) => e.isIntersecting)) return;
         tryLoadMore();
       },
-      { root: null, rootMargin: "600px 0px", threshold: 0 },
+      { root: null, rootMargin: "800px 0px", threshold: 0 },
     );
     observer.observe(node);
-    // If already visible (short viewport), kick once after paint.
-    const kick = window.setTimeout(tryLoadMore, 50);
+    // After each appended page, continue only while sentinel is still near view.
+    const kick = window.setTimeout(() => {
+      if (nearViewport()) tryLoadMore();
+    }, 0);
     return () => {
+      cancelled = true;
       window.clearTimeout(kick);
       observer.disconnect();
     };
-  }, [hasMore, apiOn, loadPage, filterKey]);
+  }, [hasMore, apiOn, loadPage, filterKey, page, lots.length]);
 
   useEffect(() => {
     setF((prev) => ({

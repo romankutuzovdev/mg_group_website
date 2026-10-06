@@ -448,7 +448,9 @@ def _copart_gallery(row: dict[str, Any], cover: str) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
     junk = re.compile(
-        r"\.svg(?:$|\?)|/content/[a-z]{2}\.svg|www\.copart\.(?:com|co\.uk)/content/|\bflag\b|/logo|sprite|1x1|pixel",
+        r"\.svg(?:$|\?)|/content/[a-z]{2}\.svg|www\.copart\.(?:com|co\.uk)/content/"
+        r"|https?://(?:www\.)?copart\.(?:com|co\.uk)/?(?:$|\?)"
+        r"|\bflag\b|/logo|sprite|1x1|pixel",
         re.I,
     )
     for raw in urls:

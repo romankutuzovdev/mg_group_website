@@ -11,6 +11,7 @@ export type CabinetUser = {
   last_name: string;
   photo_url: string;
   is_admin: boolean;
+  is_manager?: boolean;
   created_at: string;
 };
 
@@ -60,11 +61,16 @@ export type Deal = {
   client_telegram_id?: number;
   client_name?: string;
   client_username?: string;
+  manager_user_id?: number;
   manager_telegram_id?: number;
+  manager_name?: string;
+  manager_username?: string;
   payment_stage1_paid?: boolean;
   payment_stage1_at?: string | null;
+  payment_stage1_due?: string | null;
   payment_stage2_paid?: boolean;
   payment_stage2_at?: string | null;
+  payment_stage2_due?: string | null;
   created_at: string;
   updated_at: string;
   stages: DealStage[];
@@ -199,6 +205,21 @@ export async function loginWithTelegramWebApp(
   return data;
 }
 
+export async function loginWithPassword(
+  login: string,
+  password: string,
+): Promise<{ access_token: string; user: CabinetUser }> {
+  const data = await cabinetFetch<{ access_token: string; user: CabinetUser }>(
+    "/api/v1/auth/password",
+    {
+      method: "POST",
+      body: JSON.stringify({ login, password }),
+    },
+  );
+  setCabinetToken(data.access_token);
+  return data;
+}
+
 export async function loginDev(
   role: "manager" | "client" = "manager",
 ): Promise<{ access_token: string; user: CabinetUser }> {
@@ -273,6 +294,16 @@ export async function fetchAdminUsers(): Promise<CabinetUser[]> {
   return cabinetFetch("/api/v1/admin/users");
 }
 
+export async function adminSetUserManager(
+  userId: number,
+  isManager: boolean,
+): Promise<CabinetUser> {
+  return cabinetFetch(`/api/v1/admin/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ is_manager: isManager }),
+  });
+}
+
 export async function fetchAdminDeals(): Promise<Deal[]> {
   return cabinetFetch("/api/v1/admin/deals");
 }
@@ -289,6 +320,9 @@ export async function adminCreateDeal(body: {
   kind?: DealKind;
   origin_region?: OriginRegion;
   origin_point?: OriginPoint;
+  manager_user_id?: number | null;
+  payment_stage1_due?: string;
+  payment_stage2_due?: string;
 }): Promise<Deal> {
   return cabinetFetch("/api/v1/admin/deals", {
     method: "POST",
@@ -309,6 +343,9 @@ export async function adminUpdateDeal(
     kind: DealKind;
     origin_region: OriginRegion;
     origin_point: OriginPoint;
+    manager_user_id: number | null;
+    payment_stage1_due: string;
+    payment_stage2_due: string;
   }>,
 ): Promise<Deal> {
   return cabinetFetch(`/api/v1/admin/deals/${dealId}`, {

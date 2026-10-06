@@ -23,6 +23,7 @@ from app.models.cabinet import (
     StageKey,
     StageUpdate,
     UserOut,
+    UserRoleUpdate,
 )
 from app.services.auth_deps import get_current_user, get_optional_user, require_admin_or_key
 from app.services.cabinet_store import cabinet_store
@@ -37,7 +38,7 @@ def _require_deal_access(deal_id: int, user: UserOut) -> DealOut:
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
     owner = cabinet_store.get_deal_owner_id(deal_id)
-    if owner != user.id and not user.is_admin:
+    if owner != user.id and not (user.is_admin or user.is_manager):
         raise HTTPException(status_code=403, detail="Not your deal")
     return deal
 
@@ -243,6 +244,21 @@ def admin_list_users(
     return cabinet_store.list_users()
 
 
+@router.patch("/admin/users/{user_id}", response_model=UserOut)
+def admin_set_user_role(
+    user_id: int,
+    body: UserRoleUpdate,
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
+) -> UserOut:
+    """Only the owner admin (Telegram id from CABINET_ADMIN_TELEGRAM_IDS) assigns managers."""
+    if not actor.is_admin:
+        raise HTTPException(status_code=403, detail="Назначать менеджеров может только администратор")
+    user = cabinet_store.set_user_manager(user_id, body.is_manager)
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    return user
+
+
 @router.get("/admin/deals", response_model=list[DealOut])
 def admin_list_deals(
     _: Annotated[UserOut, Depends(require_admin_or_key)],
@@ -266,6 +282,8 @@ def admin_create_deal(
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Клиент не найден — пусть войдёт в кабинет") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.patch("/admin/deals/{deal_id}", response_model=DealOut)
@@ -274,7 +292,10 @@ def admin_update_deal(
     body: DealUpdate,
     _: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> DealOut:
-    deal = cabinet_store.update_deal(deal_id, body)
+    try:
+        deal = cabinet_store.update_deal(deal_id, body)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
     return deal
@@ -364,7 +385,7 @@ def get_media(
     info = cabinet_store.get_media_file(media_id)
     if not info:
         raise HTTPException(status_code=404, detail="Media not found")
-    if not viewer.is_admin and not cabinet_store.media_belongs_to_user(media_id, viewer.id):
+    if not (viewer.is_admin or viewer.is_manager) and not cabinet_store.media_belongs_to_user(media_id, viewer.id):
         raise HTTPException(status_code=403, detail="Forbidden")
     path, filename, kind = info
     media_type = mimetypes.guess_type(filename)[0] or (

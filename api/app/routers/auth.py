@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -9,6 +11,7 @@ from app.models.cabinet import (
     AuthResponse,
     DealCreate,
     DealUpdate,
+    PasswordLoginPayload,
     StageUpdate,
     TelegramWebAppAuthPayload,
 )
@@ -174,6 +177,46 @@ def auth_telegram_webapp(
         max_age_seconds=settings.telegram_auth_max_age_seconds,
     )
     user = cabinet_store.upsert_user_from_telegram(verified)
+    token = create_access_token(
+        telegram_id=user.telegram_id,
+        user_id=user.id,
+        settings=settings,
+    )
+    return AuthResponse(access_token=token, user=user)
+
+
+def _secret_eq(left: str, right: str) -> bool:
+    return hmac.compare_digest(
+        hashlib.sha256(left.encode("utf-8")).digest(),
+        hashlib.sha256(right.encode("utf-8")).digest(),
+    )
+
+
+@router.post("/password", response_model=AuthResponse)
+def auth_password(
+    body: PasswordLoginPayload,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AuthResponse:
+    """Admin login for /admin/. Credentials stay on the API, not in the browser bundle."""
+    expected_login = (settings.cabinet_admin_login or "").strip()
+    expected_password = settings.cabinet_admin_password or ""
+    if not expected_login or not expected_password:
+        raise HTTPException(status_code=404, detail="Password login disabled")
+    if not (
+        _secret_eq(body.login.strip(), expected_login)
+        and _secret_eq(body.password, expected_password)
+    ):
+        raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+
+    user = cabinet_store.upsert_user_from_telegram(
+        {
+            "telegram_id": int(settings.cabinet_password_telegram_id),
+            "username": "admin",
+            "first_name": "Администратор",
+            "last_name": "",
+            "photo_url": "",
+        }
+    )
     token = create_access_token(
         telegram_id=user.telegram_id,
         user_id=user.id,

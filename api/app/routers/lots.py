@@ -31,6 +31,34 @@ def _counts_by_region(lots: list[AuctionLot]) -> dict[str, int]:
     return out
 
 
+def _top_makes(lots: list[AuctionLot], *, region: str = "usa", limit: int = 8) -> list[dict]:
+    """Most common makes in a region, with the lowest current bid."""
+    buckets: dict[str, dict] = {}
+    for lot in lots:
+        if (lot.region or "").lower() != region:
+            continue
+        name = (lot.make or "").strip()
+        if not name:
+            continue
+        key = name.lower()
+        bid = float(lot.currentBid or 0)
+        row = buckets.get(key)
+        if row is None:
+            buckets[key] = {
+                "make": name,
+                "count": 1,
+                "min_bid": bid,
+                "currency": lot.currency or "USD",
+            }
+            continue
+        row["count"] += 1
+        if bid > 0 and (row["min_bid"] <= 0 or bid < row["min_bid"]):
+            row["min_bid"] = bid
+            row["currency"] = lot.currency or row["currency"]
+    ranked = sorted(buckets.values(), key=lambda row: int(row["count"]), reverse=True)
+    return ranked[:limit]
+
+
 def _require_ingest_key(
     settings: Annotated[Settings, Depends(get_settings)],
     x_api_key: Annotated[str | None, Header()] = None,
@@ -228,6 +256,7 @@ def lots_meta(make: str | None = None, region: str | None = None) -> LotMetaResp
         ),
         total=len(lots),
         counts_by_region=_counts_by_region(lots),
+        top_makes=_top_makes(lots, region=(region or "usa").strip().lower() or "usa"),
         counts_by_source={
             src: sum(1 for l in lots if l.source == src)
             for src in sorted({l.source for l in lots})

@@ -152,7 +152,9 @@ def _is_useless_photo(url: str) -> bool:
     if not u:
         return True
     if re.search(
-        r"\.svg(?:$|\?)|/content/[a-z]{2}\.svg|www\.copart\.(?:com|co\.uk)/content/|\bflag\b|/logo|sprite|1x1|pixel|blank\.",
+        r"\.svg(?:$|\?)|/content/[a-z]{2}\.svg|www\.copart\.(?:com|co\.uk)/content/"
+        r"|https?://(?:www\.)?copart\.(?:com|co\.uk)/?(?:$|\?)"
+        r"|\bflag\b|/logo|sprite|1x1|pixel|blank\.",
         u,
         re.I,
     ):
@@ -288,13 +290,14 @@ class PhotoEnrichmentAgent:
             if needs_photo_enrichment(lot, today=self._day)
             and lot.id not in self._processed_ids
         ]
-        # Prefer thin galleries first; USA Copart/IAAI before others.
+        # Prefer thin galleries first. England before USA — Copart UK CDN
+        # is blocked from the Windows host, so these must go through Chrome now.
         def _prio(l: AuctionLot) -> tuple:
             src = (l.source or "").lower()
             region = (l.region or "").lower()
-            if src in ("copart", "iaai") or region == "usa":
+            if src == "copart_uk" or region == "uk":
                 region_rank = 0
-            elif src == "copart_uk" or region == "uk":
+            elif src in ("copart", "iaai") or region == "usa":
                 region_rank = 1
             else:
                 region_rank = 2

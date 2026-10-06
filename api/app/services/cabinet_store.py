@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
 import threading
 import uuid
@@ -41,6 +42,16 @@ from app.services.dismantle_map_template import load_dismantle_template
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _due_date(value: str | None) -> str | None:
+    """Empty string clears the deadline. None means 'leave unchanged' at the caller."""
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+        raise ValueError("Срок оплаты укажите как ГГГГ-ММ-ДД")
+    return raw
 
 
 class CabinetStore:
@@ -162,6 +173,15 @@ class CabinetStore:
             )
         if "payment_stage2_at" not in cols:
             conn.execute("ALTER TABLE deals ADD COLUMN payment_stage2_at TEXT")
+        if "payment_stage1_due" not in cols:
+            conn.execute("ALTER TABLE deals ADD COLUMN payment_stage1_due TEXT")
+        if "payment_stage2_due" not in cols:
+            conn.execute("ALTER TABLE deals ADD COLUMN payment_stage2_due TEXT")
+        user_cols = {r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
+        if "is_manager" not in user_cols:
+            conn.execute(
+                "ALTER TABLE users ADD COLUMN is_manager INTEGER NOT NULL DEFAULT 0"
+            )
         # Remap legacy stage keys
         for old, new in LEGACY_STAGE_MAP.items():
             conn.execute(
@@ -241,6 +261,8 @@ class CabinetStore:
 
     def _user_from_row(self, row: sqlite3.Row) -> UserOut:
         tid = int(row["telegram_id"])
+        keys = row.keys()
+        is_manager = bool(int(row["is_manager"] or 0)) if "is_manager" in keys else False
         return UserOut(
             id=int(row["id"]),
             telegram_id=tid,
@@ -249,6 +271,7 @@ class CabinetStore:
             last_name=row["last_name"] or "",
             photo_url=row["photo_url"] or "",
             is_admin=is_admin_telegram(tid),
+            is_manager=is_manager,
             created_at=row["created_at"] or "",
         )
 
@@ -427,15 +450,26 @@ class CabinetStore:
             client_name = " ".join(p for p in parts if p).strip()
 
         manager_tg = 0
-        created_by = None
+        manager_user_id = 0
+        manager_name = ""
+        manager_username = ""
         if "created_by_user_id" in keys and row["created_by_user_id"]:
-            created_by = int(row["created_by_user_id"])
+            manager_user_id = int(row["created_by_user_id"])
             mgr = conn.execute(
-                "SELECT telegram_id FROM users WHERE id = ?",
-                (created_by,),
+                "SELECT telegram_id, username, first_name, last_name FROM users WHERE id = ?",
+                (manager_user_id,),
             ).fetchone()
             if mgr:
                 manager_tg = int(mgr["telegram_id"] or 0)
+                manager_username = mgr["username"] or ""
+                manager_name = " ".join(
+                    p for p in (mgr["first_name"] or "", mgr["last_name"] or "") if p
+                ).strip()
+
+        def _due(col: str) -> str | None:
+            if col not in keys or not row[col]:
+                return None
+            return str(row[col])
 
         p1 = bool(int(row["payment_stage1_paid"] or 0)) if "payment_stage1_paid" in keys else False
         p2 = bool(int(row["payment_stage2_paid"] or 0)) if "payment_stage2_paid" in keys else False
@@ -465,11 +499,16 @@ class CabinetStore:
             client_telegram_id=client_tg,
             client_name=client_name,
             client_username=client_username,
+            manager_user_id=manager_user_id,
             manager_telegram_id=manager_tg,
+            manager_name=manager_name,
+            manager_username=manager_username,
             payment_stage1_paid=p1,
             payment_stage1_at=p1_at,
+            payment_stage1_due=_due("payment_stage1_due"),
             payment_stage2_paid=p2,
             payment_stage2_at=p2_at,
+            payment_stage2_due=_due("payment_stage2_due"),
             created_at=row["created_at"] or "",
             updated_at=row["updated_at"] or "",
             stages=(
@@ -524,6 +563,38 @@ class CabinetStore:
                 ).fetchall()
                 return [self._user_from_row(r) for r in rows]
 
+    def set_user_manager(self, user_id: int, is_manager: bool) -> UserOut | None:
+        with self._lock:
+            with self._conn() as conn:
+                row = conn.execute(
+                    "SELECT * FROM users WHERE id = ?",
+                    (int(user_id),),
+                ).fetchone()
+                if not row:
+                    return None
+                conn.execute(
+                    "UPDATE users SET is_manager = ? WHERE id = ?",
+                    (1 if is_manager else 0, int(user_id)),
+                )
+                conn.commit()
+                row = conn.execute(
+                    "SELECT * FROM users WHERE id = ?",
+                    (int(user_id),),
+                ).fetchone()
+                return self._user_from_row(row)
+
+    def _require_manager_id(self, conn: sqlite3.Connection, user_id: int) -> int:
+        row = conn.execute(
+            "SELECT id, telegram_id, is_manager FROM users WHERE id = ?",
+            (int(user_id),),
+        ).fetchone()
+        if not row:
+            raise ValueError("Менеджер не найден")
+        flagged = bool(int(row["is_manager"] or 0)) if "is_manager" in row.keys() else False
+        if not flagged and not is_admin_telegram(int(row["telegram_id"])):
+            raise ValueError("Сначала назначьте этого человека менеджером")
+        return int(row["id"])
+
     def get_deal(self, deal_id: int) -> DealOut | None:
         with self._lock:
             with self._conn() as conn:
@@ -562,7 +633,12 @@ class CabinetStore:
                 user_id = int(user["id"])
                 kind: DealKind = data.kind if data.kind in ("car", "kit") else "kit"
                 origin_point = origin_point_for_kind(kind)
-                manager_id = int(created_by_user_id) if created_by_user_id else None
+                if data.manager_user_id:
+                    manager_id = self._require_manager_id(conn, int(data.manager_user_id))
+                else:
+                    manager_id = int(created_by_user_id) if created_by_user_id else None
+                due1 = _due_date(data.payment_stage1_due)
+                due2 = _due_date(data.payment_stage2_due)
 
                 now = _now()
                 cur = conn.execute(
@@ -570,9 +646,10 @@ class CabinetStore:
                     INSERT INTO deals (
                       user_id, title, vin, lot_number, status, note,
                       price, currency, kind, origin_region, origin_point,
-                      created_by_user_id, created_at, updated_at
+                      created_by_user_id, payment_stage1_due, payment_stage2_due,
+                      created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         user_id,
@@ -587,6 +664,8 @@ class CabinetStore:
                         data.origin_region,
                         origin_point,
                         manager_id,
+                        due1,
+                        due2,
                         now,
                         now,
                     ),
@@ -653,6 +732,17 @@ class CabinetStore:
                 elif data.origin_point is not None:
                     fields["origin_point"] = data.origin_point
                     fields["kind"] = "car" if data.origin_point == "port" else "kit"
+                if data.manager_user_id is not None:
+                    if int(data.manager_user_id) <= 0:
+                        fields["created_by_user_id"] = None
+                    else:
+                        fields["created_by_user_id"] = self._require_manager_id(
+                            conn, int(data.manager_user_id)
+                        )
+                if data.payment_stage1_due is not None:
+                    fields["payment_stage1_due"] = _due_date(data.payment_stage1_due)
+                if data.payment_stage2_due is not None:
+                    fields["payment_stage2_due"] = _due_date(data.payment_stage2_due)
                 if fields:
                     fields["updated_at"] = _now()
                     sets = ", ".join(f"{k}=?" for k in fields)

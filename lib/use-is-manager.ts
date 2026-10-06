@@ -19,7 +19,7 @@ export function useIsManager(): boolean {
     }
     void fetchMe()
       .then((me) => {
-        if (!cancelled) setIsManager(Boolean(me.is_admin));
+        if (!cancelled) setIsManager(Boolean(me.is_admin || me.is_manager));
       })
       .catch(() => {
         if (!cancelled) setIsManager(false);

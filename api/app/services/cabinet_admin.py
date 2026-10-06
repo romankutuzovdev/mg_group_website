@@ -20,4 +20,6 @@ def parse_admin_ids(raw: str) -> set[int]:
 
 def is_admin_telegram(telegram_id: int, settings: Settings | None = None) -> bool:
     s = settings or get_settings()
+    if int(telegram_id) == int(s.cabinet_password_telegram_id):
+        return True
     return telegram_id in parse_admin_ids(s.cabinet_admin_telegram_ids)

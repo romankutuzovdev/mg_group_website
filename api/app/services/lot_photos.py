@@ -9,6 +9,7 @@ Images are resized + JPEG-compressed for fast catalog/detail loads.
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import io
 import logging
@@ -27,9 +28,43 @@ logger = logging.getLogger("mg.lot_photos")
 _SAFE = re.compile(r"[^a-zA-Z0-9._-]+")
 _JUNK = re.compile(
     r"\.svg(?:$|\?)|/content/[a-z]{2}\.svg|www\.copart\.(?:com|co\.uk)/content/"
+    r"|https?://(?:www\.)?copart\.(?:com|co\.uk)/?(?:$|\?)"
     r"|\bflag\b|/logo|sprite|1x1|pixel|blank\.|bat\.bing",
     re.I,
 )
+
+# Runs inside the auction Chrome tab so CDN bytes use the same IP/cookies as the page.
+# Python httpx from the Windows host gets 403 on cs.copart.com.
+_CHROME_FETCH_JS = """
+async (urls) => {
+  const grab = async (url) => {
+    try {
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) return { ok: false, status: res.status };
+      const buf = await res.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      if (bytes.length < 800 || bytes.length > 8_000_000) {
+        return { ok: false, status: res.status, error: 'size' };
+      }
+      let binary = '';
+      const step = 0x8000;
+      for (let i = 0; i < bytes.length; i += step) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + step, bytes.length)));
+      }
+      return { ok: true, b64: btoa(binary), ctype: (res.headers.get('content-type') || '') };
+    } catch (e) {
+      return { ok: false, error: String(e && e.message || e) };
+    }
+  };
+  const out = [];
+  for (let i = 0; i < urls.length; i += 4) {
+    const part = urls.slice(i, i + 4);
+    const rows = await Promise.all(part.map((url) => grab(url)));
+    out.push(...rows);
+  }
+  return out;
+}
+"""
 
 # Parallel downloads per lot gallery.
 _DEFAULT_CONCURRENCY = 8
@@ -347,6 +382,197 @@ def thumb_file_exists(local_url: str) -> bool:
     return resolve_photo_file(lot_id, filename) is not None
 
 
+def _existing_display(folder: Path, lot_id: str, index: int, url: str) -> str | None:
+    digest = hashlib.sha1(url.encode("utf-8")).hexdigest()[:12]
+    existing = [
+        p
+        for p in folder.glob(f"{index:02d}-{digest}.*")
+        if p.is_file() and not p.name.endswith("-th.jpg")
+    ]
+    if not existing:
+        return None
+    thumb_name = f"{index:02d}-{digest}-th.jpg"
+    if not (folder / thumb_name).is_file():
+        try:
+            data, _ = _compress_image(
+                existing[0].read_bytes(),
+                max_side=_THUMB_SIDE_PX,
+                quality=_THUMB_QUALITY,
+            )
+            (folder / thumb_name).write_bytes(data)
+        except OSError:
+            pass
+    return public_path(lot_id, existing[0].name)
+
+
+def _write_display(folder: Path, lot_id: str, index: int, url: str, raw: bytes) -> str | None:
+    if len(raw) < 800 or raw[:1] == b"<":
+        return None
+    digest = hashlib.sha1(url.encode("utf-8")).hexdigest()[:12]
+    data, ext = _compress_image(raw)
+    if len(data) < 600:
+        return None
+    filename = f"{index:02d}-{digest}{ext}"
+    (folder / filename).write_bytes(data)
+    try:
+        thumb, _ = _compress_image(
+            raw,
+            max_side=_THUMB_SIDE_PX,
+            quality=_THUMB_QUALITY,
+        )
+        if len(thumb) >= 400:
+            (folder / f"{index:02d}-{digest}-th.jpg").write_bytes(thumb)
+    except Exception:
+        pass
+    return public_path(lot_id, filename)
+
+
+async def _cdp_read_stream(session: Any, handle: str) -> bytes:
+    chunks: list[bytes] = []
+    while True:
+        chunk = await session.send("IO.read", {"handle": handle, "size": 512 * 1024})
+        data = chunk.get("data") or ""
+        if data:
+            if chunk.get("base64Encoded"):
+                chunks.append(base64.b64decode(data))
+            else:
+                chunks.append(data.encode("latin-1"))
+        if chunk.get("eof"):
+            break
+    try:
+        await session.send("IO.close", {"handle": handle})
+    except Exception:
+        pass
+    return b"".join(chunks)
+
+
+async def _cdp_fetch_url(session: Any, frame_id: str, url: str) -> bytes | None:
+    result = await session.send(
+        "Network.loadNetworkResource",
+        {
+            "frameId": frame_id,
+            "url": url,
+            "options": {"disableCache": False, "includeCredentials": True},
+        },
+    )
+    resource = (result or {}).get("resource") or {}
+    if not resource.get("success"):
+        logger.debug(
+            "cdp photo miss %s status=%s err=%s",
+            url[:90],
+            resource.get("httpStatusCode"),
+            resource.get("netError"),
+        )
+        return None
+    handle = resource.get("stream")
+    if not handle:
+        return None
+    body = await _cdp_read_stream(session, handle)
+    return body if len(body) >= 800 else None
+
+
+async def _page_fetch_bytes(page: Any, urls: list[str]) -> list[bytes | None]:
+    try:
+        rows = await page.evaluate(_CHROME_FETCH_JS, urls)
+    except Exception as exc:
+        logger.debug("page fetch photos: %s", exc)
+        return [None] * len(urls)
+    out: list[bytes | None] = []
+    for row in rows or []:
+        if not isinstance(row, dict) or not row.get("ok") or not row.get("b64"):
+            out.append(None)
+            continue
+        try:
+            raw = base64.b64decode(row["b64"])
+        except Exception:
+            out.append(None)
+            continue
+        out.append(raw if len(raw) >= 800 else None)
+    while len(out) < len(urls):
+        out.append(None)
+    return out[: len(urls)]
+
+
+async def _archive_via_chrome_page(
+    page: Any | None,
+    *,
+    lot_id: str,
+    folder: Path,
+    urls: list[str],
+) -> dict[int, str]:
+    """Download gallery files through the auction Chrome tab.
+
+    ``Network.loadNetworkResource`` uses Chrome's own network (VPN/cookies).
+    Plain httpx from the API host is blocked by Copart (403).
+    """
+    saved: dict[int, str] = {}
+    if page is None or not urls:
+        return saved
+
+    pending: list[tuple[int, str]] = []
+    for i, raw in enumerate(urls, start=1):
+        url = _prefer_download_url(raw)
+        if not url.startswith("http") or _is_junk_url(url):
+            continue
+        existing = _existing_display(folder, lot_id, i, url)
+        if existing:
+            saved[i] = existing
+            continue
+        pending.append((i, url))
+    if not pending:
+        return saved
+
+    session = None
+    frame_id = ""
+    cdp_ok = True
+    try:
+        session = await page.context.new_cdp_session(page)
+        tree = await session.send("Page.getFrameTree")
+        frame_id = ((tree or {}).get("frameTree") or {}).get("frame", {}).get("id") or ""
+        if not frame_id:
+            cdp_ok = False
+    except Exception as exc:
+        logger.debug("chrome cdp session: %s", exc)
+        cdp_ok = False
+
+    still: list[tuple[int, str]] = []
+    if session is not None and cdp_ok:
+        for offset, (i, url) in enumerate(pending):
+            try:
+                raw_bytes = await _cdp_fetch_url(session, frame_id, url)
+            except Exception as exc:
+                logger.info("cdp photo fetch unavailable, fallback to page: %s", exc)
+                still.extend(pending[offset:])
+                break
+            if not raw_bytes:
+                still.append((i, url))
+                continue
+            path = _write_display(folder, lot_id, i, url, raw_bytes)
+            if path:
+                saved[i] = path
+            else:
+                still.append((i, url))
+        try:
+            await session.detach()
+        except Exception:
+            pass
+    else:
+        still = list(pending)
+
+    if still:
+        fetched = await _page_fetch_bytes(page, [url for _, url in still])
+        for (i, url), raw_bytes in zip(still, fetched):
+            if not raw_bytes:
+                continue
+            path = _write_display(folder, lot_id, i, url, raw_bytes)
+            if path:
+                saved[i] = path
+
+    if saved:
+        logger.info("chrome archived %s/%s photos for %s", len(saved), len(urls), lot_id)
+    return saved
+
+
 async def archive_gallery(
     lot_id: str,
     urls: list[str],
@@ -385,37 +611,54 @@ async def archive_gallery(
     if not remote and local_kept:
         return local_kept
 
+    # Copart CDN returns 403 to the Windows host. Pull bytes through the open
+    # Chrome tab (same IP and cookies as the Copart UK page).
+    chrome_saved = await _archive_via_chrome_page(
+        page, lot_id=lot_id, folder=folder, urls=remote
+    )
+
+    missing: list[tuple[int, str]] = [
+        (i, url)
+        for i, url in enumerate(remote, start=1)
+        if not chrome_saved.get(i)
+    ]
     pw_request = None
-    if page is not None:
+    if page is not None and missing:
         try:
             pw_request = page.context.request
         except Exception:
             pw_request = None
 
-    sem = asyncio.Semaphore(_download_concurrency())
-    timeout = httpx.Timeout(12.0, connect=5.0)
-    async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
-        tasks = [
-            _download_one(
-                lot_id=lot_id,
-                folder=folder,
-                index=i,
-                url=url,
-                referer_hint=referer_hint,
-                sem=sem,
-                client=client,
-                pw_request=pw_request,
-            )
-            for i, url in enumerate(remote, start=1)
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+    results: list[Any] = []
+    if missing:
+        sem = asyncio.Semaphore(_download_concurrency())
+        timeout = httpx.Timeout(12.0, connect=5.0)
+        async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
+            tasks = [
+                _download_one(
+                    lot_id=lot_id,
+                    folder=folder,
+                    index=i,
+                    url=url,
+                    referer_hint=referer_hint,
+                    sem=sem,
+                    client=client,
+                    pw_request=pw_request,
+                )
+                for i, url in missing
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    saved: list[str] = list(local_kept)
-    for item in results:
+    by_index: dict[int, str] = dict(chrome_saved)
+    for (i, _url), item in zip(missing, results):
         if isinstance(item, str) and item:
-            saved.append(item)
+            by_index.setdefault(i, item)
         elif isinstance(item, Exception):
             logger.debug("photo task error: %s", item)
+
+    saved: list[str] = list(local_kept)
+    for i in sorted(by_index):
+        saved.append(by_index[i])
 
     # Stable order, unique
     out: list[str] = []
@@ -432,7 +675,7 @@ async def archive_gallery(
             len(remote) + len(local_kept),
             lot_id,
             _download_concurrency(),
-            bool(pw_request),
+            bool(page),
         )
     else:
         logger.warning("archive empty for %s (%s remote urls)", lot_id, len(remote))

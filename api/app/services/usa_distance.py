@@ -82,6 +82,33 @@ US_STATE_NAMES = {
 }
 
 
+def _city_without_state(city: str, st: str) -> str:
+    """«Avenel New Jersey» + NJ → «Avenel». Geocoders fail on the doubled state."""
+    city = city.strip(" ,-")
+    state = US_STATE_NAMES.get(st.upper(), "")
+    if state and city.lower().endswith(state.lower()):
+        city = city[: -len(state)].strip(" ,-")
+    if re.search(rf"\b{re.escape(st)}\s*$", city, re.I):
+        city = re.sub(rf"\b{re.escape(st)}\s*$", "", city, flags=re.I).strip(" ,-")
+    return city
+
+
+def _push_city_state(variants: list[str], city: str, st: str) -> None:
+    st = st.upper()
+    city = _city_without_state(city, st)
+    if not city:
+        return
+    state = US_STATE_NAMES.get(st, st)
+    variants.extend(
+        [
+            f"{city}, {st}, USA",
+            f"{city}, {state}, USA",
+            f"{city}, {st}",
+            city,
+        ]
+    )
+
+
 def place_query_variants(place: str | None) -> list[str]:
     raw = _clean_place(place)
     if not raw:
@@ -97,30 +124,11 @@ def place_query_variants(place: str | None) -> list[str]:
     # "Los Angeles, CA" / "Los Angeles, CA, USA"
     m = re.match(r"^(.+?),\s*([A-Z]{2})(?:\s*,\s*USA)?$", raw, re.I)
     if m:
-        city = m.group(1).strip()
-        st = m.group(2).upper()
-        state = US_STATE_NAMES.get(st, st)
-        variants.extend(
-            [
-                f"{city}, {st}, USA",
-                f"{city}, {state}, USA",
-                f"{city}, {st}",
-            ]
-        )
-    # "Los Angeles (CA)"
+        _push_city_state(variants, m.group(1).strip(), m.group(2))
+    # "Avenel New Jersey (NJ)" / "Los Angeles (CA)"
     m2 = re.match(r"^(.+?)\s*\(([A-Z]{2})\)$", raw, re.I)
     if m2:
-        city = m2.group(1).strip()
-        st = m2.group(2).upper()
-        state = US_STATE_NAMES.get(st, st)
-        variants.extend(
-            [
-                f"{city}, {st}, USA",
-                f"{city}, {state}, USA",
-                f"{city}, {st}",
-                f"{city} {state}",
-            ]
-        )
+        _push_city_state(variants, m2.group(1).strip(), m2.group(2))
     # "CA - Los Angeles" / "CA Los Angeles"
     m3 = re.match(r"^([A-Z]{2})\s*[-–]\s*(.+)$", raw, re.I)
     if m3:
@@ -133,6 +141,16 @@ def place_query_variants(place: str | None) -> list[str]:
                 f"{city}, {state}, USA",
             ]
         )
+    # "Avenel New Jersey" / "Avenel NJ" without a comma
+    if not variants:
+        for st, state in US_STATE_NAMES.items():
+            if raw.lower().endswith(" " + state.lower()):
+                _push_city_state(variants, raw[: -len(state)].strip(), st)
+                break
+        if not variants:
+            m_st = re.match(r"^(.+?)\s+([A-Z]{2})$", raw, re.I)
+            if m_st and m_st.group(2).upper() in US_STATE_NAMES:
+                _push_city_state(variants, m_st.group(1).strip(), m_st.group(2))
     if not variants:
         variants.append(f"{raw}, USA")
         variants.append(raw)

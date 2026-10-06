@@ -77,6 +77,13 @@ class LotBulkUpsertResponse(BaseModel):
     persisted: int = 0
 
 
+class TopMakeStat(BaseModel):
+    make: str
+    count: int
+    min_bid: float = 0
+    currency: str = "USD"
+
+
 class LotMetaResponse(BaseModel):
     makes: list[str]
     models: list[str]
@@ -90,3 +97,4 @@ class LotMetaResponse(BaseModel):
     total: int
     counts_by_region: dict[str, int]
     counts_by_source: dict[str, int]
+    top_makes: list[TopMakeStat] = Field(default_factory=list)

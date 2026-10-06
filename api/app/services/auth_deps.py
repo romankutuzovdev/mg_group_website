@@ -90,7 +90,7 @@ def require_admin(
             is_admin=True,
             created_at="",
         )
-    if not user.is_admin:
+    if not user.is_admin and not user.is_manager:
         raise HTTPException(status_code=403, detail="Admin only")
     return user
 
@@ -116,6 +116,6 @@ def require_admin_or_key(
     payload = decode_access_token(creds.credentials, settings)
     telegram_id = int(payload["sub"])
     user = cabinet_store.get_user_by_telegram_id(telegram_id)
-    if not user or not user.is_admin:
+    if not user or not (user.is_admin or user.is_manager):
         raise HTTPException(status_code=403, detail="Admin only")
     return user

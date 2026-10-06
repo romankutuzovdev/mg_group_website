@@ -254,10 +254,6 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
         </p>
       ) : null}
 
-      {loading && !user ? (
-        <p className="text-sm text-text-secondary">Загрузка…</p>
-      ) : null}
-
       {!user ? (
         <div className="flex w-full flex-1 flex-col gap-6">
           <div className="mx-auto w-full max-w-md rounded-xl border border-border bg-bg-elevated p-5 text-center">
@@ -313,6 +309,10 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                   {user.first_name} {user.last_name}
                   {user.is_admin ? (
                     <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-dark">
+                      Админ
+                    </span>
+                  ) : user.is_manager ? (
+                    <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-dark">
                       Менеджер
                     </span>
                   ) : null}
@@ -343,7 +343,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                       id: "favorites" as const,
                       label: `Избранное${favorites.length ? ` (${favorites.length})` : ""}`,
                     },
-                    ...(user.is_admin
+                    ...(user.is_admin || user.is_manager
                       ? [
                           { id: "quotes" as const, label: "Просчёты" },
                           { id: "manager" as const, label: "Менеджер" },
@@ -542,11 +542,14 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
               </div>
               ) : null}
 
-              {tab === "quotes" && user.is_admin ? <QuoteHistoryPanel scope="all" /> : null}
+              {tab === "quotes" && (user.is_admin || user.is_manager) ? (
+                <QuoteHistoryPanel scope="all" />
+              ) : null}
 
-              {tab === "manager" && user.is_admin ? (
+              {tab === "manager" && (user.is_admin || user.is_manager) ? (
                 <div className="space-y-6">
                   <AdminDealsPanel
+                    canAssignRoles={user.is_admin}
                     onCreated={(deal) => {
                       setDeals((prev) => {
                         if (prev.some((d) => d.id === deal.id)) return prev;
@@ -588,6 +591,13 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                           .filter(Boolean)
                           .join(" · ")}
                       </p>
+                      {selected.manager_name || selected.manager_username ? (
+                        <p className="mt-1 text-xs text-text-muted">
+                          Менеджер:{" "}
+                          {selected.manager_name ||
+                            (selected.manager_username ? `@${selected.manager_username}` : "")}
+                        </p>
+                      ) : null}
                     </div>
                     <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
                       {statusLabel(selected.status)}
@@ -603,7 +613,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
                 <DealPhotos
                   deal={selected}
-                  isAdmin={user.is_admin}
+                  isAdmin={Boolean(user.is_admin || user.is_manager)}
                   onUpdated={(next) => {
                     setSelected(next);
                     setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
@@ -612,7 +622,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
                 <DealPaymentStatus
                   deal={selected}
-                  isAdmin={user.is_admin}
+                  isAdmin={Boolean(user.is_admin || user.is_manager)}
                   onUpdated={(next) => {
                     setSelected(next);
                     setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
@@ -621,7 +631,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
                 <DealRouteSections
                   deal={selected}
-                  isAdmin={user.is_admin}
+                  isAdmin={Boolean(user.is_admin || user.is_manager)}
                   onUpdated={(next) => {
                     setSelected(next);
                     setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));

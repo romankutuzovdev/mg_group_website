@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Deal } from "@/lib/api/cabinet";
-import { adminUpdatePayment } from "@/lib/api/cabinet";
+import { adminUpdateDeal, adminUpdatePayment } from "@/lib/api/cabinet";
 
 type Props = {
   deal: Deal;
@@ -21,6 +21,20 @@ function formatAt(iso: string | null | undefined): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatDue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
+export function paymentDueOverdue(due: string | null | undefined, paid?: boolean): boolean {
+  if (!due || paid) return false;
+  const today = new Date();
+  const stamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return due < stamp;
 }
 
 export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
@@ -46,12 +60,30 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
     })();
   };
 
+  const saveDue = (stage: 1 | 2, value: string) => {
+    void (async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        const next = await adminUpdateDeal(deal.id, {
+          [stage === 1 ? "payment_stage1_due" : "payment_stage2_due"]: value,
+        });
+        onUpdated?.(next);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Не удалось сохранить срок");
+      } finally {
+        setBusy(false);
+      }
+    })();
+  };
+
   const rows: {
     stage: 1 | 2;
     label: string;
     hint: string;
     paid: boolean;
     at: string | null | undefined;
+    due: string | null | undefined;
     canClose: boolean;
   }[] = [
     {
@@ -60,6 +92,7 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
       hint: "Первый платёж",
       paid: stage1,
       at: deal.payment_stage1_at,
+      due: deal.payment_stage1_due,
       canClose: true,
     },
     {
@@ -68,6 +101,7 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
       hint: "Второй платёж",
       paid: stage2,
       at: deal.payment_stage2_at,
+      due: deal.payment_stage2_due,
       canClose: stage1,
     },
   ];
@@ -98,7 +132,9 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
               "flex flex-col gap-2 rounded-xl border px-3 py-3 sm:flex-row sm:items-center sm:justify-between",
               row.paid
                 ? "border-emerald-200 bg-emerald-50/60"
-                : "border-border bg-zinc-50/50",
+                : paymentDueOverdue(row.due)
+                  ? "border-red-200 bg-red-50/70"
+                  : "border-border bg-zinc-50/50",
             ].join(" ")}
           >
             <div className="flex min-w-0 items-start gap-3">
@@ -120,7 +156,24 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
                     : row.canClose
                       ? row.hint
                       : "Сначала закройте этап 1"}
+                  {!row.paid && row.due
+                    ? paymentDueOverdue(row.due)
+                      ? ` · просрочен ${formatDue(row.due)}`
+                      : ` · срок ${formatDue(row.due)}`
+                    : ""}
                 </p>
+                {isAdmin ? (
+                  <label className="mt-2 block text-[11px] text-text-muted">
+                    Срок оплаты
+                    <input
+                      type="date"
+                      disabled={busy}
+                      value={row.due || ""}
+                      onChange={(e) => saveDue(row.stage, e.target.value)}
+                      className="mt-1 block w-full max-w-[11rem] rounded-lg border border-border bg-white px-2 py-1.5 text-sm text-zinc-900"
+                    />
+                  </label>
+                ) : null}
               </div>
             </div>
 
@@ -174,7 +227,11 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
 export function paymentProgressLabel(deal: Deal): string | null {
   const a = Boolean(deal.payment_stage1_paid);
   const b = Boolean(deal.payment_stage2_paid);
+  const overdue =
+    paymentDueOverdue(deal.payment_stage1_due, a) ||
+    paymentDueOverdue(deal.payment_stage2_due, b);
   if (a && b) return "оплата закрыта";
+  if (overdue) return a ? "этап 2 просрочен" : "срок оплаты просрочен";
   if (a) return "оплата 1/2";
   if (b) return "оплата 2/2";
   return null;

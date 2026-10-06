@@ -92,6 +92,11 @@ class Settings(BaseSettings):
     cabinet_dev_auth: bool = False
     cabinet_dev_telegram_id: int = 8257414851  # менеджер (в CABINET_ADMIN_TELEGRAM_IDS)
     cabinet_dev_client_telegram_id: int = 900002  # обычный клиент (не admin)
+    # Отдельный вход /admin/ — логин и пароль проверяются только на API.
+    cabinet_admin_login: str = "admin"
+    cabinet_admin_password: str = "MGGROUP"
+    # Служебный id учётки пароля, не настоящий Telegram. Всегда считается админом.
+    cabinet_password_telegram_id: int = 900000000001
 
 
 

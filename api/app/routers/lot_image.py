@@ -40,7 +40,9 @@ _ALLOWED = re.compile(
 )
 
 _JUNK = re.compile(
-    r"\.svg(?:$|\?)|/content/[a-z]{2}\.svg|www\.copart\.(?:com|co\.uk)/content/|\bflag\b|/logo|sprite|1x1|pixel|blank\.",
+    r"\.svg(?:$|\?)|/content/[a-z]{2}\.svg|www\.copart\.(?:com|co\.uk)/content/"
+    r"|https?://(?:www\.)?copart\.(?:com|co\.uk)/?(?:$|\?)"
+    r"|\bflag\b|/logo|sprite|1x1|pixel|blank\.",
     re.I,
 )
 
@@ -51,6 +53,8 @@ _CACHE_MAX_FILES = 8000
 
 def _referer_for(host: str, url: str) -> str:
     h = host.lower()
+    # UK files live on cs.copart.com, so the host alone is not enough.
+    # Callers retry the other Copart origin when the first referer is rejected.
     if "copart.co.uk" in h or "copart.co.uk" in url.lower():
         return "https://www.copart.co.uk/"
     if "copart" in h:
@@ -175,7 +179,8 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
         raise HTTPException(status_code=403, detail="Host not allowed")
 
     # Prefer smaller variants before hitting CDN (catalog cards).
-    target = _prefer_copart_thumb(_shrink_iaai_url(target))
+    original = _shrink_iaai_url(target)
+    target = _prefer_copart_thumb(original)
 
     cached = _read_cache(target)
     if cached:
@@ -191,32 +196,67 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
             },
         )
 
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-        ),
-        "Referer": _referer_for(host, target),
-        "Origin": _referer_for(host, target).rstrip("/"),
-        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-    }
+    attempts: list[tuple[str, str]] = [(target, _referer_for(host, target))]
+    if "copart" in host.lower():
+        # UK assets are on cs.copart.com. Try .co.uk first, then the original size.
+        attempts = [
+            (target, "https://www.copart.co.uk/"),
+            (target, "https://www.copart.com/"),
+        ]
+        if original != target:
+            attempts.append((original, "https://www.copart.co.uk/"))
+        hrs = re.sub(r"_(?:ful|thb)\.", "_hrs.", original, flags=re.I)
+        if hrs not in {target, original}:
+            attempts.append((hrs, "https://www.copart.co.uk/"))
+
+    upstream = None
+    used_url = target
+    last_status = 502
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=18.0) as client:
-            upstream = await client.get(target, headers=headers)
+            for url, referer in attempts:
+                hit = _read_cache(url)
+                if hit:
+                    data, ctype = hit
+                    return Response(
+                        content=data,
+                        status_code=200,
+                        media_type=ctype,
+                        headers={
+                            "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+                            "Access-Control-Allow-Origin": "*",
+                            "X-Lot-Image-Cache": "HIT",
+                        },
+                    )
+                headers = {
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                    ),
+                    "Referer": referer,
+                    "Origin": referer.rstrip("/"),
+                    "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                }
+                upstream = await client.get(url, headers=headers)
+                used_url = url
+                if upstream.status_code < 400 and len(upstream.content) >= 600:
+                    break
+                last_status = upstream.status_code
+                upstream = None
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Upstream fetch failed: {exc}") from exc
 
-    if upstream.status_code == 404:
-        raise HTTPException(status_code=404, detail="Not found")
-    if upstream.status_code >= 400:
-        raise HTTPException(status_code=502, detail=f"Upstream {upstream.status_code}")
+    if upstream is None:
+        if last_status == 404:
+            raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=502, detail=f"Upstream {last_status}")
 
     ctype = upstream.headers.get("content-type") or "image/jpeg"
     if "image" not in ctype.lower() and "octet-stream" not in ctype.lower():
         ctype = "image/jpeg"
 
     body = upstream.content
-    _write_cache(target, body, ctype)
+    _write_cache(used_url, body, ctype)
 
     return Response(
         content=body,
