@@ -180,8 +180,11 @@ export default function AvtoMakePage({
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  // Always emit every catalog make×region. Paths keyed only on live lots at build
-  // time caused /avto/usa/tesla/ → 404 on Vercel when API was empty during SSG.
+  // Vercel renders make pages on demand. Pre-building every make × region
+  // after catalog:sync pulls the live auction list blows the build.
+  if (process.env.VERCEL === "1") {
+    return { paths: [], fallback: "blocking" };
+  }
   const paths = REGION_ORDER.flatMap((region) =>
     getMakesForRegion(region).map((make) => ({
       params: { region, make: make.slug },

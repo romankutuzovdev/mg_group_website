@@ -128,36 +128,20 @@ async function main() {
     const makeSlug = resolveMakeSlug(lot.make);
     if (!makeSlug) continue;
 
-    let make = makes[makeSlug];
-    if (!make) {
-      make = {
-        slug: makeSlug,
-        name: titleCase(lot.make),
-        logo: null,
-        regions: [region],
-        models: [],
-      };
-      makes[makeSlug] = make;
-      makesAdded += 1;
-    } else if (!make.regions.includes(region)) {
+    // Do not invent a static page for every live trim. The catalog dictionary
+    // stays the set of /avto/.../make/model routes. New models are on-demand.
+    const make = makes[makeSlug];
+    if (!make) continue;
+    if (!make.regions.includes(region)) {
       make.regions.push(region);
       regionsAdded += 1;
     }
 
-    const modelName = titleCase(lot.model || "");
     const modelSlug = slugify(lot.model || "");
     if (!modelSlug || modelSlug === "all-models" || modelSlug.length < 1) continue;
 
-    let model = make.models.find((m) => m.slug === modelSlug);
-    if (!model) {
-      make.models.push({
-        slug: modelSlug,
-        name: modelName || modelSlug,
-        image: lot.imageUrl || "",
-      });
-      modelsAdded += 1;
-      if (lot.imageUrl) imagesSet += 1;
-    } else if ((!model.image || model.image.startsWith("/catalog/")) && lot.imageUrl) {
+    const model = make.models.find((m) => m.slug === modelSlug);
+    if (model && (!model.image || model.image.startsWith("/catalog/")) && lot.imageUrl) {
       model.image = lot.imageUrl;
       imagesSet += 1;
     }

@@ -109,12 +109,15 @@ export async function fetchLotsPage(query: LotQuery = {}): Promise<LotListApiRes
   return apiFetch<LotListApiResponse>(`/api/v1/lots${toSearchParams(query)}`);
 }
 
-/** Load full catalog (paginated under the hood). */
+/** Load a slice of the catalog. Never walk every page — that is ~100k lots. */
 export async function fetchAllLots(pageSize = 100): Promise<AuctionLot[]> {
+  const cap = Number(process.env.CATALOG_FETCH_MAX_PAGES || 8);
+  const maxPages = Number.isFinite(cap) && cap > 0 ? Math.floor(cap) : 8;
   const first = await fetchLotsPage({ page: 1, pageSize, sort: "date", order: "desc" });
   if (first.pages <= 1) return first.items;
   const rest: AuctionLot[] = [...first.items];
-  for (let page = 2; page <= first.pages; page++) {
+  const last = Math.min(first.pages, maxPages);
+  for (let page = 2; page <= last; page++) {
     const next = await fetchLotsPage({ page, pageSize, sort: "date", order: "desc" });
     rest.push(...next.items);
   }

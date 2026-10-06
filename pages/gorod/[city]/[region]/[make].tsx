@@ -111,6 +111,9 @@ export default function GorodMakePage({ city, region, make }: Props) {
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
+  if (process.env.VERCEL === "1") {
+    return { paths: [], fallback: "blocking" };
+  }
   const { allCityRegionMakeParamsAsync } = await import("@/lib/seo/paths");
   const params = await allCityRegionMakeParamsAsync();
   return {

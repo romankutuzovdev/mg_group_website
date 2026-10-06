@@ -10,7 +10,6 @@ import {
 } from "@/components/catalog/seo";
 import { CityNavLinks, SeoCta, SeoFaq } from "@/components/seo/seo-blocks";
 import { PageShell } from "@/components/layout/page-shell";
-import { buildSeoInventory } from "@/lib/auctions/seo-inventory";
 import {
   catalogPath,
   getMake,
@@ -157,17 +156,10 @@ export default function AvtoModelPage({
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  // Prefer live inventory; on Vercel always allow missing model URLs (blocking).
-  // Static export (Windows) must list every catalog model so links never 404.
-  const isVercel = process.env.VERCEL === "1";
-  if (isVercel) {
-    const { modelPaths } = await buildSeoInventory();
-    return {
-      paths: modelPaths.map((p) => ({
-        params: { region: p.region, make: p.make, model: p.model },
-      })),
-      fallback: "blocking",
-    };
+  // Vercel: do not pre-render a page per live model (tens of thousands of lots).
+  // The page is rendered on the first request.
+  if (process.env.VERCEL === "1") {
+    return { paths: [], fallback: "blocking" };
   }
 
   const paths = REGION_ORDER.flatMap((region) =>
