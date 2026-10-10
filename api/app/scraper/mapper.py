@@ -479,13 +479,23 @@ def map_bidcars_row(row: dict[str, Any]) -> AuctionLot | None:
         gallery.insert(0, image)
     if not ln or not gallery:
         return None
+    lot_url = str(row.get("url") or "")
     title = str(row.get("title") or "").strip()
-    if len(title) < 6:
-        url = str(row.get("url") or "")
-        slug = url.rstrip("/").split("/")[-1]
-        slug = re.sub(r"-?[A-HJ-NPR-Z0-9]{17}$", "", slug, flags=re.I)
-        title = re.sub(r"[-_]+", " ", slug).strip()
-    year, make, model = parse_title_year_make_model(title)
+    # Bid.cars h1 is the VIN. The car name lives in the URL slug:
+    # /lot/0-46031486/2018-Mercedes-Benz-GLA-WDCTG4EB6KU015912
+    from app.services.lot_lookup import title_from_bidcars_url
+
+    url_year, url_make, url_model = title_from_bidcars_url(lot_url)
+    vin_like = bool(re.fullmatch(r"[A-HJ-NPR-Z0-9]{11,17}", title, re.I))
+    if url_year and url_make and url_model and (
+        vin_like or len(title) < 6 or not re.match(r"^(?:19|20)\d{2}\s+\S+\s+\S+", title)
+    ):
+        year, make, model = url_year, title_case(url_make), title_case(url_model)
+    else:
+        year, make, model = parse_title_year_make_model(title)
+        if (not make or make == "Unknown") and url_make and url_model:
+            year = url_year or year
+            make, model = title_case(url_make), title_case(url_model)
     raw_price = str(row.get("price") or "").replace(",", "")
     try:
         bid = float(raw_price) if raw_price else 0.0
