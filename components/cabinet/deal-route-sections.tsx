@@ -13,8 +13,10 @@ import {
   adminUpdateDeal,
   adminUpdateStage,
   adminUploadDealMedia,
+  dealKind,
   fetchMyDeal,
   mediaAbsoluteUrl,
+  stageKeysForDeal,
 } from "@/lib/api/cabinet";
 
 type Section = {
@@ -34,26 +36,32 @@ function statusWord(status: Section["status"]): string {
 
 function buildSections(deal: Deal): Section[] {
   const byKey = Object.fromEntries(deal.stages.map((s) => [s.key, s]));
-  const originLabel = deal.origin_point === "port" ? "Порт" : "Разборка";
-  const originHint =
-    deal.origin_region === "uk"
+  const kit = dealKind(deal) === "kit";
+  const originLabel = kit ? "Разборка" : deal.origin_point === "port" ? "Порт" : "Разборка";
+  const originHint = kit
+    ? "Разборка на машинокомплект"
+    : deal.origin_region === "uk"
       ? "Старт в Англии"
       : "Старт в США";
 
   const meta: Record<StageKey, { label: string; hint: string }> = {
     selection: { label: "Подбор", hint: "" },
-    auction: { label: "Аукцион", hint: "" },
+    auction: { label: "Аукцион", hint: kit ? "Покупка на аукционе" : "" },
     origin: { label: originLabel, hint: originHint },
     ocean: { label: "Море", hint: "Переход через океан" },
-    belarus: { label: "Беларусь", hint: "Таможня и склад" },
+    belarus: {
+      label: kit ? "Дорога до Беларуси" : "Беларусь",
+      hint: kit ? "Доставка до Беларуси" : "Таможня и склад",
+    },
     delivery: { label: "Клиент", hint: "Выдача" },
   };
 
-  return MAP_STAGE_KEYS.map((key) => {
+  const keys = kit ? stageKeysForDeal(deal) : MAP_STAGE_KEYS;
+  return keys.map((key) => {
     const stage = byKey[key];
     return {
       key,
-      label: key === "origin" ? originLabel : stage?.label || meta[key].label,
+      label: kit ? meta[key].label : stage?.label || meta[key].label,
       hint: meta[key].hint,
       status: stage?.status || "pending",
       note: stage?.note || "",
@@ -91,6 +99,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
   }, [deal.id, deal.stages]);
 
   const regionLabel = deal.origin_region === "uk" ? "Англия" : "США";
+  const kit = dealKind(deal) === "kit";
   const doneCount = sections.filter((s) => s.status === "done").length;
 
   const refresh = async () => {
@@ -122,14 +131,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
 
   const markSection = (key: StageKey, status: "active" | "done" | "pending") =>
     void run(async () => {
-      const order: StageKey[] = [
-        "selection",
-        "auction",
-        "origin",
-        "ocean",
-        "belarus",
-        "delivery",
-      ];
+      const order = stageKeysForDeal(deal);
       if (status === "active") {
         const idx = order.indexOf(key);
         for (let i = 0; i < idx; i++) {
@@ -182,14 +184,26 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
     <div className="overflow-hidden rounded-2xl border border-border bg-white">
       <div className="border-b border-border bg-gradient-to-br from-zinc-50 to-emerald-50/50 px-4 py-3.5 sm:px-5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700/80">
-          Путь автомобиля
+          {kit ? "Путь машинокомплекта" : "Путь автомобиля"}
         </p>
         <p className="mt-1 font-display text-lg font-semibold tracking-tight text-zinc-900">
-          {regionLabel}
-          <span className="mx-2 text-zinc-300">→</span>
-          Беларусь
-          <span className="mx-2 text-zinc-300">→</span>
-          Клиент
+          {kit ? (
+            <>
+              Аукцион
+              <span className="mx-2 text-zinc-300">→</span>
+              Разборка
+              <span className="mx-2 text-zinc-300">→</span>
+              Беларусь
+            </>
+          ) : (
+            <>
+              {regionLabel}
+              <span className="mx-2 text-zinc-300">→</span>
+              Беларусь
+              <span className="mx-2 text-zinc-300">→</span>
+              Клиент
+            </>
+          )}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
           {doneCount} из {sections.length} секций пройдено
@@ -211,6 +225,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
                 <option value="uk">Англия</option>
               </select>
             </label>
+            {kit ? null : (
             <label className="block text-xs">
               <span className="text-zinc-500">Старт</span>
               <select
@@ -225,6 +240,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
                 <option value="port">Порт</option>
               </select>
             </label>
+            )}
           </div>
         ) : null}
       </div>

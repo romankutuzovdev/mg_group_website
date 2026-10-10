@@ -34,8 +34,14 @@ function CellInput({
   const [local, setLocal] = useState(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSent = useRef(value);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const localRef = useRef(value);
+  localRef.current = local;
 
   useEffect(() => {
+    // Don't pull a stale server echo over text the user is still editing.
+    if (inputRef.current && document.activeElement === inputRef.current) return;
+    if (localRef.current !== lastSent.current) return;
     setLocal(value);
     lastSent.current = value;
   }, [value]);
@@ -59,6 +65,7 @@ function CellInput({
 
   return (
     <input
+      ref={inputRef}
       type="text"
       inputMode={inputMode}
       value={local}
@@ -140,12 +147,14 @@ export function DealDismantleMap({ deal }: Props) {
     setSaveState("saving");
     setError(null);
     try {
-      const updated = await patchDismantleCell(deal.id, key, { [field]: value });
+      await patchDismantleCell(deal.id, key, { [field]: value });
       setMap((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
-          cells: prev.cells.map((c) => (c.key === key ? { ...c, ...updated } : c)),
+          cells: prev.cells.map((c) =>
+            c.key === key ? { ...c, [field]: value } : c,
+          ),
           updated_at: new Date().toISOString(),
         };
       });

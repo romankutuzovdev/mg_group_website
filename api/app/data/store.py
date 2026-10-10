@@ -120,6 +120,45 @@ class LotStore:
             self._by_slug = {lot.slug: lot for lot in lots}
         return len(lots)
 
+    def similar_sold(self, lot: AuctionLot, *, limit: int = 8) -> list:
+        """Same make/model already sold on Bid.cars. No extra page fetches."""
+        from app.models.lots import SoldPeer
+
+        make = (lot.make or "").strip().lower()
+        model = (lot.model or "").strip().lower()
+        if not make:
+            return []
+        scored: list[tuple[tuple, AuctionLot]] = []
+        with self._lock:
+            rows = list(self._by_id.values())
+        for other in rows:
+            if not getattr(other, "sold", False) or other.id == lot.id:
+                continue
+            if (other.make or "").strip().lower() != make:
+                continue
+            same_model = model and (other.model or "").strip().lower() == model
+            if model and not same_model:
+                continue
+            year_delta = abs(int(other.year or 0) - int(lot.year or 0))
+            scored.append(((year_delta, -(other.currentBid or 0)), other))
+        scored.sort(key=lambda item: item[0])
+        peers: list[SoldPeer] = []
+        for _, other in scored[:limit]:
+            peers.append(
+                SoldPeer(
+                    id=other.id,
+                    slug=other.slug,
+                    lotNumber=other.lotNumber,
+                    year=other.year,
+                    make=other.make,
+                    model=other.model,
+                    currentBid=other.currentBid,
+                    currency=other.currency,
+                    imageUrl=other.imageUrl or "",
+                )
+            )
+        return peers
+
     def all(self) -> list[AuctionLot]:
         with self._lock:
             return list(self._by_id.values())

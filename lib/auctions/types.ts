@@ -7,7 +7,8 @@ export type AuctionSource =
   | "manheim"
   | "salvage_market"
   | "encar"
-  | "china_market";
+  | "china_market"
+  | "bidcars";
 
 /** Машинокомплекты: только США и Англия. Корея и Китай — авто под восстановление. */
 export const KIT_AUCTION_SOURCES: AuctionSource[] = [
@@ -68,6 +69,9 @@ export type AuctionLot = {
   hasKeys: boolean;
   runsDrives: boolean;
   estimatedRetail?: number;
+  /** Bid.cars Estimated cost range */
+  estimatedCostMin?: number;
+  estimatedCostMax?: number;
   /** e.g. "3.0L V6 Twin Turbo" */
   engine?: string;
   bodyStyle?: string;
@@ -83,8 +87,23 @@ export type AuctionLot = {
   photosEnrichedAt?: string;
   /** Real gallery size when list API returns only a cover in imageUrls */
   photoCount?: number;
+  /** Bid.cars archived sale */
+  sold?: boolean;
+  similarSold?: SoldPeer[];
   /** Seeded / placeholder inventory — keep noindex until real feed */
   _demo?: boolean;
+};
+
+export type SoldPeer = {
+  id: string;
+  slug: string;
+  lotNumber: string;
+  year: number;
+  make: string;
+  model: string;
+  currentBid: number;
+  currency: "USD" | "GBP" | "KRW";
+  imageUrl: string;
 };
 
 export type CatalogQuickTab = "all" | "passable" | "open" | "buy-now";

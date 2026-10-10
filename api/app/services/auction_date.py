@@ -35,6 +35,8 @@ def is_auction_ended(
 
     Lots without a parseable date are treated as still active (kept).
     """
+    if getattr(lot, "sold", False):
+        return False
     dt = parse_auction_date(lot.auctionDate)
     if dt is None:
         return False

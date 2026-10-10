@@ -7,7 +7,7 @@ import type {
   OriginRegion,
   StageKey,
 } from "@/lib/api/cabinet";
-import { adminUpdateDeal, adminUpdateStage } from "@/lib/api/cabinet";
+import { adminUpdateDeal, adminUpdateStage, stageKeysForDeal } from "@/lib/api/cabinet";
 
 type Props = {
   deal: Deal;
@@ -50,14 +50,7 @@ export function DealRouteManager({ deal, focusKey, onUpdated }: Props) {
     void run(async () => {
       // When activating a map stage, mark earlier map stages done
       if (status === "active") {
-        const order: StageKey[] = [
-          "selection",
-          "auction",
-          "origin",
-          "ocean",
-          "belarus",
-          "delivery",
-        ];
+        const order = stageKeysForDeal(deal);
         const idx = order.indexOf(stage.key);
         for (let i = 0; i < idx; i++) {
           const prev = deal.stages.find((s) => s.key === order[i]);

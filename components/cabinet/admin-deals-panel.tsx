@@ -14,6 +14,7 @@ import {
   adminSetUserManager,
   adminUpdateDeal,
   dealKind,
+  stageKeysForDeal,
   fetchAdminDeals,
   fetchAdminUsers,
   regionLabel,
@@ -36,7 +37,8 @@ function statusLabel(status: Deal["status"]): string {
 }
 
 function progress(deal: Deal): { done: number; total: number; current: string } {
-  const stages = deal.stages || [];
+  const allowed = new Set(stageKeysForDeal(deal));
+  const stages = (deal.stages || []).filter((s) => allowed.has(s.key));
   const done = stages.filter((s) => s.status === "done").length;
   const active = stages.find((s) => s.status === "active");
   return {

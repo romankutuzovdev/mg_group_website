@@ -30,6 +30,7 @@ from app.scraper.browser import (
     mark_agent_tab,
     open_agent_tab,
 )
+from app.scraper.bidcars import scrape_bidcars
 from app.scraper.copart_usa import scrape_copart_usa
 from app.scraper.copart_uk import scrape_copart_uk
 from app.scraper.iaai import scrape_iaai_usa
@@ -38,6 +39,7 @@ from app.scraper.salvage_market import scrape_salvage_market
 from app.scraper.encar import scrape_encar
 from app.scraper.autohome import scrape_autohome
 from app.scraper.mapper import (
+    map_bidcars_row,
     map_copart_row,
     map_copart_uk_row,
     map_iaai_row,
@@ -51,9 +53,18 @@ from app.scraper.photo_enricher import PhotoEnrichmentAgent
 logger = logging.getLogger("mg.scraper")
 
 SourceName = Literal[
-    "copart", "iaai", "copart_uk", "manheim", "salvage_market", "encar", "china_market", "all"
+    "bidcars",
+    "copart",
+    "iaai",
+    "copart_uk",
+    "manheim",
+    "salvage_market",
+    "encar",
+    "china_market",
+    "all",
 ]
 ALL_SOURCES: tuple[str, ...] = (
+    "bidcars",
     "copart",
     "iaai",
     "copart_uk",
@@ -65,6 +76,7 @@ ALL_SOURCES: tuple[str, ...] = (
 
 # Warm URL opened when the agent's permanent tab is created.
 AGENT_WARM_URLS: dict[str, str] = {
+    "bidcars": "https://bid.cars/en/search?search-type=filters&status=Active&type=Automobile",
     "copart": (
         "https://www.copart.com/lotSearchResults/?free=true&query=*&displayStr=*"
         "&searchCriteria=%7B%22query%22%3A%5B%22*%22%5D%2C%22filter%22%3A%7B%22MISC%22%3A%5B"
@@ -225,7 +237,10 @@ class SourceAgent:
                 "timeout_ms": settings.scraper_timeout_ms,
                 "page": tab,
             }
-            if self.name == "copart":
+            if self.name == "bidcars":
+                kwargs["max_pages"] = settings.scraper_max_pages_bidcars
+                kwargs["sold_pages"] = settings.scraper_max_pages_bidcars_sold
+            elif self.name == "copart":
                 kwargs["max_pages"] = settings.scraper_max_pages_copart
                 kwargs["page_size"] = settings.scraper_page_size
             elif self.name == "iaai":
@@ -270,6 +285,7 @@ class SourceAgent:
             # Only prune this agent's source after a successful scrape.
             # When Incapsula blocks Copart UK, keep existing UK kits on the site.
             source_key = {
+                "bidcars": {"bidcars"},
                 "copart": {"copart"},
                 "copart_uk": {"copart_uk"},
                 "iaai": {"iaai"},
@@ -618,6 +634,7 @@ class MultiAgentOrchestrator:
         settings = get_settings()
         interval = max(60, settings.scraper_interval_seconds)
         specs: dict[str, tuple[ScrapeFn, MapperFn]] = {
+            "bidcars": (scrape_bidcars, map_bidcars_row),
             "copart": (scrape_copart_usa, map_copart_row),
             "iaai": (scrape_iaai_usa, map_iaai_row),
             "copart_uk": (scrape_copart_uk, map_copart_uk_row),
@@ -634,6 +651,7 @@ class MultiAgentOrchestrator:
 
     def _all_specs(self) -> dict[str, tuple[ScrapeFn, MapperFn]]:
         return {
+            "bidcars": (scrape_bidcars, map_bidcars_row),
             "copart": (scrape_copart_usa, map_copart_row),
             "iaai": (scrape_iaai_usa, map_iaai_row),
             "copart_uk": (scrape_copart_uk, map_copart_uk_row),

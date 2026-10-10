@@ -71,10 +71,22 @@ def _require_ingest_key(
 
 
 def _catalog_lots() -> list[AuctionLot]:
-    """Lots still on auction (ended ones are hidden immediately, pruned by scrapers)."""
+    """Live catalog. Sold Bid.cars stay in the store for similar sales only."""
     settings = get_settings()
     grace = settings.scraper_auction_grace_hours if settings.scraper_prune_ended else 1e9
-    return active_lots(lot_store.all(), grace_hours=grace)
+    live = [
+        lot
+        for lot in active_lots(lot_store.all(), grace_hours=grace)
+        if not getattr(lot, "sold", False)
+    ]
+    has_bidcars = any(lot.source == "bidcars" and lot.region == "usa" for lot in live)
+    if not has_bidcars:
+        return live
+    return [
+        lot
+        for lot in live
+        if not (lot.region == "usa" and lot.source in {"copart", "iaai"})
+    ]
 
 
 @router.get("", response_model=LotListResponse)
@@ -270,7 +282,7 @@ def get_lot(slug: str) -> AuctionLot:
     lot = lot_store.get_by_slug(slug) or lot_store.get_by_id(slug)
     if not lot:
         raise HTTPException(status_code=404, detail="Lot not found")
-    return lot
+    return lot.model_copy(update={"similarSold": lot_store.similar_sold(lot)})
 
 
 @router.put("/{lot_id}", response_model=AuctionLot, dependencies=[Depends(_require_ingest_key)])

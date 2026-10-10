@@ -13,8 +13,8 @@ from typing import Any
 from app.config import get_settings
 from app.models.cabinet import (
     LEGACY_STAGE_MAP,
+    KIT_STAGE_KEYS,
     STAGE_KEYS,
-    STAGE_LABELS,
     DealCreate,
     DealKind,
     DealMediaOut,
@@ -34,7 +34,8 @@ from app.models.cabinet import (
     StageUpdate,
     UserOut,
     origin_point_for_kind,
-    origin_stage_label,
+    stage_keys_for_kind,
+    stage_label,
 )
 from app.services.cabinet_admin import is_admin_telegram
 from app.services.dismantle_map_template import load_dismantle_template
@@ -359,25 +360,68 @@ class CabinetStore:
         prefix = get_settings().api_prefix.rstrip("/")
         return f"{prefix}/media/{media_id}"
 
+    def _normalize_kit_stages(self, conn: sqlite3.Connection, deal_id: int) -> None:
+        """Kits only move auction → dismantle → road to Belarus."""
+        rows = conn.execute(
+            "SELECT stage_key, status FROM deal_stages WHERE deal_id = ?",
+            (deal_id,),
+        ).fetchall()
+        by_key = {r["stage_key"]: r["status"] for r in rows}
+        now = _now()
+        hidden = [key for key in STAGE_KEYS if key not in KIT_STAGE_KEYS]
+        if hidden:
+            conn.execute(
+                f"""
+                UPDATE deal_stages
+                SET status = 'pending', updated_at = ?
+                WHERE deal_id = ? AND status = 'active'
+                  AND stage_key IN ({",".join("?" for _ in hidden)})
+                """,
+                (now, deal_id, *hidden),
+            )
+        visible_active = any(by_key.get(key) == "active" for key in KIT_STAGE_KEYS)
+        all_done = all(by_key.get(key) == "done" for key in KIT_STAGE_KEYS)
+        if not visible_active and not all_done:
+            for key in KIT_STAGE_KEYS:
+                if by_key.get(key) != "done":
+                    conn.execute(
+                        """
+                        UPDATE deal_stages
+                        SET status = 'active', updated_at = ?
+                        WHERE deal_id = ? AND stage_key = ?
+                        """,
+                        (now, deal_id, key),
+                    )
+                    break
+        if all_done:
+            conn.execute(
+                """
+                UPDATE deals
+                SET status = 'completed', updated_at = ?
+                WHERE id = ? AND status = 'active'
+                """,
+                (now, deal_id),
+            )
+
     def _load_stages(
         self,
         conn: sqlite3.Connection,
         deal_id: int,
         *,
         origin_point: OriginPoint = "dismantle",
+        kind: DealKind = "kit",
     ) -> list[DealStageOut]:
+        self._ensure_stages(conn, deal_id)
+        if kind == "kit":
+            self._normalize_kit_stages(conn, deal_id)
         rows = conn.execute(
             "SELECT * FROM deal_stages WHERE deal_id = ? ORDER BY id",
             (deal_id,),
         ).fetchall()
         by_key = {r["stage_key"]: r for r in rows}
         out: list[DealStageOut] = []
-        for key in STAGE_KEYS:
-            label = (
-                origin_stage_label(origin_point)
-                if key == "origin"
-                else STAGE_LABELS[key]
-            )
+        for key in stage_keys_for_kind(kind):
+            label = stage_label(key, kind=kind, origin_point=origin_point)
             r = by_key.get(key)
             if not r:
                 out.append(
@@ -512,7 +556,7 @@ class CabinetStore:
             created_at=row["created_at"] or "",
             updated_at=row["updated_at"] or "",
             stages=(
-                self._load_stages(conn, deal_id, origin_point=point)
+                self._load_stages(conn, deal_id, origin_point=point, kind=kind)
                 if with_details
                 else []
             ),
@@ -845,13 +889,14 @@ class CabinetStore:
                     (data.status, data.note.strip(), now, deal_id, key),
                 )
                 # After "done", auto-activate the next stage so the route keeps moving.
+                order = stage_keys_for_kind(self._deal_kind(row))
                 if data.status == "done":
                     try:
-                        idx = STAGE_KEYS.index(key)
+                        idx = order.index(key)
                     except ValueError:
                         idx = -1
-                    if 0 <= idx < len(STAGE_KEYS) - 1:
-                        nxt = STAGE_KEYS[idx + 1]
+                    if 0 <= idx < len(order) - 1:
+                        nxt = order[idx + 1]
                         conn.execute(
                             """
                             UPDATE deal_stages
@@ -868,8 +913,7 @@ class CabinetStore:
                             """,
                             (now, deal_id, nxt),
                         )
-                    else:
-                        # Last stage done → deal completed
+                    elif idx == len(order) - 1:
                         conn.execute(
                             "UPDATE deals SET status = 'completed', updated_at = ? WHERE id = ?",
                             (now, deal_id),
@@ -1198,18 +1242,37 @@ class CabinetStore:
                     if data.note is not None
                     else (existing["note"] if existing else str(item.get("defaultNote") or ""))
                 )
-                conn.execute(
-                    """
-                    INSERT INTO deal_dismantle_cells (deal_id, item_key, qty, packing, note, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(deal_id, item_key) DO UPDATE SET
-                      qty = excluded.qty,
-                      packing = excluded.packing,
-                      note = excluded.note,
-                      updated_at = excluded.updated_at
-                    """,
-                    (deal_id, key, str(qty), str(packing), str(note), now),
-                )
+                # Update only the fields sent in this request so a slower save
+                # of "qty" cannot wipe packing/note written a moment later.
+                if existing is None:
+                    conn.execute(
+                        """
+                        INSERT INTO deal_dismantle_cells
+                          (deal_id, item_key, qty, packing, note, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        (deal_id, key, str(qty), str(packing), str(note), now),
+                    )
+                else:
+                    sets: list[str] = []
+                    params: list[str] = []
+                    if data.qty is not None:
+                        sets.append("qty = ?")
+                        params.append(str(data.qty))
+                    if data.packing is not None:
+                        sets.append("packing = ?")
+                        params.append(str(data.packing))
+                    if data.note is not None:
+                        sets.append("note = ?")
+                        params.append(str(data.note))
+                    sets.append("updated_at = ?")
+                    params.append(now)
+                    params.extend([str(deal_id), key])
+                    conn.execute(
+                        f"UPDATE deal_dismantle_cells SET {', '.join(sets)} "
+                        "WHERE deal_id = ? AND item_key = ?",
+                        params,
+                    )
                 # Touch meta timestamp only — never blank out vehicle_label on cell edits
                 conn.execute(
                     """

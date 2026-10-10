@@ -70,6 +70,8 @@ def _matches_tab(lot: AuctionLot, tab: CatalogTab) -> bool:
 def filter_lots(lots: list[AuctionLot], f: LotFilters) -> list[AuctionLot]:
     out: list[AuctionLot] = []
     for lot in lots:
+        if getattr(lot, "sold", False):
+            continue
         if f.region and lot.region != f.region:
             continue
         if f.q:

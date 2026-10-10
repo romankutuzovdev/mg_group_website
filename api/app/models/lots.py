@@ -12,11 +12,26 @@ AuctionSource = Literal[
     "salvage_market",
     "encar",
     "china_market",
+    "bidcars",
 ]
 TitleType = Literal["clean", "salvage", "rebuilt", "parts_only"]
 Currency = Literal["USD", "GBP", "KRW"]
 OdometerUnit = Literal["mi", "km"]
 CatalogTab = Literal["all", "passable", "open", "buy-now"]
+
+
+class SoldPeer(BaseModel):
+    """Sold Bid.cars card shown as a similar sale. Not scraped as a separate gallery."""
+
+    id: str
+    slug: str
+    lotNumber: str = ""
+    year: int = 0
+    make: str = ""
+    model: str = ""
+    currentBid: float = 0
+    currency: Currency = "USD"
+    imageUrl: str = ""
 
 
 class AuctionLot(BaseModel):
@@ -48,6 +63,9 @@ class AuctionLot(BaseModel):
     hasKeys: bool = False
     runsDrives: bool = False
     estimatedRetail: float | None = None
+    # Bid.cars "Estimated cost" range, e.g. $2,930 – $5,310
+    estimatedCostMin: float | None = None
+    estimatedCostMax: float | None = None
     engine: str | None = None
     bodyStyle: str | None = None
     category: str | None = None
@@ -60,6 +78,9 @@ class AuctionLot(BaseModel):
     photosEnrichedAt: str | None = None
     # List endpoint may slim imageUrls to a cover; photoCount keeps the real gallery size.
     photoCount: int | None = None
+    # Bid.cars archived sale. Kept for "похожие проданные", hidden from the live catalog.
+    sold: bool = False
+    similarSold: list[SoldPeer] | None = None
 
 
 class LotListResponse(BaseModel):

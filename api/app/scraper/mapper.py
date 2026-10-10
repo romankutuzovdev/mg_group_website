@@ -462,6 +462,72 @@ def _copart_gallery(row: dict[str, Any], cover: str) -> list[str]:
     return out[:40]
 
 
+def map_bidcars_row(row: dict[str, Any]) -> AuctionLot | None:
+    """One Bid.cars card: cover photo + the price printed on it."""
+    ln = str(row.get("lotNumber") or "").strip()
+    image = str(row.get("image") or "").strip()
+    if not ln or not image.startswith("http"):
+        return None
+    title = str(row.get("title") or "").strip()
+    if len(title) < 6:
+        url = str(row.get("url") or "")
+        slug = url.rstrip("/").split("/")[-1]
+        slug = re.sub(r"-?[A-HJ-NPR-Z0-9]{17}$", "", slug, flags=re.I)
+        title = re.sub(r"[-_]+", " ", slug).strip()
+    year, make, model = parse_title_year_make_model(title)
+    raw_price = str(row.get("price") or "").replace(",", "")
+    try:
+        bid = float(raw_price) if raw_price else 0.0
+    except ValueError:
+        bid = 0.0
+
+    def _money(key: str) -> float | None:
+        raw = str(row.get(key) or "").replace(",", "").strip()
+        if not raw:
+            return None
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+
+    est_min = _money("estimatedMin")
+    est_max = _money("estimatedMax")
+    sold = bool(row.get("sold"))
+    when = datetime.now(timezone.utc)
+    if sold:
+        when = when - timedelta(days=14)
+    return AuctionLot(
+        id=f"usa-bidcars-{ln}",
+        slug=f"bidcars-{year}-{slugify(make)}-{slugify(model)}-{ln}",
+        region="usa",
+        source="bidcars",
+        lotNumber=ln,
+        vin="",
+        make=make,
+        model=model,
+        year=year,
+        titleType="salvage",
+        titleLabel="Продан" if sold else "Bid.cars",
+        primaryDamage="",
+        odometer=0,
+        odometerUnit="mi",
+        currentBid=bid,
+        estimatedCostMin=est_min,
+        estimatedCostMax=est_max,
+        currency="USD",
+        location="США",
+        auctionDate=when.isoformat(),
+        imageUrl=image,
+        imageUrls=[image],
+        transmission="—",
+        fuel="—",
+        drive="—",
+        exteriorColor="—",
+        lotUrl=str(row.get("url") or f"https://bid.cars/en/lot/{ln}"),
+        sold=sold,
+    )
+
+
 def map_copart_row(row: dict[str, Any]) -> AuctionLot | None:
     ln = str(row.get("ln") or row.get("lotNumberStr") or row.get("id") or "").strip()
     if not ln or not copart_row_is_current(row):

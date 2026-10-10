@@ -79,6 +79,22 @@ export type Deal = {
 
 export const MAP_STAGE_KEYS: StageKey[] = ["origin", "ocean", "belarus", "delivery"];
 
+/** Машинокомплект: аукцион, разборка, дорога до Беларуси. */
+export const KIT_STAGE_KEYS: StageKey[] = ["auction", "origin", "belarus"];
+
+export const CAR_STAGE_KEYS: StageKey[] = [
+  "selection",
+  "auction",
+  "origin",
+  "ocean",
+  "belarus",
+  "delivery",
+];
+
+export function stageKeysForDeal(deal: Deal): StageKey[] {
+  return dealKind(deal) === "kit" ? KIT_STAGE_KEYS : CAR_STAGE_KEYS;
+}
+
 export const ORIGIN_REGION_LABELS: Record<OriginRegion, string> = {
   usa: "США",
   uk: "Англия",

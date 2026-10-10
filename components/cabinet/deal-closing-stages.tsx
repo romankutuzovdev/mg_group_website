@@ -1,15 +1,7 @@
 "use client";
 
 import type { Deal, DealStage, StageKey } from "@/lib/api/cabinet";
-
-const ORDER: StageKey[] = [
-  "selection",
-  "auction",
-  "origin",
-  "ocean",
-  "belarus",
-  "delivery",
-];
+import { dealKind, stageKeysForDeal } from "@/lib/api/cabinet";
 
 const SHORT: Record<StageKey, string> = {
   selection: "Подбор",
@@ -18,6 +10,18 @@ const SHORT: Record<StageKey, string> = {
   ocean: "Море",
   belarus: "РБ",
   delivery: "Клиент",
+};
+
+const KIT_LABEL: Partial<Record<StageKey, string>> = {
+  auction: "Аукцион",
+  origin: "Разборка",
+  belarus: "Дорога до Беларуси",
+};
+
+const KIT_SHORT: Partial<Record<StageKey, string>> = {
+  auction: "Аукцион",
+  origin: "Разборка",
+  belarus: "До Беларуси",
 };
 
 function stageByKey(deal: Deal): Record<string, DealStage> {
@@ -32,16 +36,18 @@ export function DealClosingStages({
   compact?: boolean;
 }) {
   const byKey = stageByKey(deal);
-  const items = ORDER.map((key) => {
+  const kit = dealKind(deal) === "kit";
+  const items = stageKeysForDeal(deal).map((key) => {
     const stage = byKey[key];
     const status = stage?.status || "pending";
-    const label =
-      key === "origin"
+    const label = kit
+      ? (compact ? KIT_SHORT[key] : KIT_LABEL[key]) || SHORT[key]
+      : key === "origin"
         ? deal.origin_point === "port"
           ? "Порт"
           : "Разборка"
         : stage?.label || SHORT[key];
-    return { key, label: compact ? SHORT[key] : label, status };
+    return { key, label: compact && !kit ? SHORT[key] : label, status };
   });
 
   return (

@@ -44,6 +44,13 @@ STAGE_KEYS: tuple[StageKey, ...] = (
     "delivery",
 )
 
+# Машинокомплект: аукцион → разборка → дорога до Беларуси.
+KIT_STAGE_KEYS: tuple[StageKey, ...] = (
+    "auction",
+    "origin",
+    "belarus",
+)
+
 # Stages shown on the interactive route map (after auction).
 MAP_STAGE_KEYS: tuple[StageKey, ...] = (
     "origin",
@@ -70,6 +77,23 @@ LEGACY_STAGE_MAP: dict[str, StageKey] = {
 
 def origin_stage_label(origin_point: OriginPoint) -> str:
     return "Разборка" if origin_point == "dismantle" else "Порт"
+
+
+def stage_keys_for_kind(kind: DealKind) -> tuple[StageKey, ...]:
+    return KIT_STAGE_KEYS if kind == "kit" else STAGE_KEYS
+
+
+def stage_label(key: StageKey, *, kind: DealKind, origin_point: OriginPoint) -> str:
+    if kind == "kit":
+        if key == "auction":
+            return "Аукцион"
+        if key == "origin":
+            return "Разборка"
+        if key == "belarus":
+            return "Дорога до Беларуси"
+    if key == "origin":
+        return origin_stage_label(origin_point)
+    return STAGE_LABELS[key]
 
 
 class TelegramAuthPayload(BaseModel):

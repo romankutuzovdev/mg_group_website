@@ -103,7 +103,7 @@ if (Test-Path $envFile) {
   Set-EnvValue $envFile "SCRAPER_BLOCKED_RETRY_SECONDS" "90"
   Set-EnvValue $envFile "SCRAPER_CALC_TAB_ENABLED" "true"
   Set-EnvValue $envFile "SCRAPER_CALC_TAB_URL" "http://127.0.0.1/calculator/"
-  Set-EnvValue $envFile "SCRAPER_SOURCES" "copart,iaai,copart_uk,manheim,salvage_market,encar"
+  Set-EnvValue $envFile "SCRAPER_SOURCES" "bidcars,copart_uk,manheim,salvage_market,encar,china_market"
   Set-EnvValue $envFile "CALC_CHROME_TIMEOUT_SEC" "28"
   Set-EnvValue $envFile "CALC_CHROME_MAX_CONCURRENT" "2"
   $userChrome = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data"

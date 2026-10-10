@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # Scraper — one Google Chrome, one tab per source (CDP on Windows)
     scraper_autostart: bool = True
-    scraper_sources: str = "copart,iaai,copart_uk,manheim,salvage_market,encar,china_market"
+    scraper_sources: str = "bidcars,copart_uk,manheim,salvage_market,encar,china_market"
     scraper_interval_seconds: int = 600  # 10 min
     # After Chrome CDP is up — wait so you can enable VPN before Copart hits Incapsula
     scraper_startup_delay_seconds: int = 180
@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     # Permanent Chrome tab with site calculator (kept open 24/7)
     scraper_calc_tab_enabled: bool = True
     scraper_calc_tab_url: str = "http://127.0.0.1/calculator/"
+    scraper_max_pages_bidcars: int = 80
+    scraper_max_pages_bidcars_sold: int = 40
     scraper_max_pages_copart: int = 5
     scraper_max_pages_iaai: int = 5
     scraper_max_pages_copart_uk: int = 5

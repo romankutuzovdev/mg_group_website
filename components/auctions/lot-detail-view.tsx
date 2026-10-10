@@ -13,7 +13,7 @@ import { CatalogBreadcrumbs } from "@/components/catalog/breadcrumbs";
 import { breadcrumbJsonLd } from "@/components/catalog/seo";
 import { absoluteUrl } from "@/lib/catalog";
 import type { Dictionary } from "@/lib/dictionary";
-import type { AuctionLot } from "@/lib/auctions/types";
+import type { AuctionLot, SoldPeer } from "@/lib/auctions/types";
 import {
   CLOSED_AUCTION_HINT,
   CLOSED_AUCTION_LABEL,
@@ -123,6 +123,47 @@ function catalogLabel(region: AuctionLot["region"]) {
 function regionCrumbLabel(region: AuctionLot["region"]) {
   if (region === "uk") return "Комплекты из Англии";
   return REGION_LABELS[region];
+}
+
+function SimilarSold({ items }: { items: SoldPeer[] }) {
+  return (
+    <div className="card-premium rounded-xl p-5 sm:p-6">
+      <h2 className="font-display text-lg font-semibold">Похожие проданные</h2>
+      <p className="mt-1 text-sm text-text-secondary">
+        Та же модель с Bid.cars: первое фото и цена продажи.
+      </p>
+      <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {items.map((item) => (
+          <li key={item.id}>
+            <Link
+              href={`/auctions/${item.slug}/`}
+              className="block overflow-hidden rounded-xl border border-border bg-white"
+            >
+              <div className="relative aspect-[4/3] bg-zinc-100">
+                {item.imageUrl ? (
+                  <LotImage
+                    src={item.imageUrl}
+                    alt={`${item.year} ${item.make} ${item.model}`}
+                    fill
+                    className="object-cover"
+                    sizes="240px"
+                  />
+                ) : null}
+              </div>
+              <div className="p-2.5">
+                <p className="truncate text-sm font-semibold">
+                  {item.year} {item.make} {item.model}
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-accent-dark">
+                  {formatMoney(item.currentBid, item.currency)}
+                </p>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export function LotDetailView({
@@ -289,6 +330,22 @@ export function LotDetailView({
                 <p className="font-display text-3xl font-bold text-accent-dark">
                   {formatMoney(lot.currentBid, lot.currency)}
                 </p>
+                {lot.estimatedCostMin || lot.estimatedCostMax ? (
+                  <div className="mt-3 rounded-lg border border-border bg-zinc-50 p-3 text-sm">
+                    <p className="text-text-muted">Ориентировочная стоимость</p>
+                    <p className="mt-0.5 font-display text-xl font-bold tabular-nums text-text-primary">
+                      {lot.estimatedCostMin
+                        ? formatMoney(lot.estimatedCostMin, lot.currency)
+                        : "—"}
+                      {lot.estimatedCostMax ? (
+                        <>
+                          {" – "}
+                          {formatMoney(lot.estimatedCostMax, lot.currency)}
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                ) : null}
                 {lot.buyNowPrice ? (
                   <p className="mt-2 text-sm text-text-secondary">
                     Buy Now:{" "}
@@ -355,6 +412,10 @@ export function LotDetailView({
                   <SpecRow label="Локация" value={lot.location} />
                 </div>
               </div>
+
+              {lot.similarSold && lot.similarSold.length > 0 ? (
+                <SimilarSold items={lot.similarSold} />
+              ) : null}
 
               <LotDamageMap
                 primaryDamage={lot.primaryDamage}

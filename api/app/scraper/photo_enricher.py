@@ -213,6 +213,9 @@ def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> boo
     """True if lot still needs a full local gallery on our server."""
     if not lot.lotUrl:
         return False
+    # Bid.cars catalog keeps the card cover only — do not open each lot for a gallery.
+    if (lot.source or "").lower() == "bidcars":
+        return False
     day = today or datetime.now(timezone.utc).date()
     imgs = [
         u

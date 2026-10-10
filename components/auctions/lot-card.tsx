@@ -186,6 +186,24 @@ export function LotCard({
             <h3 className="mt-0.5 line-clamp-2 font-display text-[15px] font-semibold leading-snug tracking-tight text-zinc-900 transition group-hover:text-accent-dark sm:text-base">
               {lot.make} {lot.model}
             </h3>
+            {lot.estimatedCostMin || lot.estimatedCostMax ? (
+              <p className="mt-1.5 text-[12px] leading-snug text-zinc-600">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+                  Ориентировочная стоимость
+                </span>
+                <span className="font-semibold tabular-nums text-zinc-800">
+                  {lot.estimatedCostMin
+                    ? formatMoney(lot.estimatedCostMin, lot.currency)
+                    : "—"}
+                  {lot.estimatedCostMax ? (
+                    <>
+                      {" – "}
+                      {formatMoney(lot.estimatedCostMax, lot.currency)}
+                    </>
+                  ) : null}
+                </span>
+              </p>
+            ) : null}
           </div>
 
           <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">

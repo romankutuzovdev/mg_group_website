@@ -31,6 +31,7 @@ import {
   getCabinetToken,
   loginWithTelegram,
   setCabinetToken,
+  stageKeysForDeal,
 } from "@/lib/api/cabinet";
 import { ensureTelegramWebAppAuth, isTelegramWebAppEnv } from "@/lib/telegram-webapp-auth";
 import { hydrateFavorites, resetFavoritesCache, subscribeFavorites } from "@/lib/favorites-cache";
@@ -59,7 +60,8 @@ function formatMoney(amount: number, currency: string) {
 }
 
 function dealProgress(deal: Deal) {
-  const stages = deal.stages || [];
+  const allowed = new Set(stageKeysForDeal(deal));
+  const stages = (deal.stages || []).filter((s) => allowed.has(s.key));
   const done = stages.filter((s) => s.status === "done").length;
   const active = stages.find((s) => s.status === "active");
   return {
