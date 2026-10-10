@@ -102,6 +102,38 @@ EXTRACT_GALLERY_JS = """
 }
 """
 
+# Main gallery of this Bid.cars lot. Skip the similar-vehicles block.
+BID_CARS_GALLERY_JS = """
+() => {
+  const urls = [];
+  const push = (u) => {
+    if (!u || typeof u !== 'string') return;
+    const s = u.trim();
+    if (!s.startsWith('http')) return;
+    if (/sprite|icon|logo|avatar|flag|pixel|1x1|blank\\.|\\.svg(?:$|\\?)/i.test(s)) return;
+    urls.push(s.split(' ')[0]);
+  };
+  const inSimilar = (el) => {
+    let n = el;
+    while (n && n !== document.body) {
+      const mark = ((n.id || '') + ' ' + (typeof n.className === 'string' ? n.className : '')).toLowerCase();
+      if (/similar|related|recommend|also-like|other-lot/.test(mark)) return true;
+      n = n.parentElement;
+    }
+    return false;
+  };
+  const nodes = document.querySelectorAll(
+    '[class*="gallery"] img, [class*="Gallery"] img, [class*="fotorama"] img, [class*="swiper"] img, [class*="photo"] img, [class*="Photo"] img, img[src*="bid.cars"], img[data-src*="bid.cars"]'
+  );
+  nodes.forEach((el) => {
+    if (inSimilar(el)) return;
+    push(el.currentSrc || el.getAttribute('src') || el.getAttribute('data-src') ||
+      el.getAttribute('data-original') || el.getAttribute('data-lazy'));
+  });
+  return [...new Set(urls)];
+}
+"""
+
 COPART_API_JS = """
 async (lotNumber) => {
   const origin = /copart\\.co\\.uk/i.test(location.hostname)
@@ -213,9 +245,6 @@ def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> boo
     """True if lot still needs a full local gallery on our server."""
     if not lot.lotUrl:
         return False
-    # Bid.cars catalog keeps the card cover only — do not open each lot for a gallery.
-    if (lot.source or "").lower() == "bidcars":
-        return False
     day = today or datetime.now(timezone.utc).date()
     imgs = [
         u
@@ -298,12 +327,14 @@ class PhotoEnrichmentAgent:
         def _prio(l: AuctionLot) -> tuple:
             src = (l.source or "").lower()
             region = (l.region or "").lower()
-            if src == "copart_uk" or region == "uk":
+            if src == "bidcars":
                 region_rank = 0
-            elif src in ("copart", "iaai") or region == "usa":
+            elif src == "copart_uk" or region == "uk":
                 region_rank = 1
-            else:
+            elif src in ("copart", "iaai") or region == "usa":
                 region_rank = 2
+            else:
+                region_rank = 3
             imgs = [u for u in (l.imageUrls or []) if u and not _is_useless_photo(u)]
             locals_n = sum(1 for u in imgs if u.startswith("/api/lot-photos/"))
             return (locals_n, region_rank, -(l.currentBid or 0))
@@ -370,11 +401,16 @@ class PhotoEnrichmentAgent:
             except Exception as exc:
                 logger.debug("copart api photos %s: %s", lot.lotNumber, exc)
 
-        # DOM gallery
+        # DOM gallery. Bid.cars: only this car, not the similar-lots strip.
         try:
-            dom_imgs = await page.evaluate(EXTRACT_GALLERY_JS)
+            script = BID_CARS_GALLERY_JS if (lot.source or "") == "bidcars" else EXTRACT_GALLERY_JS
+            dom_imgs = await page.evaluate(script)
             if isinstance(dom_imgs, list):
                 collected.extend(str(x) for x in dom_imgs)
+            if (lot.source or "") == "bidcars" and len(_dedupe(collected, lot.source)) < 2:
+                extra = await page.evaluate(EXTRACT_GALLERY_JS)
+                if isinstance(extra, list):
+                    collected.extend(str(x) for x in extra)
         except Exception as exc:
             logger.debug("dom photos %s: %s", lot.id, exc)
 
