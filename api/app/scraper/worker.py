@@ -451,9 +451,10 @@ class SourceAgent:
             await self.run_once(browser)
             if self._browser_dead.is_set():
                 break
-            # After bot-wall: force-close poisoned tab, reopen on real URL next cycle
+            # After bot-wall: force-close poisoned tab, reopen on real URL next cycle.
+            # Bid.cars stays open so the Cloudflare check is visible in Chrome.
             blocked = self.status.last_blocked
-            if blocked:
+            if blocked and self.name != "bidcars":
                 logger.info(
                     "agent %s blocked (%s) — closing tab, retry in %ss (enable VPN then wait)",
                     self.name,
@@ -594,6 +595,11 @@ class MultiAgentOrchestrator:
                 await page.goto(url, wait_until="domcontentloaded", timeout=45_000)
                 await mark_agent_tab(page, agent.name)
                 agent.status.tab_open = True
+                if agent.name == "bidcars":
+                    try:
+                        await page.bring_to_front()
+                    except Exception:
+                        pass
             except Exception as exc:
                 logger.warning("warm tab %s failed (Chrome stays open): %s", agent.name, exc)
                 try:
@@ -628,6 +634,10 @@ class MultiAgentOrchestrator:
     def _enabled_sources(self) -> list[str]:
         settings = get_settings()
         wanted = {s.strip().lower() for s in settings.scraper_sources.split(",") if s.strip()}
+        # USA inventory is Bid.cars. Old Windows .env still says copart,iaai.
+        wanted.add("bidcars")
+        wanted.discard("copart")
+        wanted.discard("iaai")
         return [s for s in ALL_SOURCES if s in wanted]
 
     def _build_agents(self) -> dict[str, SourceAgent]:
@@ -859,6 +869,8 @@ class MultiAgentOrchestrator:
                 # Calculator first, then ONLY Copart tabs (sequential). Do NOT warm all
                 # sources at once — that crashes CDP and Chrome reloads empty.
                 await self._ensure_calc_tab()
+                # Open Bid.cars immediately, even if .env still lists only Copart/IAAI.
+                await self._warm_agent_tabs({"bidcars"})
                 if late:
                     await self._warm_agent_tabs({a.name for a in late})
 

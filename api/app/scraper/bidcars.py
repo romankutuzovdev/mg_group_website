@@ -162,6 +162,10 @@ async def scrape_bidcars(
     del timeout_ms
     session = TabSession()
     tab = await session.start(page=page, browser=browser, headless=headless)
+    try:
+        await tab.bring_to_front()
+    except Exception:
+        pass
     seen: set[str] = set()
     try:
         active = await _collect_feed(
