@@ -110,6 +110,38 @@ async def _wait_ready(tab: Page) -> str:
     return "empty_page"
 
 
+_NEXT_JS = """
+() => {
+  const nodes = Array.from(document.querySelectorAll('a, button'));
+  const next = nodes.find((el) => {
+    if (el.disabled || el.getAttribute('aria-disabled') === 'true') return false;
+    const cls = String(el.className || '');
+    if (/disabled/i.test(cls)) return false;
+    const label = (
+      (el.innerText || '') + ' ' +
+      (el.getAttribute('aria-label') || '') + ' ' +
+      (el.getAttribute('rel') || '') + ' ' +
+      cls
+    ).toLowerCase();
+    if (/\\bnext\\b|далее|следующ|›|»/.test(label)) return true;
+    const href = el.getAttribute('href') || '';
+    return /[?&]page=\\d+/.test(href) && /next|pagination/.test(label);
+  });
+  if (!next) return false;
+  next.click();
+  return true;
+}
+"""
+
+
+async def _scroll_results(tab: Page) -> None:
+    for _ in range(4):
+        await tab.evaluate(
+            "() => window.scrollTo(0, document.body ? document.body.scrollHeight : 0)"
+        )
+        await tab.wait_for_timeout(400)
+
+
 async def _collect_feed(
     tab: Page,
     start_url: str,
@@ -118,18 +150,19 @@ async def _collect_feed(
     sold: bool,
     seen: set[str],
 ) -> list[dict[str, Any]]:
+    """Walk the search until the list ends. max_pages <= 0 means no early cutoff."""
+    safety = max_pages if max_pages and max_pages > 0 else 5000
     lots: list[dict[str, Any]] = []
     empty_streak = 0
-    for page_idx in range(1, max_pages + 1):
-        url = _with_page(start_url, page_idx)
-        logger.info("bidcars %s page %s → %s", "sold" if sold else "active", page_idx, url)
-        await tab.goto(url, wait_until="domcontentloaded", timeout=60000)
-        blocked = await _wait_ready(tab)
-        if blocked:
-            if page_idx == 1:
-                logger.error("bidcars blocked by %s on %s", blocked, url)
-                return [{"_blocked": True, "reason": blocked}]
-            break
+    label = "sold" if sold else "active"
+    await tab.goto(start_url, wait_until="domcontentloaded", timeout=60000)
+    blocked = await _wait_ready(tab)
+    if blocked:
+        logger.error("bidcars blocked by %s on %s", blocked, start_url)
+        return [{"_blocked": True, "reason": blocked}]
+
+    for page_idx in range(1, safety + 1):
+        await _scroll_results(tab)
         rows = await tab.evaluate(_EXTRACT_JS)
         added = 0
         for row in rows or []:
@@ -140,20 +173,37 @@ async def _collect_feed(
             row["sold"] = sold
             lots.append(row)
             added += 1
-        logger.info("bidcars %s page %s: +%s", "sold" if sold else "active", page_idx, added)
+        logger.info("bidcars %s page %s: +%s (total %s)", label, page_idx, added, len(lots))
         if added == 0:
             empty_streak += 1
-            if empty_streak >= 2:
-                break
         else:
             empty_streak = 0
+        if empty_streak >= 2:
+            break
+
+        clicked = False
+        try:
+            clicked = bool(await tab.evaluate(_NEXT_JS))
+        except Exception:
+            clicked = False
+        if clicked:
+            await tab.wait_for_timeout(1200)
+            await _wait_ready(tab)
+            continue
+
+        nxt = _with_page(start_url, page_idx + 1)
+        await tab.goto(nxt, wait_until="domcontentloaded", timeout=60000)
+        blocked = await _wait_ready(tab)
+        if blocked:
+            logger.info("bidcars %s stopped on page %s: %s", label, page_idx + 1, blocked)
+            break
     return lots
 
 
 async def scrape_bidcars(
     *,
-    max_pages: int = 80,
-    sold_pages: int = 40,
+    max_pages: int = 0,
+    sold_pages: int = 0,
     headless: bool = True,
     timeout_ms: int = 60000,
     page: Page | None = None,

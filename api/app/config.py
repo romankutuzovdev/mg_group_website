@@ -38,8 +38,9 @@ class Settings(BaseSettings):
     # Permanent Chrome tab with site calculator (kept open 24/7)
     scraper_calc_tab_enabled: bool = True
     scraper_calc_tab_url: str = "http://127.0.0.1/calculator/"
-    scraper_max_pages_bidcars: int = 80
-    scraper_max_pages_bidcars_sold: int = 40
+    # 0 = листать поиск Bid.cars до конца списка, не обрывать на N-й странице.
+    scraper_max_pages_bidcars: int = 0
+    scraper_max_pages_bidcars_sold: int = 0
     scraper_max_pages_copart: int = 5
     scraper_max_pages_iaai: int = 5
     scraper_max_pages_copart_uk: int = 5
