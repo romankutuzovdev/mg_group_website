@@ -463,10 +463,21 @@ def _copart_gallery(row: dict[str, Any], cover: str) -> list[str]:
 
 
 def map_bidcars_row(row: dict[str, Any]) -> AuctionLot | None:
-    """One Bid.cars card: cover photo + the price printed on it."""
+    """Bid.cars lot (search card or full detail page)."""
+    if row.get("_ok") or row.get("_blocked"):
+        return None
     ln = str(row.get("lotNumber") or "").strip()
     image = str(row.get("image") or "").strip()
-    if not ln or not image.startswith("http"):
+    images_raw = row.get("images")
+    gallery: list[str] = []
+    if isinstance(images_raw, list):
+        for u in images_raw:
+            s = str(u or "").strip()
+            if s.startswith("http") and s not in gallery:
+                gallery.append(s)
+    if image.startswith("http") and image not in gallery:
+        gallery.insert(0, image)
+    if not ln or not gallery:
         return None
     title = str(row.get("title") or "").strip()
     if len(title) < 6:
@@ -492,38 +503,80 @@ def map_bidcars_row(row: dict[str, Any]) -> AuctionLot | None:
 
     est_min = _money("estimatedMin")
     est_max = _money("estimatedMax")
+    buy_now = _money("buyNowPrice")
     sold = bool(row.get("sold"))
     when = datetime.now(timezone.utc)
-    if sold:
+    auction_raw = str(row.get("auctionDate") or "").strip()
+    if auction_raw:
+        try:
+            when = datetime.fromisoformat(auction_raw.replace("Z", "+00:00"))
+            if when.tzinfo is None:
+                when = when.replace(tzinfo=timezone.utc)
+        except Exception:
+            # Bid.cars shows "Wed 10 Sep, 15:30 GMT+2" — keep now / sold offset
+            if sold:
+                when = when - timedelta(days=14)
+    elif sold:
         when = when - timedelta(days=14)
+
+    try:
+        odo = int(float(row.get("odometer") or 0))
+    except (TypeError, ValueError):
+        odo = 0
+    vin = str(row.get("vin") or "").strip()
+    location = str(row.get("location") or "").strip() or "США"
+    damage = str(row.get("primaryDamage") or "").strip()
+    secondary = str(row.get("secondaryDamage") or "").strip() or None
+    engine = str(row.get("engine") or "").strip() or None
+    body = str(row.get("bodyStyle") or "").strip() or None
+    sale_doc = str(row.get("saleDocument") or "").strip()
+    if sold:
+        title_label = sale_doc or "Продан"
+    else:
+        title_label = sale_doc or "Bid.cars"
+
+    def _spec(key: str, default: str = "—") -> str:
+        raw = str(row.get(key) or "").strip()
+        return raw if raw else default
+
+    enriched_at = str(row.get("photosEnrichedAt") or "").strip() or None
+    safe_ln = re.sub(r"[^0-9A-Za-z-]", "-", ln)
     return AuctionLot(
-        id=f"usa-bidcars-{ln}",
-        slug=f"bidcars-{year}-{slugify(make)}-{slugify(model)}-{ln}",
+        id=f"usa-bidcars-{safe_ln}",
+        slug=f"bidcars-{year}-{slugify(make)}-{slugify(model)}-{safe_ln}",
         region="usa",
         source="bidcars",
         lotNumber=ln,
-        vin="",
+        vin=vin,
         make=make,
         model=model,
         year=year,
         titleType="salvage",
-        titleLabel="Продан" if sold else "Bid.cars",
-        primaryDamage="",
-        odometer=0,
+        titleLabel=title_label[:80],
+        primaryDamage=damage,
+        secondaryDamage=secondary,
+        odometer=odo,
         odometerUnit="mi",
         currentBid=bid,
+        buyNowPrice=buy_now,
         estimatedCostMin=est_min,
         estimatedCostMax=est_max,
         currency="USD",
-        location="США",
+        location=location,
         auctionDate=when.isoformat(),
-        imageUrl=image,
-        imageUrls=[image],
-        transmission="—",
-        fuel="—",
-        drive="—",
-        exteriorColor="—",
+        imageUrl=gallery[0],
+        imageUrls=gallery,
+        transmission=_spec("transmission"),
+        fuel=_spec("fuel"),
+        drive=_spec("drive"),
+        exteriorColor=_spec("exteriorColor"),
+        hasKeys=bool(row.get("hasKeys")),
+        runsDrives=bool(row.get("runsDrives")),
+        engine=engine,
+        bodyStyle=body,
         lotUrl=str(row.get("url") or f"https://bid.cars/en/lot/{ln}"),
+        photosEnrichedAt=enriched_at,
+        photoCount=len(gallery),
         sold=sold,
     )
 

@@ -76,7 +76,10 @@ ALL_SOURCES: tuple[str, ...] = (
 
 # Warm URL opened when the agent's permanent tab is created.
 AGENT_WARM_URLS: dict[str, str] = {
-    "bidcars": "https://bid.cars/en/search?search-type=filters&status=Active&type=Automobile",
+    "bidcars": (
+        "https://bid.cars/en/search/results?search-type=filters&status=All"
+        "&type=Automobile&make=All&model=All&year-from=1900&year-to=2027&auction-type=All"
+    ),
     "copart": (
         "https://www.copart.com/lotSearchResults/?free=true&query=*&displayStr=*"
         "&searchCriteria=%7B%22query%22%3A%5B%22*%22%5D%2C%22filter%22%3A%7B%22MISC%22%3A%5B"
@@ -269,19 +272,35 @@ class SourceAgent:
                 logger.warning("agent %s blocked: %s", self.name, reason)
                 raw = []
 
-            stats["raw"] = len(raw)
             mapped: list[AuctionLot] = []
-            for row in raw:
-                if not isinstance(row, dict) or row.get("_blocked"):
-                    continue
-                lot = self.mapper(row)
-                if lot:
-                    mapped.append(lot)
+            upserted = 0
+            new_count = 0
+            # Bid.cars upserts page-by-page inside the scraper (full catalog).
+            if (
+                self.name == "bidcars"
+                and raw
+                and isinstance(raw[0], dict)
+                and raw[0].get("_ok")
+            ):
+                stats["raw"] = int(raw[0].get("unique") or 0)
+                stats["mapped"] = int(raw[0].get("unique") or 0)
+                upserted = int(raw[0].get("upserted") or 0)
+                new_count = int(raw[0].get("new") or 0)
+                stats["upserted"] = upserted
+                stats["new"] = new_count
+            else:
+                stats["raw"] = len(raw)
+                for row in raw:
+                    if not isinstance(row, dict) or row.get("_blocked") or row.get("_ok"):
+                        continue
+                    lot = self.mapper(row)
+                    if lot:
+                        mapped.append(lot)
 
-            stats["mapped"] = len(mapped)
-            upserted, new_count = lot_store.upsert_many(mapped)
-            stats["upserted"] = upserted
-            stats["new"] = new_count
+                stats["mapped"] = len(mapped)
+                upserted, new_count = lot_store.upsert_many(mapped)
+                stats["upserted"] = upserted
+                stats["new"] = new_count
             # Only prune this agent's source after a successful scrape.
             # When Incapsula blocks Copart UK, keep existing UK kits on the site.
             source_key = {
@@ -294,7 +313,10 @@ class SourceAgent:
                 "encar": {"encar"},
                 "china_market": {"china_market"},
             }.get(self.name, {self.name})
-            if mapped:
+            success = bool(mapped) or (
+                self.name == "bidcars" and int(stats.get("upserted") or 0) > 0
+            )
+            if success:
                 pruned = lot_store.prune_ended(sources=source_key)
             elif stats.get("blocked"):
                 pruned = 0
@@ -305,14 +327,14 @@ class SourceAgent:
             else:
                 pruned = lot_store.prune_ended(sources=source_key)
             stats["pruned"] = pruned
-            self.status.last_raw = len(raw)
-            self.status.last_mapped = len(mapped)
+            self.status.last_raw = int(stats.get("raw") or len(raw))
+            self.status.last_mapped = int(stats.get("mapped") or len(mapped))
             self.status.last_new = new_count
             self.status.total_new += new_count
             self.status.total_upserted += upserted
             self.status.cycles += 1
 
-            if settings.scraper_persist and (mapped or pruned):
+            if settings.scraper_persist and (mapped or pruned or success):
                 stats["persisted"] = lot_store.persist()
 
             # Download + compress all CDN photos onto Windows disk so the site
