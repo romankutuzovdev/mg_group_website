@@ -324,6 +324,27 @@ def prune_ended_lots() -> dict[str, int]:
     return {"removed": removed, "remaining": len(lot_store), "persisted": persisted}
 
 
+@router.post("/purge-region", dependencies=[Depends(_require_ingest_key)])
+def purge_region_lots(
+    region: str = Query(..., min_length=2, max_length=16),
+) -> dict[str, int | str]:
+    """Delete every lot in a region (usa / uk / korea / china) and persist."""
+    settings = get_settings()
+    key = region.strip().lower()
+    if key not in {"usa", "uk", "korea", "china"}:
+        raise HTTPException(status_code=400, detail="Unknown region")
+    removed = lot_store.delete_region(key)
+    persisted = 0
+    if settings.scraper_persist:
+        persisted = lot_store.persist()
+    return {
+        "region": key,
+        "removed": removed,
+        "persisted": persisted,
+        "remaining": len(lot_store),
+    }
+
+
 @router.post("/reload", dependencies=[Depends(_require_ingest_key)])
 def reload_from_disk() -> dict[str, int]:
     count = lot_store.reload()

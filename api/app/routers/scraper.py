@@ -40,12 +40,14 @@ async def scraper_stop() -> dict:
 @router.post("/run-once", dependencies=[Depends(_require_key)])
 async def scraper_run_once(
     sources: Literal[
+        "bidcars",
         "copart",
         "iaai",
         "copart_uk",
         "manheim",
         "salvage_market",
         "encar",
+        "china_market",
         "all",
     ] = Query("all"),
 ) -> dict:
