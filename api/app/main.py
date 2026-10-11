@@ -31,6 +31,14 @@ from app.services import quote_history
 async def lifespan(_app: FastAPI):
     n = lot_store.reload()
     print(f"[mg-api] loaded {n} lots from disk")
+    settings = get_settings()
+    purge_flag = Path(settings.lots_json_path).resolve().parent / "purge-usa.flag"
+    if purge_flag.is_file():
+        removed = lot_store.delete_region("usa")
+        if removed:
+            lot_store.persist()
+        purge_flag.unlink(missing_ok=True)
+        print(f"[mg-api] purged USA lots: {removed}")
     cabinet_store.init()
     purchased_cars_store.init()
     quote_history.init()

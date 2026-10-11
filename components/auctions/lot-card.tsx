@@ -187,21 +187,17 @@ export function LotCard({
               {lot.make} {lot.model}
             </h3>
             {lot.estimatedCostMin || lot.estimatedCostMax ? (
-              <p className="mt-1.5 text-[12px] leading-snug text-zinc-600">
-                <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
-                  Ориентировочная стоимость
+              <p className="mt-1.5 text-[13px] font-semibold tabular-nums leading-snug text-zinc-900">
+                <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+                  Примерная стоимость
                 </span>
-                <span className="font-semibold tabular-nums text-zinc-800">
-                  {lot.estimatedCostMin
-                    ? formatMoney(lot.estimatedCostMin, lot.currency)
-                    : "—"}
-                  {lot.estimatedCostMax ? (
-                    <>
-                      {" – "}
-                      {formatMoney(lot.estimatedCostMax, lot.currency)}
-                    </>
-                  ) : null}
-                </span>
+                {lot.estimatedCostMin ? formatMoney(lot.estimatedCostMin, lot.currency) : "—"}
+                {lot.estimatedCostMax ? (
+                  <>
+                    {" – "}
+                    {formatMoney(lot.estimatedCostMax, lot.currency)}
+                  </>
+                ) : null}
               </p>
             ) : null}
           </div>

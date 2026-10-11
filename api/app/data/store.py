@@ -46,14 +46,40 @@ def _dedupe_urls(urls: list[str]) -> list[str]:
     return out
 
 
+_JUNK_PHOTO = re.compile(
+    r"bid\.cars/img/|/upd/map/|opineo|rating\.png|/contact/people/"
+    r"|gstatic|googleusercontent|/logo|\bflag\b|sprite|\.svg(?:$|\?)",
+    re.I,
+)
+
+
+def _keep_lot_photo(url: str) -> bool:
+    u = (url or "").strip()
+    if not u or _JUNK_PHOTO.search(u):
+        return False
+    if u.startswith("/api/lot-photos/"):
+        return True
+    if "bid.cars" in u.lower() or u.lower().endswith("bid.car") or "bid.car/" in u.lower():
+        return bool(re.search(r"images\.bid\.cars|pluto\.bid\.car|cdn\.bid\.cars|mercury\.bid", u, re.I))
+    return True
+
+
 def merge_lot(old: AuctionLot | None, new: AuctionLot) -> AuctionLot:
     """Merge upsert so list scrapes never wipe a richer photo gallery."""
     if old is None:
         return new
 
     data = new.model_dump()
-    old_imgs = _dedupe_urls(list(old.imageUrls or []) + ([old.imageUrl] if old.imageUrl else []))
-    new_imgs = _dedupe_urls(list(new.imageUrls or []) + ([new.imageUrl] if new.imageUrl else []))
+    old_imgs = [
+        u
+        for u in _dedupe_urls(list(old.imageUrls or []) + ([old.imageUrl] if old.imageUrl else []))
+        if _keep_lot_photo(u)
+    ]
+    new_imgs = [
+        u
+        for u in _dedupe_urls(list(new.imageUrls or []) + ([new.imageUrl] if new.imageUrl else []))
+        if _keep_lot_photo(u)
+    ]
     old_local = [u for u in old_imgs if u.startswith("/api/lot-photos/")]
 
     # Archived photos must survive CDN-only scrapes — BY visitors need
@@ -285,6 +311,19 @@ class LotStore:
                 return False
             self._by_slug.pop(lot.slug, None)
             return True
+
+    def delete_region(self, region: str) -> int:
+        """Drop every lot in a region. Returns how many were removed."""
+        key = (region or "").strip().lower()
+        if not key:
+            return 0
+        with self._lock:
+            ids = [lot.id for lot in self._by_id.values() if (lot.region or "").lower() == key]
+            for lot_id in ids:
+                lot = self._by_id.pop(lot_id, None)
+                if lot:
+                    self._by_slug.pop(lot.slug, None)
+            return len(ids)
 
     def prune_ended(
         self,

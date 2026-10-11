@@ -56,10 +56,14 @@ export function isJunkLotImageUrl(url: string): boolean {
   if (/\/content\/[a-z]{2}\.svg/i.test(u)) return true;
   if (/www\.copart\.(?:com|co\.uk)\/content\//i.test(u)) return true;
   if (
-    /daimg\.encar|wt_mark|userdata\/dealer|insur_|listex|sprite|\/logo|avatar|1x1|pixel|blank\.|diagnosis\/option|diagnosis\/sellingpoint|\bicon\b|\bflag\b|bid\.cars\/img\/|\/upd\/map\/|opineo|rating\.png|\/contact\/people\//i.test(
+    /daimg\.encar|wt_mark|userdata\/dealer|insur_|listex|sprite|\/logo|avatar|1x1|pixel|blank\.|diagnosis\/option|diagnosis\/sellingpoint|\bicon\b|\bflag\b|bid\.cars\/img\/|\/upd\/map\/|opineo|rating\.png|\/contact\/people\/|gstatic|googleusercontent/i.test(
       u,
     )
   ) {
+    return true;
+  }
+  // Bid.cars car shots live on the image CDN. Page chrome (maps, badges) does not.
+  if (/bid\.cars|bid\.car/i.test(u) && !/images\.bid\.cars|pluto\.bid\.car|cdn\.bid\.cars|mercury\.bid/i.test(u)) {
     return true;
   }
   return false;
