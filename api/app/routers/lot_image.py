@@ -42,7 +42,8 @@ _ALLOWED = re.compile(
 _JUNK = re.compile(
     r"\.svg(?:$|\?)|/content/[a-z]{2}\.svg|www\.copart\.(?:com|co\.uk)/content/"
     r"|https?://(?:www\.)?copart\.(?:com|co\.uk)/?(?:$|\?)"
-    r"|\bflag\b|/logo|sprite|1x1|pixel|blank\.",
+    r"|\bflag\b|/logo|sprite|1x1|pixel|blank\."
+    r"|bid\.cars/img/|/upd/map/|opineo|rating\.png|/contact/people/",
     re.I,
 )
 
@@ -157,6 +158,44 @@ def _shrink_iaai_url(url: str, max_width: int = 640) -> str:
     return urlunparse(parsed._replace(query=urlencode(qs)))
 
 
+def _looks_like_image(data: bytes, ctype: str) -> bool:
+    if len(data) < 600:
+        return False
+    low = (ctype or "").lower()
+    if "html" in low or "json" in low or low.startswith("text/"):
+        return False
+    if data.startswith((b"\xff\xd8", b"\x89PNG", b"GIF8", b"RIFF")):
+        return True
+    return "image" in low or "octet-stream" in low
+
+
+async def _fetch_bidcars_via_chrome(url: str) -> tuple[bytes, str] | None:
+    """images.bid.cars answers 403 to httpx. The headed Chrome already passed Cloudflare."""
+    from app.services.calc_chrome import get_calc_chrome_pool
+
+    async def worker(page):
+        resp = await page.context.request.get(
+            url,
+            headers={
+                "Referer": "https://bid.cars/",
+                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            },
+            timeout=20_000,
+        )
+        body = await resp.body()
+        ctype = (resp.headers.get("content-type") or "image/jpeg").split(";")[0].strip()
+        if resp.status >= 400 or not _looks_like_image(body, ctype):
+            return None
+        if "image" not in ctype.lower() and "octet-stream" not in ctype.lower():
+            ctype = "image/jpeg"
+        return body, ctype
+
+    try:
+        return await get_calc_chrome_pool().run(worker, optional=True)
+    except Exception:
+        return None
+
+
 def _prefer_copart_thumb(url: str) -> str:
     if re.search(r"(?:c-static|cs)\.copart\.(?:com|co\.uk)", url, re.I):
         return re.sub(r"_(?:ful|hrs)\.", "_thb.", url, flags=re.I)
@@ -239,12 +278,32 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
                 }
                 upstream = await client.get(url, headers=headers)
                 used_url = url
-                if upstream.status_code < 400 and len(upstream.content) >= 600:
+                ctype_now = upstream.headers.get("content-type") or ""
+                if upstream.status_code < 400 and _looks_like_image(upstream.content, ctype_now):
                     break
                 last_status = upstream.status_code
                 upstream = None
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Upstream fetch failed: {exc}") from exc
+        if "bid.cars" not in host.lower() and not host.lower().endswith("bid.car"):
+            raise HTTPException(status_code=502, detail=f"Upstream fetch failed: {exc}") from exc
+        upstream = None
+        last_status = 502
+
+    if upstream is None and ("bid.cars" in host.lower() or host.lower().endswith("bid.car")):
+        via_chrome = await _fetch_bidcars_via_chrome(target)
+        if via_chrome:
+            body, ctype = via_chrome
+            _write_cache(target, body, ctype)
+            return Response(
+                content=body,
+                status_code=200,
+                media_type=ctype,
+                headers={
+                    "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+                    "Access-Control-Allow-Origin": "*",
+                    "X-Lot-Image-Cache": "CHROME",
+                },
+            )
 
     if upstream is None:
         if last_status == 404:

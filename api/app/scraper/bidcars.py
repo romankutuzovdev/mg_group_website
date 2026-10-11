@@ -72,7 +72,7 @@ _NEXT_JS = """
 }
 """
 
-# Full lot page → one structured row (fields + gallery).
+# Full lot page → specs + car gallery only (labels match Bid.cars lot sheet).
 _EXTRACT_DETAIL_JS = r"""
 () => {
   const money = (raw) => {
@@ -80,24 +80,44 @@ _EXTRACT_DETAIL_JS = r"""
     return m ? m[1] : '';
   };
   const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+  const blank = (s) => {
+    const t = clean(s);
+    if (!t || t === '-' || t === '—' || /^n\/?a$/i.test(t) || /^unknown$/i.test(t)
+      || /^no information$/i.test(t) || /^none$/i.test(t)) return '';
+    return t;
+  };
 
   const inSimilar = (el) => {
     let n = el;
     while (n && n !== document.body) {
       const mark = ((n.id || '') + ' ' + (typeof n.className === 'string' ? n.className : '')).toLowerCase();
-      if (/similar|related|recommend|also-like|other-lot|sold.?before/.test(mark)) return true;
+      if (/similar|related|recommend|also-like|other-lot|sold.?before|shipping|delivery|calculator/i.test(mark)) return true;
       n = n.parentElement;
     }
     return false;
   };
 
+  const href = location.href.split('?')[0];
+  const lotM = href.match(/\/lot\/((?:\d+-)?\d+)(?:\/|$)/i);
+  const lotNumber = lotM ? lotM[1] : '';
+  const lotDigits = lotNumber.replace(/^\d+-/, '');
+
+  const isCarPhoto = (s) => {
+    if (!s || !/^https?:\/\//i.test(s)) return false;
+    if (!/images\.bid\.cars|pluto\.bid\.car|cdn\.bid\.cars|mercury\.bid/i.test(s)) return false;
+    if (/\/img\/|\/upd\/|\/map\/|opineo|rating|contact\/people|sprite|logo|flag|\.svg(?:$|\?)/i.test(s)) return false;
+    // Prefer photos that belong to this lot / look like gallery frames (...-1.jpg)
+    if (lotDigits && s.includes(lotDigits)) return true;
+    if (/\/\d{4}-[A-Za-z0-9-]+-\d+\.(?:jpe?g|webp|png)(?:$|\?)/i.test(s)) return true;
+    if (/\/(?:0-)?\d+\/.+\.(?:jpe?g|webp|png)(?:$|\?)/i.test(s)) return true;
+    return false;
+  };
+
   const pushImg = (urls, u) => {
     if (!u || typeof u !== 'string') return;
-    let s = u.trim().split(' ')[0];
-    if (!s.startsWith('http')) return;
-    if (/sprite|icon|logo|avatar|flag|pixel|1x1|blank\.|\.svg(?:$|\?)/i.test(s)) return;
-    // Prefer large CDN paths
-    s = s.replace(/\/thumb(?:nail)?s?\//i, '/').replace(/[?&]w=\d+/i, '');
+    let s = u.trim().split(' ')[0].replace(/&amp;/g, '&');
+    if (!isCarPhoto(s)) return;
+    s = s.replace(/\/thumb(?:nail)?s?\//i, '/');
     if (!urls.includes(s)) urls.push(s);
   };
 
@@ -107,9 +127,8 @@ _EXTRACT_DETAIL_JS = r"""
     '[class*="fotorama"] img', '[class*="swiper"] img',
     '[class*="photo"] img', '[class*="Photo"] img',
     '[class*="carousel"] img',
-    'img[src*="bid.cars"]', 'img[data-src*="bid.cars"]',
+    'img[src*="images.bid.cars"]', 'img[data-src*="images.bid.cars"]',
     'img[src*="pluto.bid"]', 'img[data-src*="pluto.bid"]',
-    'img[src*="images.bid"]',
   ].join(',');
   document.querySelectorAll(imgSel).forEach((el) => {
     if (inSimilar(el)) return;
@@ -117,22 +136,18 @@ _EXTRACT_DETAIL_JS = r"""
       el.getAttribute('data-src') || el.getAttribute('data-original') ||
       el.getAttribute('data-lazy'));
   });
-  // srcset
   document.querySelectorAll('source[srcset], img[srcset]').forEach((el) => {
     if (inSimilar(el)) return;
     const ss = el.getAttribute('srcset') || '';
-    const first = ss.split(',')[0]?.trim()?.split(/\s+/)[0];
-    pushImg(images, first);
+    pushImg(images, ss.split(',')[0]?.trim()?.split(/\s+/)[0]);
   });
-  // JSON-LD / og
   document.querySelectorAll('meta[property="og:image"], meta[name="og:image"]').forEach((m) => {
     pushImg(images, m.getAttribute('content'));
   });
   try {
     document.querySelectorAll('script[type="application/ld+json"]').forEach((sc) => {
       const j = JSON.parse(sc.textContent || '{}');
-      const arr = Array.isArray(j) ? j : [j];
-      for (const node of arr) {
+      for (const node of (Array.isArray(j) ? j : [j])) {
         const img = node && node.image;
         if (typeof img === 'string') pushImg(images, img);
         else if (Array.isArray(img)) img.forEach((u) => pushImg(images, u));
@@ -140,20 +155,12 @@ _EXTRACT_DETAIL_JS = r"""
     });
   } catch (e) {}
 
-  // Also harvest image URLs from page HTML (pluto / images.bid.cars)
   const html = document.documentElement ? document.documentElement.innerHTML : '';
   const reImg = /https?:\/\/(?:pluto\.bid\.car|images\.bid\.cars)[^"'\\s<>]+/gi;
   let mm;
-  while ((mm = reImg.exec(html))) {
-    // skip obvious thumbs in similar blocks by requiring lot id in path when possible
-    pushImg(images, mm[0].replace(/&amp;/g, '&').split(' ')[0]);
-  }
+  while ((mm = reImg.exec(html))) pushImg(images, mm[0]);
 
   const bodyText = clean(document.body ? document.body.innerText : '');
-  const href = location.href.split('?')[0];
-  const lotM = href.match(/\/lot\/((?:\d+-)?\d+)(?:\/|$)/i);
-  const lotNumber = lotM ? lotM[1] : '';
-
   const vinM = bodyText.match(/\bVIN\b[:\s]*([A-HJ-NPR-Z0-9]{17})\b/i)
     || href.match(/([A-HJ-NPR-Z0-9]{17})(?:\/?$)/i);
   const vin = vinM ? vinM[1].toUpperCase() : '';
@@ -166,34 +173,44 @@ _EXTRACT_DETAIL_JS = r"""
   );
   const title = h1.replace(/\s*[|\-–].*bid\.cars.*/i, '').trim();
 
+  // Bid.cars sheet: "Primary damage Rear" / "Fuel Type Gasoline" (label then value).
+  const field = (label) => {
+    const re = new RegExp(
+      '(?:^|\\n)\\s*' + label + '\\s*[:\\n]?\\s*([^\\n]{1,120})',
+      'i'
+    );
+    const m = bodyText.match(re);
+    return m ? blank(m[1]) : '';
+  };
+
   const labelMap = {};
-  // dt/dd
   document.querySelectorAll('dt').forEach((dt) => {
     const key = clean(dt.innerText).toLowerCase().replace(/:$/, '');
     const dd = dt.nextElementSibling;
-    if (key && dd) labelMap[key] = clean(dd.innerText);
+    if (key && dd) labelMap[key] = blank(dd.innerText);
   });
-  // rows like "Label: value" or two-column cells
   document.querySelectorAll('tr').forEach((tr) => {
     const cells = tr.querySelectorAll('th, td');
     if (cells.length >= 2) {
       const key = clean(cells[0].innerText).toLowerCase().replace(/:$/, '');
-      if (key) labelMap[key] = clean(cells[1].innerText);
+      if (key) labelMap[key] = blank(cells[1].innerText);
     }
   });
-  // generic label / value pairs
-  document.querySelectorAll('[class*="spec"], [class*="detail"], [class*="info"] li, [class*="lot"] li').forEach((li) => {
-    const t = clean(li.innerText);
-    const m = t.match(/^([^:]{2,40}):\s*(.+)$/);
-    if (m) labelMap[m[1].toLowerCase()] = clean(m[2]);
+  document.querySelectorAll('li, [class*="spec"] div, [class*="detail"] div, [class*="info"] div').forEach((el) => {
+    const t = clean(el.innerText);
+    if (t.length > 160) return;
+    const m = t.match(/^([A-Za-z][A-Za-z0-9 /&-]{1,40})\s*[:\n]\s*(.+)$/);
+    if (m) labelMap[m[1].toLowerCase()] = blank(m[2]);
   });
 
   const pick = (...keys) => {
     for (const k of keys) {
+      const fromText = field(k);
+      if (fromText) return fromText;
       const kk = k.toLowerCase();
       if (labelMap[kk]) return labelMap[kk];
       for (const [lk, lv] of Object.entries(labelMap)) {
-        if (lk.includes(kk)) return lv;
+        if (lk === kk || lk.startsWith(kk + ' ') || lk.endsWith(' ' + kk)) return lv;
       }
     }
     return '';
@@ -203,54 +220,72 @@ _EXTRACT_DETAIL_JS = r"""
     /estimated\s*cost\s*:?\s*\$\s*([\d,]+(?:\.\d+)?)\s*[-–—]\s*\$\s*([\d,]+(?:\.\d+)?)/i
   );
   const bidM = bodyText.match(
-    /(?:current\s*bid|pre-?bid|final\s*bid|buy\s*now)\s*:?\s*\$\s*([\d,]+(?:\.\d+)?)/i
+    /(?:current\s*bid|pre-?bid|final\s*bid)\s*:?\s*\$\s*([\d,]+(?:\.\d+)?)/i
   );
   const buyM = bodyText.match(/buy\s*now\s*:?\s*\$\s*([\d,]+(?:\.\d+)?)/i);
 
   const sold = /status\s*:\s*(sold|ended|archived)/i.test(bodyText)
     || /\bfinal\s*bid\b/i.test(bodyText)
-    || /sold\s+for/i.test(bodyText);
+    || /sold\s+for|auction ended/i.test(bodyText);
 
-  const odoRaw = pick('odometer', 'odometr', 'mileage') ||
-    (bodyText.match(/([\d,]+)\s*(?:mi|miles)\b/i) || [])[1] || '';
+  const odoRaw = pick('Odometer', 'odometer', 'mileage') ||
+    (bodyText.match(/([\d\s,]+)\s*mi(?:les)?(?:\s*\(|\b)/i) || [])[1] || '';
   const odo = parseInt(String(odoRaw).replace(/[^\d]/g, ''), 10) || 0;
 
-  const startCode = pick('start code', 'startcode', 'runs/drives', 'drive status') || '';
-  const keyInfo = pick('keys', 'key', 'key info') || '';
+  const startCode = pick('Start code', 'Start Code', 'start code') || '';
+  const keyInfo = pick('Key', 'Keys', 'Key info', 'key') || '';
   const hasKeys = /present|yes|available/i.test(keyInfo);
-  const runs = /run\s*\/?\s*drive|starts|runs/i.test(startCode);
+  const runs = /run\s*(?:and|&|\/)?\s*drive|starts|runs/i.test(startCode);
+
+  let drive = pick('Drive Type', 'Drive Line Type', 'Drive', 'Drivetrain') || '';
+  if (/all\s*wheel|awd/i.test(drive)) drive = 'AWD';
+  else if (/4\s*x\s*4|4wd|four\s*wheel/i.test(drive)) drive = '4WD';
+  else if (/front\s*wheel|fwd|4x2/i.test(drive)) drive = 'FWD';
+  else if (/rear\s*wheel|rwd/i.test(drive)) drive = 'RWD';
+
+  let fuel = pick('Fuel Type', 'Fuel') || '';
+  if (/gasolin|petrol/i.test(fuel)) fuel = 'Gasoline';
+  else if (/diesel/i.test(fuel)) fuel = 'Diesel';
+  else if (/hybrid/i.test(fuel)) fuel = 'Hybrid';
+  else if (/electric/i.test(fuel)) fuel = 'Electric';
+  else if (/flex|e85/i.test(fuel)) fuel = 'Gasoline';
+
+  let transmission = pick('Transmission') || '';
+  if (/automatic|a\/t|\bat\b/i.test(transmission)) transmission = 'Automatic';
+  else if (/manual|m\/t|\bmt\b/i.test(transmission)) transmission = 'Manual';
+  else if (/cvt|variator/i.test(transmission)) transmission = 'CVT';
 
   return {
     lotNumber,
     url: href,
     title,
-    vin: vin || pick('vin'),
-    price: money(bidM && bidM[1]) || money(pick('current bid', 'prebid', 'pre-bid', 'final bid')),
-    buyNowPrice: money(buyM && buyM[1]) || money(pick('buy now')),
-    estimatedMin: estM ? money(estM[1]) : money(pick('estimated min', 'estimated cost')),
+    vin: vin || pick('VIN'),
+    price: money(bidM && bidM[1]) || money(pick('Current bid', 'Prebid', 'Final bid')),
+    buyNowPrice: money(buyM && buyM[1]) || money(pick('Buy now')),
+    estimatedMin: estM ? money(estM[1]) : '',
     estimatedMax: estM ? money(estM[2]) : '',
     sold,
-    location: pick('location', 'yard', 'branch') || '',
+    location: pick('Location', 'Yard', 'Branch') || '',
     odometer: odo,
-    primaryDamage: pick('primary damage', 'damage', 'primary') || '',
-    secondaryDamage: pick('secondary damage', 'secondary') || '',
-    lossType: pick('loss type', 'loss') || '',
-    saleDocument: pick('sale document', 'document', 'title') || '',
-    seller: pick('seller') || '',
-    engine: pick('engine') || '',
-    transmission: pick('transmission', 'trans') || '',
-    fuel: pick('fuel', 'fuel type') || '',
-    drive: pick('drive', 'drive type', 'drivetrain') || '',
-    exteriorColor: pick('color', 'exterior color', 'colour') || '',
-    bodyStyle: pick('body', 'body style', 'body type') || '',
+    primaryDamage: pick('Primary damage', 'Primary Damage') || '',
+    secondaryDamage: pick('Secondary damage', 'Secondary Damage') || '',
+    lossType: pick('Loss', 'Loss type') || '',
+    saleDocument: pick('Sale Document', 'Sale document') || '',
+    seller: pick('Seller') || '',
+    engine: pick('Engine') || '',
+    transmission,
+    fuel,
+    drive,
+    exteriorColor: pick('Exterior color', 'Exterior Color', 'Exterior', 'Color') || '',
+    bodyStyle: pick('Body Style', 'Body style', 'Typ') || '',
     hasKeys,
     runsDrives: runs,
     startCode,
     keyInfo,
-    auctionDate: pick('prebid close time', 'auction date', 'sale date', 'close time') || '',
+    auctionDate: pick('Auction date', 'Prebid close time', 'Sale date') || '',
     images,
     image: images[0] || '',
-    text: bodyText.slice(0, 1200),
+    text: bodyText.slice(0, 1600),
   };
 }
 """

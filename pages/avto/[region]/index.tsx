@@ -76,10 +76,10 @@ export default function AvtoRegionPage({
 
   const hasLots = lots.length > 0;
   const heroCtas = [
-    { href: "#makes", label: "Марки", variant: "primary" as const },
     ...(hasLots
-      ? [{ href: "#lots", label: "Актуальные лоты", variant: "outline" as const }]
+      ? [{ href: "#lots", label: "Актуальные лоты", variant: "primary" as const }]
       : []),
+    { href: "#makes", label: "Марки", variant: "outline" as const },
     { href: "/calculator/", label: "Просчёт", variant: "outline" as const },
     ...(extra
       ? [{ href: extra.href, label: extra.label, variant: "outline" as const }]
@@ -137,6 +137,18 @@ export default function AvtoRegionPage({
           <RegionMosaic lotCounts={regionLotCounts} active={region.slug} variant="strip" />
 
           <CatalogSection
+            id="lots"
+            title={`Актуальные лоты из ${region.nameGenitive}`}
+            subtitle="Живые лоты с API: ставка и ориентир стоимости под ключ. Обновляются автоматически."
+          >
+            <AuctionsCatalog
+              lots={lots}
+              region={catalogRegion}
+              pricingMode={pricingMode}
+            />
+          </CatalogSection>
+
+          <CatalogSection
             id="makes"
             title={`Марки из ${region.nameGenitive}`}
             subtitle="Выберите марку — модели и расчёт под ключ. Живые лоты подтягиваются, когда есть на площадке."
@@ -151,18 +163,6 @@ export default function AvtoRegionPage({
                 />
               ))}
             </div>
-          </CatalogSection>
-
-          <CatalogSection
-            id="lots"
-            title={`Актуальные лоты из ${region.nameGenitive}`}
-            subtitle="Живые лоты с API: ставка и ориентир стоимости под ключ. Обновляются автоматически."
-          >
-            <AuctionsCatalog
-              lots={lots}
-              region={catalogRegion}
-              pricingMode={pricingMode}
-            />
           </CatalogSection>
 
           <CityNavLinks cities={CITIES} hrefFor={(s) => cityPath(s, region.slug)} />

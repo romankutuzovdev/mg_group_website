@@ -116,10 +116,10 @@ export default function AvtoMakePage({
           wash={visual.wash}
           glow={visual.glow}
           ctas={[
-            { href: "#models", label: "Модели", variant: "primary" },
             ...(lots.length
-              ? [{ href: "#lots", label: "Лоты", variant: "outline" as const }]
+              ? [{ href: "#lots", label: "Лоты", variant: "primary" as const }]
               : []),
+            { href: "#models", label: "Модели", variant: "outline" as const },
             { href: "/calculator/", label: "Просчёт", variant: "outline" },
           ]}
           media={
@@ -139,6 +139,19 @@ export default function AvtoMakePage({
         <div className="mx-auto max-w-7xl space-y-12 px-3 py-8 sm:px-4 sm:py-12 lg:px-6">
           <RegionMosaic lotCounts={regionLotCounts} active={region.slug} variant="strip" />
 
+          <CatalogSection
+            id="lots"
+            title={`Актуальные лоты ${make.name}`}
+            subtitle="Ставка и ориентир стоимости под ключ."
+          >
+            <AuctionsCatalog
+              lots={lots}
+              region={catalogRegion}
+              pricingMode={pricingMode}
+              initialMake={make.name}
+            />
+          </CatalogSection>
+
           <CatalogSection id="models" title={`Модели ${make.name}`}>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {models.map((model) => (
@@ -152,19 +165,6 @@ export default function AvtoMakePage({
                 />
               ))}
             </div>
-          </CatalogSection>
-
-          <CatalogSection
-            id="lots"
-            title={`Актуальные лоты ${make.name}`}
-            subtitle="Ставка и ориентир стоимости под ключ."
-          >
-            <AuctionsCatalog
-              lots={lots}
-              region={catalogRegion}
-              pricingMode={pricingMode}
-              initialMake={make.name}
-            />
           </CatalogSection>
 
           <CityNavLinks

@@ -36,7 +36,7 @@ const YEAR_OPTIONS = Array.from({ length: 2027 - 1990 }, (_, i) => 2026 - i);
 const REGION_FILTER_ORDER: AuctionRegion[] = ["usa", "korea", "china", "uk"];
 
 const fieldClass =
-  "mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-text-primary outline-none transition focus:border-accent";
+  "mt-1.5 box-border flex h-11 w-full min-w-0 max-w-full appearance-none rounded-xl border border-border bg-white px-3 py-2 text-base text-text-primary outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 sm:h-10 sm:text-sm";
 
 type Props = {
   lots: AuctionLot[];
@@ -100,6 +100,15 @@ function toNum(v: string): number | undefined {
   if (!v.trim()) return undefined;
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
+}
+
+function lotsWord(n: number): string {
+  const abs = Math.abs(Math.trunc(n));
+  const mod10 = abs % 10;
+  const mod100 = abs % 100;
+  if (mod10 === 1 && mod100 !== 11) return "лот";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "лота";
+  return "лотов";
 }
 
 function fuelLabel(v: string) {
@@ -617,7 +626,7 @@ export function AuctionsCatalog({
   );
 
   const renderFilterFields = () => (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 max-w-full space-y-3.5 sm:space-y-4">
       {tabOptions.length > 1 ? (
         <div className="flex flex-wrap gap-1.5">
           {tabOptions.map((tab) => {
@@ -651,6 +660,7 @@ export function AuctionsCatalog({
           value={f.q}
           onChange={(e) => patch({ q: e.target.value })}
           placeholder="Марка, модель, VIN, лот..."
+          enterKeyHint="search"
           className={fieldClass}
         />
       </Field>
@@ -674,7 +684,7 @@ export function AuctionsCatalog({
         </Field>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="catalog-filter-pair">
         <Field label="Марка">
           <select
             value={f.make}
@@ -705,7 +715,7 @@ export function AuctionsCatalog({
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="catalog-filter-pair">
         <Field label="Год от">
           <select
             value={f.yearFrom}
@@ -736,10 +746,11 @@ export function AuctionsCatalog({
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="catalog-filter-pair">
         <Field label="Ставка от">
           <input
             type="number"
+            inputMode="numeric"
             min={0}
             value={f.priceMin}
             onChange={(e) => patch({ priceMin: e.target.value })}
@@ -750,6 +761,7 @@ export function AuctionsCatalog({
         <Field label="Ставка до">
           <input
             type="number"
+            inputMode="numeric"
             min={0}
             value={f.priceMax}
             onChange={(e) => patch({ priceMax: e.target.value })}
@@ -791,45 +803,48 @@ export function AuctionsCatalog({
         </Field>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3">
-        {transmissions.length > 0 ? (
-          <Field label="КПП">
-            <select
-              value={f.trans}
-              onChange={(e) => patch({ trans: e.target.value })}
-              className={fieldClass}
-            >
-              <option value="">Все</option>
-              {transmissions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {transLabel(opt)}
-                </option>
-              ))}
-            </select>
-          </Field>
-        ) : null}
-        {drives.length > 0 ? (
-          <Field label="Привод">
-            <select
-              value={f.drive}
-              onChange={(e) => patch({ drive: e.target.value })}
-              className={fieldClass}
-            >
-              <option value="">Все</option>
-              {drives.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </Field>
-        ) : null}
-      </div>
+      {transmissions.length > 0 || drives.length > 0 ? (
+        <div className="catalog-filter-pair">
+          {transmissions.length > 0 ? (
+            <Field label="КПП">
+              <select
+                value={f.trans}
+                onChange={(e) => patch({ trans: e.target.value })}
+                className={fieldClass}
+              >
+                <option value="">Все</option>
+                {transmissions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {transLabel(opt)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+          {drives.length > 0 ? (
+            <Field label="Привод">
+              <select
+                value={f.drive}
+                onChange={(e) => patch({ drive: e.target.value })}
+                className={fieldClass}
+              >
+                <option value="">Все</option>
+                {drives.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+        </div>
+      ) : null}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="catalog-filter-pair">
         <Field label="Объём от, л">
           <input
             type="number"
+            inputMode="decimal"
             min={0}
             step="0.1"
             value={f.engMin}
@@ -841,6 +856,7 @@ export function AuctionsCatalog({
         <Field label="Объём до, л">
           <input
             type="number"
+            inputMode="decimal"
             min={0}
             step="0.1"
             value={f.engMax}
@@ -888,7 +904,7 @@ export function AuctionsCatalog({
       <button
         type="button"
         onClick={reset}
-        className="w-full rounded-lg border border-border py-2.5 text-sm text-text-secondary transition hover:border-accent hover:text-accent-dark"
+        className="w-full rounded-xl border border-border py-3 text-sm font-medium text-text-secondary transition hover:border-accent hover:text-accent-dark"
       >
         Сбросить фильтры
       </button>
@@ -898,19 +914,19 @@ export function AuctionsCatalog({
   return (
     <div className="catalog-layout">
       <aside className="catalog-filters-sticky hidden lg:block">
-        <div className="catalog-filters-panel rounded-2xl border border-border bg-bg-elevated p-4 shadow-sm sm:p-5">
+        <div className="catalog-filters-panel rounded-2xl border border-border bg-bg-elevated p-4 shadow-sm xl:p-5">
           <p className="font-display text-lg font-semibold">Фильтры</p>
-          <div className="mt-4">{renderFilterFields()}</div>
+          <div className="mt-4 min-w-0">{renderFilterFields()}</div>
         </div>
       </aside>
 
       <div className="catalog-results min-w-0 flex-1">
-        <div className="sticky top-[4.25rem] z-30 -mx-4 mb-5 border-b border-border bg-bg-base/95 px-4 py-3 backdrop-blur lg:static lg:z-auto lg:mx-0 lg:mb-5 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none">
-          <div className="flex flex-wrap items-center gap-2 text-sm sm:gap-3">
+        <div className="sticky top-[4.25rem] z-30 -mx-4 mb-4 border-b border-border bg-bg-base/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-bg-base/80 lg:static lg:z-auto lg:mx-0 lg:mb-5 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm sm:gap-3">
             <button
               type="button"
               onClick={() => setSheetOpen(true)}
-              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-bg-elevated px-3.5 py-2 text-sm font-semibold text-text-primary shadow-sm lg:hidden"
+              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-bg-elevated px-3.5 py-2 text-sm font-semibold text-text-primary shadow-sm lg:hidden"
             >
               <SlidersHorizontal className="h-4 w-4" aria-hidden />
               Фильтры
@@ -1007,22 +1023,21 @@ export function AuctionsCatalog({
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="bottom"
-          className="flex max-h-[min(90dvh,40rem)] flex-col gap-0 overflow-hidden rounded-t-2xl bg-bg-elevated p-0 lg:hidden"
+          className="flex h-[min(92dvh,44rem)] w-full max-w-none flex-col gap-0 overflow-hidden rounded-t-2xl border-x-0 bg-bg-elevated p-0 lg:hidden"
         >
-          <SheetHeader className="shrink-0 border-b border-border px-4 py-4 pr-12 text-left">
+          <SheetHeader className="shrink-0 border-b border-border px-4 py-3.5 pr-12 text-left sm:px-5">
             <SheetTitle className="font-display text-lg">Фильтры</SheetTitle>
           </SheetHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
             {renderFilterFields()}
           </div>
-          <SheetFooter className="shrink-0 border-t border-border px-4 py-3 sm:flex-col sm:space-x-0">
+          <SheetFooter className="shrink-0 border-t border-border px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:flex-col sm:space-x-0 sm:px-5">
             <button
               type="button"
               onClick={() => setSheetOpen(false)}
-              className="w-full rounded-lg bg-accent py-3 text-sm font-semibold text-white transition hover:bg-accent-dark"
+              className="w-full rounded-xl bg-accent py-3.5 text-sm font-semibold text-white transition hover:bg-accent-dark"
             >
-              Показать {foundCount}{" "}
-              {foundCount === 1 ? "лот" : foundCount < 5 ? "лота" : "лотов"}
+              Показать {foundCount.toLocaleString("ru-RU")} {lotsWord(foundCount)}
             </button>
           </SheetFooter>
         </SheetContent>
@@ -1033,9 +1048,11 @@ export function AuctionsCatalog({
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">{label}</p>
+    <label className="block min-w-0 max-w-full">
+      <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+        {label}
+      </span>
       {children}
-    </div>
+    </label>
   );
 }

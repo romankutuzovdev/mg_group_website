@@ -81,8 +81,8 @@ export default function AvtoHubPage({
           description="Авто из США, Китая, Кореи и Англии: ставка на аукционе, прозрачный просчёт и доставка под ключ в Беларусь."
           crumbs={[{ label: "Каталог авто" }]}
           ctas={[
-            { href: "#regions", label: "Выбрать страну", variant: "primary" },
-            { href: "#lots", label: "Смотреть лоты", variant: "outline" },
+            { href: "#lots", label: "Смотреть лоты", variant: "primary" },
+            { href: "#regions", label: "Выбрать страну", variant: "outline" },
             { href: "/calculator/", label: "Просчёт", variant: "outline" },
           ]}
           media={
