@@ -183,7 +183,7 @@ export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
   const region = getRegion(ctx.params?.region as string);
   if (!region) return { notFound: true };
   const [{ lots }, regionLotCounts] = await Promise.all([
-    loadLotsPageLite({ region: region.slug, pageSize: 12 }),
+    loadLotsPageLite({ region: region.slug, pageSize: 24 }),
     loadRegionCountsLite(),
   ]);
   const makes = getMakesForRegion(region.slug);

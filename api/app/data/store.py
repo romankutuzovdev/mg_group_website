@@ -122,6 +122,7 @@ class LotStore:
         self._lock = threading.RLock()
         self._by_id: dict[str, AuctionLot] = {}
         self._by_slug: dict[str, AuctionLot] = {}
+        self.revision = 0
         self.reload()
 
     def reload(self) -> int:
@@ -144,6 +145,7 @@ class LotStore:
         with self._lock:
             self._by_id = {lot.id: lot for lot in lots}
             self._by_slug = {lot.slug: lot for lot in lots}
+            self.revision += 1
         return len(lots)
 
     def similar_sold(self, lot: AuctionLot, *, limit: int = 8) -> list:
@@ -268,6 +270,7 @@ class LotStore:
     def upsert(self, lot: AuctionLot) -> AuctionLot:
         with self._lock:
             merged, _ = self._upsert_locked(lot)
+            self.revision += 1
             return merged
 
     def upsert_many(self, lots: list[AuctionLot]) -> tuple[int, int]:
@@ -278,6 +281,8 @@ class LotStore:
                 _, is_new = self._upsert_locked(lot)
                 if is_new:
                     new_count += 1
+            if lots:
+                self.revision += 1
         return len(lots), new_count
 
     def update_photos(
@@ -302,6 +307,7 @@ class LotStore:
             lot = AuctionLot.model_validate(data)
             self._by_id[lot.id] = lot
             self._by_slug[lot.slug] = lot
+            self.revision += 1
             return lot
 
     def delete(self, lot_id: str) -> bool:
@@ -310,6 +316,7 @@ class LotStore:
             if not lot:
                 return False
             self._by_slug.pop(lot.slug, None)
+            self.revision += 1
             return True
 
     def delete_region(self, region: str) -> int:
@@ -323,6 +330,8 @@ class LotStore:
                 lot = self._by_id.pop(lot_id, None)
                 if lot:
                     self._by_slug.pop(lot.slug, None)
+            if ids:
+                self.revision += 1
             return len(ids)
 
     def prune_ended(
@@ -359,6 +368,8 @@ class LotStore:
                     self._by_slug.pop(lot.slug, None)
                     removed += 1
             live_ids = set(self._by_id)
+            if to_drop:
+                self.revision += 1
         if to_drop:
             from app.services.lot_photos import delete_lot_photos, sweep_orphan_photos
 

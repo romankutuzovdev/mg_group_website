@@ -86,7 +86,18 @@ def create_app() -> FastAPI:
             if request.url.query:
                 target = f"{target}?{request.url.query}"
             return RedirectResponse(url=target, status_code=308)
-        return await call_next(request)
+        response = await call_next(request)
+        path = (request.url.path or "").rstrip("/") or "/"
+        if request.method == "GET" and response.status_code == 200:
+            if path in {f"{prefix}/lots", f"{prefix}/lots/meta", f"{prefix}/lots/featured"}:
+                response.headers["Cache-Control"] = (
+                    "public, max-age=20, s-maxage=45, stale-while-revalidate=120"
+                )
+            elif path == "/api/lot-image" or path.startswith("/api/lot-photos/"):
+                response.headers["Cache-Control"] = (
+                    "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400"
+                )
+        return response
 
     prefix = settings.api_prefix
     app.include_router(health.router)

@@ -105,8 +105,27 @@ function toSearchParams(query: LotQuery): string {
   return s ? `?${s}` : "";
 }
 
+const GET_CACHE_MS = 20_000;
+const getCache = new Map<string, { at: number; data: unknown }>();
+
+function cachedGet<T>(path: string, loader: () => Promise<T>): Promise<T> {
+  const hit = getCache.get(path);
+  if (hit && Date.now() - hit.at < GET_CACHE_MS) {
+    return Promise.resolve(hit.data as T);
+  }
+  return loader().then((data) => {
+    getCache.set(path, { at: Date.now(), data });
+    if (getCache.size > 40) {
+      const oldest = getCache.keys().next().value;
+      if (oldest) getCache.delete(oldest);
+    }
+    return data;
+  });
+}
+
 export async function fetchLotsPage(query: LotQuery = {}): Promise<LotListApiResponse> {
-  return apiFetch<LotListApiResponse>(`/api/v1/lots${toSearchParams(query)}`);
+  const path = `/api/v1/lots${toSearchParams(query)}`;
+  return cachedGet(path, () => apiFetch<LotListApiResponse>(path));
 }
 
 /** Load a slice of the catalog. Never walk every page — that is ~100k lots. */
@@ -161,7 +180,8 @@ export async function fetchLotMeta(opts?: {
   if (opts?.make) sp.set("make", opts.make);
   if (opts?.region) sp.set("region", opts.region);
   const q = sp.toString();
-  return apiFetch(`/api/v1/lots/meta${q ? `?${q}` : ""}`);
+  const path = `/api/v1/lots/meta${q ? `?${q}` : ""}`;
+  return cachedGet(path, () => apiFetch(path));
 }
 
 export async function fetchLotSlugs(): Promise<string[]> {

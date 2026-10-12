@@ -76,7 +76,7 @@ _NEXT_JS = """
 _EXTRACT_DETAIL_JS = r"""
 () => {
   const money = (raw) => {
-    const m = String(raw || '').replace(/,/g, '').match(/([\d]+(?:\.\d+)?)/);
+    const m = String(raw || '').replace(/[\s,]/g, '').match(/([\d]+(?:\.\d+)?)/);
     return m ? m[1] : '';
   };
   const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
@@ -97,7 +97,7 @@ _EXTRACT_DETAIL_JS = r"""
     return false;
   };
 
-  const href = location.href.split('?')[0];
+  const href = location.href.split('?')[0].replace(/bid\.cars\/ru\//i, 'bid.cars/en/');
   const lotM = href.match(/\/lot\/((?:\d+-)?\d+)(?:\/|$)/i);
   const lotNumber = lotM ? lotM[1] : '';
   const lotDigits = lotNumber.replace(/^\d+-/, '');
@@ -217,7 +217,9 @@ _EXTRACT_DETAIL_JS = r"""
   };
 
   const estM = bodyText.match(
-    /estimated\s*cost\s*:?\s*\$\s*([\d,]+(?:\.\d+)?)\s*[-–—]\s*\$\s*([\d,]+(?:\.\d+)?)/i
+    /(?:estimated\s*cost|ориентировочн\w*\s*стоимост\w*|примерн\w*\s*стоимост\w*)\s*:?\s*\$?\s*([\d\s,]+(?:\.\d+)?)\s*[-–—]\s*\$?\s*([\d\s,]+(?:\.\d+)?)/i
+  ) || html.match(
+    /"(?:estimatedMin|estimated_min|estimatedAmount1)"\s*:\s*"?([\d.]+)[\s\S]{0,80}"?(?:estimatedMax|estimated_max|estimatedAmount2)"\s*:\s*"?([\d.]+)/i
   );
   const bidM = bodyText.match(
     /(?:current\s*bid|pre-?bid|final\s*bid)\s*:?\s*\$\s*([\d,]+(?:\.\d+)?)/i

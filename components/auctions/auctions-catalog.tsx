@@ -492,13 +492,18 @@ export function AuctionsCatalog({
     };
   }, [restored, apiOn, region, auctions]);
 
-  // Meta facets
+  // One meta request: filter facets and the unfiltered region total.
   useEffect(() => {
-    if (!apiOn) return;
+    if (!apiOn) {
+      setCatalogTotal(initialLots.length);
+      return;
+    }
     let cancelled = false;
     fetchLotMeta({ region, make: f.make || undefined })
       .then((m) => {
-        if (!cancelled) setMeta(m);
+        if (cancelled) return;
+        setMeta(m);
+        setCatalogTotal(m.total);
       })
       .catch(() => {
         /* ignore */
@@ -506,7 +511,7 @@ export function AuctionsCatalog({
     return () => {
       cancelled = true;
     };
-  }, [apiOn, region, f.make]);
+  }, [apiOn, region, f.make, initialLots.length]);
 
   // Fetch page 1 when filters change (API mode)
   useEffect(() => {
@@ -538,27 +543,16 @@ export function AuctionsCatalog({
       }
     };
 
-    const nearViewport = () => {
-      const rect = node.getBoundingClientRect();
-      const vh = window.innerHeight || 0;
-      return rect.top < vh + 900 && rect.bottom > -200;
-    };
-
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((e) => e.isIntersecting)) return;
         tryLoadMore();
       },
-      { root: null, rootMargin: "800px 0px", threshold: 0 },
+      { root: null, rootMargin: "160px 0px", threshold: 0 },
     );
     observer.observe(node);
-    // After each appended page, continue only while sentinel is still near view.
-    const kick = window.setTimeout(() => {
-      if (nearViewport()) tryLoadMore();
-    }, 0);
     return () => {
       cancelled = true;
-      window.clearTimeout(kick);
       observer.disconnect();
     };
   }, [hasMore, apiOn, loadPage, filterKey, page, lots.length]);
@@ -574,25 +568,6 @@ export function AuctionsCatalog({
   const patch = (partial: Partial<FilterState>) => {
     setF((prev) => ({ ...prev, ...partial }));
   };
-
-  // Unfiltered catalog total (region-scoped)
-  useEffect(() => {
-    if (!apiOn) {
-      setCatalogTotal(initialLots.length);
-      return;
-    }
-    let cancelled = false;
-    fetchLotMeta({ region })
-      .then((m) => {
-        if (!cancelled) setCatalogTotal(m.total);
-      })
-      .catch(() => {
-        /* ignore */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [apiOn, region, initialLots.length]);
 
   const activeCount = useMemo(() => {
     let n = 0;

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import time
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -70,8 +71,22 @@ def _require_ingest_key(
         raise HTTPException(status_code=401, detail="Invalid or missing X-API-Key")
 
 
-def _catalog_lots() -> list[AuctionLot]:
-    """Live catalog. Sold Bid.cars stay in the store for similar sales only."""
+# Opening Korea walks ~70k lots. Rebuild the live snapshot at most every 20s
+# and keep each region pre-sorted by auction date so page 1 is a slice.
+_SNAPSHOT_TTL = 20.0
+_snap_at = 0.0
+_snap_ready = False
+_snap_all: list[AuctionLot] = []
+_snap_region: dict[str, list[AuctionLot]] = {}
+_meta_cache: dict[tuple[str, str], LotMetaResponse] = {}
+
+
+def _refresh_snapshot() -> None:
+    global _snap_at, _snap_ready, _snap_all, _snap_region
+    now = time.monotonic()
+    if _snap_ready and now - _snap_at < _SNAPSHOT_TTL:
+        return
+    _meta_cache.clear()
     settings = get_settings()
     grace = settings.scraper_auction_grace_hours if settings.scraper_prune_ended else 1e9
     live = [
@@ -80,13 +95,36 @@ def _catalog_lots() -> list[AuctionLot]:
         if not getattr(lot, "sold", False)
     ]
     has_bidcars = any(lot.source == "bidcars" and lot.region == "usa" for lot in live)
-    if not has_bidcars:
-        return live
-    return [
-        lot
-        for lot in live
-        if not (lot.region == "usa" and lot.source in {"copart", "iaai"})
-    ]
+    if has_bidcars:
+        live = [
+            lot
+            for lot in live
+            if not (lot.region == "usa" and lot.source in {"copart", "iaai"})
+        ]
+    buckets: dict[str, list[AuctionLot]] = {}
+    for lot in live:
+        buckets.setdefault((lot.region or "").lower(), []).append(lot)
+    for rows in buckets.values():
+        rows.sort(key=lambda lot: lot.auctionDate or "", reverse=True)
+    live.sort(key=lambda lot: lot.auctionDate or "", reverse=True)
+    _snap_all = live
+    _snap_region = buckets
+    _snap_ready = True
+    _snap_at = time.monotonic()
+
+
+def _catalog_lots() -> list[AuctionLot]:
+    """Live catalog. Sold Bid.cars stay in the store for similar sales only."""
+    _refresh_snapshot()
+    return _snap_all
+
+
+def _region_pool(region: str | None) -> list[AuctionLot]:
+    _refresh_snapshot()
+    key = (region or "").strip().lower()
+    if not key:
+        return _snap_all
+    return _snap_region.get(key, [])
 
 
 @router.get("", response_model=LotListResponse)
@@ -138,15 +176,40 @@ def list_lots(
         tab=tab if tab in {"all", "passable", "open", "buy-now"} else "all",  # type: ignore[arg-type]
         region=region,
     )
-    items = filter_lots(_catalog_lots(), filters)
-
-    reverse = order == "desc"
-    if sort == "price":
-        items.sort(key=lambda x: x.currentBid, reverse=reverse)
-    elif sort == "year":
-        items.sort(key=lambda x: x.year, reverse=reverse)
+    bare = not any(
+        (
+            q,
+            make,
+            model,
+            year_from,
+            year_to,
+            auction,
+            price_min,
+            price_max,
+            body,
+            damage,
+            drive,
+            trans,
+            fuel,
+            mileage_max,
+            eng_min,
+            eng_max,
+            run,
+            buynow,
+        )
+    ) and filters.tab == "all"
+    if bare and sort == "date" and order == "desc":
+        # Already sorted in the snapshot — page 1 does not re-sort 70k rows.
+        items = list(_region_pool(region))
     else:
-        items.sort(key=lambda x: x.auctionDate or "", reverse=reverse)
+        items = filter_lots(_region_pool(region), filters)
+        reverse = order == "desc"
+        if sort == "price":
+            items.sort(key=lambda x: x.currentBid, reverse=reverse)
+        elif sort == "year":
+            items.sort(key=lambda x: x.year, reverse=reverse)
+        else:
+            items.sort(key=lambda x: x.auctionDate or "", reverse=reverse)
 
     total = len(items)
     pages = max(1, math.ceil(total / page_size)) if total else 1
@@ -236,15 +299,16 @@ def featured_lots(limit: int = Query(4, ge=1, le=24)) -> list[AuctionLot]:
 
 @router.get("/meta", response_model=LotMetaResponse)
 def lots_meta(make: str | None = None, region: str | None = None) -> LotMetaResponse:
-    lots = _catalog_lots()
-    if region:
-        r = region.strip().lower()
-        lots = [l for l in lots if (l.region or "").lower() == r]
+    lots = _region_pool(region)
     make_key = (make or "").strip().lower()
+    cache_key = ((region or "").strip().lower(), make_key)
+    cached = _meta_cache.get(cache_key)
+    if cached is not None:
+        return cached
     model_pool = (
         [l for l in lots if (l.make or "").lower() == make_key] if make_key else lots
     )
-    return LotMetaResponse(
+    response = LotMetaResponse(
         makes=unique_sorted([l.make for l in lots]),
         models=unique_sorted([l.model for l in model_pool]),
         sources=unique_sorted([l.source for l in lots]),
@@ -274,6 +338,8 @@ def lots_meta(make: str | None = None, region: str | None = None) -> LotMetaResp
             for src in sorted({l.source for l in lots})
         },
     )
+    _meta_cache[cache_key] = response
+    return response
 
 
 @router.get("/{slug}", response_model=AuctionLot)

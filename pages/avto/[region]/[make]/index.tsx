@@ -206,7 +206,7 @@ export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
   }
 
   const [{ lots }, regionLotCounts] = await Promise.all([
-    loadLotsPageLite({ region: region.slug, make: make.name, pageSize: 12 }),
+    loadLotsPageLite({ region: region.slug, make: make.name, pageSize: 24 }),
     loadRegionCountsLite(),
   ]);
   const modelLotCounts: Record<string, number> = {};
