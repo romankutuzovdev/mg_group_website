@@ -198,6 +198,7 @@ export const MILEAGE_PRESETS = [
 export const SOURCE_LABELS: Record<AuctionSource, string> = {
   copart: "Copart",
   iaai: "IAAI",
+  bidcars: "Bid.cars",
   copart_uk: "Copart UK",
   manheim: "Manheim",
   salvage_market: "SalvageMarket",
