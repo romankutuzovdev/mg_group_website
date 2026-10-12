@@ -15,6 +15,10 @@ import type { CopartQuote } from "@/lib/pricing/copart-uk";
 import type { IaaiQuote } from "@/lib/pricing/iaai-usa";
 import { fetchQuote } from "@/lib/api/client";
 import { isApiEnabled } from "@/lib/api/config";
+import {
+  DISMANTLE_KG_DEFAULT,
+  WeightDismantleControl,
+} from "@/components/pricing/weight-dismantle-control";
 
 type Mode = "kits" | "car" | "customs";
 type KitTab = "uk" | "usa";
@@ -114,6 +118,8 @@ function ServerKitCalculator() {
   const [category, setCategory] = useState("");
   const [inlandMilesText, setInlandMilesText] = useState("450");
   const [bodyStyle, setBodyStyle] = useState("SUV");
+  const [dismantleBy, setDismantleBy] = useState<"type" | "weight">("type");
+  const [dismantleKg, setDismantleKg] = useState(DISMANTLE_KG_DEFAULT);
   const [quote, setQuote] = useState<CopartQuote | IaaiQuote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -130,10 +136,11 @@ function ServerKitCalculator() {
       body_style: bodyStyle,
       inland_miles: tab === "usa" ? inlandMiles : undefined,
       fx_rate: tab === "uk" ? fx.rate : undefined,
+      dismantle_kg: dismantleBy === "weight" ? dismantleKg : undefined,
       volume: "high" as const,
       bid_method: "live" as const,
     }),
-    [tab, bid, location, category, bodyStyle, inlandMiles, fx.rate],
+    [tab, bid, location, category, bodyStyle, inlandMiles, fx.rate, dismantleBy, dismantleKg],
   );
 
   useEffect(() => {
@@ -214,6 +221,20 @@ function ServerKitCalculator() {
               ))}
             </select>
           </label>
+          <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
+            Разбор
+            <select
+              value={dismantleBy}
+              onChange={(e) => setDismantleBy(e.target.value === "weight" ? "weight" : "type")}
+              className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal"
+            >
+              <option value="type">По типу авто</option>
+              <option value="weight">По весу</option>
+            </select>
+          </label>
+          {dismantleBy === "weight" ? (
+            <WeightDismantleControl origin={tab} kg={dismantleKg} onChange={setDismantleKg} />
+          ) : null}
           {tab === "uk" ? (
             <>
               <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">

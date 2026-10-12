@@ -62,10 +62,13 @@ export function computeCalculatorQuote(
     bodyStyle: string;
     vatOnSale: boolean;
     inlandMilesText: string;
+    dismantleKg?: number | null;
   },
 ): LiveQuote | null {
   const bid = parseBidInput(bidText);
   const inlandMiles = parseBidInput(options.inlandMilesText) || 450;
+  const dismantleKg =
+    options.dismantleKg != null && options.dismantleKg > 0 ? options.dismantleKg : null;
 
   if (tab === "uk") {
     return quoteCopartUk({
@@ -77,6 +80,7 @@ export function computeCalculatorQuote(
       vatOnSale: options.vatOnSale,
       fxRate: fx.rate,
       fxMarketRate: fx.marketRate,
+      dismantleKg,
     });
   }
 
@@ -86,6 +90,7 @@ export function computeCalculatorQuote(
     bodyStyle: options.bodyStyle,
     location: options.location || undefined,
     inlandMiles,
+    dismantleKg,
     volume: "standard",
     includeAmericaDelivery: true,
   });

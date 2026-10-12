@@ -81,7 +81,15 @@ export function CopartQuoteDisplay({ quote }: { quote: CopartQuote }) {
       {quote.fxRate ? (
         <Row label="Расходы Англии" value={usd(quote.englandUsd, 2)} />
       ) : null}
-      <Row label="Разбор" value={usd(quote.dismantleUsd)} />
+      <Row
+        label={quote.dismantleMode === "weight" ? "Разбор по весу" : "Разбор"}
+        hint={
+          quote.dismantleMode === "weight" && quote.dismantleKg
+            ? `850 + 1,4 × ${quote.dismantleKg.toLocaleString("ru-RU")} кг`
+            : undefined
+        }
+        value={usd(quote.dismantleUsd)}
+      />
       {quote.grandUsd != null ? (
         <Row label="Итого" value={usd(quote.grandUsd, 2)} total highlight />
       ) : null}
@@ -133,7 +141,19 @@ export function IaaiQuoteDisplay({
       <Row label="Диспетчинг" value={usd(quote.dispatchingUsd)} />
       <Row label="Комиссия 3%" value={usd(quote.transferFee, 2)} />
       <Row label="Расходы США" value={usd(quote.usaWithFees, 2)} total />
-      <Row label="Разбор, доставка и растаможка" value={usd(quote.dismantleUsd)} />
+      <Row
+        label={
+          quote.dismantleMode === "weight"
+            ? "Разбор по весу, доставка и растаможка"
+            : "Разбор, доставка и растаможка"
+        }
+        hint={
+          quote.dismantleMode === "weight" && quote.dismantleKg
+            ? `1 300 + 2,2 × ${quote.dismantleKg.toLocaleString("ru-RU")} кг`
+            : undefined
+        }
+        value={usd(quote.dismantleUsd)}
+      />
       <Row label="Итого" value={usd(quote.grandUsd, 2)} total highlight />
     </div>
   );
