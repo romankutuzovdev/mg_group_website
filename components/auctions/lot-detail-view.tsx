@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import SEO from "@/components/SEO";
-import { LotDamageMap } from "@/components/auctions/lot-damage-map";
 import { LotImage } from "@/components/auctions/lot-image";
 import { ManagerLotSource } from "@/components/auctions/manager-lot-source";
 import { LotCalculatorPanel } from "@/components/pricing/lot-calculator-panel";
@@ -416,11 +415,6 @@ export function LotDetailView({
               {lot.similarSold && lot.similarSold.length > 0 ? (
                 <SimilarSold items={lot.similarSold} />
               ) : null}
-
-              <LotDamageMap
-                primaryDamage={lot.primaryDamage}
-                secondaryDamage={lot.secondaryDamage}
-              />
 
               <div className="card-premium rounded-xl p-5 sm:p-6">
                 <h2 className="font-display text-lg font-semibold">Оценка запчастей</h2>

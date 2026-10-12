@@ -153,8 +153,8 @@
     position: sticky;
     top: 5.5rem;
     z-index: 20;
-    width: 300px;
-    max-width: 300px;
+    width: 280px;
+    max-width: 280px;
     flex-shrink: 0;
     align-self: flex-start;
   }
@@ -162,8 +162,8 @@
 
 @media (min-width: 1280px) {
   .catalog-filters-sticky {
-    width: 320px;
-    max-width: 320px;
+    width: 300px;
+    max-width: 300px;
   }
 }
 
@@ -191,26 +191,26 @@
   flex: 1 1 auto;
 }
 
-/* Pair fields: one column in the narrow sidebar / small phones, two when space allows */
+/* Pair fields: two columns only in the wide mobile sheet; sidebar stays one column */
 .catalog-filter-pair {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.75rem;
+  gap: 0.875rem;
   min-width: 0;
 }
 
-@media (min-width: 380px) {
+@media (min-width: 420px) {
   .catalog-filter-pair {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.75rem;
   }
 }
 
-/* Inside sticky sidebar (always ~300px) keep two compact columns */
+/* Left desktop sidebar is narrow — one clean column, no cramped pairs */
 @media (min-width: 1024px) {
   .catalog-filters-panel .catalog-filter-pair {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 0.625rem;
+    grid-template-columns: 1fr;
+    gap: 0.875rem;
   }
 }
 

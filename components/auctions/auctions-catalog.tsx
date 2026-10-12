@@ -36,7 +36,11 @@ const YEAR_OPTIONS = Array.from({ length: 2027 - 1990 }, (_, i) => 2026 - i);
 const REGION_FILTER_ORDER: AuctionRegion[] = ["usa", "korea", "china", "uk"];
 
 const fieldClass =
-  "mt-1.5 box-border flex h-11 w-full min-w-0 max-w-full appearance-none rounded-xl border border-border bg-white px-3 py-2 text-base text-text-primary outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 sm:h-10 sm:text-sm";
+  "mt-1.5 block h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-white px-3 text-sm leading-10 text-text-primary outline-none transition placeholder:text-zinc-400 focus:border-accent focus:ring-2 focus:ring-accent/15";
+
+const selectClass =
+  `${fieldClass} cursor-pointer appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat pr-9 ` +
+  "bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 viewBox=%220 0 24 24%22 stroke=%22%2371717a%22%3E%3Cpath stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%222%22 d=%22M19 9l-7 7-7-7%22/%3E%3C/svg%3E')]";
 
 type Props = {
   lots: AuctionLot[];
