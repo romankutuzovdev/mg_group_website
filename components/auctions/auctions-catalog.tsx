@@ -42,6 +42,8 @@ const selectClass =
   `${fieldClass} cursor-pointer appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat pr-9 ` +
   "bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 viewBox=%220 0 24 24%22 stroke=%22%2371717a%22%3E%3Cpath stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%222%22 d=%22M19 9l-7 7-7-7%22/%3E%3C/svg%3E')]";
 
+type RegionCountMap = Partial<Record<AuctionRegion, number>>;
+
 type Props = {
   lots: AuctionLot[];
   /** Ограничить каталог регионом (и при обновлении с API) */
@@ -54,6 +56,10 @@ type Props = {
   initialModel?: string;
   /** Оставить только эти площадки (машинокомплект: США и Англия). */
   auctions?: AuctionSource[];
+  /** SSR total from /lots — keep showing this if live meta times out */
+  initialTotal?: number;
+  /** SSR region counters from /lots/meta */
+  initialRegionCounts?: RegionCountMap;
 };
 
 type FilterState = {
@@ -189,6 +195,8 @@ export function AuctionsCatalog({
   initialMake = "",
   initialModel = "",
   auctions,
+  initialTotal = 0,
+  initialRegionCounts,
 }: Props) {
   const apiOn = isApiEnabled();
   const seedLots = useMemo(
@@ -201,6 +209,7 @@ export function AuctionsCatalog({
         : initialLots,
     [auctions, initialLots],
   );
+  const seedTotal = Math.max(initialTotal, seedLots.length, 0);
   const [f, setF] = useState<FilterState>(() => ({
     ...INITIAL,
     make: initialMake,
@@ -210,10 +219,10 @@ export function AuctionsCatalog({
     apiOn ? seedLots.slice(0, PAGE_SIZE) : seedLots,
   );
   const [total, setTotal] = useState(() =>
-    apiOn ? Math.max(initialLots.length, 0) : initialLots.length,
+    apiOn ? seedTotal : initialLots.length,
   );
   const [catalogTotal, setCatalogTotal] = useState(() =>
-    apiOn ? 0 : initialLots.length,
+    apiOn ? seedTotal : initialLots.length,
   );
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -299,7 +308,7 @@ export function AuctionsCatalog({
   const hasMore = apiOn ? page < pages : offlineVisible < offlineFiltered.length;
   const foundCount = apiOn ? total : offlineFiltered.length;
   const allCount = apiOn
-    ? catalogTotal || meta?.total || foundCount
+    ? catalogTotal || meta?.total || seedTotal || foundCount
     : initialLots.length;
 
   const counts = useMemo(() => {
@@ -314,6 +323,15 @@ export function AuctionsCatalog({
         china: meta.counts_by_region.china ?? 0,
       };
     }
+    // Never count only the first loaded page — that looked like "Всего: 12".
+    if (initialRegionCounts) {
+      return {
+        usa: initialRegionCounts.usa ?? 0,
+        uk: initialRegionCounts.uk ?? 0,
+        korea: initialRegionCounts.korea ?? 0,
+        china: initialRegionCounts.china ?? 0,
+      };
+    }
     const pool = apiOn ? lots : initialLots;
     return {
       usa: pool.filter((l) => l.region === "usa").length,
@@ -321,7 +339,7 @@ export function AuctionsCatalog({
       korea: pool.filter((l) => l.region === "korea").length,
       china: pool.filter((l) => l.region === "china").length,
     };
-  }, [meta, apiOn, lots, initialLots]);
+  }, [meta, apiOn, lots, initialLots, initialRegionCounts]);
 
   const makes = useMemo(() => {
     if (meta?.makes?.length) return meta.makes;

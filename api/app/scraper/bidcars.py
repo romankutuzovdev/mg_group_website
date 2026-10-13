@@ -677,10 +677,39 @@ async def scrape_bidcars(
             else:
                 empty_search = 0
                 logger.info(
-                    "bidcars search page %s: %s lots → opening each",
+                    "bidcars search page %s: %s lots → seed cards then open each",
                     page_idx,
                     len(links),
                 )
+
+            # Fast seed: put search cards into the catalog before opening lots,
+            # so USA stops showing 0 while the full detail crawl runs.
+            seeded_now = 0
+            for item in links:
+                ln = item["lotNumber"]
+                if ln in seen:
+                    continue
+                card = item.get("_card") if isinstance(item.get("_card"), dict) else {}
+                if not card:
+                    continue
+                if not (card.get("image") or card.get("images")):
+                    continue
+                seed = dict(card)
+                seed.setdefault("lotNumber", ln)
+                seed.setdefault("url", item.get("url") or "")
+                # Temporary stamp — detail pass refreshes gallery + specs.
+                seed.pop("photosEnrichedAt", None)
+                up, new = _upsert_detail(seed, set())
+                if up:
+                    seeded_now += 1
+                    total_upserted += up
+                    total_new += new
+            if seeded_now:
+                logger.info("bidcars search page %s: seeded %s cards", page_idx, seeded_now)
+                try:
+                    lot_store.persist()
+                except Exception as exc:
+                    logger.warning("bidcars seed persist: %s", exc)
 
             for item in links:
                 ln = item["lotNumber"]

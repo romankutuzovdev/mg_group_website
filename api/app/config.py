@@ -43,9 +43,9 @@ class Settings(BaseSettings):
     scraper_max_pages_bidcars_sold: int = 0
     scraper_max_pages_copart: int = 5
     scraper_max_pages_iaai: int = 5
-    scraper_max_pages_copart_uk: int = 5
+    scraper_max_pages_copart_uk: int = 20
     scraper_max_pages_manheim: int = 5
-    scraper_max_pages_salvage_market: int = 5
+    scraper_max_pages_salvage_market: int = 10
     scraper_max_pages_encar: int = 5
     scraper_max_pages_china_market: int = 8
     scraper_page_size: int = 100

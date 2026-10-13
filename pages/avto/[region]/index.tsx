@@ -39,6 +39,7 @@ type Props = {
   lotCounts: Record<string, number>;
   regionLotCounts: Partial<Record<CatalogRegionSlug, number>>;
   lots: AuctionLot[];
+  lotsTotal: number;
   pricingMode: LotPricingMode;
 };
 
@@ -57,6 +58,7 @@ export default function AvtoRegionPage({
   lotCounts,
   regionLotCounts,
   lots,
+  lotsTotal,
   pricingMode,
 }: Props) {
   const path = catalogPath(region.slug);
@@ -145,6 +147,8 @@ export default function AvtoRegionPage({
               lots={lots}
               region={catalogRegion}
               pricingMode={pricingMode}
+              initialTotal={lotsTotal}
+              initialRegionCounts={regionLotCounts}
             />
           </CatalogSection>
 
@@ -182,7 +186,7 @@ export const getStaticPaths: GetStaticPaths = async () => ({
 export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
   const region = getRegion(ctx.params?.region as string);
   if (!region) return { notFound: true };
-  const [{ lots }, regionLotCounts] = await Promise.all([
+  const [{ lots, total: lotsTotal }, regionLotCounts] = await Promise.all([
     loadLotsPageLite({ region: region.slug, pageSize: 24 }),
     loadRegionCountsLite(),
   ]);
@@ -196,6 +200,7 @@ export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
       lotCounts,
       regionLotCounts,
       lots,
+      lotsTotal,
       pricingMode: regionPricingMode(region.slug),
     },
     ...(process.env.VERCEL === "1" ? { revalidate: 120 } : {}),

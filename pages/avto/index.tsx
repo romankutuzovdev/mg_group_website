@@ -37,6 +37,7 @@ type Props = {
   }[];
   regionLotCounts: Partial<Record<CatalogRegionSlug, number>>;
   lots: AuctionLot[];
+  lotsTotal: number;
 };
 
 const TITLE = "Каталог авто из США, Китая, Кореи и Англии | MG.GROUP";
@@ -47,6 +48,7 @@ export default function AvtoHubPage({
   popularByRegion,
   regionLotCounts,
   lots,
+  lotsTotal,
 }: Props) {
   const path = catalogPath();
   const faq = catalogHubFaq();
@@ -118,7 +120,11 @@ export default function AvtoHubPage({
             title="Лоты со ставкой и просчётом"
             subtitle="Текущая ставка и ориентир стоимости доставки + таможни."
           >
-            <AuctionsCatalog lots={lots} />
+            <AuctionsCatalog
+              lots={lots}
+              initialTotal={lotsTotal}
+              initialRegionCounts={regionLotCounts}
+            />
           </CatalogSection>
 
           {popularByRegion.map(({ regionSlug, makes, lotCounts }) => {
@@ -154,7 +160,7 @@ export default function AvtoHubPage({
 }
 
 export const getStaticProps: GetStaticProps<Props> = async () => {
-  const [{ lots }, regionLotCounts] = await Promise.all([
+  const [{ lots, total: lotsTotal }, regionLotCounts] = await Promise.all([
     loadLotsPageLite({ pageSize: 12 }),
     loadRegionCountsLite(),
   ]);
@@ -172,6 +178,7 @@ export const getStaticProps: GetStaticProps<Props> = async () => {
       popularByRegion,
       regionLotCounts,
       lots,
+      lotsTotal,
     },
     ...(process.env.VERCEL === "1" ? { revalidate: 120 } : {}),
   };

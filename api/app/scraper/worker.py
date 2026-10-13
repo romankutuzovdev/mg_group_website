@@ -316,16 +316,22 @@ class SourceAgent:
             success = bool(mapped) or (
                 self.name == "bidcars" and int(stats.get("upserted") or 0) > 0
             )
+            # Never prune after an empty/failed cycle — that wiped USA/UK while
+            # Bid.cars / Copart UK were blocked and left the catalog at 0.
             if success:
                 pruned = lot_store.prune_ended(sources=source_key)
-            elif stats.get("blocked"):
-                pruned = 0
-                logger.warning(
-                    "agent %s blocked — skip prune so region kits stay visible",
-                    self.name,
-                )
             else:
-                pruned = lot_store.prune_ended(sources=source_key)
+                pruned = 0
+                if stats.get("blocked"):
+                    logger.warning(
+                        "agent %s blocked — skip prune so region kits stay visible",
+                        self.name,
+                    )
+                else:
+                    logger.warning(
+                        "agent %s empty cycle — skip prune (keep existing lots)",
+                        self.name,
+                    )
             stats["pruned"] = pruned
             self.status.last_raw = int(stats.get("raw") or len(raw))
             self.status.last_mapped = int(stats.get("mapped") or len(mapped))
