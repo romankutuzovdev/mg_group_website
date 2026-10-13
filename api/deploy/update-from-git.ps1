@@ -245,10 +245,6 @@ if ($svc) {
     & $nssmExe set $ServiceName AppParameters "app.main:app --host $bindHost --port $Port" | Out-Null
     & $nssmExe set $ServiceName AppEnvironmentExtra "PLAYWRIGHT_BROWSERS_PATH=$pwBrowsers" | Out-Null
   }
-  $purgeFlag = Join-Path $apiDir "data\purge-usa.flag"
-  New-Item -ItemType Directory -Force -Path (Split-Path $purgeFlag) | Out-Null
-  Set-Content -Path $purgeFlag -Value "purge usa lots once" -Encoding ASCII
-  Write-Host "==> next start will delete all USA lots, then Bid.cars refills them"
   Write-Host "==> restart $ServiceName"
   Restart-Service -Name $ServiceName -Force
   Start-Sleep -Seconds 8

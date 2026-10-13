@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/cabinet";
 import { ensureTelegramWebAppAuth, isTelegramWebAppEnv } from "@/lib/telegram-webapp-auth";
 import { ApiError } from "@/lib/api/client";
+import { CarSearchPanel } from "@/components/pricing/car-search-panel";
 
 type Status = "loading" | "guest" | "user";
 
@@ -140,6 +141,7 @@ export function CalculatorGate({
         </p>
       ) : null}
       {children}
+      <CarSearchPanel />
     </div>
   );
 }

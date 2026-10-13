@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import mimetypes
 from typing import Annotated, Literal
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
@@ -88,14 +89,25 @@ def my_dismantle_map_xlsx(
         raise HTTPException(status_code=404, detail="Deal not found")
     payload = build_dismantle_xlsx(out)
     label = (out.vehicle_label or deal.title or f"deal-{deal_id}").strip()
-    safe = "".join(ch if ch.isalnum() or ch in ("-", "_", " ") else "_" for ch in label)
-    safe = safe.strip().replace(" ", "_")[:80] or f"deal-{deal_id}"
-    filename = f"karta_razbora_{safe}.xlsx"
+    # HTTP headers are latin-1. Cyrillic in the deal title used to crash this
+    # endpoint with UnicodeEncodeError → API 500.
+    ascii_safe = "".join(
+        ch if ("A" <= ch <= "Z") or ("a" <= ch <= "z") or ("0" <= ch <= "9") or ch in "-_"
+        else "_"
+        for ch in label.replace(" ", "_")
+    )
+    while "__" in ascii_safe:
+        ascii_safe = ascii_safe.replace("__", "_")
+    ascii_safe = ascii_safe.strip("_")[:60] or f"deal-{deal_id}"
+    filename = f"karta_razbora_{ascii_safe}.xlsx"
+    utf_name = quote(f"karta_razbora_{label[:60]}.xlsx".replace('"', "").replace("\n", " "))
     return Response(
         content=payload,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": (
+                f'attachment; filename="{filename}"; filename*=UTF-8\'\'{utf_name}'
+            ),
         },
     )
 

@@ -15,6 +15,7 @@ from app.services.customs_by import calculate_customs_by
 from app.services.lot_lookup import fetch_lot_from_url
 from app.services.pricing import price_by_weight, quote_copart_uk, quote_iaai_usa
 from app.services import quote_history
+from app.services import car_search
 from app.services.telegram_notify import _escape, send_telegram_message
 from app.services.cabinet_admin import parse_admin_ids
 
@@ -242,6 +243,63 @@ async def save_quote_history(
             continue
         await send_telegram_message(chat_id, text)
     return row
+
+
+class CarSearchIn(BaseModel):
+    region: Literal["", "usa", "uk", "korea", "china"] = ""
+    make: str = ""
+    model: str = ""
+    year_from: int | None = Field(None, ge=1980, le=2035)
+    year_to: int | None = Field(None, ge=1980, le=2035)
+    max_bid: float | None = Field(None, ge=0)
+
+
+def _public_search(search: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in search.items() if key != "sample"}
+
+
+@router.get("/searches")
+def my_car_searches(user=Depends(get_current_user)) -> list[dict[str, Any]]:
+    return [_public_search(row) for row in car_search.list_for_user(user.id)]
+
+
+@router.post("/searches")
+async def create_car_search(body: CarSearchIn, user=Depends(get_current_user)) -> dict[str, Any]:
+    make = body.make.strip()
+    model = body.model.strip()
+    if not make and not model:
+        raise HTTPException(status_code=422, detail="Укажите марку или модель")
+    if body.year_from and body.year_to and body.year_from > body.year_to:
+        raise HTTPException(status_code=422, detail="Год «от» больше года «до»")
+    search = car_search.create_search(
+        user_id=user.id,
+        telegram_id=user.telegram_id,
+        region=body.region,
+        make=make,
+        model=model,
+        year_from=body.year_from,
+        year_to=body.year_to,
+        max_bid=body.max_bid,
+    )
+    sample: list = search.pop("sample", [])
+    catalog_count = int(search.pop("catalog_count", 0))
+    sent = await car_search.notify_lots(
+        search,
+        sample,
+        headline="Нашли авто по вашему поиску",
+    )
+    return {
+        **_public_search(search),
+        "catalog_count": catalog_count,
+        "notified_now": len(sent),
+    }
+
+
+@router.delete("/searches/{search_id}")
+def delete_car_search(search_id: int, user=Depends(get_current_user)) -> dict[str, bool]:
+    if not car_search.delete_search(user.id, search_id):
+        raise HTTPException(status_code=404, detail="Поиск не найден")
+    return {"ok": True}
 
 
 @router.get("/history")

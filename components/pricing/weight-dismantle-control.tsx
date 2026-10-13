@@ -3,7 +3,7 @@
 import { priceByWeight, WEIGHT_FORMULA, type CommercialOrigin } from "@/lib/pricing/commercial";
 
 export const DISMANTLE_KG_MIN = 400;
-export const DISMANTLE_KG_MAX = 4500;
+export const DISMANTLE_KG_MAX = 2000;
 export const DISMANTLE_KG_DEFAULT = 1500;
 
 export function clampDismantleKg(value: number): number {

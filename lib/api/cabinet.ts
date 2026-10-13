@@ -252,6 +252,41 @@ export async function fetchMe(): Promise<CabinetUser> {
   return cabinetFetch("/api/v1/me");
 }
 
+export type CarSearch = {
+  id: number;
+  region: "" | "usa" | "uk" | "korea" | "china";
+  make: string;
+  model: string;
+  year_from: number | null;
+  year_to: number | null;
+  max_bid: number | null;
+  created_at: string;
+  catalog_count?: number;
+  notified_now?: number;
+};
+
+export async function fetchCarSearches(): Promise<CarSearch[]> {
+  return cabinetFetch("/api/v1/pricing/searches");
+}
+
+export async function createCarSearch(body: {
+  region: string;
+  make: string;
+  model: string;
+  year_from?: number | null;
+  year_to?: number | null;
+  max_bid?: number | null;
+}): Promise<CarSearch> {
+  return cabinetFetch("/api/v1/pricing/searches", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteCarSearch(id: number): Promise<void> {
+  await cabinetFetch(`/api/v1/pricing/searches/${id}`, { method: "DELETE" });
+}
+
 export type QuoteHistoryKind = "usa" | "uk" | "restoration" | "customs";
 
 export type QuoteHistoryEntry = {

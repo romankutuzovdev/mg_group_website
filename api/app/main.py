@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -24,7 +25,7 @@ from app.routers import (
 from app.scraper.worker import scraper_worker, start_scraper_in_background
 from app.services.cabinet_store import cabinet_store
 from app.services.purchased_cars_store import purchased_cars_store
-from app.services import quote_history
+from app.services import car_search, quote_history
 
 
 @asynccontextmanager
@@ -42,9 +43,12 @@ async def lifespan(_app: FastAPI):
     cabinet_store.init()
     purchased_cars_store.init()
     quote_history.init()
+    car_search.init()
     print("[mg-api] cabinet + purchased cars db ready")
+    search_task = asyncio.create_task(car_search.car_search_loop())
     start_scraper_in_background()
     yield
+    search_task.cancel()
     try:
         await scraper_worker.stop()
     except Exception:

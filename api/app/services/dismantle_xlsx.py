@@ -5,10 +5,19 @@ from __future__ import annotations
 from io import BytesIO
 
 from openpyxl import Workbook
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from app.models.cabinet import DismantleMapOut
+
+
+def _cell_value(value: object) -> object:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return ILLEGAL_CHARACTERS_RE.sub("", value)
+    return value
 
 
 def build_dismantle_xlsx(data: DismantleMapOut) -> bytes:
@@ -30,13 +39,13 @@ def build_dismantle_xlsx(data: DismantleMapOut) -> bytes:
     label_font = Font(size=10, color="666666")
 
     ws.merge_cells("A1:E1")
-    ws["A1"] = data.title or "Карта разбора"
+    ws["A1"] = _cell_value(data.title or "Карта разбора")
     ws["A1"].font = title_font
     ws["A1"].alignment = Alignment(vertical="center")
 
     ws.merge_cells("A2:E2")
     hint = data.vehicle_header_hint or "марка авто, модель, Lot#"
-    ws["A2"] = f"{hint}: {data.vehicle_label or '—'}"
+    ws["A2"] = _cell_value(f"{hint}: {data.vehicle_label or '—'}")
     ws["A2"].font = label_font
 
     headers = ["№", "Наименование", "Кол", "Доп упак", "Примечание"]
@@ -61,7 +70,7 @@ def build_dismantle_xlsx(data: DismantleMapOut) -> bytes:
         if not cells:
             continue
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=5)
-        sec = ws.cell(row=row, column=1, value=section)
+        sec = ws.cell(row=row, column=1, value=_cell_value(section))
         sec.fill = section_fill
         sec.font = section_font
         sec.alignment = Alignment(vertical="center")
@@ -79,7 +88,7 @@ def build_dismantle_xlsx(data: DismantleMapOut) -> bytes:
                 item.note,
             ]
             for col, value in enumerate(values, start=1):
-                cell = ws.cell(row=row, column=col, value=value)
+                cell = ws.cell(row=row, column=col, value=_cell_value(value))
                 cell.border = thin
                 cell.alignment = Alignment(vertical="center", wrap_text=True)
             row += 1
