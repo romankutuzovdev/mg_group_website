@@ -119,3 +119,30 @@ def require_admin_or_key(
     if not user or not (user.is_admin or user.is_manager):
         raise HTTPException(status_code=403, detail="Admin only")
     return user
+
+
+def require_owner_admin_or_key(
+    settings: Annotated[Settings, Depends(get_settings)],
+    creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)] = None,
+    x_api_key: Annotated[str | None, Header()] = None,
+) -> UserOut:
+    """Only true site owner (CABINET_ADMIN_TELEGRAM_IDS) or ingest API key — not managers."""
+    expected = settings.ingest_api_key.strip()
+    if expected and x_api_key == expected:
+        return UserOut(
+            id=0,
+            telegram_id=0,
+            username="api-key",
+            first_name="API",
+            last_name="Key",
+            is_admin=True,
+            created_at="",
+        )
+    if creds is None or creds.scheme.lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Admin auth required")
+    payload = decode_access_token(creds.credentials, settings)
+    telegram_id = int(payload["sub"])
+    user = cabinet_store.get_user_by_telegram_id(telegram_id)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Owner admin only")
+    return user

@@ -120,26 +120,24 @@ class PasswordLoginPayload(BaseModel):
 class CreateClientAccountPayload(BaseModel):
     """Manager creates a cabinet login: phone = login, password set by manager."""
 
-    phone: str = Field(..., min_length=7, max_length=32)
+    phone: str = Field("", max_length=40)
     password: str = Field(..., min_length=4, max_length=64)
     first_name: str = Field("", max_length=80)
     last_name: str = Field("", max_length=80)
     send_sms: bool = True
 
+    def normalized_phone(self) -> str:
+        from app.services.passwords import normalize_phone
+
+        raw = (self.phone or "").strip()
+        if not raw:
+            raise ValueError("Укажите телефон клиента")
+        return normalize_phone(raw)
+
 
 class ResetClientPasswordPayload(BaseModel):
     password: str = Field(..., min_length=4, max_length=64)
     send_sms: bool = True
-
-
-class ClientAccountCreatedOut(BaseModel):
-    user: "UserOut"
-    phone: str
-    password: str
-    login: str
-    sms_sent: bool = False
-    sms_skipped: bool = False
-    sms_error: str = ""
 
 
 class UserOut(BaseModel):
@@ -155,6 +153,16 @@ class UserOut(BaseModel):
     # Менеджер, за которым закреплён клиент (аккаунт с телефоном).
     manager_user_id: int = 0
     created_at: str
+
+
+class ClientAccountCreatedOut(BaseModel):
+    user: UserOut
+    phone: str
+    password: str
+    login: str
+    sms_sent: bool = False
+    sms_skipped: bool = False
+    sms_error: str = ""
 
 
 class UserRoleUpdate(BaseModel):
@@ -194,6 +202,7 @@ class DealOut(BaseModel):
     vin: str = ""
     lot_number: str = ""
     lot_url: str = ""
+    tracking_url: str = ""
     status: DealStatus
     note: str = ""
     price: float = 0
@@ -226,6 +235,7 @@ class DealCreate(BaseModel):
     vin: str = ""
     lot_number: str = ""
     lot_url: str = ""
+    tracking_url: str = ""
     note: str = ""
     price: float = 0
     currency: Literal["USD", "GBP"] = "USD"
@@ -244,6 +254,7 @@ class DealUpdate(BaseModel):
     vin: str | None = None
     lot_number: str | None = None
     lot_url: str | None = None
+    tracking_url: str | None = None
     note: str | None = None
     price: float | None = None
     currency: Literal["USD", "GBP"] | None = None

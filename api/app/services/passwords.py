@@ -13,10 +13,16 @@ _PHONE_TG_BASE = 921_000_000_000
 
 
 def normalize_phone(raw: str) -> str:
-    """Keep digits only. Accepts +375… / 80… / spaces."""
+    """Keep digits only. Accepts +375… / 80… / spaces. Local BY 80… → 375…"""
     digits = re.sub(r"\D+", "", (raw or "").strip())
+    # 8029… → 37529…
+    if len(digits) == 11 and digits.startswith("80"):
+        digits = "375" + digits[2:]
+    # 029… (10 digits with trunk 0) → 37529…
+    if len(digits) == 10 and digits.startswith("0"):
+        digits = "375" + digits[1:]
     if len(digits) < 9 or len(digits) > 15:
-        raise ValueError("Укажите номер телефона (9–15 цифр)")
+        raise ValueError("Укажите номер телефона (9–15 цифр), например +375291234567")
     return digits
 
 

@@ -7,6 +7,7 @@ import SEO from "@/components/SEO";
 import { PageShell } from "@/components/layout/page-shell";
 import { DealRouteSections } from "@/components/cabinet/deal-route-sections";
 import { DealDismantleMap } from "@/components/cabinet/deal-dismantle-map";
+import { DealTrackingLink } from "@/components/cabinet/deal-tracking-link";
 import { DealPhotos, dealCoverPhotoUrl } from "@/components/cabinet/deal-photos";
 import { DealPaymentStatus, paymentProgressLabel } from "@/components/cabinet/deal-payment-status";
 import { DealClosingStages } from "@/components/cabinet/deal-closing-stages";
@@ -34,10 +35,16 @@ import {
   loginWithPassword,
   loginWithTelegram,
   setCabinetToken,
+  dealKind,
   stageKeysForDeal,
 } from "@/lib/api/cabinet";
 import { ensureTelegramWebAppAuth, isTelegramWebAppEnv } from "@/lib/telegram-webapp-auth";
 import { hydrateFavorites, resetFavoritesCache, subscribeFavorites } from "@/lib/favorites-cache";
+import {
+  acceptCabinetPolicyConsent,
+  CABINET_POLICY_PATH,
+  hasCabinetPolicyConsent,
+} from "@/lib/cabinet-consent";
 
 declare global {
   interface Window {
@@ -106,7 +113,12 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   const [phoneLogin, setPhoneLogin] = useState("");
   const [phonePassword, setPhonePassword] = useState("");
   const [phoneBusy, setPhoneBusy] = useState(false);
+  const [policyAccepted, setPolicyAccepted] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setPolicyAccepted(hasCabinetPolicyConsent());
+  }, []);
 
   // Deep-link: /cabinet/?tab=favorites|manager|deals
   useEffect(() => {
@@ -153,6 +165,12 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
       setAuthEnabled(cfg.enabled);
       setDevAuthEnabled(Boolean(cfg.dev_enabled));
 
+      // Без согласия с политикой — вход (в т.ч. Mini App) не выполняем
+      if (!hasCabinetPolicyConsent()) {
+        setUser(null);
+        return;
+      }
+
       // Mini App: silent login via initData (no Telegram Login Widget)
       if (!getCabinetToken()) {
         const ok = await ensureTelegramWebAppAuth();
@@ -194,6 +212,12 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
   useEffect(() => {
     window.onTelegramAuth = async (tgUser) => {
+      if (!hasCabinetPolicyConsent() && !policyAccepted) {
+        setError("Отметьте согласие с политикой конфиденциальности");
+        return;
+      }
+      acceptCabinetPolicyConsent();
+      setPolicyAccepted(true);
       setError(null);
       setLoading(true);
       try {
@@ -210,12 +234,16 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     return () => {
       delete window.onTelegramAuth;
     };
-  }, [loadDeals, loadFavorites]);
+  }, [loadDeals, loadFavorites, policyAccepted]);
 
   useEffect(() => {
     // In Mini App we never show the Login Widget — auth is silent
     if (user || webAppAuth || !authEnabled || !botUsername || !widgetRef.current) return;
     if (isTelegramWebAppEnv()) return;
+    if (!policyAccepted) {
+      widgetRef.current.innerHTML = "";
+      return;
+    }
     widgetRef.current.innerHTML = "";
     const script = document.createElement("script");
     script.src = "https://telegram.org/js/telegram-widget.js?22";
@@ -226,7 +254,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     script.setAttribute("data-onauth", "onTelegramAuth(user)");
     script.setAttribute("data-request-access", "write");
     widgetRef.current.appendChild(script);
-  }, [user, webAppAuth, authEnabled, botUsername, loading]);
+  }, [user, webAppAuth, authEnabled, botUsername, loading, policyAccepted]);
 
   const openDeal = async (id: number) => {
     setLoading(true);
@@ -254,6 +282,10 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
   const loginByPhone = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!policyAccepted) {
+      setError("Отметьте согласие с политикой конфиденциальности");
+      return;
+    }
     if (!phoneLogin.trim() || !phonePassword) {
       setError("Введите телефон и пароль");
       return;
@@ -261,6 +293,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     setPhoneBusy(true);
     setError(null);
     try {
+      acceptCabinetPolicyConsent();
       const res = await loginWithPassword(phoneLogin.trim(), phonePassword);
       setUser(res.user);
       setPhonePassword("");
@@ -351,9 +384,41 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                   required
                 />
               </label>
+              <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
+                <input
+                  type="checkbox"
+                  checked={policyAccepted}
+                  onChange={(e) => {
+                    const next = e.target.checked;
+                    setPolicyAccepted(next);
+                    if (next) {
+                      acceptCabinetPolicyConsent();
+                      // Mini App: после согласия пробуем тихий вход
+                      if (isTelegramWebAppEnv()) {
+                        void bootstrap();
+                      }
+                    }
+                    setError(null);
+                  }}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
+                  required
+                />
+                <span>
+                  Я ознакомился(ась) и согласен(на) с{" "}
+                  <Link
+                    href={CABINET_POLICY_PATH}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-emerald-800 underline underline-offset-2"
+                  >
+                    политикой конфиденциальности
+                  </Link>{" "}
+                  и обработкой персональных данных. Без согласия вход недоступен.
+                </span>
+              </label>
               <button
                 type="submit"
-                disabled={phoneBusy}
+                disabled={phoneBusy || !policyAccepted}
                 className="mt-5 w-full rounded-xl bg-emerald-600 px-3 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-50"
               >
                 {phoneBusy ? "Входим…" : "Войти"}
@@ -366,13 +431,18 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                 <div className="mt-2 flex flex-wrap justify-center gap-2">
                   <button
                     type="button"
-                    disabled={phoneBusy}
+                    disabled={phoneBusy || !policyAccepted}
                     className="rounded-xl bg-zinc-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
                     onClick={() => {
                       void (async () => {
+                        if (!policyAccepted) {
+                          setError("Отметьте согласие с политикой конфиденциальности");
+                          return;
+                        }
                         setPhoneBusy(true);
                         setError(null);
                         try {
+                          acceptCabinetPolicyConsent();
                           const res = await loginDev("manager");
                           setUser(res.user);
                           resetFavoritesCache();
@@ -391,13 +461,18 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                   </button>
                   <button
                     type="button"
-                    disabled={phoneBusy}
+                    disabled={phoneBusy || !policyAccepted}
                     className="rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 disabled:opacity-50"
                     onClick={() => {
                       void (async () => {
+                        if (!policyAccepted) {
+                          setError("Отметьте согласие с политикой конфиденциальности");
+                          return;
+                        }
                         setPhoneBusy(true);
                         setError(null);
                         try {
+                          acceptCabinetPolicyConsent();
                           const res = await loginDev("client");
                           setUser(res.user);
                           resetFavoritesCache();
@@ -424,6 +499,11 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                   ? "Вход через Telegram…"
                   : "Или через Telegram"}
               </p>
+              {!policyAccepted && !(webAppAuth || isTelegramWebAppEnv()) ? (
+                <p className="mt-3 text-xs text-amber-800">
+                  Сначала отметьте согласие с политикой выше — затем появится вход через Telegram.
+                </p>
+              ) : null}
               {webAppAuth || isTelegramWebAppEnv() ? (
                 <p className="mt-3 text-sm text-zinc-500">
                   Авторизация Mini App… Подождите секунду.
@@ -762,13 +842,15 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                     }}
                     onOpenDeal={(id) => void openDeal(id)}
                   />
-                  <div className="border-t border-border pt-5">
-                    <h2 className="text-sm font-semibold">Купленные авто (витрина)</h2>
-                    <p className="mt-0.5 mb-3 text-xs text-text-muted">
-                      Добавление машин на публичную витрину купленных.
-                    </p>
-                    <PurchasedCarsAdmin />
-                  </div>
+                  {user.is_admin ? (
+                    <div className="border-t border-border pt-5">
+                      <h2 className="text-sm font-semibold">Купленные авто (витрина)</h2>
+                      <p className="mt-0.5 mb-3 text-xs text-text-muted">
+                        Добавление машин на публичную витрину купленных.
+                      </p>
+                      <PurchasedCarsAdmin />
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -851,19 +933,37 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                   }}
                 />
 
-                <DealRouteSections
+                <DealTrackingLink
                   deal={selected}
-                  isAdmin={Boolean(user.is_admin || user.is_manager)}
+                  isManager={Boolean(user.is_admin || user.is_manager)}
                   onUpdated={(next) => {
                     setSelected(next);
                     setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
                   }}
                 />
 
-                <DealDismantleMap
-                  deal={selected}
-                  isManager={Boolean(user.is_admin || user.is_manager)}
-                />
+                {/* Авто под постановку: клиенту только трекер; этапы/карта — менеджеру или для комплектов */}
+                {dealKind(selected) === "kit" ||
+                user.is_admin ||
+                user.is_manager ? (
+                  <DealRouteSections
+                    deal={selected}
+                    isAdmin={Boolean(user.is_admin || user.is_manager)}
+                    onUpdated={(next) => {
+                      setSelected(next);
+                      setDeals((prev) =>
+                        prev.map((d) => (d.id === next.id ? next : d)),
+                      );
+                    }}
+                  />
+                ) : null}
+
+                {dealKind(selected) === "kit" ? (
+                  <DealDismantleMap
+                    deal={selected}
+                    isManager={Boolean(user.is_admin || user.is_manager)}
+                  />
+                ) : null}
               </div>
             </div>
           ) : null}

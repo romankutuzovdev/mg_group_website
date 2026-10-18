@@ -290,16 +290,27 @@ async def admin_create_client_account(
 ) -> ClientAccountCreatedOut:
     """Manager creates a client cabinet login (phone = login)."""
     try:
+        phone_norm = body.normalized_phone()
         user = cabinet_store.create_client_account(
-            phone=body.phone,
+            phone=phone_norm,
             password=body.password,
             first_name=body.first_name,
             last_name=body.last_name,
-            manager_user_id=actor.id,
+            # API-key actor имеет id=0 — не пишем фиктивного менеджера
+            manager_user_id=actor.id if actor.id > 0 else None,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    phone = user.phone or body.phone
+    except Exception as exc:
+        # sqlite unique / schema — понятное сообщение вместо сырого 500
+        msg = str(exc).lower()
+        if "unique" in msg or "constraint" in msg:
+            raise HTTPException(
+                status_code=422,
+                detail="Клиент с таким телефоном уже есть",
+            ) from exc
+        raise
+    phone = user.phone or phone_norm
     pwd = body.password.strip()
     sms_sent = False
     sms_skipped = False
@@ -326,9 +337,21 @@ async def admin_create_client_account(
 async def admin_reset_client_password(
     user_id: int,
     body: ResetClientPasswordPayload,
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> ClientAccountCreatedOut:
-    """Manager sets a new password for a phone-login client."""
+    """Manager sets a new password for a phone-login client they created (admin — любой)."""
+    target = cabinet_store.get_user(user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if not actor.is_admin:
+        if actor.id <= 0 or not cabinet_store.manager_owns_client(
+            manager_id=actor.id,
+            client_user_id=user_id,
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Можно менять пароль только своим клиентам",
+            )
     try:
         user = cabinet_store.set_client_password(user_id, body.password)
     except KeyError as exc:

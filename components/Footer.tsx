@@ -102,6 +102,9 @@ const Footer = ({ dictionary }: FooterProps) => {
               <a href="/contacts/" className="hover:text-foreground transition-colors">
                 {dictionary.nav.contacts}
               </a>
+              <a href="/politika-konfidencialnosti/" className="hover:text-foreground transition-colors">
+                Политика конфиденциальности
+              </a>
               <a href="/cookies/" className="hover:text-foreground transition-colors">
                 Политика cookies
               </a>

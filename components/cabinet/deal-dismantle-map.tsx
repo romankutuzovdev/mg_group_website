@@ -189,22 +189,32 @@ function NoteTextarea({
   );
 }
 
+/** Доп. упаковка: только «да» или прочерк (пусто). */
+function normalizePacking(raw: string): string {
+  const v = (raw || "").trim().toLowerCase();
+  if (v === "да" || v === "yes" || v === "y" || v === "+") return "да";
+  return "";
+}
+
 function SaveSelect({
   value,
   choices,
   onCommit,
   readOnly,
+  strictChoices,
 }: {
   value: string;
   choices: string[];
   onCommit: (next: string) => void;
   readOnly?: boolean;
+  /** Не подмешивать произвольное текущее значение в список */
+  strictChoices?: boolean;
 }) {
   const options = useMemo(() => {
     const base = choices.length ? choices : ["да", "нет", "все"];
-    if (value && !base.includes(value)) return [value, ...base];
+    if (!strictChoices && value && !base.includes(value)) return [value, ...base];
     return base;
-  }, [choices, value]);
+  }, [choices, value, strictChoices]);
 
   return (
     <select
@@ -434,7 +444,7 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
                   ? "Карта отмечена как заполненная. Менеджер получил уведомление в Telegram."
                   : isUsa
                     ? "Карта США: для каждой позиции укажите «да», «нет» или «все». Отметить можно один раз."
-                    : "Карта Англии: заполните количество и упаковку. Отметить можно один раз."}
+                    : "Карта Англии: количество и доп. упаковка (да / —). Отметить можно один раз."}
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
@@ -682,12 +692,15 @@ function MobileSection({
                 {showPacking ? (
                   <label className="block">
                     <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-text-muted">
-                      {colPack}
+                      {colPack} (да / —)
                     </span>
-                    <CellInput
-                      value={cell.packing}
-                      onCommit={(v) => onSave(cell.key, "packing", v)}
-                      placeholder="—"
+                    <SaveSelect
+                      value={normalizePacking(cell.packing)}
+                      choices={["да"]}
+                      strictChoices
+                      onCommit={(v) =>
+                        onSave(cell.key, "packing", normalizePacking(v))
+                      }
                       readOnly={readOnly}
                     />
                   </label>
@@ -780,10 +793,13 @@ function DesktopSectionRows({
               {cell.is_note_only ? (
                 <span className="text-xs text-text-muted">—</span>
               ) : (
-                <CellInput
-                  value={cell.packing}
-                  onCommit={(v) => onSave(cell.key, "packing", v)}
-                  placeholder="—"
+                <SaveSelect
+                  value={normalizePacking(cell.packing)}
+                  choices={["да"]}
+                  strictChoices
+                  onCommit={(v) =>
+                    onSave(cell.key, "packing", normalizePacking(v))
+                  }
                   readOnly={readOnly}
                 />
               )}

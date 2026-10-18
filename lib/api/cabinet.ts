@@ -65,6 +65,8 @@ export type Deal = {
   vin: string;
   lot_number: string;
   lot_url?: string;
+  /** Внешний трекер для авто под постановку — клиент видит только ссылку */
+  tracking_url?: string;
   status: "active" | "completed" | "cancelled";
   note: string;
   price?: number;
@@ -117,7 +119,7 @@ export const ORIGIN_REGION_LABELS: Record<OriginRegion, string> = {
 };
 
 export const DEAL_KIND_LABELS: Record<DealKind, string> = {
-  car: "Авто",
+  car: "Авто под постановку",
   kit: "Машинокомплект",
 };
 
@@ -178,7 +180,23 @@ async function cabinetFetch<T>(path: string, init?: RequestInit): Promise<T> {
     let detail = "";
     try {
       const parsed = JSON.parse(text) as { detail?: unknown };
-      if (typeof parsed.detail === "string") detail = parsed.detail;
+      if (typeof parsed.detail === "string") {
+        detail = parsed.detail;
+      } else if (Array.isArray(parsed.detail)) {
+        // FastAPI / Pydantic validation errors
+        detail = parsed.detail
+          .map((item: unknown) => {
+            if (!item || typeof item !== "object") return String(item);
+            const row = item as { loc?: unknown[]; msg?: string };
+            const loc = Array.isArray(row.loc)
+              ? row.loc.filter((x) => x !== "body").join(".")
+              : "";
+            const msg = row.msg || "";
+            return loc && msg ? `${loc}: ${msg}` : msg || loc || JSON.stringify(item);
+          })
+          .filter(Boolean)
+          .join("; ");
+      }
     } catch {
       /* plain text */
     }
@@ -566,6 +584,7 @@ export async function adminCreateDeal(body: {
   vin?: string;
   lot_number?: string;
   lot_url?: string;
+  tracking_url?: string;
   note?: string;
   price?: number;
   currency?: "USD" | "GBP";
@@ -590,6 +609,7 @@ export async function adminUpdateDeal(
     vin: string;
     lot_number: string;
     lot_url: string;
+    tracking_url: string;
     note: string;
     price: number;
     currency: "USD" | "GBP";

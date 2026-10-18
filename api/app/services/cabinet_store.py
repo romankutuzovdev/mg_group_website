@@ -192,6 +192,10 @@ class CabinetStore:
             conn.execute(
                 "ALTER TABLE deals ADD COLUMN lot_url TEXT NOT NULL DEFAULT ''"
             )
+        if "tracking_url" not in cols:
+            conn.execute(
+                "ALTER TABLE deals ADD COLUMN tracking_url TEXT NOT NULL DEFAULT ''"
+            )
         user_cols = {r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
         if "is_manager" not in user_cols:
             conn.execute(
@@ -441,31 +445,51 @@ class CabinetStore:
                     tg_id = synthetic_telegram_id(f"{normalized}:{tg_id}")
                 else:
                     raise ValueError("Не удалось выделить id аккаунта")
-                cur = conn.execute(
-                    """
-                    INSERT INTO users (
-                      telegram_id, username, first_name, last_name, photo_url,
-                      phone, password_hash, is_manager, manager_user_id, created_at
+                try:
+                    cur = conn.execute(
+                        """
+                        INSERT INTO users (
+                          telegram_id, username, first_name, last_name, photo_url,
+                          phone, password_hash, is_manager, manager_user_id, created_at
+                        )
+                        VALUES (?, ?, ?, ?, '', ?, ?, 0, ?, ?)
+                        """,
+                        (
+                            tg_id,
+                            normalized,
+                            (first_name or "").strip() or "Клиент",
+                            (last_name or "").strip(),
+                            normalized,
+                            hash_password(pwd),
+                            owner_id,
+                            now,
+                        ),
                     )
-                    VALUES (?, ?, ?, ?, '', ?, ?, 0, ?, ?)
-                    """,
-                    (
-                        tg_id,
-                        normalized,
-                        (first_name or "").strip() or "Клиент",
-                        (last_name or "").strip(),
-                        normalized,
-                        hash_password(pwd),
-                        owner_id,
-                        now,
-                    ),
-                )
-                conn.commit()
+                    conn.commit()
+                except sqlite3.IntegrityError as exc:
+                    conn.rollback()
+                    raise ValueError("Клиент с таким телефоном уже есть") from exc
                 row = conn.execute(
                     "SELECT * FROM users WHERE id = ?",
                     (cur.lastrowid,),
                 ).fetchone()
                 return self._user_from_row(row)
+
+    def get_user(self, user_id: int) -> UserOut | None:
+        with self._lock:
+            with self._conn() as conn:
+                row = conn.execute(
+                    "SELECT * FROM users WHERE id = ?",
+                    (int(user_id),),
+                ).fetchone()
+                return self._user_from_row(row) if row else None
+
+    def manager_owns_client(self, *, manager_id: int, client_user_id: int) -> bool:
+        """True if client was created/assigned to this manager."""
+        client = self.get_user(client_user_id)
+        if not client:
+            return False
+        return int(client.manager_user_id or 0) == int(manager_id)
 
     def set_client_password(self, user_id: int, password: str) -> UserOut:
         pwd = (password or "").strip()
@@ -484,6 +508,13 @@ class CabinetStore:
                     phone = str(row["phone"] or "")
                 if not phone:
                     raise ValueError("У этого пользователя нет входа по телефону")
+                # Нельзя сбрасывать пароль менеджерам/админам через этот метод
+                is_mgr = False
+                if "is_manager" in row.keys():
+                    is_mgr = bool(int(row["is_manager"] or 0))
+                tid = int(row["telegram_id"])
+                if is_mgr or is_admin_telegram(tid):
+                    raise ValueError("Нельзя сменить пароль сотруднику этим способом")
                 conn.execute(
                     "UPDATE users SET password_hash = ? WHERE id = ?",
                     (hash_password(pwd), int(user_id)),
@@ -700,6 +731,9 @@ class CabinetStore:
         lot_url = ""
         if "lot_url" in keys and row["lot_url"]:
             lot_url = str(row["lot_url"])
+        tracking_url = ""
+        if "tracking_url" in keys and row["tracking_url"]:
+            tracking_url = str(row["tracking_url"]).strip()
 
         return DealOut(
             id=deal_id,
@@ -707,6 +741,7 @@ class CabinetStore:
             vin=row["vin"] or "",
             lot_number=row["lot_number"] or "",
             lot_url=lot_url,
+            tracking_url=tracking_url,
             status=row["status"],  # type: ignore[arg-type]
             note=row["note"] or "",
             price=price,
@@ -842,7 +877,7 @@ class CabinetStore:
         with self._lock:
             with self._conn() as conn:
                 user = conn.execute(
-                    "SELECT id FROM users WHERE telegram_id = ?",
+                    "SELECT id, manager_user_id FROM users WHERE telegram_id = ?",
                     (data.telegram_id,),
                 ).fetchone()
                 if not user:
@@ -851,23 +886,41 @@ class CabinetStore:
                 user_id = int(user["id"])
                 kind: DealKind = data.kind if data.kind in ("car", "kit") else "kit"
                 origin_point = origin_point_for_kind(kind)
+                # Машинокомплект: только США / Англия (карта разбора)
+                region: OriginRegion = data.origin_region
+                if kind == "kit" and region not in ("usa", "uk"):
+                    region = "usa"
+                # Приоритет: явно переданный → закреплённый за клиентом → кто создаёт сделку
+                client_owner = 0
+                try:
+                    client_owner = int(user["manager_user_id"] or 0)
+                except (KeyError, TypeError, ValueError):
+                    client_owner = 0
                 if data.manager_user_id:
                     manager_id = self._require_manager_id(conn, int(data.manager_user_id))
+                elif client_owner > 0:
+                    try:
+                        manager_id = self._require_manager_id(conn, client_owner)
+                    except ValueError:
+                        manager_id = (
+                            int(created_by_user_id) if created_by_user_id else None
+                        )
                 else:
                     manager_id = int(created_by_user_id) if created_by_user_id else None
                 due1 = _due_date(data.payment_stage1_due)
                 due2 = _due_date(data.payment_stage2_due)
+                tracking = (data.tracking_url or "").strip() if kind == "car" else ""
 
                 now = _now()
                 cur = conn.execute(
                     """
                     INSERT INTO deals (
-                      user_id, title, vin, lot_number, lot_url, status, note,
+                      user_id, title, vin, lot_number, lot_url, tracking_url, status, note,
                       price, currency, kind, origin_region, origin_point,
                       created_by_user_id, payment_stage1_due, payment_stage2_due,
                       created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         user_id,
@@ -875,12 +928,13 @@ class CabinetStore:
                         data.vin.strip(),
                         data.lot_number.strip(),
                         (data.lot_url or "").strip(),
+                        tracking,
                         data.status,
                         data.note.strip(),
                         float(data.price or 0),
                         data.currency if data.currency in ("USD", "GBP") else "USD",
                         kind,
-                        data.origin_region,
+                        region,
                         origin_point,
                         manager_id,
                         due1,
@@ -936,6 +990,8 @@ class CabinetStore:
                     fields["lot_number"] = data.lot_number.strip()
                 if data.lot_url is not None:
                     fields["lot_url"] = data.lot_url.strip()
+                if data.tracking_url is not None:
+                    fields["tracking_url"] = data.tracking_url.strip()
                 if data.note is not None:
                     fields["note"] = data.note.strip()
                 if data.price is not None:
@@ -950,6 +1006,12 @@ class CabinetStore:
                     kind: DealKind = data.kind if data.kind in ("car", "kit") else "kit"
                     fields["kind"] = kind
                     fields["origin_point"] = origin_point_for_kind(kind)
+                    if kind == "kit":
+                        cur_region = fields.get("origin_region") or row["origin_region"]
+                        if cur_region not in ("usa", "uk"):
+                            fields["origin_region"] = "usa"
+                    if kind != "car":
+                        fields["tracking_url"] = ""
                 elif data.origin_point is not None:
                     fields["origin_point"] = data.origin_point
                     fields["kind"] = "car" if data.origin_point == "port" else "kit"

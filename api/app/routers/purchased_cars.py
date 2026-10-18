@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
 from app.models.cabinet import UserOut
-from app.services.auth_deps import require_admin_or_key
+from app.services.auth_deps import require_owner_admin_or_key
 from app.services.purchased_cars_store import (
     PurchasedCarCreate,
     PurchasedCarOut,
@@ -20,7 +20,7 @@ router = APIRouter(tags=["purchased-cars"])
 
 @router.get("/purchased-cars", response_model=dict)
 def list_purchased_cars(limit: int = Query(24, ge=1, le=100)) -> dict:
-    """Public showcase of whole cars added by managers."""
+    """Public showcase of whole cars (managed by site owner admin only)."""
     items = purchased_cars_store.list_public(limit=limit)
     return {"items": [i.model_dump() for i in items], "count": len(items)}
 
@@ -45,7 +45,7 @@ def purchased_car_image(car_id: str) -> FileResponse:
 
 @router.get("/admin/purchased-cars", response_model=dict)
 def admin_list_purchased_cars(
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_owner_admin_or_key)],
     limit: int = Query(100, ge=1, le=200),
 ) -> dict:
     items = purchased_cars_store.list_all(limit=limit)
@@ -55,7 +55,7 @@ def admin_list_purchased_cars(
 @router.post("/admin/purchased-cars", response_model=PurchasedCarOut)
 def admin_create_purchased_car(
     body: PurchasedCarCreate,
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_owner_admin_or_key)],
 ) -> PurchasedCarOut:
     if not body.make.strip() or not body.model.strip():
         raise HTTPException(status_code=422, detail="make and model required")
@@ -66,7 +66,7 @@ def admin_create_purchased_car(
 def admin_update_purchased_car(
     car_id: str,
     body: PurchasedCarUpdate,
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_owner_admin_or_key)],
 ) -> PurchasedCarOut:
     car = purchased_cars_store.update(car_id, body)
     if not car:
@@ -77,7 +77,7 @@ def admin_update_purchased_car(
 @router.delete("/admin/purchased-cars/{car_id}")
 def admin_delete_purchased_car(
     car_id: str,
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_owner_admin_or_key)],
 ) -> dict:
     if not purchased_cars_store.delete(car_id):
         raise HTTPException(status_code=404, detail="Not found")
@@ -87,7 +87,7 @@ def admin_delete_purchased_car(
 @router.post("/admin/purchased-cars/{car_id}/photo", response_model=PurchasedCarOut)
 async def admin_upload_purchased_car_photo(
     car_id: str,
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_owner_admin_or_key)],
     file: UploadFile = File(...),
 ) -> PurchasedCarOut:
     content = await file.read()
