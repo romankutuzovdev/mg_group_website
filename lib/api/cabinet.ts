@@ -10,9 +10,22 @@ export type CabinetUser = {
   first_name: string;
   last_name: string;
   photo_url: string;
+  phone?: string;
   is_admin: boolean;
   is_manager?: boolean;
+  /** Менеджер, за которым закреплён клиент. */
+  manager_user_id?: number;
   created_at: string;
+};
+
+export type ClientAccountCreated = {
+  user: CabinetUser;
+  phone: string;
+  login: string;
+  password: string;
+  sms_sent?: boolean;
+  sms_skipped?: boolean;
+  sms_error?: string;
 };
 
 export type StageKey =
@@ -51,6 +64,7 @@ export type Deal = {
   title: string;
   vin: string;
   lot_number: string;
+  lot_url?: string;
   status: "active" | "completed" | "cancelled";
   note: string;
   price?: number;
@@ -355,6 +369,193 @@ export async function adminSetUserManager(
   });
 }
 
+export async function adminCreateClientAccount(body: {
+  phone: string;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+  send_sms?: boolean;
+}): Promise<ClientAccountCreated> {
+  return cabinetFetch("/api/v1/admin/clients", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminResetClientPassword(
+  userId: number,
+  password: string,
+  opts?: { send_sms?: boolean },
+): Promise<ClientAccountCreated> {
+  return cabinetFetch(`/api/v1/admin/clients/${userId}/password`, {
+    method: "POST",
+    body: JSON.stringify({ password, send_sms: opts?.send_sms ?? true }),
+  });
+}
+
+/** Generate a short readable password for a new client account. */
+export function generateClientPassword(length = 8): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = new Uint8Array(Math.max(6, Math.min(32, length)));
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+}
+
+export type ContainerStage =
+  | "loading"
+  | "departed"
+  | "ocean"
+  | "customs"
+  | "arrived"
+  | "unloading"
+  | "done";
+
+export type LogisticsDealCard = {
+  deal_id: number;
+  title: string;
+  vin: string;
+  lot_number: string;
+  kind: DealKind;
+  origin_region: OriginRegion;
+  status: Deal["status"];
+  client_name: string;
+  client_phone: string;
+  container_id: number | null;
+};
+
+export type ShippingContainer = {
+  id: number;
+  code: string;
+  title: string;
+  stage: ContainerStage;
+  stage_label: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
+  deals: LogisticsDealCard[];
+};
+
+export type SmsTemplate = {
+  id: number;
+  title: string;
+  body: string;
+  kind: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LogisticsBoard = {
+  pool: LogisticsDealCard[];
+  containers: ShippingContainer[];
+  stages: { key: string; label: string }[];
+  templates: SmsTemplate[];
+};
+
+export type ContainerMoveResult = {
+  container: ShippingContainer;
+  sms_sent: number;
+  sms_failed: number;
+  sms_skipped: number;
+  recipients: string[];
+};
+
+export async function fetchLogisticsBoard(): Promise<LogisticsBoard> {
+  return cabinetFetch("/api/v1/admin/logistics/board");
+}
+
+export async function adminCreateContainer(body: {
+  code: string;
+  title?: string;
+  stage?: ContainerStage;
+  note?: string;
+}): Promise<ShippingContainer> {
+  return cabinetFetch("/api/v1/admin/logistics/containers", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminUpdateContainer(
+  containerId: number,
+  body: { code?: string; title?: string; note?: string },
+): Promise<ShippingContainer> {
+  return cabinetFetch(`/api/v1/admin/logistics/containers/${containerId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminDeleteContainer(containerId: number): Promise<void> {
+  await cabinetFetch(`/api/v1/admin/logistics/containers/${containerId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function adminAddDealToContainer(
+  containerId: number,
+  dealId: number,
+): Promise<ShippingContainer> {
+  return cabinetFetch(`/api/v1/admin/logistics/containers/${containerId}/deals`, {
+    method: "POST",
+    body: JSON.stringify({ deal_id: dealId }),
+  });
+}
+
+export async function adminRemoveDealFromContainer(
+  containerId: number,
+  dealId: number,
+): Promise<ShippingContainer> {
+  return cabinetFetch(
+    `/api/v1/admin/logistics/containers/${containerId}/deals/${dealId}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function adminMoveContainer(
+  containerId: number,
+  body: {
+    stage: ContainerStage;
+    message: string;
+    send_sms?: boolean;
+    template_id?: number | null;
+  },
+): Promise<ContainerMoveResult> {
+  return cabinetFetch(`/api/v1/admin/logistics/containers/${containerId}/move`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminCreateSmsTemplate(payload: {
+  title: string;
+  body: string;
+}): Promise<SmsTemplate> {
+  return cabinetFetch("/api/v1/admin/logistics/sms-templates", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function adminUpdateSmsTemplate(
+  templateId: number,
+  body: { title?: string; body?: string },
+): Promise<SmsTemplate> {
+  return cabinetFetch(`/api/v1/admin/logistics/sms-templates/${templateId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminDeleteSmsTemplate(templateId: number): Promise<void> {
+  await cabinetFetch(`/api/v1/admin/logistics/sms-templates/${templateId}`, {
+    method: "DELETE",
+  });
+}
+
 export async function fetchAdminDeals(): Promise<Deal[]> {
   return cabinetFetch("/api/v1/admin/deals");
 }
@@ -364,6 +565,7 @@ export async function adminCreateDeal(body: {
   title: string;
   vin?: string;
   lot_number?: string;
+  lot_url?: string;
   note?: string;
   price?: number;
   currency?: "USD" | "GBP";
@@ -387,6 +589,7 @@ export async function adminUpdateDeal(
     title: string;
     vin: string;
     lot_number: string;
+    lot_url: string;
     note: string;
     price: number;
     currency: "USD" | "GBP";
@@ -587,19 +790,33 @@ export type DismantleCell = {
   num: number | null;
   section: string;
   name: string;
+  name_en?: string;
   qty: string;
   packing: string;
   note: string;
   is_note_only: boolean;
 };
 
+export type DismantleMapColumns = {
+  qty: string;
+  qty_hint?: string | null;
+  packing?: string | null;
+  note: string;
+  name_en?: boolean;
+};
+
 export type DismantleMap = {
   deal_id: number;
   title: string;
+  variant?: "uk" | "usa" | string;
+  origin_region?: string;
   vehicle_label: string;
   vehicle_header_hint: string;
+  general_note?: string;
   sections: string[];
   cells: DismantleCell[];
+  columns?: DismantleMapColumns;
+  qty_choices?: string[];
   updated_at: string | null;
   completed?: boolean;
   completed_at?: string | null;
@@ -611,7 +828,7 @@ export async function fetchDismantleMap(dealId: number): Promise<DismantleMap> {
 
 export async function patchDismantleMeta(
   dealId: number,
-  body: { vehicle_label?: string; completed?: boolean },
+  body: { vehicle_label?: string; general_note?: string; completed?: boolean },
 ): Promise<DismantleMap> {
   return cabinetFetch(`/api/v1/me/deals/${dealId}/dismantle-map`, {
     method: "PATCH",

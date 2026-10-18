@@ -101,6 +101,11 @@ class Settings(BaseSettings):
     # Служебный id учётки пароля, не настоящий Telegram. Всегда считается админом.
     cabinet_password_telegram_id: int = 900000000001
 
+    # SMS.BY (https://app.sms.by) — токен и ID альфа-имени из кабинета SMS.BY
+    sms_by_enabled: bool = False
+    sms_by_token: str = ""
+    sms_by_alphaname_id: str = ""
+
 
 
 @lru_cache

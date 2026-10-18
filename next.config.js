@@ -8,16 +8,16 @@ function apiUpstream() {
   const raw = (
     process.env.API_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    "http://91.149.133.54"
+    "http://91.149.133.54.nip.io"
   )
     .trim()
     .replace(/\/$/, "");
-  // Prefer hostname form for environments that block raw IPs; local Next is fine with IP.
+  // Raw IPs often time out from BY; rewrite to nip.io hostname → same host.
   if (/^https?:\/\/\d{1,3}(?:\.\d{1,3}){3}$/i.test(raw)) {
     const ip = raw.replace(/^https?:\/\//i, "");
-    return `http://${ip}`;
+    return `http://${ip}.nip.io`;
   }
-  return raw || "http://91.149.133.54";
+  return raw || "http://91.149.133.54.nip.io";
 }
 
 const nextConfig = {

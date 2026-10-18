@@ -24,6 +24,7 @@ from app.models.cabinet import (
     DealUpdate,
     DismantleCellOut,
     DismantleCellPatch,
+    DismantleMapColumns,
     DismantleMapOut,
     DismantleMetaPatch,
     MediaKind,
@@ -38,7 +39,16 @@ from app.models.cabinet import (
     stage_label,
 )
 from app.services.cabinet_admin import is_admin_telegram
-from app.services.dismantle_map_template import load_dismantle_template
+from app.services.dismantle_map_template import (
+    load_dismantle_template_for_region,
+    map_variant_for_region,
+)
+from app.services.passwords import (
+    hash_password,
+    normalize_phone,
+    synthetic_telegram_id,
+    verify_password,
+)
 
 
 def _now() -> str:
@@ -178,11 +188,31 @@ class CabinetStore:
             conn.execute("ALTER TABLE deals ADD COLUMN payment_stage1_due TEXT")
         if "payment_stage2_due" not in cols:
             conn.execute("ALTER TABLE deals ADD COLUMN payment_stage2_due TEXT")
+        if "lot_url" not in cols:
+            conn.execute(
+                "ALTER TABLE deals ADD COLUMN lot_url TEXT NOT NULL DEFAULT ''"
+            )
         user_cols = {r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
         if "is_manager" not in user_cols:
             conn.execute(
                 "ALTER TABLE users ADD COLUMN is_manager INTEGER NOT NULL DEFAULT 0"
             )
+        if "phone" not in user_cols:
+            conn.execute(
+                "ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT ''"
+            )
+        if "password_hash" not in user_cols:
+            conn.execute(
+                "ALTER TABLE users ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''"
+            )
+        if "manager_user_id" not in user_cols:
+            conn.execute(
+                "ALTER TABLE users ADD COLUMN manager_user_id INTEGER"
+            )
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone "
+            "ON users(phone) WHERE phone != ''"
+        )
         # Remap legacy stage keys
         for old, new in LEGACY_STAGE_MAP.items():
             conn.execute(
@@ -216,6 +246,7 @@ class CabinetStore:
             CREATE TABLE IF NOT EXISTS deal_dismantle_meta (
               deal_id INTEGER PRIMARY KEY REFERENCES deals(id) ON DELETE CASCADE,
               vehicle_label TEXT NOT NULL DEFAULT '',
+              general_note TEXT NOT NULL DEFAULT '',
               updated_at TEXT,
               completed INTEGER NOT NULL DEFAULT 0,
               completed_at TEXT
@@ -233,6 +264,10 @@ class CabinetStore:
         if "completed_at" not in meta_cols:
             conn.execute(
                 "ALTER TABLE deal_dismantle_meta ADD COLUMN completed_at TEXT"
+            )
+        if "general_note" not in meta_cols:
+            conn.execute(
+                "ALTER TABLE deal_dismantle_meta ADD COLUMN general_note TEXT NOT NULL DEFAULT ''"
             )
         conn.execute(
             """
@@ -264,6 +299,10 @@ class CabinetStore:
         tid = int(row["telegram_id"])
         keys = row.keys()
         is_manager = bool(int(row["is_manager"] or 0)) if "is_manager" in keys else False
+        phone = str(row["phone"] or "") if "phone" in keys else ""
+        manager_user_id = 0
+        if "manager_user_id" in keys and row["manager_user_id"]:
+            manager_user_id = int(row["manager_user_id"])
         return UserOut(
             id=int(row["id"]),
             telegram_id=tid,
@@ -271,8 +310,10 @@ class CabinetStore:
             first_name=row["first_name"] or "",
             last_name=row["last_name"] or "",
             photo_url=row["photo_url"] or "",
+            phone=phone,
             is_admin=is_admin_telegram(tid),
             is_manager=is_manager,
+            manager_user_id=manager_user_id,
             created_at=row["created_at"] or "",
         )
 
@@ -344,6 +385,134 @@ class CabinetStore:
                     (user_id,),
                 ).fetchone()
                 return self._user_from_row(row) if row else None
+
+    def get_user_by_phone(self, phone: str) -> UserOut | None:
+        try:
+            normalized = normalize_phone(phone)
+        except ValueError:
+            return None
+        with self._lock:
+            with self._conn() as conn:
+                row = conn.execute(
+                    "SELECT * FROM users WHERE phone = ?",
+                    (normalized,),
+                ).fetchone()
+                return self._user_from_row(row) if row else None
+
+    def create_client_account(
+        self,
+        *,
+        phone: str,
+        password: str,
+        first_name: str = "",
+        last_name: str = "",
+        manager_user_id: int | None = None,
+    ) -> UserOut:
+        normalized = normalize_phone(phone)
+        pwd = (password or "").strip()
+        if len(pwd) < 4:
+            raise ValueError("Пароль слишком короткий (минимум 4 символа)")
+        tg_id = synthetic_telegram_id(normalized)
+        now = _now()
+        owner_id = int(manager_user_id) if manager_user_id else None
+        with self._lock:
+            with self._conn() as conn:
+                clash = conn.execute(
+                    "SELECT id FROM users WHERE phone = ?",
+                    (normalized,),
+                ).fetchone()
+                if clash:
+                    raise ValueError("Клиент с таким телефоном уже есть")
+                if owner_id:
+                    mgr = conn.execute(
+                        "SELECT id FROM users WHERE id = ?",
+                        (owner_id,),
+                    ).fetchone()
+                    if not mgr:
+                        owner_id = None
+                # Rare synthetic id collision with a real Telegram account
+                for _ in range(5):
+                    taken = conn.execute(
+                        "SELECT id FROM users WHERE telegram_id = ?",
+                        (tg_id,),
+                    ).fetchone()
+                    if not taken:
+                        break
+                    tg_id = synthetic_telegram_id(f"{normalized}:{tg_id}")
+                else:
+                    raise ValueError("Не удалось выделить id аккаунта")
+                cur = conn.execute(
+                    """
+                    INSERT INTO users (
+                      telegram_id, username, first_name, last_name, photo_url,
+                      phone, password_hash, is_manager, manager_user_id, created_at
+                    )
+                    VALUES (?, ?, ?, ?, '', ?, ?, 0, ?, ?)
+                    """,
+                    (
+                        tg_id,
+                        normalized,
+                        (first_name or "").strip() or "Клиент",
+                        (last_name or "").strip(),
+                        normalized,
+                        hash_password(pwd),
+                        owner_id,
+                        now,
+                    ),
+                )
+                conn.commit()
+                row = conn.execute(
+                    "SELECT * FROM users WHERE id = ?",
+                    (cur.lastrowid,),
+                ).fetchone()
+                return self._user_from_row(row)
+
+    def set_client_password(self, user_id: int, password: str) -> UserOut:
+        pwd = (password or "").strip()
+        if len(pwd) < 4:
+            raise ValueError("Пароль слишком короткий (минимум 4 символа)")
+        with self._lock:
+            with self._conn() as conn:
+                row = conn.execute(
+                    "SELECT * FROM users WHERE id = ?",
+                    (int(user_id),),
+                ).fetchone()
+                if not row:
+                    raise KeyError("user not found")
+                phone = ""
+                if "phone" in row.keys():
+                    phone = str(row["phone"] or "")
+                if not phone:
+                    raise ValueError("У этого пользователя нет входа по телефону")
+                conn.execute(
+                    "UPDATE users SET password_hash = ? WHERE id = ?",
+                    (hash_password(pwd), int(user_id)),
+                )
+                conn.commit()
+                row = conn.execute(
+                    "SELECT * FROM users WHERE id = ?",
+                    (int(user_id),),
+                ).fetchone()
+                return self._user_from_row(row)
+
+    def authenticate_phone(self, phone: str, password: str) -> UserOut | None:
+        try:
+            normalized = normalize_phone(phone)
+        except ValueError:
+            return None
+        with self._lock:
+            with self._conn() as conn:
+                row = conn.execute(
+                    "SELECT * FROM users WHERE phone = ?",
+                    (normalized,),
+                ).fetchone()
+                if not row:
+                    return None
+                keys = row.keys()
+                stored = str(row["password_hash"] or "") if "password_hash" in keys else ""
+                if not stored or not verify_password(password, stored):
+                    return None
+                return self._user_from_row(row)
 
     def _ensure_stages(self, conn: sqlite3.Connection, deal_id: int) -> None:
         for i, key in enumerate(STAGE_KEYS):
@@ -528,11 +697,16 @@ class CabinetStore:
             else None
         )
 
+        lot_url = ""
+        if "lot_url" in keys and row["lot_url"]:
+            lot_url = str(row["lot_url"])
+
         return DealOut(
             id=deal_id,
             title=row["title"],
             vin=row["vin"] or "",
             lot_number=row["lot_number"] or "",
+            lot_url=lot_url,
             status=row["status"],  # type: ignore[arg-type]
             note=row["note"] or "",
             price=price,
@@ -688,18 +862,19 @@ class CabinetStore:
                 cur = conn.execute(
                     """
                     INSERT INTO deals (
-                      user_id, title, vin, lot_number, status, note,
+                      user_id, title, vin, lot_number, lot_url, status, note,
                       price, currency, kind, origin_region, origin_point,
                       created_by_user_id, payment_stage1_due, payment_stage2_due,
                       created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         user_id,
                         data.title.strip(),
                         data.vin.strip(),
                         data.lot_number.strip(),
+                        (data.lot_url or "").strip(),
                         data.status,
                         data.note.strip(),
                         float(data.price or 0),
@@ -759,6 +934,8 @@ class CabinetStore:
                     fields["vin"] = data.vin.strip()
                 if data.lot_number is not None:
                     fields["lot_number"] = data.lot_number.strip()
+                if data.lot_url is not None:
+                    fields["lot_url"] = data.lot_url.strip()
                 if data.note is not None:
                     fields["note"] = data.note.strip()
                 if data.price is not None:
@@ -1067,7 +1244,9 @@ class CabinetStore:
         deal = self.get_deal(deal_id)
         if not deal:
             return None
-        template = load_dismantle_template()
+        origin_region = (deal.origin_region or "usa").strip().lower()
+        variant = map_variant_for_region(origin_region)
+        template = load_dismantle_template_for_region(origin_region)
         with self._lock:
             with self._conn() as conn:
                 meta = conn.execute(
@@ -1103,12 +1282,25 @@ class CabinetStore:
 
         completed = False
         completed_at: str | None = None
+        general_note = ""
         if meta is not None:
             keys = meta.keys()
             if "completed" in keys:
                 completed = bool(int(meta["completed"] or 0))
             if "completed_at" in keys and meta["completed_at"]:
                 completed_at = str(meta["completed_at"])
+            if "general_note" in keys and meta["general_note"]:
+                general_note = str(meta["general_note"] or "")
+
+        cols_raw = template.get("columns") or {}
+        columns = DismantleMapColumns(
+            qty=str(cols_raw.get("qty") or ("Снять" if variant == "usa" else "Кол")),
+            qty_hint=cols_raw.get("qtyHint"),
+            packing=cols_raw.get("packing"),
+            note=str(cols_raw.get("note") or "Примечание"),
+            name_en=bool(cols_raw.get("nameEn")),
+        )
+        qty_choices = [str(x) for x in (template.get("qtyChoices") or []) if str(x).strip()]
 
         cells: list[DismantleCellOut] = []
         for item in template.get("items") or []:
@@ -1122,6 +1314,7 @@ class CabinetStore:
                     num=item.get("num"),
                     section=str(item.get("section") or ""),
                     name=str(item.get("name") or ""),
+                    name_en=str(item.get("nameEn") or ""),
                     qty=str(row["qty"]) if row is not None else str(item.get("defaultQty") or ""),
                     packing=str(row["packing"]) if row is not None else str(item.get("defaultPack") or ""),
                     note=str(row["note"]) if row is not None else str(item.get("defaultNote") or ""),
@@ -1132,16 +1325,27 @@ class CabinetStore:
         return DismantleMapOut(
             deal_id=deal_id,
             title=str(template.get("title") or "Карта разбора"),
+            variant=variant,
+            origin_region=origin_region if origin_region in ("usa", "uk") else "usa",
             vehicle_label=vehicle_label,
             vehicle_header_hint=str(template.get("vehicleHeaderHint") or ""),
+            general_note=general_note,
             sections=list(template.get("sections") or []),
             cells=cells,
+            columns=columns,
+            qty_choices=qty_choices,
             updated_at=latest,
             completed=completed,
             completed_at=completed_at,
         )
 
-    def patch_dismantle_meta(self, deal_id: int, data: DismantleMetaPatch) -> DismantleMapOut:
+    def patch_dismantle_meta(
+        self,
+        deal_id: int,
+        data: DismantleMetaPatch,
+        *,
+        allow_unlock: bool = False,
+    ) -> DismantleMapOut:
         if self.get_deal(deal_id) is None:
             raise KeyError("deal not found")
         now = _now()
@@ -1151,10 +1355,30 @@ class CabinetStore:
                     "SELECT * FROM deal_dismantle_meta WHERE deal_id = ?",
                     (deal_id,),
                 ).fetchone()
+                was_completed = (
+                    bool(int(existing["completed"] or 0))
+                    if existing and "completed" in existing.keys()
+                    else False
+                )
+                # Client may mark completed once; only manager can unlock / edit after.
+                if was_completed and not allow_unlock:
+                    if data.completed is False:
+                        raise ValueError("map_locked_contact_manager")
+                    if data.vehicle_label is not None or data.general_note is not None:
+                        raise ValueError("map_locked_contact_manager")
+
                 vehicle_label = (
                     data.vehicle_label.strip()
                     if data.vehicle_label is not None
                     else ((existing["vehicle_label"] if existing else "") or "")
+                )
+                prev_note = ""
+                if existing is not None and "general_note" in existing.keys():
+                    prev_note = str(existing["general_note"] or "")
+                general_note = (
+                    data.general_note.strip()
+                    if data.general_note is not None
+                    else prev_note
                 )
                 completed = int(existing["completed"] or 0) if existing and "completed" in existing.keys() else 0
                 completed_at = (
@@ -1169,15 +1393,16 @@ class CabinetStore:
                 conn.execute(
                     """
                     INSERT INTO deal_dismantle_meta
-                      (deal_id, vehicle_label, updated_at, completed, completed_at)
-                    VALUES (?, ?, ?, ?, ?)
+                      (deal_id, vehicle_label, general_note, updated_at, completed, completed_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     ON CONFLICT(deal_id) DO UPDATE SET
                       vehicle_label = excluded.vehicle_label,
+                      general_note = excluded.general_note,
                       updated_at = excluded.updated_at,
                       completed = excluded.completed,
                       completed_at = excluded.completed_at
                     """,
-                    (deal_id, vehicle_label, now, completed, completed_at),
+                    (deal_id, vehicle_label, general_note, now, completed, completed_at),
                 )
                 conn.execute(
                     "UPDATE deals SET updated_at = ? WHERE id = ?",
@@ -1189,32 +1414,42 @@ class CabinetStore:
         return out
 
     def patch_dismantle_cell(
-        self, deal_id: int, item_key: str, data: DismantleCellPatch
+        self,
+        deal_id: int,
+        item_key: str,
+        data: DismantleCellPatch,
+        *,
+        allow_when_completed: bool = False,
     ) -> DismantleCellOut:
         if self.get_deal(deal_id) is None:
             raise KeyError("deal not found")
-        # Block edits when map is marked completed
+        # Clients cannot edit after the map is marked completed; managers can.
         with self._lock:
             with self._conn() as conn:
                 meta = conn.execute(
                     "SELECT completed FROM deal_dismantle_meta WHERE deal_id = ?",
                     (deal_id,),
                 ).fetchone()
-                if meta is not None and "completed" in meta.keys() and int(meta["completed"] or 0):
-                    raise ValueError("map completed")
-        # continue with existing cell patch logic below — need to not duplicate method
+                if (
+                    meta is not None
+                    and "completed" in meta.keys()
+                    and int(meta["completed"] or 0)
+                    and not allow_when_completed
+                ):
+                    raise ValueError("map_locked_contact_manager")
         return self._patch_dismantle_cell_inner(deal_id, item_key, data)
 
     def _patch_dismantle_cell_inner(
         self, deal_id: int, item_key: str, data: DismantleCellPatch
     ) -> DismantleCellOut:
-        if self.get_deal(deal_id) is None:
+        deal = self.get_deal(deal_id)
+        if deal is None:
             raise KeyError("deal not found")
         key = (item_key or "").strip()
         if not key:
             raise ValueError("item_key required")
 
-        template = load_dismantle_template()
+        template = load_dismantle_template_for_region(deal.origin_region)
         item = next((i for i in (template.get("items") or []) if str(i.get("key")) == key), None)
         if item is None:
             raise KeyError("item not found")
@@ -1294,6 +1529,7 @@ class CabinetStore:
             num=item.get("num"),
             section=str(item.get("section") or ""),
             name=str(item.get("name") or ""),
+            name_en=str(item.get("nameEn") or ""),
             qty=str(qty),
             packing=str(packing),
             note=str(note),

@@ -270,6 +270,9 @@ export function CalculatorForm({
       const place = yardLabel ? ` · ${yardLabel}` : "";
       const cat = market === "uk" ? matchCategory(lot) : "";
       const catLabel = cat ? ` · Cat ${cat}` : "";
+      const engineLabel = lot.engine ? ` · ${lot.engine}` : "";
+      const fuelLabel = lot.fuel ? ` · ${lot.fuel}` : "";
+      const driveLabel = lot.drive ? ` · ${lot.drive}` : "";
       const milesLabel =
         market === "usa" && lot.inlandMiles != null
           ? ` · ${Math.round(Number(lot.inlandMiles))} mi`
@@ -292,7 +295,7 @@ export function CalculatorForm({
           ? ` · мили: ${lot.inlandError}`
           : "";
       setLotMeta(
-        `${label || "Лот загружен"}${place}${catLabel}${milesLabel}${yardMiss}${bidLiveLabel}${viaLabel}${milesErr} · ${market === "uk" ? "Англия" : "США"}`,
+        `${label || "Лот загружен"}${place}${catLabel}${engineLabel}${fuelLabel}${driveLabel}${milesLabel}${yardMiss}${bidLiveLabel}${viaLabel}${milesErr} · ${market === "uk" ? "Англия" : "США"}`,
       );
       setTouched(true);
     } catch (err) {

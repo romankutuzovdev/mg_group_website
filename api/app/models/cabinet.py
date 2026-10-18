@@ -117,6 +117,31 @@ class PasswordLoginPayload(BaseModel):
     password: str = Field(..., min_length=1, max_length=128)
 
 
+class CreateClientAccountPayload(BaseModel):
+    """Manager creates a cabinet login: phone = login, password set by manager."""
+
+    phone: str = Field(..., min_length=7, max_length=32)
+    password: str = Field(..., min_length=4, max_length=64)
+    first_name: str = Field("", max_length=80)
+    last_name: str = Field("", max_length=80)
+    send_sms: bool = True
+
+
+class ResetClientPasswordPayload(BaseModel):
+    password: str = Field(..., min_length=4, max_length=64)
+    send_sms: bool = True
+
+
+class ClientAccountCreatedOut(BaseModel):
+    user: "UserOut"
+    phone: str
+    password: str
+    login: str
+    sms_sent: bool = False
+    sms_skipped: bool = False
+    sms_error: str = ""
+
+
 class UserOut(BaseModel):
     id: int
     telegram_id: int
@@ -124,8 +149,11 @@ class UserOut(BaseModel):
     first_name: str = ""
     last_name: str = ""
     photo_url: str = ""
+    phone: str = ""
     is_admin: bool = False
     is_manager: bool = False
+    # Менеджер, за которым закреплён клиент (аккаунт с телефоном).
+    manager_user_id: int = 0
     created_at: str
 
 
@@ -165,6 +193,7 @@ class DealOut(BaseModel):
     title: str
     vin: str = ""
     lot_number: str = ""
+    lot_url: str = ""
     status: DealStatus
     note: str = ""
     price: float = 0
@@ -196,6 +225,7 @@ class DealCreate(BaseModel):
     title: str
     vin: str = ""
     lot_number: str = ""
+    lot_url: str = ""
     note: str = ""
     price: float = 0
     currency: Literal["USD", "GBP"] = "USD"
@@ -213,6 +243,7 @@ class DealUpdate(BaseModel):
     title: str | None = None
     vin: str | None = None
     lot_number: str | None = None
+    lot_url: str | None = None
     note: str | None = None
     price: float | None = None
     currency: Literal["USD", "GBP"] | None = None
@@ -262,19 +293,33 @@ class DismantleCellOut(BaseModel):
     num: int | None = None
     section: str = ""
     name: str
+    name_en: str = ""
     qty: str = ""
     packing: str = ""
     note: str = ""
     is_note_only: bool = False
 
 
+class DismantleMapColumns(BaseModel):
+    qty: str = "Кол"
+    qty_hint: str | None = None
+    packing: str | None = "Доп упак"
+    note: str = "Примечание"
+    name_en: bool = False
+
+
 class DismantleMapOut(BaseModel):
     deal_id: int
     title: str = "Карта разбора"
+    variant: str = "uk"
+    origin_region: str = "usa"
     vehicle_label: str = ""
     vehicle_header_hint: str = ""
+    general_note: str = ""
     sections: list[str] = Field(default_factory=list)
     cells: list[DismantleCellOut] = Field(default_factory=list)
+    columns: DismantleMapColumns = Field(default_factory=DismantleMapColumns)
+    qty_choices: list[str] = Field(default_factory=list)
     updated_at: str | None = None
     completed: bool = False
     completed_at: str | None = None
@@ -288,4 +333,5 @@ class DismantleCellPatch(BaseModel):
 
 class DismantleMetaPatch(BaseModel):
     vehicle_label: str | None = None
+    general_note: str | None = None
     completed: bool | None = None

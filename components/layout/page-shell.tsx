@@ -26,7 +26,6 @@ export function PageShell({
         full
           ? "flex min-h-[100dvh] w-full flex-1 flex-col bg-[#f2f2f2]"
           : "pt-[calc(3.5rem+env(safe-area-inset-top,0px))]",
-        className,
       )}
     >
       {!bare && title ? (
@@ -51,6 +50,7 @@ export function PageShell({
           full
             ? "flex w-full flex-1 flex-col px-3 py-3 sm:px-5 sm:py-5 lg:px-8"
             : "mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-6 lg:px-6",
+          className,
         )}
       >
         {children}

@@ -118,11 +118,9 @@ export function resolveLotImageUrl(
   if (isJunkLotImageUrl(trimmed)) return LOT_IMAGE_FALLBACK;
 
   if (/^https?:\/\//i.test(trimmed)) {
-    const useProxy =
-      process.env.NODE_ENV === "production" ||
-      Boolean(imageProxyBase()) ||
-      process.env.NEXT_PUBLIC_FORCE_IMAGE_PROXY === "1";
-    if (useProxy && shouldProxyAuctionUrl(trimmed)) {
+    // Always same-origin proxy for auction CDNs (BY visitors + local next
+    // rewrite → Windows cache). Direct CDN is slow/blocked without VPN.
+    if (shouldProxyAuctionUrl(trimmed) || Boolean(imageProxyBase())) {
       return proxyLotImageUrl(trimmed);
     }
     return trimmed;

@@ -10,6 +10,8 @@ from fastapi.responses import FileResponse, Response
 from app.config import Settings, get_settings
 from app.models.cabinet import (
     STAGE_KEYS,
+    ClientAccountCreatedOut,
+    CreateClientAccountPayload,
     DealCreate,
     DealMediaOut,
     DealOut,
@@ -21,6 +23,7 @@ from app.models.cabinet import (
     FavoriteCreate,
     FavoriteLotOut,
     PaymentStageUpdate,
+    ResetClientPasswordPayload,
     StageKey,
     StageUpdate,
     UserOut,
@@ -42,6 +45,10 @@ def _require_deal_access(deal_id: int, user: UserOut) -> DealOut:
     if owner != user.id and not (user.is_admin or user.is_manager):
         raise HTTPException(status_code=403, detail="Not your deal")
     return deal
+
+
+def _is_staff(user: UserOut) -> bool:
+    return bool(user.is_admin or user.is_manager)
 
 
 @router.get("/me", response_model=UserOut)
@@ -122,10 +129,20 @@ async def patch_my_dismantle_meta(
     if deal.origin_point != "dismantle":
         raise HTTPException(status_code=404, detail="Dismantle map only for kits")
     was_completed = cabinet_store.was_dismantle_completed(deal_id)
+    staff = _is_staff(user)
     try:
-        out = cabinet_store.patch_dismantle_meta(deal_id, body)
+        out = cabinet_store.patch_dismantle_meta(
+            deal_id, body, allow_unlock=staff
+        )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Deal not found") from exc
+    except ValueError as exc:
+        if str(exc) == "map_locked_contact_manager":
+            raise HTTPException(
+                status_code=403,
+                detail="map_locked_contact_manager",
+            ) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     # Client marked map as filled → notify assigning manager in Telegram
     if body.completed is True and not was_completed and out.completed:
@@ -159,11 +176,21 @@ def patch_my_dismantle_cell(
 ) -> DismantleCellOut:
     _require_deal_access(deal_id, user)
     try:
-        return cabinet_store.patch_dismantle_cell(deal_id, item_key, body)
+        return cabinet_store.patch_dismantle_cell(
+            deal_id,
+            item_key,
+            body,
+            allow_when_completed=_is_staff(user),
+        )
     except KeyError as exc:
         detail = "Item not found" if "item" in str(exc) else "Deal not found"
         raise HTTPException(status_code=404, detail=detail) from exc
     except ValueError as exc:
+        if str(exc) == "map_locked_contact_manager":
+            raise HTTPException(
+                status_code=403,
+                detail="map_locked_contact_manager",
+            ) from exc
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
@@ -254,6 +281,80 @@ def admin_list_users(
     _: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> list[UserOut]:
     return cabinet_store.list_users()
+
+
+@router.post("/admin/clients", response_model=ClientAccountCreatedOut)
+async def admin_create_client_account(
+    body: CreateClientAccountPayload,
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
+) -> ClientAccountCreatedOut:
+    """Manager creates a client cabinet login (phone = login)."""
+    try:
+        user = cabinet_store.create_client_account(
+            phone=body.phone,
+            password=body.password,
+            first_name=body.first_name,
+            last_name=body.last_name,
+            manager_user_id=actor.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    phone = user.phone or body.phone
+    pwd = body.password.strip()
+    sms_sent = False
+    sms_skipped = False
+    sms_error = ""
+    if body.send_sms:
+        from app.services.sms_by import notify_client_credentials
+
+        sms = await notify_client_credentials(phone=phone, password=pwd)
+        sms_sent = sms.ok
+        sms_skipped = sms.skipped
+        sms_error = sms.error if not sms.ok else ""
+    return ClientAccountCreatedOut(
+        user=user,
+        phone=phone,
+        login=phone,
+        password=pwd,
+        sms_sent=sms_sent,
+        sms_skipped=sms_skipped,
+        sms_error=sms_error,
+    )
+
+
+@router.post("/admin/clients/{user_id}/password", response_model=ClientAccountCreatedOut)
+async def admin_reset_client_password(
+    user_id: int,
+    body: ResetClientPasswordPayload,
+    _: Annotated[UserOut, Depends(require_admin_or_key)],
+) -> ClientAccountCreatedOut:
+    """Manager sets a new password for a phone-login client."""
+    try:
+        user = cabinet_store.set_client_password(user_id, body.password)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Пользователь не найден") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    pwd = body.password.strip()
+    sms_sent = False
+    sms_skipped = False
+    sms_error = ""
+    if body.send_sms and user.phone:
+        from app.services.sms_by import notify_client_credentials
+
+        sms = await notify_client_credentials(phone=user.phone, password=pwd)
+        sms_sent = sms.ok
+        sms_skipped = sms.skipped
+        sms_error = sms.error if not sms.ok else ""
+    return ClientAccountCreatedOut(
+        user=user,
+        phone=user.phone,
+        login=user.phone,
+        password=pwd,
+        sms_sent=sms_sent,
+        sms_skipped=sms_skipped,
+        sms_error=sms_error,
+    )
 
 
 @router.patch("/admin/users/{user_id}", response_model=UserOut)

@@ -264,7 +264,15 @@ class SourceAgent:
                 kwargs["max_pages"] = settings.scraper_max_pages_china_market
                 kwargs["page_size"] = min(48, settings.scraper_page_size)
 
-            raw = await self.scrape(**kwargs)
+            # Hard cap so one hung Bid.cars / Incapsula tab cannot block the agent for hours.
+            cycle_cap = 45 * 60 if self.name == "bidcars" else 12 * 60
+            try:
+                raw = await asyncio.wait_for(self.scrape(**kwargs), timeout=cycle_cap)
+            except asyncio.TimeoutError:
+                self.status.last_error = f"cycle_timeout_{cycle_cap}s"
+                logger.error("agent %s cycle timed out after %ss", self.name, cycle_cap)
+                stats["error"] = self.status.last_error
+                raw = []
             if raw and isinstance(raw[0], dict) and raw[0].get("_blocked"):
                 reason = str(raw[0].get("reason") or "blocked")
                 self.status.last_blocked = reason
@@ -479,10 +487,11 @@ class SourceAgent:
             await self.run_once(browser)
             if self._browser_dead.is_set():
                 break
-            # After bot-wall: force-close poisoned tab, reopen on real URL next cycle.
-            # Bid.cars stays open so the Cloudflare check is visible in Chrome.
+            # After bot-wall: keep Bid.cars + Copart UK tabs open so Cloudflare /
+            # Incapsula can be solved in headed Chrome (VPN). Other sources reopen.
             blocked = self.status.last_blocked
-            if blocked and self.name != "bidcars":
+            keep_open = self.name in {"bidcars", "copart_uk"}
+            if blocked and not keep_open:
                 logger.info(
                     "agent %s blocked (%s) — closing tab, retry in %ss (enable VPN then wait)",
                     self.name,
@@ -495,6 +504,18 @@ class SourceAgent:
                     pass
                 self._page = None
                 self.status.tab_open = False
+            elif blocked and keep_open:
+                logger.warning(
+                    "agent %s blocked (%s) — leave Chrome tab open, solve challenge, then wait %ss",
+                    self.name,
+                    blocked,
+                    settings.scraper_blocked_retry_seconds,
+                )
+                try:
+                    if self._page and not self._page.is_closed():
+                        await self._page.bring_to_front()
+                except Exception:
+                    pass
             sleep_for = (
                 max(30, settings.scraper_blocked_retry_seconds)
                 if blocked

@@ -1,5 +1,5 @@
 {
-  "title": "Карта разбора",
+  "title": "Карта разбора (Англия)",
   "vehicleHeaderHint": "марка авто, модель, Lot#",
   "sections": [
     "Оптика",
@@ -1130,5 +1130,13 @@
       "defaultNote": "",
       "isNoteOnly": true
     }
-  ]
+  ],
+  "variant": "uk",
+  "columns": {
+    "qty": "Кол",
+    "qtyHint": null,
+    "packing": "Доп упак",
+    "note": "Примечание",
+    "nameEn": false
+  }
 }

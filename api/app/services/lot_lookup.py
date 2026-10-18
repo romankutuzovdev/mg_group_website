@@ -41,7 +41,41 @@ async (arg) => {
   const forcedOrigin = (arg && typeof arg === 'object') ? (arg.origin || '') : '';
   const out = { lotNumber: String(lotId), bid: null, year: null, make: null,
     model: null, title: null, location: null, odometer: null, images: [],
-    bodyStyle: null, category: null, bidSource: null };
+    bodyStyle: null, category: null, bidSource: null,
+    vin: null, engine: null, fuel: null, transmission: null, drive: null,
+    exteriorColor: null, cylinders: null, primaryDamage: null };
+  const normFuel = (raw) => {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    if (!s) return null;
+    const u = s.toUpperCase();
+    if (/DIESEL/.test(u)) return 'Diesel';
+    if (/HYBRID/.test(u)) return 'Hybrid';
+    if (/ELECTRIC|\\bEV\\b|\\bBEV\\b/.test(u)) return 'Electric';
+    if (/FLEX|E85/.test(u)) return 'Flex Fuel';
+    if (/GAS|PETROL|BENZ|UNLEADED/.test(u)) return 'Gasoline';
+    return s.slice(0, 40);
+  };
+  const normDrive = (raw) => {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    if (!s) return null;
+    const u = s.toUpperCase();
+    if (/ALL|\\bAWD\\b/.test(u)) return 'AWD';
+    if (/4X4|4WD|FOUR/.test(u)) return '4x4';
+    if (/FRONT|\\bFWD\\b/.test(u)) return 'FWD';
+    if (/REAR|\\bRWD\\b/.test(u)) return 'RWD';
+    return s.slice(0, 40);
+  };
+  const normTrans = (raw) => {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    if (!s) return null;
+    if (/automatic|a\\/t|\\bat\\b/i.test(s)) return 'Automatic';
+    if (/manual|m\\/t|\\bmt\\b/i.test(s)) return 'Manual';
+    if (/cvt|variator/i.test(s)) return 'CVT';
+    return s.slice(0, 40);
+  };
   const pickCat = (text) => {
     if (!text) return null;
     const s = String(text);
@@ -107,10 +141,29 @@ async (arg) => {
     }
     out.odometer = Number(d.orr || d.odometer || d.oDoMeter) || null;
     out.bodyStyle = d.bstl || d.vehTypDesc || d.bodyStyle || d.bt || d.vehicleTypeDesc || null;
+    // Specs — Solr short keys (same as catalog mapper)
+    const vinRaw = d.fv || d.vin || d.VIN || null;
+    if (vinRaw && /^[A-HJ-NPR-Z0-9*]{11,17}$/i.test(String(vinRaw))) {
+      out.vin = String(vinRaw).toUpperCase();
+    }
+    out.engine = (d.egn || d.engine || d.eng || d.engineDescription || '').toString().trim() || null;
+    out.fuel = normFuel(d.ft || d.fuel || d.fuelType || d.fuel_type);
+    out.transmission = normTrans(d.tmtp || d.transmission || d.trns || d.trans);
+    out.drive = normDrive(d.drv || d.drive || d.driveTrain || d.drivetrain);
+    out.exteriorColor = (d.clr || d.color || d.exteriorColor || d.ext_color || '').toString().trim() || null;
+    const cyl = d.cy || d.cyl || d.cylinders || d.cylinder;
+    if (cyl !== null && cyl !== undefined && String(cyl).trim()) {
+      out.cylinders = String(cyl).replace(/[^0-9]/g, '') || String(cyl).trim();
+    }
+    out.primaryDamage = (d.dd || d.damage || d.primaryDamage || '').toString().trim() || null;
     // UK Cat: stt="B", tgc="TITLEGROUP_B", td="CAT B - BREAKER"
+    // Do NOT use d.ft on USA — Solr ft is often fuel type there
     out.category = pickCat(d.stt) || pickCat(d.tgc) || pickCat(d.td) || pickCat(d.tgd)
-      || pickCat(d.ft) || pickCat(d.tsn) || pickCat(d.lotCondDesc) || pickCat(d.lcd)
+      || pickCat(d.tsn) || pickCat(d.lotCondDesc) || pickCat(d.lcd)
       || pickCat(d.scc) || pickCat(d.category) || pickCat(d.damageCategory) || null;
+    if (!out.category && /copart\\.co\\.uk/i.test(String(origin || ''))) {
+      out.category = pickCat(d.ft);
+    }
     const tims = d.tims || d.imageUrl || d.img;
     if (tims) out.images.push(String(tims));
   } catch (e) {
@@ -173,6 +226,8 @@ BIDCars_JS = """
   };
   const h1 = ((document.querySelector('h1') || {}).textContent || '').trim();
   const vinLike = /^[A-HJ-NPR-Z0-9]{11,17}$/i.test(h1);
+  const vinFromLabel = pick(/\\bVIN\\s*:?\\s*([A-HJ-NPR-Z0-9]{11,17})\\b/i)
+    || pick(/\\bVIN\\s*#?\\s*([A-HJ-NPR-Z0-9]{11,17})\\b/i);
   let platform = null;
   if (/copart\\.co\\.uk|copart uk|united kingdom|great britain/i.test(text)) platform = 'copart_uk';
   else if (/\\biaai\\b/i.test(text)) platform = 'iaai';
@@ -198,8 +253,41 @@ BIDCars_JS = """
   const bodyStyle = pick(/Тип кузова\\s*:?\\s*([^\\n]{3,40})/i)
     || pick(/Body\\s*(?:style|type)\\s*:?\\s*([^\\n]{3,40})/i)
     || pick(/Vehicle\\s*type\\s*:?\\s*([^\\n]{3,40})/i);
+  const engine = pick(/Двигатель\\s*:?\\s*([^\\n]{2,60})/i)
+    || pick(/Engine\\s*:?\\s*([^\\n]{2,60})/i);
+  let fuel = pick(/Топливо\\s*:?\\s*([^\\n]{2,40})/i)
+    || pick(/Fuel(?:\\s*type)?\\s*:?\\s*([^\\n]{2,40})/i);
+  if (fuel) {
+    if (/diesel/i.test(fuel)) fuel = 'Diesel';
+    else if (/hybrid/i.test(fuel)) fuel = 'Hybrid';
+    else if (/electric/i.test(fuel)) fuel = 'Electric';
+    else if (/gas|petrol|бензин/i.test(fuel)) fuel = 'Gasoline';
+  }
+  let transmission = pick(/Коробка(?:\\s*передач)?\\s*:?\\s*([^\\n]{2,40})/i)
+    || pick(/Transmission\\s*:?\\s*([^\\n]{2,40})/i);
+  if (transmission) {
+    if (/automatic|авт/i.test(transmission)) transmission = 'Automatic';
+    else if (/manual|мех/i.test(transmission)) transmission = 'Manual';
+    else if (/cvt/i.test(transmission)) transmission = 'CVT';
+  }
+  let drive = pick(/Привод\\s*:?\\s*([^\\n]{2,40})/i)
+    || pick(/Drive(?:\\s*type|\\s*line|train)?\\s*:?\\s*([^\\n]{2,40})/i);
+  if (drive) {
+    if (/awd|all\\s*wheel|полный/i.test(drive)) drive = 'AWD';
+    else if (/4x4|4wd/i.test(drive)) drive = '4x4';
+    else if (/fwd|front|передн/i.test(drive)) drive = 'FWD';
+    else if (/rwd|rear|задн/i.test(drive)) drive = 'RWD';
+  }
+  const exteriorColor = pick(/Цвет\\s*:?\\s*([^\\n]{2,40})/i)
+    || pick(/Exterior\\s*colou?r\\s*:?\\s*([^\\n]{2,40})/i)
+    || pick(/Color\\s*:?\\s*([^\\n]{2,40})/i);
+  const cylinders = pick(/Цилиндр(?:ы|ов)?\\s*:?\\s*([^\\n]{1,20})/i)
+    || pick(/Cylinders?\\s*:?\\s*([^\\n]{1,20})/i);
+  const primaryDamage = pick(/Основное\\s*повреждение\\s*:?\\s*([^\\n]{2,60})/i)
+    || pick(/Primary\\s*damage\\s*:?\\s*([^\\n]{2,60})/i);
   return {
     title: vinLike ? null : (h1 || null),
+    vin: vinLike ? h1.toUpperCase() : (vinFromLabel ? String(vinFromLabel).toUpperCase() : null),
     docTitle: document.title || '',
     year: null,
     bid,
@@ -209,6 +297,13 @@ BIDCars_JS = """
     titleDoc: pick(/Документы о продаже\\s*:?\\s*([^\\n]{3,80})/i)
       || pick(/Sale documents?\\s*:?\\s*([^\\n]{3,80})/i),
     bodyStyle,
+    engine,
+    fuel,
+    transmission,
+    drive,
+    exteriorColor,
+    cylinders,
+    primaryDamage,
     category: pickCat(pick(/Категор(?:ия)?\\s*:?\\s*([^\\n]{1,20})/i)
       || pick(/Cat(?:egory)?\\s*:?\\s*([^\\n]{1,20})/i)
       || ''),
@@ -413,6 +508,18 @@ def title_from_bidcars_url(url: str) -> tuple[int | None, str | None, str | None
     return int(parts[0]), parts[1], model
 
 
+def vin_from_bidcars_url(url: str) -> str | None:
+    """VIN is often the last 17 chars of the Bid.cars lot slug."""
+    match = re.search(r"/lot/(?:\d+-)?\d+/([^/?#]+)", url or "", re.I)
+    if not match:
+        return None
+    slug = match.group(1)
+    m = re.search(r"([A-HJ-NPR-Z0-9]{17})$", slug, re.I)
+    if not m:
+        return None
+    return m.group(1).upper()
+
+
 def normalize_lot_url(raw: str) -> str:
     u = (raw or "").strip()
     if not u:
@@ -477,10 +584,12 @@ def soft_lot_payload(url: str, error: str) -> dict[str, Any]:
         lot_number = None
     is_uk = "copart.co.uk" in canonical.lower() or (platform == "copart" and "uk" in canonical.lower())
     year_u, make_u, model_u = (None, None, None)
+    vin_u = None
     location = None
     try:
         if "bid.cars" in canonical.lower():
             year_u, make_u, model_u = title_from_bidcars_url(canonical)
+            vin_u = vin_from_bidcars_url(canonical)
         elif is_uk:
             year_u, make_u, model_u = title_from_copart_uk_url(canonical)
             location = yard_from_copart_uk_url(canonical)
@@ -502,6 +611,7 @@ def soft_lot_payload(url: str, error: str) -> dict[str, Any]:
         "make": make_u,
         "model": model_u,
         "title": None,
+        "vin": vin_u,
         "location": location,
         "odometer": None,
         "bodyStyle": None,
@@ -683,6 +793,21 @@ def lot_to_calculator_payload(
         "images": images[:12],
         "category": lot.category,
         "bodyStyle": lot.bodyStyle,
+        "vin": (lot.vin or None) if lot.vin and set(lot.vin) - {"*"} else None,
+        "engine": (lot.engine or None) or None,
+        "fuel": (lot.fuel or None) if (lot.fuel or "").strip() not in ("", "—") else None,
+        "transmission": (
+            (lot.transmission or None)
+            if (lot.transmission or "").strip() not in ("", "—")
+            else None
+        ),
+        "drive": (lot.drive or None) if (lot.drive or "").strip() not in ("", "—") else None,
+        "exteriorColor": (
+            (lot.exteriorColor or None)
+            if (lot.exteriorColor or "").strip() not in ("", "—")
+            else None
+        ),
+        "primaryDamage": lot.primaryDamage or None,
         "inlandMiles": lot.inlandMiles,
         "currency": lot.currency,
         "via": via,
@@ -806,6 +931,19 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
             data["model"] = fields["model"]
         if fields.get("odometer"):
             data["odometer"] = fields["odometer"]
+        for spec_key in (
+            "vin",
+            "engine",
+            "fuel",
+            "transmission",
+            "drive",
+            "exteriorColor",
+            "cylinders",
+            "primaryDamage",
+            "bodyStyle",
+        ):
+            if fields.get(spec_key):
+                data[spec_key] = fields[spec_key]
 
     if platform == "copart" and lot_number:
         origin = (
@@ -829,6 +967,13 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
             data["title"] = dom.get("titleDoc") or dom.get("title")
             data["odometer"] = dom.get("odometer")
             data["images"] = dom.get("images") or []
+            vin_dom = str(dom.get("vin") or "").strip().upper()
+            if re.fullmatch(r"[A-HJ-NPR-Z0-9]{11,17}", vin_dom or ""):
+                data["vin"] = vin_dom
+            else:
+                vin_u = vin_from_bidcars_url(canonical)
+                if vin_u:
+                    data["vin"] = vin_u
             year_u, make_u, model_u = title_from_bidcars_url(canonical)
             doc_title = str(dom.get("docTitle") or "")
             if year_u:
@@ -858,6 +1003,18 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
                 data["bodyStyle"] = dom["bodyStyle"]
             if dom.get("category"):
                 data["category"] = dom["category"]
+            for spec_key in (
+                "engine",
+                "fuel",
+                "transmission",
+                "drive",
+                "exteriorColor",
+                "cylinders",
+                "primaryDamage",
+            ):
+                val = dom.get(spec_key)
+                if val:
+                    data[spec_key] = val
     elif platform != "iaai":
         title = await page.title()
         text = await page.inner_text("body")
@@ -915,9 +1072,17 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
         "make": data.get("make"),
         "model": data.get("model"),
         "title": data.get("title"),
+        "vin": data.get("vin"),
         "location": clean_auction_location(data.get("location")),
         "odometer": data.get("odometer"),
         "bodyStyle": data.get("bodyStyle"),
+        "engine": data.get("engine"),
+        "fuel": data.get("fuel"),
+        "transmission": data.get("transmission"),
+        "drive": data.get("drive"),
+        "exteriorColor": data.get("exteriorColor"),
+        "cylinders": data.get("cylinders"),
+        "primaryDamage": data.get("primaryDamage"),
         "images": data.get("images") or [],
         "via": "chrome_cdp",
     }
@@ -974,7 +1139,15 @@ def _merge_fields(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]
         "make",
         "model",
         "title",
+        "vin",
         "odometer",
+        "engine",
+        "fuel",
+        "transmission",
+        "drive",
+        "exteriorColor",
+        "cylinders",
+        "primaryDamage",
     ):
         val = extra.get(key)
         if val is None or val == "":
@@ -1039,6 +1212,14 @@ async def _enrich_uk_via_agent_tab(
         "model": raw.get("model"),
         "title": raw.get("title"),
         "odometer": raw.get("odometer"),
+        "vin": raw.get("vin"),
+        "engine": raw.get("engine"),
+        "fuel": raw.get("fuel"),
+        "transmission": raw.get("transmission"),
+        "drive": raw.get("drive"),
+        "exteriorColor": raw.get("exteriorColor"),
+        "cylinders": raw.get("cylinders"),
+        "primaryDamage": raw.get("primaryDamage"),
     }
     if isinstance(extra.get("category"), str) and len(extra["category"]) > 1:
         cat_m = re.search(r"\b([ABNSCDXU])\b", extra["category"], re.I)
@@ -1106,6 +1287,14 @@ def _payload_from_copart_js(
         "location": clean_auction_location(raw.get("location")),
         "odometer": raw.get("odometer"),
         "bodyStyle": raw.get("bodyStyle"),
+        "vin": raw.get("vin"),
+        "engine": raw.get("engine"),
+        "fuel": raw.get("fuel"),
+        "transmission": raw.get("transmission"),
+        "drive": raw.get("drive"),
+        "exteriorColor": raw.get("exteriorColor"),
+        "cylinders": raw.get("cylinders"),
+        "primaryDamage": raw.get("primaryDamage"),
         "images": raw.get("images") or [],
         "via": via,
         "bidSource": raw.get("bidSource"),
@@ -1202,6 +1391,14 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
             "bodyStyle",
             "category",
             "bidSource",
+            "vin",
+            "engine",
+            "fuel",
+            "transmission",
+            "drive",
+            "exteriorColor",
+            "cylinders",
+            "primaryDamage",
         ):
             if chrome.get(key) is not None and chrome.get(key) != "":
                 result[key] = chrome[key]

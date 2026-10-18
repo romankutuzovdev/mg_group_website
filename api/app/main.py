@@ -16,6 +16,7 @@ from app.routers import (
     cabinet,
     content,
     health,
+    logistics,
     lot_image,
     lots,
     pricing,
@@ -24,6 +25,7 @@ from app.routers import (
 )
 from app.scraper.worker import scraper_worker, start_scraper_in_background
 from app.services.cabinet_store import cabinet_store
+from app.services.logistics_store import logistics_store
 from app.services.purchased_cars_store import purchased_cars_store
 from app.services import car_search, quote_history
 
@@ -41,10 +43,11 @@ async def lifespan(_app: FastAPI):
         purge_flag.unlink(missing_ok=True)
         print(f"[mg-api] purged USA lots: {removed}")
     cabinet_store.init()
+    logistics_store.init()
     purchased_cars_store.init()
     quote_history.init()
     car_search.init()
-    print("[mg-api] cabinet + purchased cars db ready")
+    print("[mg-api] cabinet + logistics + purchased cars db ready")
     search_task = asyncio.create_task(car_search.car_search_loop())
     start_scraper_in_background()
     yield
@@ -111,6 +114,7 @@ def create_app() -> FastAPI:
     app.include_router(scraper.router, prefix=prefix)
     app.include_router(auth.router, prefix=prefix)
     app.include_router(cabinet.router, prefix=prefix)
+    app.include_router(logistics.router, prefix=prefix)
     app.include_router(purchased_cars.router, prefix=prefix)
     # Dynamic lot HTML + image proxy (before StaticFiles)
     app.include_router(auction_pages.router)

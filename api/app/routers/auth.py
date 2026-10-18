@@ -197,32 +197,43 @@ def auth_password(
     body: PasswordLoginPayload,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> AuthResponse:
-    """Admin login for /admin/. Credentials stay on the API, not in the browser bundle."""
+    """Login: phone+password (клиент) or admin credentials for /admin/."""
+    login = (body.login or "").strip()
+    password = body.password or ""
+
+    # 1) Client account: phone as login
+    client = cabinet_store.authenticate_phone(login, password)
+    if client is not None:
+        token = create_access_token(
+            telegram_id=client.telegram_id,
+            user_id=client.id,
+            settings=settings,
+        )
+        return AuthResponse(access_token=token, user=client)
+
+    # 2) Legacy site admin password (settings env)
     expected_login = (settings.cabinet_admin_login or "").strip()
     expected_password = settings.cabinet_admin_password or ""
-    if not expected_login or not expected_password:
-        raise HTTPException(status_code=404, detail="Password login disabled")
-    if not (
-        _secret_eq(body.login.strip(), expected_login)
-        and _secret_eq(body.password, expected_password)
+    if expected_login and expected_password and (
+        _secret_eq(login, expected_login) and _secret_eq(password, expected_password)
     ):
-        raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+        user = cabinet_store.upsert_user_from_telegram(
+            {
+                "telegram_id": int(settings.cabinet_password_telegram_id),
+                "username": "admin",
+                "first_name": "Администратор",
+                "last_name": "",
+                "photo_url": "",
+            }
+        )
+        token = create_access_token(
+            telegram_id=user.telegram_id,
+            user_id=user.id,
+            settings=settings,
+        )
+        return AuthResponse(access_token=token, user=user)
 
-    user = cabinet_store.upsert_user_from_telegram(
-        {
-            "telegram_id": int(settings.cabinet_password_telegram_id),
-            "username": "admin",
-            "first_name": "Администратор",
-            "last_name": "",
-            "photo_url": "",
-        }
-    )
-    token = create_access_token(
-        telegram_id=user.telegram_id,
-        user_id=user.id,
-        settings=settings,
-    )
-    return AuthResponse(access_token=token, user=user)
+    raise HTTPException(status_code=401, detail="Неверный логин или пароль")
 
 
 @router.post("/dev", response_model=AuthResponse)

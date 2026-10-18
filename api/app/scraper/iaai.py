@@ -426,6 +426,79 @@ def parse_iaai_text_fields(text: str) -> dict[str, Any]:
         out["model"] = _title_case(title.group(3))
     out["runs"] = bool(re.search(r"Run\s*&\s*Drive|Runs?\s*and\s*Drive", text, re.I))
     out["has_keys"] = bool(re.search(r"Key Available|Keys?\s*:\s*Present", text, re.I))
+
+    def _label(patterns: tuple[str, ...]) -> str | None:
+        for pat in patterns:
+            m = re.search(pat, text, re.I)
+            if m:
+                val = re.sub(r"\s+", " ", m.group(1)).strip(" :-")
+                if 1 < len(val) < 80:
+                    return val
+        return None
+
+    engine = _label((r"Engine\s*:?\s*([^\n]{2,60})", r"Engine\s+Size\s*:?\s*([^\n]{2,40})"))
+    if engine:
+        out["engine"] = engine
+    fuel = _label((r"Fuel\s*(?:Type)?\s*:?\s*([^\n]{2,40})",))
+    if fuel:
+        fu = fuel.upper()
+        if "DIESEL" in fu:
+            out["fuel"] = "Diesel"
+        elif "HYBRID" in fu:
+            out["fuel"] = "Hybrid"
+        elif "ELECTRIC" in fu or fu in {"EV", "BEV"}:
+            out["fuel"] = "Electric"
+        elif "GAS" in fu or "PETROL" in fu:
+            out["fuel"] = "Gasoline"
+        else:
+            out["fuel"] = fuel
+    transmission = _label((r"Transmission\s*:?\s*([^\n]{2,40})",))
+    if transmission:
+        if re.search(r"automatic|a/t|\bat\b", transmission, re.I):
+            out["transmission"] = "Automatic"
+        elif re.search(r"manual|m/t|\bmt\b", transmission, re.I):
+            out["transmission"] = "Manual"
+        elif re.search(r"cvt", transmission, re.I):
+            out["transmission"] = "CVT"
+        else:
+            out["transmission"] = transmission
+    drive = _label(
+        (
+            r"Drive\s*(?:Line|Type|Train)?\s*:?\s*([^\n]{2,40})",
+            r"Drivetrain\s*:?\s*([^\n]{2,40})",
+        )
+    )
+    if drive:
+        du = drive.upper()
+        if "AWD" in du or "ALL" in du:
+            out["drive"] = "AWD"
+        elif "4X4" in du or "4WD" in du:
+            out["drive"] = "4x4"
+        elif "FWD" in du or "FRONT" in du:
+            out["drive"] = "FWD"
+        elif "RWD" in du or "REAR" in du:
+            out["drive"] = "RWD"
+        else:
+            out["drive"] = drive
+    color = _label(
+        (
+            r"Exterior\s*(?:Color|Colour)\s*:?\s*([^\n]{2,40})",
+            r"Color\s*:?\s*([^\n]{2,40})",
+        )
+    )
+    if color:
+        out["exteriorColor"] = color
+    body = _label(
+        (
+            r"Body\s*(?:Style|Type)\s*:?\s*([^\n]{2,40})",
+            r"Vehicle\s*Type\s*:?\s*([^\n]{2,40})",
+        )
+    )
+    if body:
+        out["bodyStyle"] = body
+    cyl = _label((r"Cylinders?\s*:?\s*([^\n]{1,20})",))
+    if cyl:
+        out["cylinders"] = re.sub(r"[^0-9]", "", cyl) or cyl
     return out
 
 
