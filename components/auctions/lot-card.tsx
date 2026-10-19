@@ -186,20 +186,6 @@ export function LotCard({
             <h3 className="mt-0.5 line-clamp-2 font-display text-[15px] font-semibold leading-snug tracking-tight text-zinc-900 transition group-hover:text-accent-dark sm:text-base">
               {lot.make} {lot.model}
             </h3>
-            {lot.estimatedCostMin || lot.estimatedCostMax ? (
-              <p className="mt-1.5 text-[13px] font-semibold tabular-nums leading-snug text-zinc-900">
-                <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
-                  Примерная стоимость
-                </span>
-                {lot.estimatedCostMin ? formatMoney(lot.estimatedCostMin, lot.currency) : "—"}
-                {lot.estimatedCostMax ? (
-                  <>
-                    {" – "}
-                    {formatMoney(lot.estimatedCostMax, lot.currency)}
-                  </>
-                ) : null}
-              </p>
-            ) : null}
           </div>
 
           <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
@@ -226,7 +212,29 @@ export function LotCard({
           ) : null}
 
           <div className="mt-auto pt-3">
-            {turnkey ? (
+            {lot.estimatedCostMin || lot.estimatedCostMax ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 px-3 py-2.5 ring-1 ring-inset ring-[#22c55e]/30">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">
+                    Примерная стоимость
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-zinc-500">
+                    ориентир Bid.cars
+                  </p>
+                </div>
+                <p className="shrink-0 text-right font-display text-lg font-bold tabular-nums tracking-tight text-[#0D3F10] sm:text-xl">
+                  {lot.estimatedCostMin
+                    ? formatMoney(lot.estimatedCostMin, lot.currency)
+                    : "—"}
+                  {lot.estimatedCostMax ? (
+                    <>
+                      <span className="mx-0.5 font-semibold text-[#0D3F10]/70">–</span>
+                      {formatMoney(lot.estimatedCostMax, lot.currency)}
+                    </>
+                  ) : null}
+                </p>
+              </div>
+            ) : turnkey ? (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 px-3 py-2.5 ring-1 ring-inset ring-[#22c55e]/30">
                 <div className="min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">

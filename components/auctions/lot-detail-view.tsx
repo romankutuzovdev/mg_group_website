@@ -330,9 +330,11 @@ export function LotDetailView({
                   {formatMoney(lot.currentBid, lot.currency)}
                 </p>
                 {lot.estimatedCostMin || lot.estimatedCostMax ? (
-                  <div className="mt-3 rounded-lg border border-border bg-zinc-50 p-3 text-sm">
-                    <p className="text-text-muted">Ориентировочная стоимость</p>
-                    <p className="mt-0.5 font-display text-xl font-bold tabular-nums text-text-primary">
+                  <div className="mt-3 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 p-3 ring-1 ring-inset ring-[#22c55e]/30">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">
+                      Примерная стоимость · Bid.cars
+                    </p>
+                    <p className="mt-0.5 font-display text-2xl font-bold tabular-nums text-[#0D3F10]">
                       {lot.estimatedCostMin
                         ? formatMoney(lot.estimatedCostMin, lot.currency)
                         : "—"}
@@ -342,6 +344,9 @@ export function LotDetailView({
                           {formatMoney(lot.estimatedCostMax, lot.currency)}
                         </>
                       ) : null}
+                    </p>
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      Ориентир с карточки лота. Итог зависит от ставки и договора.
                     </p>
                   </div>
                 ) : null}

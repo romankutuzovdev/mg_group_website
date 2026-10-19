@@ -246,17 +246,21 @@ def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> boo
     if not lot.lotUrl:
         return False
     day = today or datetime.now(timezone.utc).date()
+    from app.services.lot_photos import is_our_photo
+
     imgs = [
         u
         for u in (list(lot.imageUrls or []) + ([lot.imageUrl] if lot.imageUrl else []))
-        if u and (u.startswith("/api/lot-photos/") or not _is_useless_photo(u))
+        if u and (is_our_photo(u) or not _is_useless_photo(u))
     ]
     local = [
         u
         for u in imgs
-        if (u or "").startswith("/api/lot-photos/") and not (u or "").endswith("-th.jpg")
+        if is_our_photo(u or "") and not (u or "").endswith("-th.jpg")
     ]
-    remotes = [u for u in imgs if (u or "").startswith("http")]
+    remotes = [
+        u for u in imgs if (u or "").startswith("http") and not is_our_photo(u or "")
+    ]
     # Need a real gallery locally (not a single cover). Keep going until we
     # archive enough shots or remotes are exhausted.
     min_local = 3
@@ -496,9 +500,20 @@ class PhotoEnrichmentAgent:
                     [lot.imageUrl] if lot.imageUrl else []
                 )
                 merged = merge_gallery_urls(saved, urls, existing)
-                local_count = sum(
-                    1 for u in merged if (u or "").startswith("/api/lot-photos/")
-                )
+                try:
+                    from app.services.r2_photos import promote_gallery_urls
+
+                    merged = promote_gallery_urls(
+                        lot.id,
+                        merged,
+                        region=lot.region,
+                        source=lot.source,
+                    )
+                except Exception as exc:
+                    logger.debug("R2 promote %s: %s", lot.id, exc)
+                from app.services.lot_photos import is_our_photo
+
+                local_count = sum(1 for u in merged if is_our_photo(u or ""))
 
                 if merged and (saved or len(urls) >= 2):
                     updated = lot_store.update_photos(

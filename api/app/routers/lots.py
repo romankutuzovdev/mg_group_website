@@ -236,12 +236,14 @@ def list_lots(
             seen.add(key)
             gallery.append(u)
 
-        locals_ = [
+        from app.services.lot_photos import is_our_photo
+
+        ours = [
             u
             for u in gallery
-            if u.startswith("/api/lot-photos/") and not u.endswith("-th.jpg")
+            if is_our_photo(u) and not u.endswith("-th.jpg")
         ]
-        cover = locals_[0] if locals_ else (gallery[0] if gallery else "")
+        cover = ours[0] if ours else (gallery[0] if gallery else "")
         if cover.startswith("/api/lot-photos/"):
             try:
                 from app.services.lot_photos import (
@@ -250,6 +252,15 @@ def list_lots(
                 )
 
                 if thumb_file_exists(cover):
+                    cover = to_catalog_thumb_url(cover)
+            except Exception:
+                pass
+        else:
+            try:
+                from app.services.r2_photos import is_cdn_photo
+                from app.services.lot_photos import to_catalog_thumb_url
+
+                if is_cdn_photo(cover):
                     cover = to_catalog_thumb_url(cover)
             except Exception:
                 pass

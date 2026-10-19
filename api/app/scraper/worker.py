@@ -400,7 +400,7 @@ class SourceAgent:
         """Save every remote gallery URL for these lots as compressed local JPEGs."""
         from app.services.lot_photos import (
             archive_gallery,
-            is_local_photo,
+            is_our_photo,
             merge_gallery_urls,
         )
 
@@ -422,9 +422,15 @@ class SourceAgent:
                 )
                 if (u or "").strip()
             ]
-            remotes = [u for u in imgs if u.startswith("http")]
-            locals_ = [u for u in imgs if is_local_photo(u) and not u.endswith("-th.jpg")]
-            # Already fully local — nothing to fetch
+            remotes = [
+                u for u in imgs if u.startswith("http") and not is_our_photo(u)
+            ]
+            locals_ = [
+                u
+                for u in imgs
+                if is_our_photo(u) and not u.endswith("-th.jpg")
+            ]
+            # Already fully our archive/CDN — nothing to fetch
             if not remotes:
                 continue
             # Have locals covering most remotes already
@@ -450,6 +456,17 @@ class SourceAgent:
             # Locals first for the site; keep remotes so detail page shows all
             # photos even before every file is archived.
             merged = merge_gallery_urls(saved or [], remotes, locals_)
+            try:
+                from app.services.r2_photos import promote_gallery_urls
+
+                merged = promote_gallery_urls(
+                    current.id,
+                    merged,
+                    region=current.region,
+                    source=current.source,
+                )
+            except Exception as exc:
+                logger.debug("R2 promote %s: %s", current.id, exc)
             if not merged:
                 continue
             updated = lot_store.update_photos(current.id, merged)

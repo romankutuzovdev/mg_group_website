@@ -1224,8 +1224,14 @@ def map_encar_row(row: dict[str, Any]) -> AuctionLot | None:
     # Price on Encar list API is typically 만원 (10,000 KRW)
     price_manwon = float(row.get("Price") or row.get("price") or 0)
     price_krw = price_manwon * 10_000 if price_manwon < 100_000 else price_manwon
-    # Store USD approx for existing UI; keep KRW as estimatedRetail
-    usd = round(price_krw / 1350) if price_krw else 0
+    # USD: KRW / Bithumb USDT (Naver «빗썸테더») + доставка 3750 + сбор Encar 530
+    from app.services.krw_usdt import get_krw_per_usdt, krw_to_usd
+
+    _KOREA_DELIVERY_USD = 3750
+    _KOREA_ENCAR_FEE_USD = 530
+    rate = float(get_krw_per_usdt()["rate"])
+    car_usd = round(krw_to_usd(price_krw, rate)) if price_krw else 0
+    usd = car_usd + _KOREA_DELIVERY_USD + _KOREA_ENCAR_FEE_USD if car_usd else 0
 
     fuel_raw = str(row.get("FuelType") or row.get("fuelType") or row.get("Fuel") or "")
     trans_raw = str(row.get("Transmission") or row.get("transmission") or "")

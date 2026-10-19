@@ -89,6 +89,18 @@ def is_local_photo(url: str) -> bool:
     return (url or "").startswith("/api/lot-photos/")
 
 
+def is_our_photo(url: str) -> bool:
+    """Local Windows archive or Cloudflare R2 CDN copy."""
+    if is_local_photo(url):
+        return True
+    try:
+        from app.services.r2_photos import is_cdn_photo
+
+        return is_cdn_photo(url)
+    except Exception:
+        return False
+
+
 def _download_concurrency() -> int:
     settings = get_settings()
     raw = getattr(settings, "scraper_photo_download_concurrency", None)
@@ -132,6 +144,12 @@ def delete_lot_photos(lot_id: str) -> None:
     path = lot_dir(lot_id)
     if path.is_dir():
         shutil.rmtree(path, ignore_errors=True)
+    try:
+        from app.services.r2_photos import delete_lot_prefix
+
+        delete_lot_prefix(lot_id)
+    except Exception as exc:
+        logger.debug("R2 delete skip %s: %s", lot_id, exc)
 
 
 def sweep_orphan_photos(live_ids: set[str]) -> int:
@@ -340,8 +358,8 @@ def merge_gallery_urls(
     saved_locals: list[str],
     *extra_url_lists: list[str],
 ) -> list[str]:
-    """Locals first (fast same-origin), then CDN remotes so the UI keeps full gallery."""
-    locals_: list[str] = []
+    """Our copies first (disk / R2 CDN), then auction CDN remotes for full gallery."""
+    ours: list[str] = []
     remotes: list[str] = []
     seen: set[str] = set()
     for raw in list(saved_locals) + [u for group in extra_url_lists for u in group]:
@@ -350,24 +368,34 @@ def merge_gallery_urls(
             continue
         if u.endswith("-th.jpg"):
             continue
-        if is_local_photo(u):
+        if is_our_photo(u):
             seen.add(u)
-            locals_.append(u)
+            ours.append(u)
         elif u.startswith("http") and not _is_junk_url(u):
             seen.add(u)
             remotes.append(u)
-    return (locals_ + remotes)[:40]
+    return (ours + remotes)[:40]
 
 
 def to_catalog_thumb_url(local_url: str) -> str:
-    """Map `/api/lot-photos/.../01-abc.jpg` → `.../01-abc-th.jpg` when present."""
+    """Map display JPEG → `-th.jpg` variant when present (disk or R2 URL shape)."""
     u = (local_url or "").strip()
-    if not is_local_photo(u) or u.endswith("-th.jpg"):
+    if u.endswith("-th.jpg"):
         return u
-    if "." not in u.rsplit("/", 1)[-1]:
+    try:
+        from app.services.r2_photos import is_cdn_photo
+
+        ours = is_local_photo(u) or is_cdn_photo(u)
+    except Exception:
+        ours = is_local_photo(u)
+    if not ours:
         return u
-    base, _, ext = u.rpartition(".")
-    return f"{base}-th.{ext}"
+    if "." not in u.rsplit("/", 1)[-1].split("?")[0]:
+        return u
+    path, _, query = u.partition("?")
+    base, _, ext = path.rpartition(".")
+    thumb = f"{base}-th.{ext}"
+    return f"{thumb}?{query}" if query else thumb
 
 
 def thumb_file_exists(local_url: str) -> bool:

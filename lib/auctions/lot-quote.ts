@@ -3,13 +3,20 @@ import { DEFAULT_FX, fetchFxRateGbpUsd } from "@/lib/pricing/fx-rate";
 import { quoteCopartUk, type CopartQuote } from "@/lib/pricing/copart-uk";
 import { estimateIaaiWholesale, quoteIaaiUsa, type IaaiQuote } from "@/lib/pricing/iaai-usa";
 import {
+  DEFAULT_KRW_PER_USDT,
+  quoteKorea,
+  type KoreaQuote,
+} from "@/lib/pricing/korea-quote";
+import { fetchKrwUsdtRate } from "@/lib/pricing/krw-usdt-rate";
+import {
   quoteRestoration,
   type RestorationQuote,
 } from "@/lib/pricing/restoration-quote";
 
 export type LotQuoteResult =
   | { region: "uk"; quote: CopartQuote; fxSource: string }
-  | { region: "usa"; quote: IaaiQuote | RestorationQuote; mode: LotPricingMode };
+  | { region: "usa"; quote: IaaiQuote | RestorationQuote; mode: LotPricingMode }
+  | { region: "korea"; quote: KoreaQuote; fxSource: string };
 
 /** Режим просчёта: целые авто (доставка) vs машинокомплект (разбор). */
 export type LotPricingMode = "restoration" | "kit";
@@ -202,13 +209,44 @@ export function estimateLotBreakdown(
   mode: LotPricingMode = defaultPricingMode(lot),
 ): LotTurnkeyBreakdown | null {
   try {
-    if (lot.region === "korea" || lot.region === "china") {
-      // List price already in USD (Encar/China demo ingest)
+    if (lot.region === "china") {
       if (!lot.currentBid) return null;
       return {
         amount: Math.round(lot.currentBid),
         currency: "USD",
-        label: lot.region === "korea" ? "Цена Encar (≈ USD)" : "Цена с рынка (≈ USD)",
+        label: "Цена с рынка (≈ USD)",
+        auctionTotal: Math.round(lot.currentBid),
+        delivery: 0,
+        dismantle: 0,
+        otherFees: 0,
+        deliveryAndFees: 0,
+      };
+    }
+    if (lot.region === "korea") {
+      const krw = Number(lot.estimatedRetail) || 0;
+      if (krw > 0) {
+        const q = quoteKorea({
+          priceKrw: krw,
+          krwPerUsdt: DEFAULT_KRW_PER_USDT,
+        });
+        if (!q) return null;
+        return {
+          amount: q.totalUsd,
+          currency: "USD",
+          label: "Под ключ (Корея)",
+          auctionTotal: q.carUsd,
+          delivery: q.deliveryUsd,
+          dismantle: 0,
+          otherFees: q.encarFeeUsd,
+          deliveryAndFees: q.deliveryUsd + q.encarFeeUsd,
+        };
+      }
+      // Legacy lots without KRW — currentBid already turnkey at scrape
+      if (!lot.currentBid) return null;
+      return {
+        amount: Math.round(lot.currentBid),
+        currency: "USD",
+        label: "Под ключ (Корея)",
         auctionTotal: Math.round(lot.currentBid),
         delivery: 0,
         dismantle: 0,
@@ -259,8 +297,17 @@ export async function buildLotQuote(
     return { region: "uk", quote, fxSource: fx.source };
   }
 
-  if (lot.region === "korea" || lot.region === "china") {
+  if (lot.region === "china") {
     return null;
+  }
+
+  if (lot.region === "korea") {
+    const krw = Number(lot.estimatedRetail) || 0;
+    if (!(krw > 0)) return null;
+    const fx = await fetchKrwUsdtRate();
+    const quote = quoteKorea({ priceKrw: krw, krwPerUsdt: fx.rate });
+    if (!quote) return null;
+    return { region: "korea", quote, fxSource: fx.source };
   }
 
   if (mode === "kit") {

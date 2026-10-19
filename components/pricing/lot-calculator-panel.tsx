@@ -1,12 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AuctionLot } from "@/lib/auctions/types";
 import {
   estimateIaaiAuctionFeesUsd,
   quoteUsaRestoration,
 } from "@/lib/auctions/lot-quote";
 import type { CopartQuote } from "@/lib/pricing/copart-uk";
+import {
+  DEFAULT_KRW_PER_USDT,
+  quoteKorea,
+  type KoreaQuote,
+} from "@/lib/pricing/korea-quote";
+import { fetchKrwUsdtRate } from "@/lib/pricing/krw-usdt-rate";
 import type { RestorationQuote } from "@/lib/pricing/restoration-quote";
 import { listTitleTariffs } from "@/lib/pricing/usa-title";
 import type { VehicleSize } from "@/lib/pricing/usa-delivery";
@@ -298,11 +304,86 @@ function UkKitPanel({ lot }: { lot: AuctionLot }) {
   );
 }
 
-function AsiaListingPanel({ lot }: { lot: AuctionLot }) {
-  const label = lot.region === "korea" ? "Цена Encar (≈ USD)" : "Цена с рынка Китая (≈ USD)";
-  const catalogHref =
-    lot.region === "korea" ? "/avto/korea/#lots" : "/avto/china/#lots";
+function KoreaListingPanel({ lot }: { lot: AuctionLot }) {
+  const priceKrw = Number(lot.estimatedRetail) || 0;
+  const [rate, setRate] = useState(DEFAULT_KRW_PER_USDT);
+  const [fxSource, setFxSource] = useState("default");
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetchKrwUsdtRate().then((fx) => {
+      if (cancelled) return;
+      setRate(fx.rate);
+      setFxSource(fx.source);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const quote: KoreaQuote | null = useMemo(() => {
+    if (!(priceKrw > 0)) return null;
+    return quoteKorea({ priceKrw, krwPerUsdt: rate });
+  }, [priceKrw, rate]);
+
+  return (
+    <div className="card-premium rounded-xl p-5 sm:p-6">
+      <h2 className="font-display text-lg font-semibold">Просчёт Корея</h2>
+      <p className="mt-1 text-xs text-text-muted">
+        Курс USDT с Bithumb (Naver «빗썸테더»): {rate.toLocaleString("ru-RU")} вон ·{" "}
+        {fxSource}
+      </p>
+
+      <div className="mt-4 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 px-4 py-3 ring-1 ring-inset ring-[#22c55e]/30">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">
+          Итого с доставкой и сбором Encar
+        </p>
+        <p className="mt-1 font-display text-2xl font-bold tabular-nums text-[#0D3F10]">
+          {usd(quote?.totalUsd ?? lot.currentBid)}
+        </p>
+      </div>
+
+      {quote ? (
+        <div className="mt-4 space-y-1.5 text-sm text-text-secondary">
+          <Line
+            label="Цена Encar"
+            value={`${quote.priceKrw.toLocaleString("ru-RU")} ₩`}
+          />
+          <Line
+            label={`Авто в $ (${quote.priceKrw.toLocaleString("ru-RU")} ÷ ${quote.krwPerUsdt})`}
+            value={usd(quote.carUsd)}
+          />
+          <Line label="Доставка" value={usd(quote.deliveryUsd)} />
+          <Line label="Сбор Encar" value={usd(quote.encarFeeUsd)} />
+          <Line label="Итого" value={usd(quote.totalUsd)} total />
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-amber-800">
+          Нет цены в вонаx — показан ориентир {usd(lot.currentBid)}.
+        </p>
+      )}
+
+      <ul className="mt-4 space-y-1.5 text-sm text-text-secondary">
+        <li>Локация: {lot.location || "—"}</li>
+        <li>
+          Год / пробег: {lot.year} · {lot.odometer.toLocaleString("ru-RU")}{" "}
+          {lot.odometerUnit}
+        </li>
+      </ul>
+
+      <div className="mt-5 flex flex-col gap-2">
+        <a
+          href="/avto/korea/#lots"
+          className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:border-zinc-500"
+        >
+          К каталогу Кореи
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function ChinaListingPanel({ lot }: { lot: AuctionLot }) {
   return (
     <div className="card-premium rounded-xl p-5 sm:p-6">
       <h2 className="font-display text-lg font-semibold">Цена лота</h2>
@@ -312,22 +393,20 @@ function AsiaListingPanel({ lot }: { lot: AuctionLot }) {
 
       <div className="mt-4 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 px-4 py-3 ring-1 ring-inset ring-[#22c55e]/30">
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">
-          {label}
+          Цена с рынка Китая (≈ USD)
         </p>
         <p className="mt-1 font-display text-2xl font-bold tabular-nums text-[#0D3F10]">
           {usd(lot.currentBid)}
         </p>
-        {lot.buyNowPrice ? (
-          <p className="mt-1 text-xs text-zinc-500">
-            Buy Now · {usd(lot.buyNowPrice)}
-          </p>
-        ) : null}
       </div>
 
       <ul className="mt-4 space-y-1.5 text-sm text-text-secondary">
-        <li>Регион: {lot.region === "korea" ? "Корея" : "Китай"}</li>
+        <li>Регион: Китай</li>
         <li>Локация: {lot.location || "—"}</li>
-        <li>Год / пробег: {lot.year} · {lot.odometer.toLocaleString("ru-RU")} {lot.odometerUnit}</li>
+        <li>
+          Год / пробег: {lot.year} · {lot.odometer.toLocaleString("ru-RU")}{" "}
+          {lot.odometerUnit}
+        </li>
       </ul>
 
       <div className="mt-5 flex flex-col gap-2">
@@ -338,7 +417,7 @@ function AsiaListingPanel({ lot }: { lot: AuctionLot }) {
           Полный просчёт
         </a>
         <a
-          href={catalogHref}
+          href="/avto/china/#lots"
           className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:border-zinc-500"
         >
           К каталогу лотов
@@ -352,8 +431,11 @@ export function LotCalculatorPanel({ lot }: Props) {
   if (lot.region === "usa") {
     return <UsaRestorationPanel lot={lot} />;
   }
-  if (lot.region === "korea" || lot.region === "china") {
-    return <AsiaListingPanel lot={lot} />;
+  if (lot.region === "korea") {
+    return <KoreaListingPanel lot={lot} />;
+  }
+  if (lot.region === "china") {
+    return <ChinaListingPanel lot={lot} />;
   }
   return <UkKitPanel lot={lot} />;
 }

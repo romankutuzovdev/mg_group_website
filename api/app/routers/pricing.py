@@ -41,6 +41,21 @@ class CustomsByRequest(BaseModel):
     include_epts: bool = True
 
 
+@router.get("/fx/krw-usdt")
+def fx_krw_usdt() -> dict[str, Any]:
+    """Курс вон за 1 USDT (Bithumb) — тот же источник, что Naver «빗썸테더»."""
+    from app.services.krw_usdt import get_krw_per_usdt
+
+    info = get_krw_per_usdt()
+    return {
+        "rate": info["rate"],
+        "source": info["source"],
+        "asOf": info.get("asOf"),
+        "pair": "USDT_KRW",
+        "note": "Bithumb USDT/KRW (= Naver 빗썸테더)",
+    }
+
+
 @router.post("/customs-by")
 def customs_by(body: CustomsByRequest) -> dict[str, Any]:
     """Растаможка РБ — те же формулы, что в боте MG.GROUP."""

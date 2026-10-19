@@ -106,6 +106,16 @@ class Settings(BaseSettings):
     sms_by_token: str = ""
     sms_by_alphaname_id: str = ""
 
+    # Cloudflare R2 — CDN for USA/UK lot photos (free tier). Empty = off.
+    # Create bucket + API token + enable public URL (r2.dev or custom domain).
+    r2_enabled: bool = False
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket: str = "mg-lot-photos"
+    # e.g. https://pub-xxxxx.r2.dev  or  https://img.mg-group.by
+    r2_public_base_url: str = ""
+
 
 
 @lru_cache

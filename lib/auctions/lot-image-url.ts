@@ -15,6 +15,23 @@ export function isAuctionCdnUrl(url: string): boolean {
   );
 }
 
+/** Our Cloudflare R2 / custom photo CDN — never proxy through Windows. */
+export function isOurPhotoCdnUrl(url: string): boolean {
+  const u = (url || "").trim();
+  if (!u.startsWith("http")) return false;
+  if (/\.r2\.dev\//i.test(u)) return true;
+  if (/\/lots\/[^/]+\/[^/]+\.(?:jpe?g|webp|png)(?:$|\?)/i.test(u) && !isAuctionCdnUrl(u)) {
+    // Custom domain like img.mg-group.by/lots/...
+    try {
+      const host = new URL(u).hostname.toLowerCase();
+      if (host === "img.mg-group.by" || host.endsWith(".mg-group.by")) return true;
+    } catch {
+      /* ignore */
+    }
+  }
+  return false;
+}
+
 /**
  * Absolute proxy base (Pages Function / Worker).
  * Empty → same-origin `/api/lot-image` (Windows FastAPI or CF Pages Function).
@@ -118,6 +135,8 @@ export function resolveLotImageUrl(
   if (isJunkLotImageUrl(trimmed)) return LOT_IMAGE_FALLBACK;
 
   if (/^https?:\/\//i.test(trimmed)) {
+    // Our R2 CDN — direct, no Windows proxy hop.
+    if (isOurPhotoCdnUrl(trimmed)) return trimmed;
     // Always same-origin proxy for auction CDNs (BY visitors + local next
     // rewrite → Windows cache). Direct CDN is slow/blocked without VPN.
     if (shouldProxyAuctionUrl(trimmed) || Boolean(imageProxyBase())) {
@@ -135,7 +154,7 @@ export function toLotThumbUrl(url: string): string {
   const target = unwrapProxiedUrl(raw);
   // Local archives are already JPEG-compressed on Windows; list API may already
   // point at *-th.jpg. Don't invent a -th path (404 → empty card).
-  if (target.startsWith("/api/lot-photos/")) {
+  if (target.startsWith("/api/lot-photos/") || isOurPhotoCdnUrl(target)) {
     return target;
   }
   if (isCopartCdnUrl(target)) {
@@ -164,8 +183,8 @@ export function toLotHeroUrl(url: string): string {
 }
 
 function photoIdentity(url: string): string {
-  if (url.startsWith("/api/lot-photos/")) {
-    const base = (url.split("/").pop() || "").replace(/\.[^.]+$/, "");
+  if (url.startsWith("/api/lot-photos/") || isOurPhotoCdnUrl(url)) {
+    const base = (url.split("?")[0].split("/").pop() || "").replace(/\.[^.]+$/, "");
     // 01-abc123def456 or 01-abc123def456-th → same shot
     const hash = base.replace(/^\d+-/, "").replace(/-th$/, "");
     return hash ? `local:${hash}` : `local:${base}`;
@@ -186,8 +205,9 @@ function photoIdentity(url: string): string {
 
 function photoScore(url: string): number {
   let score = 0;
-  // Local archive on Windows — works without client VPN, no CDN re-fetch.
-  if (url.startsWith("/api/lot-photos/")) score += 50_000;
+  // Our R2 CDN or Windows archive — no auction VPN / proxy hop.
+  if (isOurPhotoCdnUrl(url)) score += 55_000;
+  else if (url.startsWith("/api/lot-photos/")) score += 50_000;
   else if (url.startsWith("/api/lot-image")) score += 15_000;
   else if (isCopartCdnUrl(url)) score += 30_000;
   else if (/images\.bid\.cars|cdn\.bid\.cars|mercury\.bid\.cars/i.test(url)) score += 28_000;

@@ -64,12 +64,43 @@ def _keep_lot_photo(url: str) -> bool:
     return True
 
 
+def _empty_field(value: object) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, str) and not value.strip():
+        return True
+    if isinstance(value, (list, dict)) and not value:
+        return True
+    if isinstance(value, (int, float)) and value == 0:
+        return True
+    return False
+
+
 def merge_lot(old: AuctionLot | None, new: AuctionLot) -> AuctionLot:
-    """Merge upsert so list scrapes never wipe a richer photo gallery."""
+    """Merge upsert so list scrapes never wipe a richer photo gallery / Bid.cars estimate."""
     if old is None:
         return new
 
     data = new.model_dump()
+    old_data = old.model_dump()
+
+    # Thin search-card seeds must not wipe fields from a full detail crawl
+    # (Estimated cost, VIN, engine, damage, …).
+    for key, old_val in old_data.items():
+        if key in {"imageUrl", "imageUrls", "photosEnrichedAt", "currentBid", "sold"}:
+            continue
+        new_val = data.get(key)
+        if _empty_field(new_val) and not _empty_field(old_val):
+            data[key] = old_val
+
+    # Bid / buy-now: keep previous if new scrape has no price yet
+    if (not new.currentBid or new.currentBid <= 0) and old.currentBid > 0:
+        data["currentBid"] = old.currentBid
+    if _empty_field(new.buyNowPrice) and not _empty_field(old.buyNowPrice):
+        data["buyNowPrice"] = old.buyNowPrice
+
     old_imgs = [
         u
         for u in _dedupe_urls(list(old.imageUrls or []) + ([old.imageUrl] if old.imageUrl else []))
