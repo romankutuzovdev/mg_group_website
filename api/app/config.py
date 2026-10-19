@@ -38,9 +38,12 @@ class Settings(BaseSettings):
     # Permanent Chrome tab with site calculator (kept open 24/7)
     scraper_calc_tab_enabled: bool = True
     scraper_calc_tab_url: str = "http://127.0.0.1/calculator/"
-    # 0 = листать поиск Bid.cars до конца списка, не обрывать на N-й странице.
-    scraper_max_pages_bidcars: int = 0
+    # Search pages per Bid.cars cycle (was 0=whole catalog → multi-hour hang).
+    scraper_max_pages_bidcars: int = 20
     scraper_max_pages_bidcars_sold: int = 0
+    # Max lot detail pages to open per cycle; rest stay as search-card seeds
+    # (photo enricher / next cycles fill galleries).
+    scraper_bidcars_detail_per_cycle: int = 40
     scraper_max_pages_copart: int = 5
     scraper_max_pages_iaai: int = 5
     scraper_max_pages_copart_uk: int = 20

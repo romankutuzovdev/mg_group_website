@@ -198,6 +198,10 @@ class CabinetStore:
             conn.execute(
                 "ALTER TABLE deals ADD COLUMN tracking_url TEXT NOT NULL DEFAULT ''"
             )
+        if "dismantle_photos_url" not in cols:
+            conn.execute(
+                "ALTER TABLE deals ADD COLUMN dismantle_photos_url TEXT NOT NULL DEFAULT ''"
+            )
         if "specs_json" not in cols:
             conn.execute(
                 "ALTER TABLE deals ADD COLUMN specs_json TEXT NOT NULL DEFAULT '{}'"
@@ -775,6 +779,9 @@ class CabinetStore:
         tracking_url = ""
         if "tracking_url" in keys and row["tracking_url"]:
             tracking_url = str(row["tracking_url"]).strip()
+        dismantle_photos_url = ""
+        if "dismantle_photos_url" in keys and row["dismantle_photos_url"]:
+            dismantle_photos_url = str(row["dismantle_photos_url"]).strip()
         specs = self._specs_from_row(row, keys)
 
         return DealOut(
@@ -784,6 +791,7 @@ class CabinetStore:
             lot_number=row["lot_number"] or "",
             lot_url=lot_url,
             tracking_url=tracking_url,
+            dismantle_photos_url=dismantle_photos_url,
             status=row["status"],  # type: ignore[arg-type]
             note=row["note"] or "",
             price=price,
@@ -960,18 +968,22 @@ class CabinetStore:
                 due1 = _due_date(data.payment_stage1_due)
                 due2 = _due_date(data.payment_stage2_due)
                 tracking = (data.tracking_url or "").strip() if kind == "car" else ""
+                dismantle_photos = (
+                    (data.dismantle_photos_url or "").strip() if kind == "kit" else ""
+                )
                 specs_json = self._specs_to_json(data.specs)
 
                 now = _now()
                 cur = conn.execute(
                     """
                     INSERT INTO deals (
-                      user_id, title, vin, lot_number, lot_url, tracking_url, status, note,
+                      user_id, title, vin, lot_number, lot_url, tracking_url,
+                      dismantle_photos_url, status, note,
                       price, currency, kind, origin_region, origin_point, specs_json,
                       created_by_user_id, payment_stage1_due, payment_stage2_due,
                       created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         user_id,
@@ -980,6 +992,7 @@ class CabinetStore:
                         data.lot_number.strip(),
                         (data.lot_url or "").strip(),
                         tracking,
+                        dismantle_photos,
                         data.status,
                         data.note.strip(),
                         float(data.price or 0),
@@ -1044,6 +1057,8 @@ class CabinetStore:
                     fields["lot_url"] = data.lot_url.strip()
                 if data.tracking_url is not None:
                     fields["tracking_url"] = data.tracking_url.strip()
+                if data.dismantle_photos_url is not None:
+                    fields["dismantle_photos_url"] = data.dismantle_photos_url.strip()
                 if data.specs is not None:
                     fields["specs_json"] = self._specs_to_json(data.specs)
                 if data.note is not None:
@@ -1066,6 +1081,8 @@ class CabinetStore:
                             fields["origin_region"] = "usa"
                     if kind != "car":
                         fields["tracking_url"] = ""
+                    if kind != "kit":
+                        fields["dismantle_photos_url"] = ""
                 elif data.origin_point is not None:
                     fields["origin_point"] = data.origin_point
                     fields["kind"] = "car" if data.origin_point == "port" else "kit"

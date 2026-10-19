@@ -106,6 +106,9 @@ if (Test-Path $envFile) {
   Set-EnvValue $envFile "SCRAPER_CALC_TAB_ENABLED" "true"
   Set-EnvValue $envFile "SCRAPER_CALC_TAB_URL" "http://127.0.0.1/calculator/"
   Set-EnvValue $envFile "SCRAPER_SOURCES" "bidcars,copart_uk,salvage_market,manheim,encar,china_market"
+  # Bounded Bid.cars cycles (avoid multi-hour hang with usa=0)
+  Set-EnvValue $envFile "SCRAPER_MAX_PAGES_BIDCARS" "20"
+  Set-EnvValue $envFile "SCRAPER_BIDCARS_DETAIL_PER_CYCLE" "40"
   Set-EnvValue $envFile "SCRAPER_MAX_PAGES_COPART_UK" "20"
   Set-EnvValue $envFile "SCRAPER_MAX_PAGES_SALVAGE_MARKET" "10"
   Set-EnvValue $envFile "CALC_CHROME_TIMEOUT_SEC" "28"

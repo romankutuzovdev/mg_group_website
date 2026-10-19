@@ -70,14 +70,16 @@ function specsSummary(specs?: DealSpecs | null): string {
     .join(" · ");
 }
 
+/** Все фото лота (Bid.cars / Copart UK) → медиа сделки, этап «Аукцион». */
 async function uploadCoverFromLotImages(dealId: number, images: string[]) {
   const candidates = (images || [])
     .map((u) => (u || "").trim())
-    .filter(Boolean)
-    .slice(0, 5);
+    .filter(Boolean);
   if (!candidates.length) return;
 
-  for (const src of candidates) {
+  let uploaded = 0;
+  for (let i = 0; i < candidates.length; i++) {
+    const src = candidates[i];
     try {
       const proxied = /^https?:\/\//i.test(src)
         ? apiUrl(`/api/lot-image?u=${encodeURIComponent(src)}`)
@@ -95,15 +97,16 @@ async function uploadCoverFromLotImages(dealId: number, images: string[]) {
         rawType.startsWith("image/") ||
         rawType === "application/octet-stream";
       if (!okType) continue;
-      const file = new File([blob], "auction-cover.jpg", {
+      const file = new File([blob], `auction-${i + 1}.jpg`, {
         type: rawType.startsWith("image/") ? rawType : "image/jpeg",
       });
       await adminUploadDealMedia(dealId, file, "auction", "С аукциона");
-      return;
+      uploaded += 1;
     } catch {
-      // try next image
+      // skip broken image, continue gallery
     }
   }
+  return uploaded;
 }
 
 type Props = {
@@ -198,6 +201,7 @@ export function AdminDealsPanel({
   const [kind, setKind] = useState<DealKind>("kit");
   const [lotUrl, setLotUrl] = useState("");
   const [trackingUrl, setTrackingUrl] = useState("");
+  const [dismantlePhotosUrl, setDismantlePhotosUrl] = useState("");
   const [lotLoading, setLotLoading] = useState(false);
   const [lotMeta, setLotMeta] = useState<string | null>(null);
   const [lotImages, setLotImages] = useState<string[]>([]);
@@ -370,6 +374,7 @@ export function AdminDealsPanel({
         lot_number: lotNumber.trim(),
         lot_url: lotUrl.trim(),
         tracking_url: kind === "car" ? trackingUrl.trim() : "",
+        dismantle_photos_url: kind === "kit" ? dismantlePhotosUrl.trim() : "",
         note: note.trim(),
         price: price ? Number(price) : 0,
         currency,
@@ -394,6 +399,7 @@ export function AdminDealsPanel({
       );
       setLotUrl("");
       setTrackingUrl("");
+      setDismantlePhotosUrl("");
       setLotMeta(null);
       setLotImages([]);
       setTitle("");
@@ -1226,6 +1232,22 @@ export function AdminDealsPanel({
             </label>
           ) : null}
 
+          {kind === "kit" ? (
+            <label className="block text-xs sm:col-span-2">
+              <span className={labelMuted}>Ссылка на фото разбора (Dropbox)</span>
+              <input
+                className={field}
+                value={dismantlePhotosUrl}
+                onChange={(e) => setDismantlePhotosUrl(e.target.value)}
+                placeholder="https://www.dropbox.com/… — папка с фото разбора"
+                inputMode="url"
+              />
+              <p className="mt-1 text-[11px] text-zinc-400">
+                Клиент откроет эту ссылку на этапе разбора. Можно добавить позже в карточке сделки.
+              </p>
+            </label>
+          ) : null}
+
           <div className="space-y-1.5 sm:col-span-2">
             <label className="block text-xs">
               <span className={labelMuted}>
@@ -1254,16 +1276,21 @@ export function AdminDealsPanel({
               </p>
             )}
             {lotImages.length ? (
-              <div className="flex gap-1.5 overflow-x-auto pt-1">
-                {lotImages.slice(0, 6).map((src) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={src}
-                    src={src}
-                    alt=""
-                    className="h-14 w-20 shrink-0 rounded-lg object-cover ring-1 ring-zinc-200"
-                  />
-                ))}
+              <div className="space-y-1 pt-1">
+                <p className="text-[11px] text-zinc-500">
+                  На сделку загрузятся все {lotImages.length} фото с аукциона
+                </p>
+                <div className="flex gap-1.5 overflow-x-auto">
+                  {lotImages.slice(0, 12).map((src) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={src}
+                      src={src}
+                      alt=""
+                      className="h-14 w-20 shrink-0 rounded-lg object-cover ring-1 ring-zinc-200"
+                    />
+                  ))}
+                </div>
               </div>
             ) : null}
           </div>

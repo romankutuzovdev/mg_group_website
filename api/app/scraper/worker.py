@@ -243,6 +243,17 @@ class SourceAgent:
             if self.name == "bidcars":
                 kwargs["max_pages"] = settings.scraper_max_pages_bidcars
                 kwargs["sold_pages"] = settings.scraper_max_pages_bidcars_sold
+                kwargs["detail_limit"] = int(
+                    getattr(settings, "scraper_bidcars_detail_per_cycle", 40) or 40
+                )
+
+                def _bidcars_progress(**kw: Any) -> None:
+                    # Live tick while first cycle runs (status used to stay at 0).
+                    self.status.last_raw = int(kw.get("page") or 0)
+                    self.status.last_mapped = int(kw.get("upserted") or 0)
+                    self.status.last_new = int(kw.get("new") or 0)
+
+                kwargs["on_progress"] = _bidcars_progress
             elif self.name == "copart":
                 kwargs["max_pages"] = settings.scraper_max_pages_copart
                 kwargs["page_size"] = settings.scraper_page_size
@@ -264,8 +275,8 @@ class SourceAgent:
                 kwargs["max_pages"] = settings.scraper_max_pages_china_market
                 kwargs["page_size"] = min(48, settings.scraper_page_size)
 
-            # Hard cap so one hung Bid.cars / Incapsula tab cannot block the agent for hours.
-            cycle_cap = 45 * 60 if self.name == "bidcars" else 12 * 60
+            # Bid.cars: seed-first cycles finish in minutes; keep a hard cap anyway.
+            cycle_cap = 18 * 60 if self.name == "bidcars" else 12 * 60
             try:
                 raw = await asyncio.wait_for(self.scrape(**kwargs), timeout=cycle_cap)
             except asyncio.TimeoutError:
@@ -273,6 +284,12 @@ class SourceAgent:
                 logger.error("agent %s cycle timed out after %ss", self.name, cycle_cap)
                 stats["error"] = self.status.last_error
                 raw = []
+                # Seeds may already be in memory — persist what we have.
+                if self.name == "bidcars" and settings.scraper_persist:
+                    try:
+                        lot_store.persist()
+                    except Exception:
+                        pass
             if raw and isinstance(raw[0], dict) and raw[0].get("_blocked"):
                 reason = str(raw[0].get("reason") or "blocked")
                 self.status.last_blocked = reason

@@ -8,6 +8,7 @@ import { PageShell } from "@/components/layout/page-shell";
 import { DealRouteSections } from "@/components/cabinet/deal-route-sections";
 import { DealDismantleMap } from "@/components/cabinet/deal-dismantle-map";
 import { DealTrackingLink } from "@/components/cabinet/deal-tracking-link";
+import { DealDismantlePhotosLink } from "@/components/cabinet/deal-dismantle-photos-link";
 import { CoverThumb, DealPhotos, dealCoverPhotoUrl } from "@/components/cabinet/deal-photos";
 import { DealPaymentStatus, paymentProgressLabel } from "@/components/cabinet/deal-payment-status";
 import { DealClosingStages } from "@/components/cabinet/deal-closing-stages";
@@ -933,6 +934,15 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                 />
 
                 <DealTrackingLink
+                  deal={selected}
+                  isManager={Boolean(user.is_admin || user.is_manager)}
+                  onUpdated={(next) => {
+                    setSelected(next);
+                    setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
+                  }}
+                />
+
+                <DealDismantlePhotosLink
                   deal={selected}
                   isManager={Boolean(user.is_admin || user.is_manager)}
                   onUpdated={(next) => {

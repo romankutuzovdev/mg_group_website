@@ -114,6 +114,31 @@ def format_credentials_message(*, phone: str, password: str) -> str:
     )
 
 
+def format_fill_map_message(*, car: str, phone: str, password: str) -> str:
+    """Urge client to fill dismantle map; include car + cabinet login."""
+    login = normalize_sms_phone(phone) if phone else phone
+    car_line = (car or "").strip() or "ваш авто"
+    if len(car_line) > 80:
+        car_line = car_line[:77] + "…"
+    return (
+        f"MG.GROUP: заполните карту разбора в срочном порядке.\n"
+        f"Авто: {car_line}\n"
+        f"{CABINET_URL}\n"
+        f"Логин: {login}\n"
+        f"Пароль: {password}"
+    )
+
+
 async def notify_client_credentials(*, phone: str, password: str) -> SmsSendResult:
     """Send login/password SMS to a new or updated client account."""
     return await send_sms(phone, format_credentials_message(phone=phone, password=password))
+
+
+async def notify_fill_dismantle_map(
+    *, phone: str, password: str, car: str
+) -> SmsSendResult:
+    """SMS: fill dismantle map urgently + credentials."""
+    return await send_sms(
+        phone,
+        format_fill_map_message(car=car, phone=phone, password=password),
+    )

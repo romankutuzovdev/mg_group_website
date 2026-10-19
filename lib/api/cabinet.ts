@@ -81,6 +81,8 @@ export type Deal = {
   lot_url?: string;
   /** Внешний трекер для авто под постановку — клиент видит только ссылку */
   tracking_url?: string;
+  /** Dropbox (или др.) с фото разбора — машинокомплект, этап разбора */
+  dismantle_photos_url?: string;
   status: "active" | "completed" | "cancelled";
   note: string;
   price?: number;
@@ -638,6 +640,7 @@ export async function adminCreateDeal(body: {
   lot_number?: string;
   lot_url?: string;
   tracking_url?: string;
+  dismantle_photos_url?: string;
   note?: string;
   price?: number;
   currency?: "USD" | "GBP";
@@ -664,6 +667,7 @@ export async function adminUpdateDeal(
     lot_number: string;
     lot_url: string;
     tracking_url: string;
+    dismantle_photos_url: string;
     note: string;
     price: number;
     currency: "USD" | "GBP";

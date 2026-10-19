@@ -165,6 +165,20 @@ class ClientAccountCreatedOut(BaseModel):
     sms_error: str = ""
 
 
+class DealFillMapSmsOut(BaseModel):
+    """Result of manager SMS: fill dismantle map + new cabinet password."""
+
+    deal_id: int
+    car: str = ""
+    phone: str = ""
+    login: str = ""
+    password: str = ""
+    sms_sent: bool = False
+    sms_skipped: bool = False
+    sms_error: str = ""
+    message: str = ""
+
+
 class UserRoleUpdate(BaseModel):
     """Owner admin promotes or demotes a logged-in user to manager."""
 
@@ -219,6 +233,8 @@ class DealOut(BaseModel):
     lot_number: str = ""
     lot_url: str = ""
     tracking_url: str = ""
+    # Dropbox (or other) gallery of dismantle / разбор photos — kits.
+    dismantle_photos_url: str = ""
     status: DealStatus
     note: str = ""
     price: float = 0
@@ -253,6 +269,7 @@ class DealCreate(BaseModel):
     lot_number: str = ""
     lot_url: str = ""
     tracking_url: str = ""
+    dismantle_photos_url: str = ""
     note: str = ""
     price: float = 0
     currency: Literal["USD", "GBP"] = "USD"
@@ -273,6 +290,7 @@ class DealUpdate(BaseModel):
     lot_number: str | None = None
     lot_url: str | None = None
     tracking_url: str | None = None
+    dismantle_photos_url: str | None = None
     note: str | None = None
     price: float | None = None
     currency: Literal["USD", "GBP"] | None = None

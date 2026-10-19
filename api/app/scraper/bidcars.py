@@ -35,17 +35,38 @@ SEARCH_URL = (
     "&make=All&model=All&year-from=1900&year-to=2027&auction-type=All"
 )
 
-# Collect lot links from a search results page.
+# Collect lot links + cover image from search cards (works without XHR JSON).
 _COLLECT_LINKS_JS = r"""
 () => {
   const seen = new Set();
   const out = [];
+  const isCarImg = (s) => {
+    if (!s || !/^https?:\/\//i.test(s)) return false;
+    if (!/images\.bid\.cars|pluto\.bid\.car|cdn\.bid\.cars|mercury\.bid/i.test(s)) return false;
+    if (/\/img\/|\/upd\/|\/map\/|opineo|rating|logo|flag|\.svg(?:$|\?)/i.test(s)) return false;
+    return true;
+  };
+  const pickImg = (root) => {
+    if (!root) return '';
+    for (const el of root.querySelectorAll('img')) {
+      const u = (el.currentSrc || el.getAttribute('src') || el.getAttribute('data-src')
+        || el.getAttribute('data-original') || el.getAttribute('data-lazy') || '').trim();
+      if (isCarImg(u)) return u.split(' ')[0];
+    }
+    return '';
+  };
   for (const a of document.querySelectorAll('a[href*="/lot/"]')) {
     const href = (a.href || '').split('?')[0];
     const m = href.match(/\/lot\/((?:\d+-)?\d+)(?:\/|$)/i);
     if (!m || seen.has(m[1])) continue;
     seen.add(m[1]);
-    out.push({ lotNumber: m[1], url: href });
+    const root = a.closest(
+      'article, li, [class*="lot"], [class*="Lot"], [class*="vehicle"], [class*="Vehicle"], [class*="card"], [class*="result"], [class*="Result"]'
+    ) || a.parentElement;
+    let image = pickImg(root) || pickImg(a);
+    const title = ((a.getAttribute('title') || '') + ' ' + (a.innerText || ''))
+      .replace(/\s+/g, ' ').trim().slice(0, 140);
+    out.push({ lotNumber: m[1], url: href, image, title });
   }
   return out;
 }
@@ -560,18 +581,18 @@ async def _scrape_one_lot(
     url: str,
 ) -> dict[str, Any] | None:
     try:
-        await tab.goto(url, wait_until="domcontentloaded", timeout=60_000)
+        await tab.goto(url, wait_until="domcontentloaded", timeout=35_000)
     except Exception as exc:
         logger.warning("bidcars lot %s goto: %s", lot_number, exc)
         return None
-    blocked = await _wait_ready(tab, seconds=35)
+    blocked = await _wait_ready(tab, seconds=12)
     if blocked == "cloudflare":
         return {"_blocked": True, "reason": "cloudflare"}
     if blocked and blocked != "":
         logger.warning("bidcars lot %s: %s", lot_number, blocked)
 
-    await _scroll_page(tab, steps=5)
-    await tab.wait_for_timeout(400)
+    await _scroll_page(tab, steps=3)
+    await tab.wait_for_timeout(250)
 
     # Click gallery thumbs / next to force lazy images
     try:
@@ -608,6 +629,32 @@ async def _scrape_one_lot(
     return detail
 
 
+def _seed_row_from_link(item: dict[str, Any]) -> dict[str, Any] | None:
+    """Build a catalog seed from XHR card and/or DOM link fields."""
+    ln = str(item.get("lotNumber") or "").strip()
+    url = str(item.get("url") or "").strip()
+    if not ln or not url:
+        return None
+    card = item.get("_card") if isinstance(item.get("_card"), dict) else {}
+    seed: dict[str, Any] = dict(card) if card else {}
+    seed.setdefault("lotNumber", ln)
+    seed.setdefault("url", url)
+    if item.get("title") and not seed.get("title"):
+        seed["title"] = str(item.get("title") or "").strip()
+    img = str(seed.get("image") or item.get("image") or "").strip()
+    imgs = seed.get("images") if isinstance(seed.get("images"), list) else []
+    if img and img not in imgs:
+        imgs = [img] + list(imgs)
+    if not imgs and img:
+        imgs = [img]
+    if not imgs:
+        return None
+    seed["image"] = imgs[0]
+    seed["images"] = imgs
+    seed.pop("photosEnrichedAt", None)
+    return seed
+
+
 async def scrape_bidcars(
     *,
     max_pages: int = 0,
@@ -616,9 +663,18 @@ async def scrape_bidcars(
     timeout_ms: int = 60000,
     page: Page | None = None,
     browser: Any = None,
+    detail_limit: int | None = None,
+    on_progress: Any = None,
 ) -> list[dict[str, Any]]:
-    """Walk every search page, open each lot, save full specs + gallery."""
+    """Seed USA catalog from search cards, then enrich a capped set of lot pages.
+
+    Full-catalog detail crawl (every lot) hung shared Chrome for 45+ minutes with
+    usa=0 when XHR cards were missing. Prefer fast DOM/XHR seeds each cycle.
+    """
     del sold_pages, timeout_ms
+    from app.config import get_settings
+
+    settings = get_settings()
     session = TabSession()
     tab = await session.start(page=page, browser=browser, headless=headless)
     try:
@@ -627,19 +683,54 @@ async def scrape_bidcars(
         pass
 
     catcher = _JsonCatcher()
-    tab.on("response", lambda r: asyncio.create_task(catcher.on_response(r)))
+    pending_resp: set[asyncio.Task] = set()
 
-    safety_pages = max_pages if max_pages and max_pages > 0 else 8000
+    def _track_resp(response: Response) -> None:
+        task = asyncio.create_task(catcher.on_response(response))
+        pending_resp.add(task)
+        task.add_done_callback(pending_resp.discard)
+
+    tab.on("response", _track_resp)
+
+    # 0 in env historically meant "whole catalog" — that wedged the agent.
+    safety_pages = max_pages if max_pages and max_pages > 0 else 20
+    max_details = (
+        detail_limit
+        if detail_limit is not None
+        else int(getattr(settings, "scraper_bidcars_detail_per_cycle", 40) or 40)
+    )
+    max_details = max(0, min(200, max_details))
+
     seen: set[str] = set()
     total_upserted = 0
     total_new = 0
     empty_search = 0
     cloudflare_hits = 0
+    details_done = 0
+
+    def _tick(*, page_idx: int = 0) -> None:
+        if not callable(on_progress):
+            return
+        try:
+            on_progress(
+                page=page_idx,
+                upserted=total_upserted,
+                new=total_new,
+                details=details_done,
+                unique=len(seen),
+            )
+        except Exception:
+            pass
 
     try:
-        logger.info("bidcars → full detail crawl %s", SEARCH_URL)
-        await tab.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=90_000)
-        blocked = await _wait_ready(tab, seconds=60)
+        logger.info(
+            "bidcars → seed+detail crawl pages≤%s details≤%s %s",
+            safety_pages,
+            max_details,
+            SEARCH_URL,
+        )
+        await tab.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=45_000)
+        blocked = await _wait_ready(tab, seconds=25)
         if blocked == "cloudflare":
             logger.error("bidcars Cloudflare — solve captcha in Chrome, then wait")
             return [{"_blocked": True, "reason": "cloudflare"}]
@@ -648,11 +739,10 @@ async def scrape_bidcars(
 
         for page_idx in range(1, safety_pages + 1):
             await _scroll_page(tab, steps=3)
-            await tab.wait_for_timeout(400)
+            await tab.wait_for_timeout(300)
 
-            # Prefer XHR lot lists when present
             xhr_rows = catcher.take()
-            links: list[dict[str, str]] = []
+            links: list[dict[str, Any]] = []
             seen_page: set[str] = set()
             for row in xhr_rows:
                 ln = str(row.get("lotNumber") or "")
@@ -661,15 +751,33 @@ async def scrape_bidcars(
                     seen_page.add(ln)
                     links.append({"lotNumber": ln, "url": url, "_card": row})
             try:
-                dom_links = await tab.evaluate(_COLLECT_LINKS_JS) or []
+                dom_links = await asyncio.wait_for(tab.evaluate(_COLLECT_LINKS_JS), timeout=15)
             except Exception:
                 dom_links = []
-            for item in dom_links:
+            for item in dom_links or []:
                 ln = str(item.get("lotNumber") or "")
                 url = str(item.get("url") or "")
-                if ln and url and ln not in seen_page:
-                    seen_page.add(ln)
-                    links.append({"lotNumber": ln, "url": url})
+                if not ln or not url or ln in seen_page:
+                    continue
+                seen_page.add(ln)
+                # Merge DOM cover into existing XHR row when possible
+                existing = next((x for x in links if x["lotNumber"] == ln), None)
+                if existing is not None:
+                    if item.get("image") and not (
+                        isinstance(existing.get("_card"), dict)
+                        and (existing["_card"].get("image") or existing["_card"].get("images"))
+                    ):
+                        existing["image"] = item.get("image")
+                        existing["title"] = item.get("title") or existing.get("title")
+                else:
+                    links.append(
+                        {
+                            "lotNumber": ln,
+                            "url": url,
+                            "image": item.get("image") or "",
+                            "title": item.get("title") or "",
+                        }
+                    )
 
             if not links:
                 empty_search += 1
@@ -677,28 +785,18 @@ async def scrape_bidcars(
             else:
                 empty_search = 0
                 logger.info(
-                    "bidcars search page %s: %s lots → seed cards then open each",
+                    "bidcars search page %s: %s lots → seed then detail≤%s",
                     page_idx,
                     len(links),
+                    max_details - details_done,
                 )
 
-            # Fast seed: put search cards into the catalog before opening lots,
-            # so USA stops showing 0 while the full detail crawl runs.
+            # Fast seed from XHR + DOM covers so USA leaves 0 immediately.
             seeded_now = 0
             for item in links:
-                ln = item["lotNumber"]
-                if ln in seen:
+                seed = _seed_row_from_link(item)
+                if not seed:
                     continue
-                card = item.get("_card") if isinstance(item.get("_card"), dict) else {}
-                if not card:
-                    continue
-                if not (card.get("image") or card.get("images")):
-                    continue
-                seed = dict(card)
-                seed.setdefault("lotNumber", ln)
-                seed.setdefault("url", item.get("url") or "")
-                # Temporary stamp — detail pass refreshes gallery + specs.
-                seed.pop("photosEnrichedAt", None)
                 up, new = _upsert_detail(seed, set())
                 if up:
                     seeded_now += 1
@@ -710,19 +808,33 @@ async def scrape_bidcars(
                     lot_store.persist()
                 except Exception as exc:
                     logger.warning("bidcars seed persist: %s", exc)
+                _tick(page_idx=page_idx)
 
+            # Detail pass — capped so one cycle cannot hang for hours.
             for item in links:
-                ln = item["lotNumber"]
-                if ln in seen:
+                if details_done >= max_details:
+                    break
+                ln = str(item.get("lotNumber") or "")
+                if not ln or ln in seen:
                     continue
-                url = item["url"]
+                url = str(item.get("url") or "")
                 card = item.get("_card") if isinstance(item.get("_card"), dict) else {}
+                seed_fallback = _seed_row_from_link(item)
 
-                detail = await _scrape_one_lot(tab, catcher, lot_number=ln, url=url)
+                try:
+                    detail = await asyncio.wait_for(
+                        _scrape_one_lot(tab, catcher, lot_number=ln, url=url),
+                        timeout=55.0,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("bidcars lot %s detail timeout — keep seed", ln)
+                    detail = None
+                details_done += 1
+
                 if detail and detail.get("_blocked"):
                     cloudflare_hits += 1
                     if cloudflare_hits >= 2:
-                        logger.error("bidcars Cloudflare again — pause cycle")
+                        logger.error("bidcars blocked again — end cycle with seeds")
                         try:
                             lot_store.persist()
                         except Exception:
@@ -731,13 +843,13 @@ async def scrape_bidcars(
                     continue
                 cloudflare_hits = 0
                 if not detail:
-                    # Fall back to search-card data so the lot still appears
-                    if card and (card.get("image") or card.get("images")):
-                        detail = dict(card)
-                    else:
+                    detail = seed_fallback
+                    if not detail:
                         continue
                 elif card:
                     detail = _merge_detail(detail, card)
+                elif seed_fallback:
+                    detail = _merge_detail(detail, seed_fallback)
 
                 upserted, new_count = _upsert_detail(detail, seen)
                 total_upserted += upserted
@@ -752,24 +864,32 @@ async def scrape_bidcars(
                         detail.get("estimatedMax") or "?",
                         detail.get("price") or "?",
                     )
-                await tab.wait_for_timeout(350)
+                _tick(page_idx=page_idx)
+                await tab.wait_for_timeout(200)
 
-            if page_idx % 2 == 0:
-                try:
-                    lot_store.persist()
-                except Exception as exc:
-                    logger.warning("bidcars persist: %s", exc)
+            try:
+                lot_store.persist()
+            except Exception as exc:
+                logger.warning("bidcars persist: %s", exc)
+
+            if details_done >= max_details:
+                logger.info(
+                    "bidcars detail cap %s reached — end cycle (seeds already in store)",
+                    max_details,
+                )
+                break
 
             if empty_search >= 3:
                 logger.info("bidcars done: three empty search pages")
                 break
 
-            # Return to search listing for next page
             search_here = _with_page(SEARCH_URL, page_idx)
             try:
                 if "search/results" not in (tab.url or ""):
-                    await tab.goto(search_here, wait_until="domcontentloaded", timeout=60_000)
-                    await _wait_ready(tab, seconds=25)
+                    await tab.goto(
+                        search_here, wait_until="domcontentloaded", timeout=35_000
+                    )
+                    await _wait_ready(tab, seconds=12)
             except Exception:
                 pass
 
@@ -779,15 +899,19 @@ async def scrape_bidcars(
             except Exception:
                 clicked = False
             if clicked:
-                await tab.wait_for_timeout(1400)
-                blocked = await _wait_ready(tab, seconds=25)
+                await tab.wait_for_timeout(1000)
+                blocked = await _wait_ready(tab, seconds=12)
                 if blocked == "cloudflare":
                     return [{"_blocked": True, "reason": "cloudflare"}]
                 continue
 
             nxt = _with_page(SEARCH_URL, page_idx + 1)
-            await tab.goto(nxt, wait_until="domcontentloaded", timeout=60_000)
-            blocked = await _wait_ready(tab, seconds=25)
+            try:
+                await tab.goto(nxt, wait_until="domcontentloaded", timeout=35_000)
+            except Exception as exc:
+                logger.warning("bidcars next page goto: %s", exc)
+                break
+            blocked = await _wait_ready(tab, seconds=12)
             if blocked:
                 logger.info("bidcars stop at search page %s: %s", page_idx + 1, blocked)
                 break
@@ -797,10 +921,11 @@ async def scrape_bidcars(
         except Exception:
             pass
         logger.info(
-            "bidcars complete: unique=%s upserted=%s new=%s",
+            "bidcars complete: unique=%s upserted=%s new=%s details=%s",
             len(seen),
             total_upserted,
             total_new,
+            details_done,
         )
         return [
             {
@@ -808,8 +933,12 @@ async def scrape_bidcars(
                 "upserted": total_upserted,
                 "new": total_new,
                 "unique": len(seen),
+                "details": details_done,
             }
         ]
     except Exception as exc:
         logger.exception("bidcars scrape failed: %s", exc)
         return [{"_blocked": True, "reason": re.sub(r"\s+", " ", str(exc))[:180]}]
+    finally:
+        for task in list(pending_resp):
+            task.cancel()
