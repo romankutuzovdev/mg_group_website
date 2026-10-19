@@ -786,7 +786,9 @@ export function AdminDealsPanel({
               ? `SMS ошибка: ${res.sms_error}`
               : "SMS не ушло."
           : "SMS не запрашивали.";
-      setOk(`Пароль обновлён для ${res.login || selectedClient.label}. ${smsBit}`);
+      setOk(
+        `Пароль обновлён для ${res.login || selectedClient?.label || "клиента"}. ${smsBit}`,
+      );
       setPwdValue(generateClientPassword());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось сменить пароль");
