@@ -261,12 +261,13 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
   const readOnly = lockedForClient ? true : false;
   const contact = useMemo(() => managerContact(deal), [deal]);
   const isUsa = (map?.variant || deal.origin_region) === "usa";
-  const qtyChoices = map?.qty_choices?.length ? map.qty_choices : ["да", "нет", "все"];
   const colQty = map?.columns?.qty || (isUsa ? "Снять" : "Кол");
   const colPack = map?.columns?.packing;
   const colNote = map?.columns?.note || "Примечание";
   const showPacking = !isUsa && colPack != null && colPack !== "";
   const showNameEn = Boolean(map?.columns?.name_en || isUsa);
+  const qtyMin = isUsa ? 1 : 0;
+  const qtyMax = isUsa ? 15 : 20;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -443,7 +444,7 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
                 : completed
                   ? "Карта отмечена как заполненная. Менеджер получил уведомление в Telegram."
                   : isUsa
-                    ? "Карта США: для каждой позиции укажите «да», «нет» или «все». Отметить можно один раз."
+                    ? "Карта США: для каждой позиции укажите количество 1–15 (как будильник на iPhone). Отметить можно один раз."
                     : "Карта Англии: количество и доп. упаковка (да / —). Отметить можно один раз."}
           </p>
         </div>
@@ -555,7 +556,8 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
                 colQty={colQty}
                 colPack={colPack || "Доп упак"}
                 colNote={colNote}
-                qtyChoices={qtyChoices}
+                qtyMin={qtyMin}
+                qtyMax={qtyMax}
               />
             ))}
           </div>
@@ -593,7 +595,8 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
                     isUsa={isUsa}
                     showPacking={showPacking}
                     showNameEn={showNameEn}
-                    qtyChoices={qtyChoices}
+                    qtyMin={qtyMin}
+                    qtyMax={qtyMax}
                     colSpan={3 + (showPacking ? 1 : 0) + 1}
                   />
                 ))}
@@ -617,7 +620,8 @@ function MobileSection({
   colQty,
   colPack,
   colNote,
-  qtyChoices,
+  qtyMin,
+  qtyMax,
 }: {
   section: string;
   cells: DismantleCell[];
@@ -629,7 +633,8 @@ function MobileSection({
   colQty: string;
   colPack: string;
   colNote: string;
-  qtyChoices: string[];
+  qtyMin: number;
+  qtyMax: number;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border">
@@ -669,25 +674,16 @@ function MobileSection({
                 <label className="block">
                   <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-text-muted">
                     {colQty}
-                    {isUsa ? " (да / нет / все)" : ""}
+                    {isUsa ? " (1–15)" : ""}
                   </span>
-                  {isUsa ? (
-                    <SaveSelect
-                      value={cell.qty}
-                      choices={qtyChoices}
-                      onCommit={(v) => onSave(cell.key, "qty", v)}
-                      readOnly={readOnly}
-                    />
-                  ) : (
-                    <IosWheelPicker
-                      value={cell.qty}
-                      onCommit={(v) => onSave(cell.key, "qty", v)}
-                      min={0}
-                      max={20}
-                      readOnly={readOnly}
-                      ariaLabel={colQty}
-                    />
-                  )}
+                  <IosWheelPicker
+                    value={cell.qty}
+                    onCommit={(v) => onSave(cell.key, "qty", v)}
+                    min={qtyMin}
+                    max={qtyMax}
+                    readOnly={readOnly}
+                    ariaLabel={colQty}
+                  />
                 </label>
                 {showPacking ? (
                   <label className="block">
@@ -733,7 +729,8 @@ function DesktopSectionRows({
   isUsa,
   showPacking,
   showNameEn,
-  qtyChoices,
+  qtyMin,
+  qtyMax,
   colSpan,
 }: {
   section: string;
@@ -743,7 +740,8 @@ function DesktopSectionRows({
   isUsa: boolean;
   showPacking: boolean;
   showNameEn: boolean;
-  qtyChoices: string[];
+  qtyMin: number;
+  qtyMax: number;
   colSpan: number;
 }) {
   return (
@@ -770,21 +768,14 @@ function DesktopSectionRows({
           <td className="border-b border-border px-1.5 py-1">
             {cell.is_note_only ? (
               <span className="text-xs text-text-muted">—</span>
-            ) : isUsa ? (
-              <SaveSelect
-                value={cell.qty}
-                choices={qtyChoices}
-                onCommit={(v) => onSave(cell.key, "qty", v)}
-                readOnly={readOnly}
-              />
             ) : (
               <IosWheelPicker
                 value={cell.qty}
                 onCommit={(v) => onSave(cell.key, "qty", v)}
-                min={0}
-                max={20}
+                min={qtyMin}
+                max={qtyMax}
                 readOnly={readOnly}
-                ariaLabel="Кол"
+                ariaLabel={isUsa ? "Снять" : "Кол"}
               />
             )}
           </td>

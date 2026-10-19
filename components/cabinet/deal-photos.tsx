@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { Deal, DealMedia } from "@/lib/api/cabinet";
 import {
   adminUploadDealMedia,
@@ -146,4 +146,31 @@ export function DealPhotos({ deal, isAdmin = false, onUpdated }: Props) {
 export function dealCoverPhotoUrl(deal: Deal): string | null {
   const photo = (deal.media || []).find((m) => m.kind === "photo");
   return photo ? mediaAbsoluteUrl(photo.url) : null;
+}
+
+/** Thumbnail that hides itself on 404 / broken media. */
+export function CoverThumb({
+  src,
+  alt = "",
+  className = "h-full w-full object-cover",
+  fallback,
+}: {
+  src: string | null | undefined;
+  alt?: string;
+  className?: string;
+  fallback?: ReactNode;
+}) {
+  const [broken, setBroken] = useState(false);
+  if (!src || broken) {
+    return <>{fallback ?? null}</>;
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={() => setBroken(true)}
+    />
+  );
 }

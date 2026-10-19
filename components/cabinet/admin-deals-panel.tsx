@@ -5,6 +5,7 @@ import type {
   CabinetUser,
   Deal,
   DealKind,
+  DealSpecs,
   OriginRegion,
 } from "@/lib/api/cabinet";
 import {
@@ -31,7 +32,7 @@ import {
   LotLoadStatus,
   lotLoadErrorMessage,
 } from "@/components/pricing/lot-url-load";
-import { dealCoverPhotoUrl } from "@/components/cabinet/deal-photos";
+import { CoverThumb, dealCoverPhotoUrl } from "@/components/cabinet/deal-photos";
 import { paymentProgressLabel } from "@/components/cabinet/deal-payment-status";
 import { DealClosingStages } from "@/components/cabinet/deal-closing-stages";
 
@@ -47,25 +48,61 @@ function dealTitleFromLot(lot: {
   return t || parts.join(" ");
 }
 
+const SPEC_FIELDS: { key: keyof DealSpecs; label: string; placeholder: string }[] = [
+  { key: "location", label: "Площадка", placeholder: "GA — Atlanta" },
+  { key: "odometer", label: "Пробег", placeholder: "84200" },
+  { key: "category", label: "Категория", placeholder: "B / Clean" },
+  { key: "body_style", label: "Кузов", placeholder: "Sedan" },
+  { key: "engine", label: "Двигатель", placeholder: "2.5L I4" },
+  { key: "cylinders", label: "Цилиндры", placeholder: "4" },
+  { key: "fuel", label: "Топливо", placeholder: "Gasoline" },
+  { key: "transmission", label: "КПП", placeholder: "Automatic" },
+  { key: "drive", label: "Привод", placeholder: "FWD" },
+  { key: "exterior_color", label: "Цвет", placeholder: "White" },
+  { key: "primary_damage", label: "Повреждение", placeholder: "Front" },
+];
+
+function specsSummary(specs?: DealSpecs | null): string {
+  if (!specs) return "";
+  return [specs.engine, specs.primary_damage, specs.odometer, specs.location]
+    .map((v) => (v || "").trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
 async function uploadCoverFromLotImages(dealId: number, images: string[]) {
-  const src = (images || []).map((u) => (u || "").trim()).find(Boolean);
-  if (!src) return;
-  try {
-    const proxied = /^https?:\/\//i.test(src)
-      ? apiUrl(`/api/lot-image?u=${encodeURIComponent(src)}`)
-      : src.startsWith("/")
-        ? apiUrl(src)
-        : src;
-    const res = await fetch(proxied);
-    if (!res.ok) return;
-    const blob = await res.blob();
-    if (!blob.size || !(blob.type || "").startsWith("image/")) return;
-    const file = new File([blob], "auction-cover.jpg", {
-      type: blob.type || "image/jpeg",
-    });
-    await adminUploadDealMedia(dealId, file, "auction", "С аукциона");
-  } catch {
-    // Cover is optional — deal fields already saved.
+  const candidates = (images || [])
+    .map((u) => (u || "").trim())
+    .filter(Boolean)
+    .slice(0, 5);
+  if (!candidates.length) return;
+
+  for (const src of candidates) {
+    try {
+      const proxied = /^https?:\/\//i.test(src)
+        ? apiUrl(`/api/lot-image?u=${encodeURIComponent(src)}`)
+        : src.startsWith("/")
+          ? apiUrl(src)
+          : src;
+      const res = await fetch(proxied, { cache: "no-store" });
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      if (!blob.size) continue;
+      const rawType = (blob.type || "").toLowerCase();
+      // CDN иногда отдаёт octet-stream / пустой Content-Type
+      const okType =
+        !rawType ||
+        rawType.startsWith("image/") ||
+        rawType === "application/octet-stream";
+      if (!okType) continue;
+      const file = new File([blob], "auction-cover.jpg", {
+        type: rawType.startsWith("image/") ? rawType : "image/jpeg",
+      });
+      await adminUploadDealMedia(dealId, file, "auction", "С аукциона");
+      return;
+    } catch {
+      // try next image
+    }
   }
 }
 
@@ -132,6 +169,7 @@ export function AdminDealsPanel({
   const [deals, setDeals] = useState<Deal[]>([]);
   const [users, setUsers] = useState<CabinetUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadedOnce, setLoadedOnce] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -167,11 +205,16 @@ export function AdminDealsPanel({
   const [vin, setVin] = useState("");
   const [lotNumber, setLotNumber] = useState("");
   const [note, setNote] = useState("");
+  const [specs, setSpecs] = useState<DealSpecs>({});
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState<"USD" | "GBP">("USD");
   const [originRegion, setOriginRegion] = useState<OriginRegion>("usa");
   const [due1, setDue1] = useState("");
   const [due2, setDue2] = useState("");
+
+  const setSpec = (key: keyof DealSpecs, value: string) => {
+    setSpecs((prev) => ({ ...prev, [key]: value }));
+  };
 
   const [clientPhone, setClientPhone] = useState("");
   const [clientFirstName, setClientFirstName] = useState("");
@@ -205,6 +248,7 @@ export function AdminDealsPanel({
         if (prev) return prev;
         return nextUsers[0] ? String(nextUsers[0].telegram_id) : "";
       });
+      setLoadedOnce(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось загрузить сделки");
     } finally {
@@ -257,29 +301,25 @@ export function AdminDealsPanel({
         setOriginRegion("usa");
         setCurrency("USD");
       }
-      const bits = [
-        lot.location ? `Площадка: ${lot.location}` : "",
-        lot.odometer != null ? `Пробег: ${lot.odometer}` : "",
-        lot.category ? `Cat ${lot.category}` : "",
-        lot.bodyStyle ? `Кузов: ${lot.bodyStyle}` : "",
-        lot.engine ? `Двигатель: ${lot.engine}` : "",
-        lot.cylinders != null && String(lot.cylinders).trim()
-          ? `Цил.: ${lot.cylinders}`
-          : "",
-        lot.fuel ? `Топливо: ${lot.fuel}` : "",
-        lot.transmission ? `КПП: ${lot.transmission}` : "",
-        lot.drive ? `Привод: ${lot.drive}` : "",
-        lot.exteriorColor ? `Цвет: ${lot.exteriorColor}` : "",
-        lot.primaryDamage ? `Повреждение: ${lot.primaryDamage}` : "",
-      ].filter(Boolean);
-      if (bits.length) {
-        setNote((prev) => {
-          const extra = bits.join(" · ");
-          if (!prev.trim()) return extra;
-          if (prev.includes(extra)) return prev;
-          return `${prev.trim()}\n${extra}`;
-        });
-      }
+      setSpecs({
+        location: lot.location ? String(lot.location) : "",
+        odometer:
+          lot.odometer != null && String(lot.odometer).trim()
+            ? String(lot.odometer)
+            : "",
+        category: lot.category ? String(lot.category) : "",
+        body_style: lot.bodyStyle ? String(lot.bodyStyle) : "",
+        engine: lot.engine ? String(lot.engine) : "",
+        cylinders:
+          lot.cylinders != null && String(lot.cylinders).trim()
+            ? String(lot.cylinders)
+            : "",
+        fuel: lot.fuel ? String(lot.fuel) : "",
+        transmission: lot.transmission ? String(lot.transmission) : "",
+        drive: lot.drive ? String(lot.drive) : "",
+        exterior_color: lot.exteriorColor ? String(lot.exteriorColor) : "",
+        primary_damage: lot.primaryDamage ? String(lot.primaryDamage) : "",
+      });
       setLotImages(Array.isArray(lot.images) ? lot.images.filter(Boolean) : []);
       setLotMeta(
         [
@@ -341,6 +381,7 @@ export function AdminDealsPanel({
               : "usa"
             : originRegion,
         status: "active",
+        specs,
         manager_user_id: autoManagerId > 0 ? autoManagerId : undefined,
         payment_stage1_due: due1,
         payment_stage2_due: due2,
@@ -359,6 +400,7 @@ export function AdminDealsPanel({
       setVin("");
       setLotNumber("");
       setNote("");
+      setSpecs({});
       setPrice("");
       setDue1("");
       setDue2("");
@@ -801,13 +843,28 @@ export function AdminDealsPanel({
     "mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-sm outline-none ring-emerald-500/30 transition focus:bg-white focus:ring-2";
   const labelMuted = "font-medium text-zinc-500";
 
-  if (loading && deals.length === 0 && users.length === 0) {
+  if (loading && !loadedOnce) {
     return (
       <div className="flex min-h-[280px] items-center justify-center rounded-2xl border border-zinc-200/80 bg-white">
         <div className="flex items-center gap-3 text-sm text-zinc-500">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
           Загрузка CRM…
         </div>
+      </div>
+    );
+  }
+
+  if (!loadedOnce && error) {
+    return (
+      <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-2xl border border-rose-200 bg-rose-50/60 px-4 text-center">
+        <p className="max-w-md text-sm text-rose-800">{error}</p>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500"
+        >
+          Повторить
+        </button>
       </div>
     );
   }
@@ -890,8 +947,15 @@ export function AdminDealsPanel({
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-800">
-          {error}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-800">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="shrink-0 font-semibold underline underline-offset-2"
+          >
+            Повторить
+          </button>
         </div>
       ) : null}
       {ok ? (
@@ -1185,9 +1249,23 @@ export function AdminDealsPanel({
               <p className="text-[11px] text-emerald-800">Подтянуто с сервера: {lotMeta}</p>
             ) : (
               <p className="text-[11px] text-zinc-400">
-                Сервер откроет лот в Chrome и заполнит название, VIN, лот#, цену и фото.
+                Сервер откроет Bid.cars / аукцион и заполнит название, VIN, лот#, цену,
+                характеристики по ячейкам и фото.
               </p>
             )}
+            {lotImages.length ? (
+              <div className="flex gap-1.5 overflow-x-auto pt-1">
+                {lotImages.slice(0, 6).map((src) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={src}
+                    src={src}
+                    alt=""
+                    className="h-14 w-20 shrink-0 rounded-lg object-cover ring-1 ring-zinc-200"
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <label className="block text-xs sm:col-span-2">
@@ -1311,6 +1389,22 @@ export function AdminDealsPanel({
             />
           </label>
         </div>
+        <div className="space-y-2">
+          <p className={labelMuted}>Характеристики с аукциона</p>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {SPEC_FIELDS.map(({ key, label, placeholder }) => (
+              <label key={key} className="block text-xs">
+                <span className="text-[11px] font-medium text-zinc-500">{label}</span>
+                <input
+                  className={field}
+                  value={specs[key] || ""}
+                  onChange={(e) => setSpec(key, e.target.value)}
+                  placeholder={placeholder}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
         <label className="block text-xs">
           <span className={labelMuted}>Заметка</span>
           <textarea
@@ -1318,7 +1412,7 @@ export function AdminDealsPanel({
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Комментарий для клиента…"
+            placeholder="Комментарий для клиента (не характеристики)…"
           />
         </label>
         <button
@@ -1630,18 +1724,15 @@ export function AdminDealsPanel({
                             className="flex w-full gap-3 p-3 text-left transition hover:bg-emerald-50/40 sm:p-3.5"
                           >
                             <div className="h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-200/80 sm:h-[4.5rem] sm:w-28">
-                              {cover ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={cover}
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-[10px] text-zinc-400">
-                                  Нет фото
-                                </div>
-                              )}
+                              <CoverThumb
+                                src={cover}
+                                className="h-full w-full object-cover"
+                                fallback={
+                                  <div className="flex h-full w-full items-center justify-center text-[10px] text-zinc-400">
+                                    Нет фото
+                                  </div>
+                                }
+                              />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1668,6 +1759,7 @@ export function AdminDealsPanel({
                                   paymentProgressLabel(deal),
                                   deal.lot_number && `#${deal.lot_number}`,
                                   photoCount ? `${photoCount} фото` : null,
+                                  specsSummary(deal.specs),
                                 ]
                                   .filter(Boolean)
                                   .join(" · ")}

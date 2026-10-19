@@ -124,7 +124,7 @@ def _build_uk_xlsx(data: DismantleMapOut) -> bytes:
 
 
 def _build_usa_xlsx(data: DismantleMapOut) -> bytes:
-    """USA form: Part name RUS/ENG, Save (да/нет/все), Notes."""
+    """USA form: Part name RUS/ENG, Qty (1–15), Notes."""
     wb = Workbook()
     ws = wb.active
     ws.title = "Карта разбора (США)"

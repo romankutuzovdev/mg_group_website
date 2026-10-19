@@ -63,6 +63,11 @@ class LogisticsStore:
         conn = sqlite3.connect(str(self._path()), timeout=30)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA busy_timeout = 30000")
+        try:
+            conn.execute("PRAGMA journal_mode = WAL")
+        except sqlite3.Error:
+            pass
         return conn
 
     def init(self) -> None:
@@ -150,6 +155,39 @@ class LogisticsStore:
         status: DealStatus = "active"
         if row["status"] in ("active", "completed", "cancelled"):
             status = row["status"]  # type: ignore[assignment]
+        cover_url = ""
+        media_rows = conn.execute(
+            """
+            SELECT id, path FROM deal_media
+            WHERE deal_id = ? AND kind = 'photo'
+            ORDER BY id ASC
+            """,
+            (int(row["id"]),),
+        ).fetchall()
+        if media_rows:
+            from app.config import get_settings
+
+            uploads = Path(get_settings().cabinet_uploads_dir)
+            prefix = get_settings().api_prefix.rstrip("/")
+            for media in media_rows:
+                rel = str(media["path"] or "").strip()
+                if rel and (uploads / rel).is_file():
+                    cover_url = f"{prefix}/media/{int(media['id'])}"
+                    break
+
+        engine = ""
+        damage = ""
+        if "specs_json" in keys and row["specs_json"]:
+            try:
+                import json
+
+                raw = json.loads(str(row["specs_json"] or "{}"))
+                if isinstance(raw, dict):
+                    engine = str(raw.get("engine") or "")
+                    damage = str(raw.get("primary_damage") or "")
+            except Exception:
+                pass
+
         return LogisticsDealCard(
             deal_id=int(row["id"]),
             title=row["title"] or f"Сделка #{row['id']}",
@@ -161,6 +199,9 @@ class LogisticsStore:
             client_name=client_name,
             client_phone=client_phone,
             container_id=container_id,
+            cover_url=cover_url,
+            engine=engine,
+            primary_damage=damage,
         )
 
     def _container_from_row(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 import threading
@@ -19,6 +20,7 @@ from app.models.cabinet import (
     DealKind,
     DealMediaOut,
     DealOut,
+    DealSpecs,
     DealStageOut,
     DealStatus,
     DealUpdate,
@@ -196,6 +198,10 @@ class CabinetStore:
             conn.execute(
                 "ALTER TABLE deals ADD COLUMN tracking_url TEXT NOT NULL DEFAULT ''"
             )
+        if "specs_json" not in cols:
+            conn.execute(
+                "ALTER TABLE deals ADD COLUMN specs_json TEXT NOT NULL DEFAULT '{}'"
+            )
         user_cols = {r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
         if "is_manager" not in user_cols:
             conn.execute(
@@ -294,9 +300,14 @@ class CabinetStore:
     def _conn(self) -> sqlite3.Connection:
         if not self._ready:
             self.init()
-        conn = sqlite3.connect(self._path())
+        conn = sqlite3.connect(str(self._path()), timeout=30)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA busy_timeout = 30000")
+        try:
+            conn.execute("PRAGMA journal_mode = WAL")
+        except sqlite3.Error:
+            pass
         return conn
 
     def _user_from_row(self, row: sqlite3.Row) -> UserOut:
@@ -560,6 +571,36 @@ class CabinetStore:
         prefix = get_settings().api_prefix.rstrip("/")
         return f"{prefix}/media/{media_id}"
 
+    @staticmethod
+    def _specs_from_row(row: sqlite3.Row, keys: Any) -> DealSpecs:
+        if "specs_json" not in keys or not row["specs_json"]:
+            return DealSpecs()
+        try:
+            raw = json.loads(str(row["specs_json"] or "{}"))
+            if not isinstance(raw, dict):
+                return DealSpecs()
+            return DealSpecs(
+                location=str(raw.get("location") or ""),
+                odometer=str(raw.get("odometer") or ""),
+                category=str(raw.get("category") or ""),
+                body_style=str(raw.get("body_style") or ""),
+                engine=str(raw.get("engine") or ""),
+                cylinders=str(raw.get("cylinders") or ""),
+                fuel=str(raw.get("fuel") or ""),
+                transmission=str(raw.get("transmission") or ""),
+                drive=str(raw.get("drive") or ""),
+                exterior_color=str(raw.get("exterior_color") or ""),
+                primary_damage=str(raw.get("primary_damage") or ""),
+            )
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return DealSpecs()
+
+    @staticmethod
+    def _specs_to_json(specs: DealSpecs | None) -> str:
+        if specs is None:
+            return "{}"
+        return json.dumps(specs.model_dump(), ensure_ascii=False)
+
     def _normalize_kit_stages(self, conn: sqlite3.Connection, deal_id: int) -> None:
         """Kits only move auction → dismantle → road to Belarus."""
         rows = conn.execute(
@@ -734,6 +775,7 @@ class CabinetStore:
         tracking_url = ""
         if "tracking_url" in keys and row["tracking_url"]:
             tracking_url = str(row["tracking_url"]).strip()
+        specs = self._specs_from_row(row, keys)
 
         return DealOut(
             id=deal_id,
@@ -749,6 +791,7 @@ class CabinetStore:
             kind=kind,
             origin_region=region,
             origin_point=point,
+            specs=specs,
             client_telegram_id=client_tg,
             client_name=client_name,
             client_username=client_username,
@@ -777,19 +820,26 @@ class CabinetStore:
             "SELECT * FROM deal_media WHERE deal_id = ? ORDER BY id",
             (deal_id,),
         ).fetchall()
-        return [
-            DealMediaOut(
-                id=int(r["id"]),
-                deal_id=deal_id,
-                stage_key=r["stage_key"],  # type: ignore[arg-type]
-                kind=r["kind"],  # type: ignore[arg-type]
-                url=self._media_url(int(r["id"])),
-                filename=r["filename"] or "",
-                caption=r["caption"] or "",
-                created_at=r["created_at"] or "",
+        uploads = self._uploads()
+        out: list[DealMediaOut] = []
+        for r in rows:
+            # Не отдаём ссылки на файлы, которых нет на диске (иначе 404 в UI)
+            rel = str(r["path"] or "").strip()
+            if rel and not (uploads / rel).is_file():
+                continue
+            out.append(
+                DealMediaOut(
+                    id=int(r["id"]),
+                    deal_id=deal_id,
+                    stage_key=r["stage_key"],  # type: ignore[arg-type]
+                    kind=r["kind"],  # type: ignore[arg-type]
+                    url=self._media_url(int(r["id"])),
+                    filename=r["filename"] or "",
+                    caption=r["caption"] or "",
+                    created_at=r["created_at"] or "",
+                )
             )
-            for r in rows
-        ]
+        return out
 
     def list_deals_for_user(self, user_id: int) -> list[DealOut]:
         with self._lock:
@@ -910,17 +960,18 @@ class CabinetStore:
                 due1 = _due_date(data.payment_stage1_due)
                 due2 = _due_date(data.payment_stage2_due)
                 tracking = (data.tracking_url or "").strip() if kind == "car" else ""
+                specs_json = self._specs_to_json(data.specs)
 
                 now = _now()
                 cur = conn.execute(
                     """
                     INSERT INTO deals (
                       user_id, title, vin, lot_number, lot_url, tracking_url, status, note,
-                      price, currency, kind, origin_region, origin_point,
+                      price, currency, kind, origin_region, origin_point, specs_json,
                       created_by_user_id, payment_stage1_due, payment_stage2_due,
                       created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         user_id,
@@ -936,6 +987,7 @@ class CabinetStore:
                         kind,
                         region,
                         origin_point,
+                        specs_json,
                         manager_id,
                         due1,
                         due2,
@@ -992,6 +1044,8 @@ class CabinetStore:
                     fields["lot_url"] = data.lot_url.strip()
                 if data.tracking_url is not None:
                     fields["tracking_url"] = data.tracking_url.strip()
+                if data.specs is not None:
+                    fields["specs_json"] = self._specs_to_json(data.specs)
                 if data.note is not None:
                     fields["note"] = data.note.strip()
                 if data.price is not None:

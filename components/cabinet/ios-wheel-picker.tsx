@@ -12,9 +12,9 @@ type Props = {
   ariaLabel?: string;
 };
 
-function parseQty(value: string, min: number, max: number): number {
+function parseQty(value: string, min: number, max: number): number | null {
   const n = Number.parseInt(String(value).trim(), 10);
-  if (!Number.isFinite(n)) return min;
+  if (!Number.isFinite(n)) return null;
   return Math.min(max, Math.max(min, n));
 }
 
@@ -29,7 +29,7 @@ export function IosWheelPicker({
 }: Props) {
   const selected = parseQty(value, min, max);
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(selected);
+  const [draft, setDraft] = useState(selected ?? min);
   const [mounted, setMounted] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const itemH = 44;
@@ -38,8 +38,8 @@ export function IosWheelPicker({
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (!open) setDraft(selected);
-  }, [open, selected]);
+    if (!open) setDraft(selected ?? min);
+  }, [open, selected, min]);
 
   useEffect(() => {
     if (!open || !listRef.current) return;
@@ -85,9 +85,7 @@ export function IosWheelPicker({
           readOnly ? "cursor-default bg-zinc-50 text-zinc-700" : "hover:bg-zinc-50 active:bg-zinc-100",
         ].join(" ")}
       >
-        {value.trim() === "" && !Number.isFinite(Number.parseInt(value, 10))
-          ? "—"
-          : selected}
+        {selected == null ? "—" : selected}
       </button>
 
       {mounted && open

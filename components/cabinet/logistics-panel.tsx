@@ -18,7 +18,9 @@ import {
   adminRemoveDealFromContainer,
   adminUpdateSmsTemplate,
   fetchLogisticsBoard,
+  mediaAbsoluteUrl,
 } from "@/lib/api/cabinet";
+import { CoverThumb } from "@/components/cabinet/deal-photos";
 
 const DEAL_MIME = "application/x-mg-deal-id";
 
@@ -101,6 +103,13 @@ function DealCard({
   compact?: boolean;
 }) {
   const hasPhone = Boolean(deal.client_phone?.trim());
+  const cover = deal.cover_url?.trim()
+    ? mediaAbsoluteUrl(deal.cover_url.trim())
+    : null;
+  const tech = [deal.engine, deal.primary_damage]
+    .map((v) => (v || "").trim())
+    .filter(Boolean)
+    .join(" · ");
   return (
     <div
       draggable
@@ -117,8 +126,21 @@ function DealCard({
       ].join(" ")}
     >
       <div className="flex gap-2.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-zinc-100 to-zinc-50 text-[11px] font-bold text-zinc-600 ring-1 ring-zinc-200/80">
-          {initials(deal.client_name || deal.title)}
+        <div
+          className={[
+            "shrink-0 overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-200/80",
+            compact ? "h-12 w-16" : "h-14 w-[4.5rem]",
+          ].join(" ")}
+        >
+          <CoverThumb
+            src={cover}
+            className="h-full w-full object-cover"
+            fallback={
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-50 text-[11px] font-bold text-zinc-600">
+                {initials(deal.client_name || deal.title)}
+              </div>
+            }
+          />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold leading-snug text-zinc-900">
@@ -128,6 +150,9 @@ function DealCard({
             {ORIGIN_REGION_LABELS[deal.origin_region] || deal.origin_region}
             {deal.kind === "kit" ? " · комплект" : " · авто"}
           </p>
+          {tech ? (
+            <p className="mt-0.5 truncate text-[10px] text-zinc-400">{tech}</p>
+          ) : null}
         </div>
       </div>
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -165,6 +190,7 @@ export function LogisticsPanel() {
   const [stages, setStages] = useState<{ key: string; label: string }[]>([]);
   const [templates, setTemplates] = useState<SmsTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadedOnce, setLoadedOnce] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -195,6 +221,7 @@ export function LogisticsPanel() {
       setContainers(board.containers);
       setStages(board.stages);
       setTemplates(board.templates);
+      setLoadedOnce(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось загрузить логистику");
     } finally {
@@ -374,13 +401,28 @@ export function LogisticsPanel() {
 
   const moving = moveId != null ? containers.find((c) => c.id === moveId) : null;
 
-  if (loading) {
+  if (loading && !loadedOnce) {
     return (
       <div className="flex min-h-[280px] items-center justify-center rounded-2xl border border-zinc-200/80 bg-white">
         <div className="flex items-center gap-3 text-sm text-zinc-500">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
           Загрузка рабочей доски…
         </div>
+      </div>
+    );
+  }
+
+  if (!loadedOnce && error) {
+    return (
+      <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-2xl border border-rose-200 bg-rose-50/60 px-4 text-center">
+        <p className="max-w-md text-sm text-rose-800">{error}</p>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500"
+        >
+          Повторить
+        </button>
       </div>
     );
   }
@@ -448,8 +490,15 @@ export function LogisticsPanel() {
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-800">
-          {error}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-800">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="shrink-0 font-semibold underline underline-offset-2"
+          >
+            Повторить
+          </button>
         </div>
       ) : null}
       {ok ? (

@@ -8,9 +8,10 @@ import { PageShell } from "@/components/layout/page-shell";
 import { DealRouteSections } from "@/components/cabinet/deal-route-sections";
 import { DealDismantleMap } from "@/components/cabinet/deal-dismantle-map";
 import { DealTrackingLink } from "@/components/cabinet/deal-tracking-link";
-import { DealPhotos, dealCoverPhotoUrl } from "@/components/cabinet/deal-photos";
+import { CoverThumb, DealPhotos, dealCoverPhotoUrl } from "@/components/cabinet/deal-photos";
 import { DealPaymentStatus, paymentProgressLabel } from "@/components/cabinet/deal-payment-status";
 import { DealClosingStages } from "@/components/cabinet/deal-closing-stages";
+import { DealSpecsGrid } from "@/components/cabinet/deal-specs";
 import { AdminDealsPanel } from "@/components/cabinet/admin-deals-panel";
 import { LogisticsPanel } from "@/components/cabinet/logistics-panel";
 import { PurchasedCarsAdmin } from "@/components/cabinet/purchased-cars-admin";
@@ -762,18 +763,15 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                           className="flex w-full gap-3 overflow-hidden rounded-2xl border border-zinc-200/90 bg-white p-3 text-left shadow-sm transition hover:border-emerald-300/70 hover:shadow-[0_12px_28px_-18px_rgba(16,185,129,0.45)] sm:p-3.5"
                         >
                           <div className="h-[4.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-xl bg-zinc-100 sm:h-24 sm:w-32">
-                            {cover ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={cover}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-[10px] text-zinc-400">
-                                Нет фото
-                              </div>
-                            )}
+                            <CoverThumb
+                              src={cover}
+                              className="h-full w-full object-cover"
+                              fallback={
+                                <div className="flex h-full w-full items-center justify-center text-[10px] text-zinc-400">
+                                  Нет фото
+                                </div>
+                              }
+                            />
                           </div>
                           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -909,6 +907,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                       {selected.note}
                     </p>
                   ) : null}
+                  <DealSpecsGrid specs={selected.specs} className="mt-3" />
                   <div className="mt-4 border-t border-zinc-100 pt-3">
                     <DealClosingStages deal={selected} />
                   </div>

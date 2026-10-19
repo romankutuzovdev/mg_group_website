@@ -54,6 +54,9 @@ class LogisticsDealCard(BaseModel):
     client_name: str = ""
     client_phone: str = ""
     container_id: int | None = None
+    cover_url: str = ""
+    engine: str = ""
+    primary_damage: str = ""
 
 
 class ContainerOut(BaseModel):

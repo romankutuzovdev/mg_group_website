@@ -4,15 +4,27 @@
   "vehicleHeaderHint": "MAKE, MODEL, LOT#, VIN",
   "columns": {
     "qty": "Снять",
-    "qtyHint": "да / нет / все",
+    "qtyHint": "1–15",
     "packing": null,
     "note": "Примечания",
     "nameEn": true
   },
   "qtyChoices": [
-    "да",
-    "нет",
-    "все"
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15"
   ],
   "sections": [
     "0. Проводка",

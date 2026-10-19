@@ -59,6 +59,20 @@ export type DealMedia = {
   created_at: string;
 };
 
+export type DealSpecs = {
+  location?: string;
+  odometer?: string;
+  category?: string;
+  body_style?: string;
+  engine?: string;
+  cylinders?: string;
+  fuel?: string;
+  transmission?: string;
+  drive?: string;
+  exterior_color?: string;
+  primary_damage?: string;
+};
+
 export type Deal = {
   id: number;
   title: string;
@@ -74,6 +88,7 @@ export type Deal = {
   kind?: DealKind;
   origin_region: OriginRegion;
   origin_point: OriginPoint;
+  specs?: DealSpecs;
   client_telegram_id?: number;
   client_name?: string;
   client_username?: string;
@@ -156,6 +171,8 @@ export function setCabinetToken(token: string | null): void {
   window.localStorage.setItem(TOKEN_KEY, token);
 }
 
+const CABINET_FETCH_TIMEOUT_MS = 25_000;
+
 async function cabinetFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!isApiEnabled()) {
     throw new ApiError("API URL is not configured (NEXT_PUBLIC_API_URL)", 0);
@@ -164,46 +181,79 @@ async function cabinetFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
   const url = apiUrl(query ? `${cleanPath}?${query}` : cleanPath);
   const token = getCabinetToken();
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      Accept: "application/json",
-      ...(init?.body && !(init.body instanceof FormData)
-        ? { "Content-Type": "application/json" }
-        : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
-    },
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    let detail = "";
-    try {
-      const parsed = JSON.parse(text) as { detail?: unknown };
-      if (typeof parsed.detail === "string") {
-        detail = parsed.detail;
-      } else if (Array.isArray(parsed.detail)) {
-        // FastAPI / Pydantic validation errors
-        detail = parsed.detail
-          .map((item: unknown) => {
-            if (!item || typeof item !== "object") return String(item);
-            const row = item as { loc?: unknown[]; msg?: string };
-            const loc = Array.isArray(row.loc)
-              ? row.loc.filter((x) => x !== "body").join(".")
-              : "";
-            const msg = row.msg || "";
-            return loc && msg ? `${loc}: ${msg}` : msg || loc || JSON.stringify(item);
-          })
-          .filter(Boolean)
-          .join("; ");
+
+  const externalSignal = init?.signal;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), CABINET_FETCH_TIMEOUT_MS);
+  const onExternalAbort = () => ctrl.abort();
+  externalSignal?.addEventListener("abort", onExternalAbort);
+
+  try {
+    const res = await fetch(url, {
+      ...init,
+      signal: ctrl.signal,
+      headers: {
+        Accept: "application/json",
+        ...(init?.body && !(init.body instanceof FormData)
+          ? { "Content-Type": "application/json" }
+          : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      let detail = "";
+      try {
+        const parsed = JSON.parse(text) as { detail?: unknown };
+        if (typeof parsed.detail === "string") {
+          detail = parsed.detail;
+        } else if (Array.isArray(parsed.detail)) {
+          // FastAPI / Pydantic validation errors
+          detail = parsed.detail
+            .map((item: unknown) => {
+              if (!item || typeof item !== "object") return String(item);
+              const row = item as { loc?: unknown[]; msg?: string };
+              const loc = Array.isArray(row.loc)
+                ? row.loc.filter((x) => x !== "body").join(".")
+                : "";
+              const msg = row.msg || "";
+              return loc && msg ? `${loc}: ${msg}` : msg || loc || JSON.stringify(item);
+            })
+            .filter(Boolean)
+            .join("; ");
+        }
+      } catch {
+        /* plain text */
       }
-    } catch {
-      /* plain text */
+      const statusHint =
+        res.status === 404
+          ? "Эндпоинт не найден (обновите API на сервере)"
+          : res.status === 502 || res.status === 504
+            ? "Сервер API не отвечает"
+            : "";
+      throw new ApiError(
+        detail || statusHint || `API ${res.status}: ${cleanPath}`,
+        res.status,
+        text,
+      );
     }
-    throw new ApiError(detail || `API ${res.status}: ${cleanPath}`, res.status, text);
+    if (res.status === 204) return undefined as T;
+    return (await res.json()) as T;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (err instanceof DOMException && err.name === "AbortError") {
+      if (externalSignal?.aborted) throw err;
+      throw new ApiError(
+        "Сервер не ответил вовремя. Обновите вкладку или попробуйте снова.",
+        408,
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", onExternalAbort);
   }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
 }
 
 export async function fetchTelegramAuthConfig(): Promise<{
@@ -443,6 +493,9 @@ export type LogisticsDealCard = {
   client_name: string;
   client_phone: string;
   container_id: number | null;
+  cover_url?: string;
+  engine?: string;
+  primary_damage?: string;
 };
 
 export type ShippingContainer = {
@@ -592,6 +645,7 @@ export async function adminCreateDeal(body: {
   kind?: DealKind;
   origin_region?: OriginRegion;
   origin_point?: OriginPoint;
+  specs?: DealSpecs;
   manager_user_id?: number | null;
   payment_stage1_due?: string;
   payment_stage2_due?: string;
@@ -617,6 +671,7 @@ export async function adminUpdateDeal(
     kind: DealKind;
     origin_region: OriginRegion;
     origin_point: OriginPoint;
+    specs: DealSpecs;
     manager_user_id: number | null;
     payment_stage1_due: string;
     payment_stage2_due: string;

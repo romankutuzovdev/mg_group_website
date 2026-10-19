@@ -196,6 +196,22 @@ class DealStageOut(BaseModel):
     updated_at: str | None = None
 
 
+class DealSpecs(BaseModel):
+    """Structured lot/vehicle fields from Bid.cars / Copart / IAAI (not free-text notes)."""
+
+    location: str = ""
+    odometer: str = ""
+    category: str = ""
+    body_style: str = ""
+    engine: str = ""
+    cylinders: str = ""
+    fuel: str = ""
+    transmission: str = ""
+    drive: str = ""
+    exterior_color: str = ""
+    primary_damage: str = ""
+
+
 class DealOut(BaseModel):
     id: int
     title: str
@@ -210,6 +226,7 @@ class DealOut(BaseModel):
     kind: DealKind = "kit"
     origin_region: OriginRegion = "usa"
     origin_point: OriginPoint = "dismantle"
+    specs: DealSpecs = Field(default_factory=DealSpecs)
     client_telegram_id: int = 0
     client_name: str = ""
     client_username: str = ""
@@ -244,6 +261,7 @@ class DealCreate(BaseModel):
     origin_region: OriginRegion = "usa"
     # Ignored if kind is set — derived from kind on create.
     origin_point: OriginPoint | None = None
+    specs: DealSpecs | None = None
     manager_user_id: int | None = None
     payment_stage1_due: str = ""
     payment_stage2_due: str = ""
@@ -262,6 +280,7 @@ class DealUpdate(BaseModel):
     kind: DealKind | None = None
     origin_region: OriginRegion | None = None
     origin_point: OriginPoint | None = None
+    specs: DealSpecs | None = None
     manager_user_id: int | None = None
     payment_stage1_due: str | None = None
     payment_stage2_due: str | None = None
