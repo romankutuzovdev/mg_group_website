@@ -61,3 +61,17 @@ async def scraper_photos_run_once(
 ) -> dict:
     """Visit up to `limit` lot detail pages and collect full photo galleries."""
     return await scraper_worker.run_photos_once(limit=limit)
+
+
+@router.post("/localize-korea", dependencies=[Depends(_require_key)])
+def scraper_localize_korea(
+    limit: int = Query(0, ge=0, le=100_000),
+) -> dict:
+    """Translate Hangul fields on Korea lots in the catalog (dict + free Google).
+
+    ``limit=0`` = all korea lots. Safe to re-run — cached translations skip network.
+    """
+    from app.services.ko_ru import localize_korea_store
+
+    stats = localize_korea_store(limit=limit, allow_network=True)
+    return {"ok": True, **stats}

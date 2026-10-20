@@ -50,7 +50,37 @@ async def lifespan(_app: FastAPI):
     print("[mg-api] cabinet + logistics + purchased cars db ready")
     search_task = asyncio.create_task(car_search.car_search_loop())
     start_scraper_in_background()
+
+    async def _localize_korea_bg() -> None:
+        """Translate Hangul on existing Korea lots (dict + free Google, cached)."""
+        await asyncio.sleep(45)
+        try:
+            from app.services.ko_ru import has_hangul, localize_korea_store
+
+            sample = [
+                l
+                for l in lot_store.all()
+                if (l.region or "") == "korea"
+                and (
+                    has_hangul(l.model or "")
+                    or has_hangul(l.location or "")
+                    or has_hangul(l.make or "")
+                )
+            ][:3]
+            if not sample:
+                print("[mg-api] korea RU: nothing to translate")
+                return
+            print(f"[mg-api] korea RU: localizing catalog ({len(sample)}+ Hangul lots)…")
+            stats = await asyncio.to_thread(
+                lambda: localize_korea_store(limit=0, allow_network=True)
+            )
+            print(f"[mg-api] korea RU done: {stats}")
+        except Exception as exc:
+            print(f"[mg-api] korea RU failed: {exc}")
+
+    korea_ru_task = asyncio.create_task(_localize_korea_bg())
     yield
+    korea_ru_task.cancel()
     search_task.cancel()
     try:
         await scraper_worker.stop()

@@ -1027,6 +1027,9 @@ ENCAR_MAKE_EN: dict[str, str] = {
     "쌍용": "KG Mobility",
     "케이지모빌리티": "KG Mobility",
     "KG모빌리티": "KG Mobility",
+    "Kg모빌리티(쌍용)": "KG Mobility (SsangYong)",
+    "KG모빌리티(쌍용)": "KG Mobility (SsangYong)",
+    "케이지모빌리티(쌍용)": "KG Mobility (SsangYong)",
     "삼성": "Renault Korea",
     "BMW": "BMW",
     "벤츠": "Mercedes-Benz",
@@ -1253,6 +1256,34 @@ def map_encar_row(row: dict[str, Any]) -> AuctionLot | None:
     if separation:
         lot_url = f"https://fem.encar.com/cars/detail/{lid}"
 
+    color = title_case(str(row.get("Color") or row.get("color") or "")) or "—"
+    body = title_case(str(row.get("BodyName") or row.get("bodyName") or "")) or None
+
+    # Korean Hangul → Russian for the site (dict + free Google Translate cache)
+    try:
+        from app.services.ko_ru import localize_encar_fields
+
+        ru = localize_encar_fields(
+            make=make,
+            model=model,
+            location=city or "Korea",
+            fuel=fuel,
+            transmission=trans,
+            exterior_color=color,
+            body_style=body or "",
+            allow_network=True,
+        )
+        make = ru["make"] or make
+        model = ru["model"] or model
+        city = ru["location"] or city
+        fuel = ru["fuel"] or fuel
+        trans = ru["transmission"] or trans
+        color = ru["exteriorColor"] or color
+        if ru.get("bodyStyle"):
+            body = ru["bodyStyle"]
+    except Exception:
+        pass
+
     return AuctionLot(
         id=f"korea-{lid}",
         slug=f"encar-{year}-{slugify(make)}-{slugify(model)}-{lid}",
@@ -1264,26 +1295,26 @@ def map_encar_row(row: dict[str, Any]) -> AuctionLot | None:
         model=model,
         year=year,
         titleType="clean",
-        titleLabel="Encar (Korea)",
+        titleLabel="Encar (Корея)",
         primaryDamage="—",
         odometer=mileage,
         odometerUnit="km",
         currentBid=float(usd),
         buyNowPrice=float(usd) if usd else None,
         currency="USD",
-        location=city or "Korea",
+        location=city or "Корея",
         auctionDate=(datetime.now(timezone.utc) + timedelta(days=14)).isoformat(),
         imageUrl=images[0],
         imageUrls=images[:40],
         transmission=trans,
         fuel=fuel,
         drive="—",
-        exteriorColor=title_case(str(row.get("Color") or row.get("color") or "")) or "—",
+        exteriorColor=color,
         hasKeys=True,
         runsDrives=True,
         estimatedRetail=float(price_krw) if price_krw else None,
         engine=str(row.get("Displacement") or row.get("displacement") or "") or None,
-        bodyStyle=title_case(str(row.get("BodyName") or row.get("bodyName") or "")) or None,
+        bodyStyle=body,
         lotUrl=lot_url,
     )
 
