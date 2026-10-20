@@ -79,7 +79,7 @@ type Props = {
 };
 
 export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
-  const [openKey, setOpenKey] = useState<StageKey | null>(null);
+  const [openKeys, setOpenKeys] = useState<Set<StageKey>>(() => new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -87,9 +87,9 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
 
   const sections = useMemo(() => buildSections(deal), [deal]);
 
+  // Все этапы развёрнуты по умолчанию
   useEffect(() => {
-    const active = sections.find((s) => s.status === "active");
-    setOpenKey((prev) => prev || active?.key || sections[0]?.key || null);
+    setOpenKeys(new Set(sections.map((s) => s.key)));
   }, [deal.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -97,6 +97,15 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
     for (const s of sections) next[s.key] = s.note;
     setNotes(next);
   }, [deal.id, deal.stages]);
+
+  const toggleSection = (key: StageKey) => {
+    setOpenKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const regionLabel = deal.origin_region === "uk" ? "Англия" : "США";
   const kit = dealKind(deal) === "kit";
@@ -149,13 +158,16 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
         note: (notes[key] ?? "").trim(),
       });
       onUpdated?.(updated);
-      if (status === "done") {
-        const idx = order.indexOf(key);
-        const nextKey = order[idx + 1];
-        if (nextKey) setOpenKey(nextKey);
-      } else {
-        setOpenKey(key);
-      }
+      setOpenKeys((prev) => {
+        const next = new Set(prev);
+        next.add(key);
+        if (status === "done") {
+          const idx = order.indexOf(key);
+          const nextKey = order[idx + 1];
+          if (nextKey) next.add(nextKey);
+        }
+        return next;
+      });
     });
 
   const saveNote = (key: StageKey) =>
@@ -176,7 +188,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
         await adminUploadDealMedia(deal.id, file, key);
       }
       await refresh();
-      setOpenKey(key);
+      setOpenKeys((prev) => new Set(prev).add(key));
     });
   };
 
@@ -247,7 +259,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
 
       <ol className="divide-y divide-border">
         {sections.map((section, idx) => {
-          const open = openKey === section.key;
+          const open = openKeys.has(section.key);
           const isActive = section.status === "active";
           const isDone = section.status === "done";
 
@@ -255,7 +267,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
             <li key={section.key} className={isActive ? "bg-emerald-50/40" : "bg-white"}>
               <button
                 type="button"
-                onClick={() => setOpenKey(open ? null : section.key)}
+                onClick={() => toggleSection(section.key)}
                 className="flex w-full items-center gap-3 px-4 py-3.5 text-left sm:px-5"
               >
                 <span
