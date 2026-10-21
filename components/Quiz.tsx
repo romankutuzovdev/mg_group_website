@@ -1,10 +1,10 @@
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { CF_WORKER_URL } from '@/lib/cloudflare';
 import { submitLead } from '@/lib/api/client';
 import { isApiEnabled } from '@/lib/api/config';
@@ -39,12 +39,13 @@ export const sendQuizData = async (payload: { answers: string[]; phone: string; 
 };
 
 const Quiz = ({ dictionary }: QuizProps) => {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<string[]>([]);
   const [modelInput, setModelInput] = useState('');
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [sending, setSending] = useState(false);
   const [touchedFields, setTouchedFields] = useState({
     phone: false,
     name: false
@@ -67,6 +68,8 @@ const Quiz = ({ dictionary }: QuizProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (sending) return;
+    setSending(true);
     const payload = {
       answers,
       phone,
@@ -75,21 +78,10 @@ const Quiz = ({ dictionary }: QuizProps) => {
 
     try {
       await sendQuizData(payload);
-      setShowSuccess(true);
     } catch (error) {
       console.error('Error submitting form:', error);
     }
-    setShowSuccess(true);
-  };
-
-  const resetQuiz = () => {
-    setCurrentStep(0);
-    setAnswers([]);
-    setModelInput('');
-    setPhone('');
-    setName('');
-    setShowSuccess(false);
-    setTouchedFields({ phone: false, name: false });
+    await router.push('/thanks/');
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,11 +149,11 @@ const Quiz = ({ dictionary }: QuizProps) => {
           <Button
             type="submit"
             size="lg"
-            disabled={!isFormValid}
+            disabled={!isFormValid || sending}
             className="w-full bg-primary hover:bg-primary/90 h-14 text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Отправить форму"
           >
-            {dictionary.carFinder.form.submit}
+            {sending ? 'Отправляем…' : dictionary.carFinder.form.submit}
           </Button>
         </form>
       );
@@ -252,29 +244,6 @@ const Quiz = ({ dictionary }: QuizProps) => {
         </div>
       </div>
 
-      <Dialog open={showSuccess} onOpenChange={resetQuiz}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">
-              {dictionary.carFinder.form.success.title}
-            </DialogTitle>
-            <DialogDescription>
-              {dictionary.carFinder.form.success.description}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-center pt-4">
-            <Button
-              onClick={resetQuiz}
-              size="lg"
-              className="bg-primary hover:bg-primary/90 h-12 px-8 text-base font-medium"
-              aria-label="Закрыть окно успешной отправки"
-            >
-              <Check className="mr-2 h-5 w-5" aria-hidden="true" />
-              {dictionary.carFinder.form.success.button}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };

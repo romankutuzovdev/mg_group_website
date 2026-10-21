@@ -1,10 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { AnchorButton, Button } from "@/components/site/button";
+import { useRouter } from "next/router";
+import { Button } from "@/components/site/button";
 import { submitLead } from "@/lib/api/client";
 import { isApiEnabled } from "@/lib/api/config";
-import { CAR_FINDER, consultationMessage } from "@/lib/company";
+import { CAR_FINDER } from "@/lib/company";
 
 const inputClass =
   "mt-2 w-full rounded-lg border border-border bg-bg-base px-3 py-2.5 text-sm text-text-primary outline-none focus:border-accent";
@@ -14,10 +15,14 @@ type LeadFormProps = {
 };
 
 export function LeadForm({ source = "contacts" }: LeadFormProps) {
-  const [sent, setSent] = useState(false);
+  const router = useRouter();
+  const [sending, setSending] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (sending) return;
+    setSending(true);
+
     const data = new FormData(e.currentTarget);
     const name = String(data.get("name") || "").trim();
     const phone = String(data.get("phone") || "").trim();
@@ -41,42 +46,7 @@ export function LeadForm({ source = "contacts" }: LeadFormProps) {
       }
     }
 
-    const text = [
-      "Здравствуйте! Заявка с сайта.",
-      `Источник: ${source}`,
-      name && `Имя: ${name}`,
-      phone && `Телефон: ${phone}`,
-      `Мессенджер: ${messenger}`,
-      model && `Модель: ${model}`,
-      budget && `Бюджет: ${budget}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    setSent(true);
-    window.open(consultationMessage(text), "_blank", "noopener,noreferrer");
-  }
-
-  if (sent) {
-    return (
-      <div className="card-premium rounded-2xl p-6 text-center md:p-10">
-        <p className="lux-kicker">Заявка готова</p>
-        <h3 className="mt-3 font-display text-2xl font-semibold">
-          Откройте Telegram и отправьте сообщение
-        </h3>
-        <p className="mt-3 text-sm text-text-secondary">
-          Мы уже подставили текст заявки — осталось нажать «Отправить» в Telegram.
-        </p>
-        <AnchorButton
-          href={consultationMessage("Здравствуйте! Оставил заявку на подбор авто на сайте.")}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-6"
-        >
-          Написать в Telegram
-        </AnchorButton>
-      </div>
-    );
+    await router.push("/thanks/");
   }
 
   return (
@@ -129,8 +99,8 @@ export function LeadForm({ source = "contacts" }: LeadFormProps) {
         </label>
       </div>
 
-      <Button type="submit" className="mt-6 w-full sm:w-auto">
-        Отправить в Telegram
+      <Button type="submit" className="mt-6 w-full sm:w-auto" disabled={sending}>
+        {sending ? "Отправляем…" : "Отправить заявку"}
       </Button>
     </form>
   );
