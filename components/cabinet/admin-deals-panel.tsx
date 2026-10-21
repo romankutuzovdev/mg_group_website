@@ -112,7 +112,7 @@ async function uploadCoverFromLotImages(dealId: number, images: string[]) {
 type Props = {
   onCreated?: (deal: Deal) => void;
   onOpenDeal?: (id: number) => void;
-  /** Только владелец из CABINET_ADMIN_TELEGRAM_IDS назначает менеджеров. */
+  /** Админ (вход /admin логин+пароль) назначает менеджеров. */
   canAssignRoles?: boolean;
   /** Текущий менеджер/админ — для закрепления клиентов и фокуса своего списка. */
   currentUser?: CabinetUser | null;
@@ -176,7 +176,7 @@ export function AdminDealsPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-  const [compose, setCompose] = useState<"none" | "client" | "deal" | "roles">("none");
+  const [compose, setCompose] = useState<"none" | "client" | "deal">("none");
   const [query, setQuery] = useState("");
   const [selectedClientKey, setSelectedClientKey] = useState<string | null>(null);
   /** Mobile: список клиентов или карточка клиента с авто */
@@ -893,15 +893,6 @@ export function AdminDealsPanel({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {canAssignRoles ? (
-              <button
-                type="button"
-                onClick={() => setCompose((v) => (v === "roles" ? "none" : "roles"))}
-                className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50"
-              >
-                {compose === "roles" ? "Скрыть роли" : "Роли"}
-              </button>
-            ) : null}
             <button
               type="button"
               onClick={() => {
@@ -970,7 +961,7 @@ export function AdminDealsPanel({
         </div>
       ) : null}
 
-      {compose === "roles" && canAssignRoles ? (
+      {canAssignRoles ? (
         <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
           <div className="border-b border-zinc-100 px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">

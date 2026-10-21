@@ -20,6 +20,20 @@
    mg-group.by / IP (Caddy → API :8080)
 ```
 
+## Почему на сайте `lots:0`, а на Windows десятки тысяч
+
+Публичный узел (`APP_ROLE=public` на VPS) **не парсит** — только принимает каталог.
+Если `LOTS_PUSH_URL` на Windows пустой и `LOTS_SOURCE_URL` на VPS пустой, сайт остаётся с пустым `lots.json`.
+
+Полный `GET /internal/lots-catalog` ~200 MB — pull с VPS часто обрывается по таймауту.
+Нужен **push с Windows** (каждые ~3 мин):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\mg-api\api\deploy\enable-lots-push.ps1 -IngestKey "тот-же-что-на-VPS"
+```
+
+Проверка: `https://www.mg-group.by/health` → `lots` > 0.
+
 ## 1. Windows (фабрика)
 
 В `C:\mg-api\api\.env` (см. `api/deploy/vps/env.scraper.example`):

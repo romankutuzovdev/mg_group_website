@@ -3,26 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { isTelegramWebAppEnv } from "@/lib/telegram-webapp-auth";
 
 const STORAGE_KEY = "mg_cookie_consent_v1";
-
-function isTelegramMiniApp(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    if (isTelegramWebAppEnv() || window.Telegram?.WebApp?.initData) return true;
-  } catch {
-    /* ignore */
-  }
-  return document.documentElement.classList.contains("tg-miniapp");
-}
 
 /** Баннер согласия на cookies (Закон РБ о персональных данных / UX). */
 export function CookieConsent() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (isTelegramMiniApp()) return;
     try {
       if (window.localStorage.getItem(STORAGE_KEY) === "accepted") return;
     } catch {

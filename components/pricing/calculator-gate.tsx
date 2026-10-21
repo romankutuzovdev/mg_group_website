@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { FormEvent, useEffect, useState } from "react";
 import {
   fetchMe,
-  fetchTelegramAuthConfig,
   getCabinetToken,
-  loginWithTelegram,
+  loginWithPassword,
   setCabinetToken,
-  type TelegramLoginUser,
 } from "@/lib/api/cabinet";
-import { ensureTelegramWebAppAuth, isTelegramWebAppEnv } from "@/lib/telegram-webapp-auth";
 import { ApiError } from "@/lib/api/client";
 import { CarSearchPanel } from "@/components/pricing/car-search-panel";
 
@@ -39,25 +37,20 @@ export function CalculatorGate({
   /** После входа показать список доступных калькуляторов */
   showOverview?: boolean;
 }) {
-  const widgetRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>("guest");
-  const [botUsername, setBotUsername] = useState("");
-  const [authEnabled, setAuthEnabled] = useState(false);
-  const [configReady, setConfigReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     if (getCabinetToken()) setStatus("loading");
     void (async () => {
       try {
-        const cfg = await withTimeout(fetchTelegramAuthConfig(), 8000);
-        if (cancelled) return;
-        setAuthEnabled(Boolean(cfg.enabled));
-        setBotUsername(cfg.bot_username || "");
         if (!getCabinetToken()) {
-          const ok = await withTimeout(ensureTelegramWebAppAuth(), 8000).catch(() => false);
-          if (cancelled || !ok) return;
+          if (!cancelled) setStatus("guest");
+          return;
         }
         await withTimeout(fetchMe(), 8000);
         if (!cancelled) setStatus("user");
@@ -66,8 +59,6 @@ export function CalculatorGate({
           if (err instanceof ApiError && err.status === 401) setCabinetToken(null);
           setStatus("guest");
         }
-      } finally {
-        if (!cancelled) setConfigReady(true);
       }
     })();
     return () => {
@@ -75,42 +66,27 @@ export function CalculatorGate({
     };
   }, []);
 
-  useEffect(() => {
-    window.onTelegramAuth = async (tgUser: TelegramLoginUser) => {
-      setError(null);
-      setStatus("loading");
-      try {
-        await loginWithTelegram(tgUser);
-        setStatus("user");
-      } catch (err) {
-        setStatus("guest");
-        setError(err instanceof Error ? err.message : "Ошибка входа через Telegram");
-      }
-    };
-    return () => {
-      delete window.onTelegramAuth;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (status !== "guest" || !authEnabled || !botUsername || !widgetRef.current) return;
-    if (isTelegramWebAppEnv()) return;
-    widgetRef.current.innerHTML = "";
-    const script = document.createElement("script");
-    script.src = "https://telegram.org/js/telegram-widget.js?22";
-    script.async = true;
-    script.setAttribute("data-telegram-login", botUsername);
-    script.setAttribute("data-size", "large");
-    script.setAttribute("data-radius", "8");
-    script.setAttribute("data-onauth", "onTelegramAuth(user)");
-    script.setAttribute("data-request-access", "write");
-    widgetRef.current.appendChild(script);
-  }, [status, authEnabled, botUsername]);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    setStatus("loading");
+    try {
+      await loginWithPassword(login.trim(), password);
+      setStatus("user");
+      setPassword("");
+    } catch (err) {
+      setStatus("guest");
+      setError(err instanceof Error ? err.message : "Неверный логин или пароль");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (status === "loading") {
     return (
       <div className="mx-auto max-w-md py-4 text-center">
-        <p className="text-sm text-text-muted">Проверяем вход через Telegram…</p>
+        <p className="text-sm text-text-muted">Проверяем вход…</p>
       </div>
     );
   }
@@ -122,13 +98,50 @@ export function CalculatorGate({
           Калькуляторы доступны только авторизованным пользователям
         </h2>
         <p className="mt-2 text-sm text-text-secondary">
-          Войдите через Telegram, чтобы считать машинокомплект, авто под восстановление и растаможку.
+          Войдите логином и паролем (клиентский телефон или админ с сервера), чтобы считать
+          машинокомплект, авто под восстановление и растаможку.
         </p>
-        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-        <div ref={widgetRef} className="mt-4 flex min-h-10 items-center justify-center" />
-        {configReady && !authEnabled ? (
-          <p className="mt-3 text-sm text-text-muted">Вход через Telegram сейчас недоступен.</p>
-        ) : null}
+        <form onSubmit={(e) => void submit(e)} className="mt-4 space-y-3 text-left">
+          <label className="block text-sm">
+            <span className="text-text-muted">Логин</span>
+            <input
+              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm"
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              autoComplete="username"
+              required
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-text-muted">Пароль</span>
+            <input
+              type="password"
+              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          <button
+            type="submit"
+            disabled={busy}
+            className="w-full rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+          >
+            {busy ? "Входим…" : "Войти"}
+          </button>
+        </form>
+        <p className="mt-3 text-xs text-text-muted">
+          Нет аккаунта?{" "}
+          <Link href="/cabinet/" className="font-semibold text-emerald-800 underline underline-offset-2">
+            Личный кабинет
+          </Link>
+          {" · "}
+          <Link href="/admin/" className="font-semibold underline underline-offset-2">
+            Админ
+          </Link>
+        </p>
       </div>
     );
   }

@@ -4,7 +4,7 @@ import hashlib
 import hmac
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.config import Settings, get_settings
 from app.models.cabinet import (
@@ -13,14 +13,9 @@ from app.models.cabinet import (
     DealUpdate,
     PasswordLoginPayload,
     StageUpdate,
-    TelegramWebAppAuthPayload,
 )
 from app.services.auth_deps import create_access_token
 from app.services.cabinet_store import cabinet_store
-from app.services.telegram_auth import (
-    verify_telegram_login,
-    verify_telegram_webapp_init_data,
-)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -124,65 +119,38 @@ def _ensure_demo_deals(telegram_id: int) -> None:
         cabinet_store.update_stage(done.id, key, StageUpdate(status="done", note=note))  # type: ignore[arg-type]
 
 
+@router.get("/config")
+def auth_config(settings: Annotated[Settings, Depends(get_settings)]) -> dict:
+    """Public auth flags for the cabinet UI (password login only)."""
+    return {"dev_enabled": bool(settings.cabinet_dev_auth)}
+
+
 @router.get("/telegram/config")
 def telegram_login_config(settings: Annotated[Settings, Depends(get_settings)]) -> dict:
-    """Public bot username for the Telegram Login Widget."""
-    from app.services.telegram_auth import clean_bot_token
-
-    token = clean_bot_token(settings.telegram_bot_token)
-    username = (settings.telegram_bot_username or "").strip().lstrip("@")
+    """Deprecated: Telegram Login Widget disabled — password only."""
     return {
-        "bot_username": username,
-        "enabled": bool(token and username),
+        "bot_username": "",
+        "enabled": False,
         "dev_enabled": bool(settings.cabinet_dev_auth),
     }
 
 
 @router.post("/telegram", response_model=AuthResponse)
-async def auth_telegram(
-    request: Request,
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> AuthResponse:
-    """Login via Telegram Login Widget — verify hash on the raw JSON body."""
-    try:
-        raw = await request.json()
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Invalid JSON body") from exc
-    if not isinstance(raw, dict):
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
-
-    verified = verify_telegram_login(
-        raw,
-        bot_token=settings.telegram_bot_token,
-        max_age_seconds=settings.telegram_auth_max_age_seconds,
+async def auth_telegram() -> AuthResponse:
+    """Deprecated — use POST /auth/password."""
+    raise HTTPException(
+        status_code=410,
+        detail="Вход через Telegram отключён. Используйте логин и пароль.",
     )
-    user = cabinet_store.upsert_user_from_telegram(verified)
-    token = create_access_token(
-        telegram_id=user.telegram_id,
-        user_id=user.id,
-        settings=settings,
-    )
-    return AuthResponse(access_token=token, user=user)
 
 
 @router.post("/telegram/webapp", response_model=AuthResponse)
-def auth_telegram_webapp(
-    payload: TelegramWebAppAuthPayload,
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> AuthResponse:
-    """Silent login for Telegram Mini App via `WebApp.initData`."""
-    verified = verify_telegram_webapp_init_data(
-        payload.init_data,
-        bot_token=settings.telegram_bot_token,
-        max_age_seconds=settings.telegram_auth_max_age_seconds,
+def auth_telegram_webapp() -> AuthResponse:
+    """Deprecated — use POST /auth/password."""
+    raise HTTPException(
+        status_code=410,
+        detail="Вход через Telegram отключён. Используйте логин и пароль.",
     )
-    user = cabinet_store.upsert_user_from_telegram(verified)
-    token = create_access_token(
-        telegram_id=user.telegram_id,
-        user_id=user.id,
-        settings=settings,
-    )
-    return AuthResponse(access_token=token, user=user)
 
 
 def _secret_eq(left: str, right: str) -> bool:

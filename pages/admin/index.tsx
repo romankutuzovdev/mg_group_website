@@ -58,7 +58,8 @@ export default function AdminLoginPage({ dictionary }: Props) {
         <div className="mx-auto w-full max-w-md rounded-xl border border-border bg-white p-5 sm:p-6">
           <h1 className="text-lg font-semibold text-text-primary">Вход администратора</h1>
           <p className="mt-1 text-sm text-text-secondary">
-            Отдельный вход в кабинет менеджера. Клиенты по-прежнему входят через Telegram.
+            Логин и пароль с сервера (CABINET_ADMIN_LOGIN / CABINET_ADMIN_PASSWORD в .env).
+            После входа — вкладка «Менеджер»: назначение ролей и сделки.
           </p>
           <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-3">
             <label className="block text-sm">

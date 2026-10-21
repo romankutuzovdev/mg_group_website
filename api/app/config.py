@@ -111,23 +111,24 @@ class Settings(BaseSettings):
     calc_chrome_max_concurrent: int = 2
     calc_chrome_timeout_sec: float = 28.0
 
-    # Cabinet (Telegram Login Widget + JWT)
-    telegram_bot_token: str = ""
+    # Cabinet (password login + JWT). Telegram login endpoints return 410.
+    telegram_bot_token: str = ""  # legacy notify / optional
     telegram_bot_username: str = ""
     jwt_secret: str = "dev-change-me"
     jwt_ttl_days: int = 30
-    cabinet_admin_telegram_ids: str = "8257414851"  # comma-separated telegram user ids
+    # Extra admin telegram ids (legacy); password admin always admin via cabinet_password_telegram_id
+    cabinet_admin_telegram_ids: str = "8257414851"
     cabinet_db_path: str = str(DEFAULT_CABINET_DB)
     cabinet_uploads_dir: str = str(DEFAULT_UPLOADS_DIR)
-    telegram_auth_max_age_seconds: int = 86400  # 24h
+    telegram_auth_max_age_seconds: int = 86400  # unused for login
     # Local-only: POST /auth/dev + кнопки тестового входа в /cabinet/
     cabinet_dev_auth: bool = False
-    cabinet_dev_telegram_id: int = 8257414851  # менеджер (в CABINET_ADMIN_TELEGRAM_IDS)
-    cabinet_dev_client_telegram_id: int = 900002  # обычный клиент (не admin)
-    # Отдельный вход /admin/ — логин и пароль проверяются только на API.
+    cabinet_dev_telegram_id: int = 8257414851
+    cabinet_dev_client_telegram_id: int = 900002
+    # /admin/ и кабинет: логин/пароль с сервера (.env)
     cabinet_admin_login: str = "admin"
     cabinet_admin_password: str = "MGGROUP"
-    # Служебный id учётки пароля, не настоящий Telegram. Всегда считается админом.
+    # Служебный id учётки пароля (не Telegram). Всегда is_admin.
     cabinet_password_telegram_id: int = 900000000001
 
     # SMS.BY (https://app.sms.by) — токен и ID альфа-имени из кабинета SMS.BY

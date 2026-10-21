@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import SEO from "@/components/SEO";
@@ -26,33 +26,24 @@ import {
   type CabinetUser,
   type Deal,
   type FavoriteLot,
-  type TelegramLoginUser,
   fetchFavorites,
   fetchMe,
   fetchMyDeal,
   fetchMyDeals,
-  fetchTelegramAuthConfig,
+  fetchAuthConfig,
   getCabinetToken,
   loginDev,
   loginWithPassword,
-  loginWithTelegram,
   setCabinetToken,
   dealKind,
   stageKeysForDeal,
 } from "@/lib/api/cabinet";
-import { ensureTelegramWebAppAuth, isTelegramWebAppEnv } from "@/lib/telegram-webapp-auth";
 import { hydrateFavorites, resetFavoritesCache, subscribeFavorites } from "@/lib/favorites-cache";
 import {
   acceptCabinetPolicyConsent,
   CABINET_POLICY_PATH,
   hasCabinetPolicyConsent,
 } from "@/lib/cabinet-consent";
-
-declare global {
-  interface Window {
-    onTelegramAuth?: (user: TelegramLoginUser) => void;
-  }
-}
 
 type View = "list" | "detail";
 
@@ -108,15 +99,11 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   const [tab, setTab] = useState<Tab>("deals");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [botUsername, setBotUsername] = useState("");
-  const [authEnabled, setAuthEnabled] = useState(false);
   const [devAuthEnabled, setDevAuthEnabled] = useState(false);
-  const [webAppAuth, setWebAppAuth] = useState(false);
   const [phoneLogin, setPhoneLogin] = useState("");
   const [phonePassword, setPhonePassword] = useState("");
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [policyAccepted, setPolicyAccepted] = useState(false);
-  const widgetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setPolicyAccepted(hasCabinetPolicyConsent());
@@ -159,26 +146,19 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     setError(null);
     try {
       if (!isApiEnabled()) {
-        setError("API не настроен (NEXT_PUBLIC_API_URL).");
+        setError("API недоступен. Проверьте, что бэкенд запущен.");
         return;
       }
-      const cfg = await fetchTelegramAuthConfig();
-      setBotUsername(cfg.bot_username);
-      setAuthEnabled(cfg.enabled);
-      setDevAuthEnabled(Boolean(cfg.dev_enabled));
+      try {
+        const cfg = await fetchAuthConfig();
+        setDevAuthEnabled(Boolean(cfg.dev_enabled));
+      } catch {
+        setDevAuthEnabled(false);
+      }
 
-      // Без согласия с политикой — вход (в т.ч. Mini App) не выполняем
       if (!hasCabinetPolicyConsent()) {
         setUser(null);
         return;
-      }
-
-      // Mini App: silent login via initData (no Telegram Login Widget)
-      if (!getCabinetToken()) {
-        const ok = await ensureTelegramWebAppAuth();
-        if (ok) setWebAppAuth(true);
-      } else if (isTelegramWebAppEnv()) {
-        setWebAppAuth(true);
       }
 
       const token = getCabinetToken();
@@ -212,52 +192,6 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     });
   }, [user, loadFavorites]);
 
-  useEffect(() => {
-    window.onTelegramAuth = async (tgUser) => {
-      if (!hasCabinetPolicyConsent() && !policyAccepted) {
-        setError("Отметьте согласие с политикой конфиденциальности");
-        return;
-      }
-      acceptCabinetPolicyConsent();
-      setPolicyAccepted(true);
-      setError(null);
-      setLoading(true);
-      try {
-        const res = await loginWithTelegram(tgUser);
-        setUser(res.user);
-        resetFavoritesCache();
-        await Promise.all([loadDeals(), loadFavorites()]);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Ошибка входа через Telegram");
-      } finally {
-        setLoading(false);
-      }
-    };
-    return () => {
-      delete window.onTelegramAuth;
-    };
-  }, [loadDeals, loadFavorites, policyAccepted]);
-
-  useEffect(() => {
-    // In Mini App we never show the Login Widget — auth is silent
-    if (user || webAppAuth || !authEnabled || !botUsername || !widgetRef.current) return;
-    if (isTelegramWebAppEnv()) return;
-    if (!policyAccepted) {
-      widgetRef.current.innerHTML = "";
-      return;
-    }
-    widgetRef.current.innerHTML = "";
-    const script = document.createElement("script");
-    script.src = "https://telegram.org/js/telegram-widget.js?22";
-    script.async = true;
-    script.setAttribute("data-telegram-login", botUsername);
-    script.setAttribute("data-size", "large");
-    script.setAttribute("data-radius", "8");
-    script.setAttribute("data-onauth", "onTelegramAuth(user)");
-    script.setAttribute("data-request-access", "write");
-    widgetRef.current.appendChild(script);
-  }, [user, webAppAuth, authEnabled, botUsername, loading, policyAccepted]);
-
   const openDeal = async (id: number) => {
     setLoading(true);
     setError(null);
@@ -289,7 +223,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
       return;
     }
     if (!phoneLogin.trim() || !phonePassword) {
-      setError("Введите телефон и пароль");
+      setError("Введите логин и пароль");
       return;
     }
     setPhoneBusy(true);
@@ -301,7 +235,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
       setPhonePassword("");
       await Promise.all([loadDeals(), loadFavorites()]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Неверный телефон или пароль");
+      setError(err instanceof Error ? err.message : "Неверный логин или пароль");
     } finally {
       setPhoneBusy(false);
     }
@@ -359,18 +293,18 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
               onSubmit={(e) => void loginByPhone(e)}
               className="rounded-2xl border border-zinc-200/90 bg-white p-5 text-left shadow-[0_8px_30px_-18px_rgba(15,23,42,0.35)] sm:p-6"
             >
-              <p className="text-sm font-semibold text-zinc-900">По телефону</p>
+              <p className="text-sm font-semibold text-zinc-900">Логин и пароль</p>
               <p className="mt-1 text-xs text-zinc-500">
-                Логин и пароль выдаёт ваш менеджер
+                Клиентам — телефон и пароль от менеджера. Админу — логин/пароль с сервера
+                (`/admin/` или здесь).
               </p>
               <label className="mt-5 block text-xs font-medium text-zinc-500">
-                Телефон
+                Логин
                 <input
                   className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-3 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
                   value={phoneLogin}
                   onChange={(e) => setPhoneLogin(e.target.value)}
-                  placeholder="+375 29 123-45-67"
-                  inputMode="tel"
+                  placeholder="Телефон или логин"
                   autoComplete="username"
                   required
                 />
@@ -393,13 +327,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                   onChange={(e) => {
                     const next = e.target.checked;
                     setPolicyAccepted(next);
-                    if (next) {
-                      acceptCabinetPolicyConsent();
-                      // Mini App: после согласия пробуем тихий вход
-                      if (isTelegramWebAppEnv()) {
-                        void bootstrap();
-                      }
-                    }
+                    if (next) acceptCabinetPolicyConsent();
                     setError(null);
                   }}
                   className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
@@ -495,41 +423,21 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
               </div>
             ) : null}
 
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-center shadow-sm">
-              <p className="text-sm font-semibold text-zinc-900">
-                {webAppAuth || isTelegramWebAppEnv()
-                  ? "Вход через Telegram…"
-                  : "Или через Telegram"}
-              </p>
-              {!policyAccepted && !(webAppAuth || isTelegramWebAppEnv()) ? (
-                <p className="mt-3 text-xs text-amber-800">
-                  Сначала отметьте согласие с политикой выше — затем появится вход через Telegram.
-                </p>
-              ) : null}
-              {webAppAuth || isTelegramWebAppEnv() ? (
-                <p className="mt-3 text-sm text-zinc-500">
-                  Авторизация Mini App… Подождите секунду.
-                </p>
-              ) : (
-                <div className="mt-4 flex min-h-[40px] items-center justify-center" ref={widgetRef} />
-              )}
-              {!authEnabled && !(webAppAuth || isTelegramWebAppEnv()) ? (
-                <p className="mt-3 text-xs text-zinc-400">
-                  Виджет Telegram пока не настроен на API.
-                </p>
-              ) : null}
-              <p className="mt-4 text-xs text-zinc-500">
-                Нет доступа?{" "}
-                <a
-                  href={dictionary.global.tgLink}
-                  className="font-semibold text-emerald-800 underline underline-offset-2"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Написать менеджеру
-                </a>
-              </p>
-            </div>
+            <p className="text-center text-xs text-zinc-500">
+              Нет доступа?{" "}
+              <a
+                href={dictionary.global.tgLink}
+                className="font-semibold text-emerald-800 underline underline-offset-2"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Написать менеджеру
+              </a>
+              {" · "}
+              <Link href="/admin/" className="font-semibold text-zinc-700 underline underline-offset-2">
+                Вход админа
+              </Link>
+            </p>
           </div>
         </div>
       ) : (
@@ -574,15 +482,13 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                 </p>
               </div>
             </div>
-            {!webAppAuth && !isTelegramWebAppEnv() ? (
-              <button
-                type="button"
-                onClick={logout}
-                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
-              >
-                Выйти
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={logout}
+              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+            >
+              Выйти
+            </button>
           </div>
 
           {!isStaff && view === "list" ? (

@@ -258,6 +258,14 @@ async function cabinetFetch<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
+/** Local/dev flags for cabinet UI (no Telegram). */
+export async function fetchAuthConfig(): Promise<{
+  dev_enabled?: boolean;
+}> {
+  return cabinetFetch("/api/v1/auth/config");
+}
+
+/** @deprecated use fetchAuthConfig — kept for old callers */
 export async function fetchTelegramAuthConfig(): Promise<{
   bot_username: string;
   enabled: boolean;

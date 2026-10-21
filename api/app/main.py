@@ -125,7 +125,7 @@ def create_app() -> FastAPI:
         version=__version__,
         description=(
             "MG.GROUP API. Лоты Copart/IAAI, тарифы, контент, "
-            "личный кабинет (Telegram Login), Playwright-парсер."
+            "личный кабинет (логин/пароль), Playwright-парсер."
         ),
         lifespan=lifespan,
     )

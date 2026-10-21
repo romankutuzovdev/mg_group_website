@@ -386,7 +386,7 @@ def admin_set_user_role(
     body: UserRoleUpdate,
     actor: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> UserOut:
-    """Only the owner admin (Telegram id from CABINET_ADMIN_TELEGRAM_IDS) assigns managers."""
+    """Only password admin (or CABINET_ADMIN_TELEGRAM_IDS) assigns managers."""
     if not actor.is_admin:
         raise HTTPException(status_code=403, detail="Назначать менеджеров может только администратор")
     user = cabinet_store.set_user_manager(user_id, body.is_manager)

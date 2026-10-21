@@ -4,7 +4,6 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { DisableStaticExportPrefetch } from "@/components/layout/disable-static-export-prefetch";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
-import { TelegramWebAppInit } from "@/components/layout/telegram-webapp-init";
 import { CookieConsent } from "@/components/site/cookie-consent";
 import { DevNotice } from "@/components/site/dev-notice";
 import { YandexMetrika } from "@/components/site/yandex-metrika";
@@ -20,7 +19,6 @@ export default function App({ Component, pageProps }: AppProps) {
     <div className={`${inter.className} app-shell`}>
       <YandexMetrika />
       <DisableStaticExportPrefetch />
-      <TelegramWebAppInit />
       <DevNotice />
       <Header dictionary={dictionary} />
       <main className="app-main">
