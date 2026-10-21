@@ -45,11 +45,23 @@ powershell -ExecutionPolicy Bypass -File C:\mg-api\api\deploy\update-from-git.ps
 
 ## 4. Поведение
 
-| Регион | CDN |
-|--------|-----|
-| USA, UK | да |
-| Korea, China | нет |
+Все регионы (USA / UK / Korea / China) → R2, когда `R2_ENABLED=true`.
 
-URL в лоте: `https://pub-…/lots/{id}/01-….jpg`
+URL в лоте: `https://pub-…/lots/{id}/01-….jpg` (не `/api/lot-photos/...`).
+
+Проверка на Windows:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1/api/v1/scraper/r2-status
+```
+
+Если `enabled: false` — смотрите `disabled_reason` (часто пустой `R2_PUBLIC_BASE_URL` или S3 API вместо `pub-….r2.dev`).
+
+Уже скачанные фото на диске залить в R2 одним проходом (нужен `X-API-Key`):
+
+```powershell
+Invoke-RestMethod -Method POST -Headers @{ "X-API-Key" = "секрет" } `
+  "http://127.0.0.1/api/v1/scraper/r2/promote-locals?limit=500"
+```
 
 Если ключи светились в чате/мессенджере — **перевыпустите** API token в Cloudflare.

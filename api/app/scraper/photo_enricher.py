@@ -510,7 +510,7 @@ class PhotoEnrichmentAgent:
                         source=lot.source,
                     )
                 except Exception as exc:
-                    logger.debug("R2 promote %s: %s", lot.id, exc)
+                    logger.warning("R2 promote %s: %s", lot.id, exc)
                 from app.services.lot_photos import is_our_photo
 
                 local_count = sum(1 for u in merged if is_our_photo(u or ""))

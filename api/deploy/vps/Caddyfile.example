@@ -1,0 +1,16 @@
+# Replace mg-group.by with your domain. Caddy gets Let's Encrypt automatically.
+mg-group.by, www.mg-group.by {
+	encode gzip zstd
+
+	# API + static site are both served by uvicorn (WEB_ROOT=out)
+	reverse_proxy 127.0.0.1:8080
+
+	header {
+		# HSTS after HTTPS works
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	}
+
+	log {
+		output file /var/log/caddy/mg-group.log
+	}
+}

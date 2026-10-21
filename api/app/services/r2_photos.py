@@ -1,9 +1,9 @@
-"""Cloudflare R2 CDN for USA/UK lot photos (free-tier friendly).
+"""Cloudflare R2 CDN for auction lot photos (all regions).
 
 Flow:
   1) Scraper archives JPEGs on Windows disk (`/api/lot-photos/...`)
-  2) For region usa/uk we upload the folder to R2
-  3) Lot JSON stores public CDN URLs → browser hits CDN, not Windows
+  2) Upload folder to R2 for every auction region when R2_ENABLED
+  3) Lot JSON stores public CDN URLs → browser hits CDN, not Windows/VPS
   4) When auction ends, prune deletes disk + R2 prefix
 
 Env (api/.env):
@@ -28,8 +28,8 @@ from app.config import get_settings
 
 logger = logging.getLogger("mg.r2_photos")
 
-# Only USA + England auction photos go to CDN.
-CDN_REGIONS = frozenset({"usa", "uk"})
+# All auction regions → R2 when enabled (VPS public API has no local photo disk).
+CDN_REGIONS = frozenset({"usa", "uk", "korea", "china"})
 _KEY_PREFIX = "lots"
 
 
@@ -39,34 +39,70 @@ def _looks_like_s3_api_endpoint(url: str) -> bool:
     return "r2.cloudflarestorage.com" in u and ".r2.dev" not in u
 
 
-def r2_enabled() -> bool:
+def r2_disabled_reason() -> str | None:
+    """Why R2 CDN is off — for /scraper/status diagnostics."""
     s = get_settings()
     if not getattr(s, "r2_enabled", False):
-        return False
+        return "R2_ENABLED is false or unset"
     base = (s.r2_public_base_url or "").strip()
+    if not base:
+        return "R2_PUBLIC_BASE_URL empty"
     if _looks_like_s3_api_endpoint(base):
-        logger.error(
-            "R2_PUBLIC_BASE_URL is the S3 API endpoint (%s) — browsers cannot "
-            "use it. Enable Public Development URL (pub-….r2.dev) or a custom "
-            "domain on the bucket, then set R2_PUBLIC_BASE_URL to that.",
-            base[:80],
+        return (
+            "R2_PUBLIC_BASE_URL is the private S3 API host "
+            "(…r2.cloudflarestorage.com) — use pub-….r2.dev or custom domain"
         )
-        return False
-    return bool(
-        (s.r2_account_id or "").strip()
-        and (s.r2_access_key_id or "").strip()
-        and (s.r2_secret_access_key or "").strip()
-        and (s.r2_bucket or "").strip()
-        and base
-    )
+    if not (s.r2_account_id or "").strip():
+        return "R2_ACCOUNT_ID empty"
+    if not (s.r2_access_key_id or "").strip():
+        return "R2_ACCESS_KEY_ID empty"
+    if not (s.r2_secret_access_key or "").strip():
+        return "R2_SECRET_ACCESS_KEY empty"
+    if not (s.r2_bucket or "").strip():
+        return "R2_BUCKET empty"
+    try:
+        import boto3  # noqa: F401
+    except ImportError:
+        return "boto3 not installed"
+    return None
+
+
+def r2_enabled() -> bool:
+    return r2_disabled_reason() is None
+
+
+def r2_status() -> dict[str, Any]:
+    s = get_settings()
+    reason = r2_disabled_reason()
+    base = (s.r2_public_base_url or "").strip().rstrip("/")
+    return {
+        "enabled": reason is None,
+        "disabled_reason": reason,
+        "bucket": (s.r2_bucket or "").strip() or None,
+        "public_base_url": base[:80] if base else None,
+        "account_id_set": bool((s.r2_account_id or "").strip()),
+        "access_key_set": bool((s.r2_access_key_id or "").strip()),
+    }
 
 
 def region_uses_cdn(region: str | None, source: str | None = None) -> bool:
-    """Only USA + England (UK) catalogs."""
+    """Upload/archive to R2 for every known auction region when R2 is on."""
+    if not r2_enabled():
+        return False
     r = (region or "").strip().lower()
-    if r in CDN_REGIONS:
+    if r in CDN_REGIONS or not r:
         return True
-    return (source or "").strip().lower() == "copart_uk"
+    src = (source or "").strip().lower()
+    return src in {
+        "bidcars",
+        "copart",
+        "iaai",
+        "copart_uk",
+        "manheim",
+        "salvage_market",
+        "encar",
+        "china_market",
+    }
 
 
 def public_base() -> str:
@@ -219,7 +255,7 @@ def promote_gallery_urls(
     region: str | None = None,
     source: str | None = None,
 ) -> list[str]:
-    """Upload local archive to R2 (usa/uk) and rewrite `/api/lot-photos` → CDN URLs."""
+    """Upload local archive to R2 and rewrite `/api/lot-photos` → CDN URLs."""
     if not urls or not r2_enabled():
         return urls
     if not region_uses_cdn(region, source):
@@ -231,7 +267,12 @@ def promote_gallery_urls(
     if not has_local:
         return urls
 
-    upload_lot_dir(lot_id)
+    uploaded = upload_lot_dir(lot_id)
+    if uploaded <= 0:
+        logger.warning(
+            "R2 promote %s: no files uploaded (folder empty or upload failed)",
+            lot_id,
+        )
 
     out: list[str] = []
     seen: set[str] = set()
@@ -241,9 +282,70 @@ def promote_gallery_urls(
             continue
         if is_local_photo(u):
             cdn = local_api_to_cdn_url(u)
-            u = cdn or u
+            if cdn:
+                u = cdn
+            else:
+                logger.warning("R2 promote %s: could not map %s", lot_id, u[:80])
         if u in seen:
             continue
         seen.add(u)
         out.append(u)
     return out
+
+
+def backfill_local_lots_to_r2(*, limit: int = 200) -> dict[str, Any]:
+    """Upload existing `/api/lot-photos` galleries to R2 and rewrite catalog URLs."""
+    from app.data.store import lot_store
+    from app.services.lot_photos import is_local_photo
+
+    if not r2_enabled():
+        return {"ok": False, "error": r2_disabled_reason(), **r2_status()}
+
+    promoted = 0
+    uploaded_files = 0
+    skipped = 0
+    errors = 0
+    samples: list[str] = []
+
+    for lot in lot_store.all():
+        if promoted >= limit:
+            break
+        imgs = list(lot.imageUrls or []) + ([lot.imageUrl] if lot.imageUrl else [])
+        locals_ = [u for u in imgs if is_local_photo(u or "")]
+        if not locals_:
+            skipped += 1
+            continue
+        try:
+            before = len(locals_)
+            merged = promote_gallery_urls(
+                lot.id,
+                imgs,
+                region=lot.region,
+                source=lot.source,
+            )
+            still_local = sum(1 for u in merged if is_local_photo(u or ""))
+            if still_local >= before:
+                errors += 1
+                continue
+            updated = lot_store.update_photos(lot.id, merged)
+            if updated:
+                promoted += 1
+                uploaded_files += before - still_local
+                if len(samples) < 5:
+                    samples.append(merged[0] if merged else lot.id)
+        except Exception as exc:
+            errors += 1
+            logger.warning("R2 backfill %s: %s", lot.id, exc)
+
+    if promoted:
+        lot_store.persist()
+
+    return {
+        "ok": True,
+        "promoted_lots": promoted,
+        "uploaded_url_rewrites": uploaded_files,
+        "skipped_no_local": skipped,
+        "errors": errors,
+        "samples": samples,
+        **r2_status(),
+    }

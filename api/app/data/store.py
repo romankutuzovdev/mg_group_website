@@ -30,6 +30,21 @@ def _repair_iaai_blobs(lots: list[AuctionLot]) -> list[AuctionLot]:
     return [repair_iaai_listing_blob(lot) for lot in lots]
 
 
+def _is_our_archived_url(url: str) -> bool:
+    """Local `/api/lot-photos` or Cloudflare R2 CDN — keep across scrape upserts."""
+    u = (url or "").strip()
+    if not u:
+        return False
+    if u.startswith("/api/lot-photos/"):
+        return True
+    try:
+        from app.services.lot_photos import is_our_photo
+
+        return is_our_photo(u)
+    except Exception:
+        return ".r2.dev/" in u.lower() and "/lots/" in u.lower()
+
+
 def _dedupe_urls(urls: list[str]) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
@@ -37,7 +52,12 @@ def _dedupe_urls(urls: list[str]) -> list[str]:
         u = (u or "").strip()
         if not u:
             continue
-        if not u.startswith("http") and not u.startswith("/api/lot-photos/"):
+        # Keep http(s), local archive, and any already-known our CDN path.
+        if not (
+            u.startswith("http")
+            or u.startswith("/api/lot-photos/")
+            or _is_our_archived_url(u)
+        ):
             continue
         if u in seen:
             continue
@@ -111,15 +131,26 @@ def merge_lot(old: AuctionLot | None, new: AuctionLot) -> AuctionLot:
         for u in _dedupe_urls(list(new.imageUrls or []) + ([new.imageUrl] if new.imageUrl else []))
         if _keep_lot_photo(u)
     ]
-    old_local = [u for u in old_imgs if u.startswith("/api/lot-photos/")]
+    old_ours = [u for u in old_imgs if _is_our_archived_url(u)]
+    new_ours = [u for u in new_imgs if _is_our_archived_url(u)]
 
-    # Archived photos must survive CDN-only scrapes — BY visitors need
-    # same-origin `/api/lot-photos` (auction CDNs often need a VPN).
-    if old_local:
-        remotes = [u for u in (new_imgs + old_imgs) if u.startswith("http")]
-        merged = _dedupe_urls(old_local + remotes)
+    # Archived photos (disk and/or R2) must survive CDN-only scrapes.
+    # Prefer R2 CDN cover over `/api/lot-photos` so the site does not depend on Windows.
+    def _prefer_cdn_first(urls: list[str]) -> list[str]:
+        cdn = [u for u in urls if u.startswith("http") and _is_our_archived_url(u)]
+        local = [u for u in urls if u.startswith("/api/lot-photos/")]
+        rest = [u for u in urls if u not in cdn and u not in local]
+        return _dedupe_urls(cdn + local + rest)
+
+    if old_ours or new_ours:
+        remotes = [
+            u
+            for u in (new_imgs + old_imgs)
+            if u.startswith("http") and not _is_our_archived_url(u)
+        ]
+        merged = _prefer_cdn_first(old_ours + new_ours + remotes)
         data["imageUrls"] = merged
-        data["imageUrl"] = old_local[0]
+        data["imageUrl"] = merged[0] if merged else (new.imageUrl or old.imageUrl)
     elif len(old_imgs) > len(new_imgs):
         merged = _dedupe_urls(old_imgs + new_imgs)
         data["imageUrls"] = merged

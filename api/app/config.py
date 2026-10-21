@@ -25,6 +25,32 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
+    # Deployment split:
+    #   all     — legacy: scraper + site + cabinet on one box (Windows today)
+    #   scraper — Windows factory: Chrome scrapers + R2 photos + lots export
+    #   public  — VPS: site + cabinet DB + pull lots from scraper (no Chrome)
+    app_role: str = "all"
+    # Public VPS pulls catalog from Windows, e.g.
+    # http://91.149.133.54/api/v1/internal/lots-catalog
+    lots_source_url: str = ""
+    lots_source_api_key: str = ""  # defaults to ingest_api_key if empty
+    lots_sync_interval_seconds: int = 120
+    # Windows scraper PUSHES catalog to VPS (preferred when VPS cannot reach Windows):
+    # http://178.172.138.96/api/v1/internal/lots-ingest
+    lots_push_url: str = ""
+    lots_push_api_key: str = ""  # defaults to ingest_api_key
+    lots_push_interval_seconds: int = 180
+    # One-shot / on-demand: pull cabinet.db+uploads from Windows onto VPS
+    # http://91.149.133.54/api/v1/internal/cabinet-backup
+    cabinet_source_url: str = ""
+    cabinet_source_api_key: str = ""  # defaults to lots_source / ingest key
+    # Public site URL on VPS — Windows redirects mg-group.by here (not Vercel).
+    # e.g. http://178.172.138.96  or  https://mg-group.by once DNS points at VPS
+    public_site_url: str = ""
+    # When true and public_site_url empty: legacy redirect mg-group.by → Vercel.
+    # Public VPS must set false — domain points at this host.
+    redirect_apex_to_vercel: bool = True
+
     # Scraper — one Google Chrome, one tab per source (CDP on Windows)
     scraper_autostart: bool = True
     scraper_sources: str = "bidcars,copart_uk,manheim,salvage_market,encar,china_market"

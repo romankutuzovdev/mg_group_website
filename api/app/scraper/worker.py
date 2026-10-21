@@ -483,7 +483,7 @@ class SourceAgent:
                     source=current.source,
                 )
             except Exception as exc:
-                logger.debug("R2 promote %s: %s", current.id, exc)
+                logger.warning("R2 promote %s: %s", current.id, exc)
             if not merged:
                 continue
             updated = lot_store.update_photos(current.id, merged)
@@ -776,6 +776,12 @@ class MultiAgentOrchestrator:
             for name, a in self._agents.items()
         }
         photos = self._photo_agent.snapshot() if self._photo_agent else None
+        try:
+            from app.services.r2_photos import r2_status
+
+            r2 = r2_status()
+        except Exception as exc:
+            r2 = {"enabled": False, "disabled_reason": str(exc)[:120]}
         return {
             "running": self.status.running,
             "enabled": self.status.enabled,
@@ -789,6 +795,7 @@ class MultiAgentOrchestrator:
             "agents": agents,
             "photos": photos,
             "photos_enabled": settings.scraper_photos_enabled,
+            "r2": r2,
             "calc_tab_url": settings.scraper_calc_tab_url if settings.scraper_calc_tab_enabled else None,
             "calc_tab_open": bool(self._calc_page and not self._calc_page.is_closed()),
             "mode": "multi_agent_one_chrome_tabs",

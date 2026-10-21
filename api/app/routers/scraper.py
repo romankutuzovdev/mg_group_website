@@ -63,6 +63,24 @@ async def scraper_photos_run_once(
     return await scraper_worker.run_photos_once(limit=limit)
 
 
+@router.get("/r2-status")
+def scraper_r2_status() -> dict:
+    """Whether Cloudflare R2 CDN is configured (no secrets)."""
+    from app.services.r2_photos import r2_status
+
+    return r2_status()
+
+
+@router.post("/r2/promote-locals", dependencies=[Depends(_require_key)])
+def scraper_r2_promote_locals(
+    limit: int = Query(200, ge=1, le=5000),
+) -> dict:
+    """Upload existing `/api/lot-photos` folders to R2 and rewrite lot URLs to CDN."""
+    from app.services.r2_photos import backfill_local_lots_to_r2
+
+    return backfill_local_lots_to_r2(limit=limit)
+
+
 @router.post("/localize-korea", dependencies=[Depends(_require_key)])
 def scraper_localize_korea(
     limit: int = Query(0, ge=0, le=100_000),

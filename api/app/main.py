@@ -16,6 +16,7 @@ from app.routers import (
     cabinet,
     content,
     health,
+    internal,
     logistics,
     lot_image,
     lots,
@@ -28,6 +29,11 @@ from app.services.cabinet_store import cabinet_store
 from app.services.logistics_store import logistics_store
 from app.services.purchased_cars_store import purchased_cars_store
 from app.services import car_search, quote_history
+from app.services.lots_sync import lots_sync_loop
+
+
+def _role(settings) -> str:
+    return (settings.app_role or "all").strip().lower()
 
 
 @asynccontextmanager
@@ -35,6 +41,8 @@ async def lifespan(_app: FastAPI):
     n = lot_store.reload()
     print(f"[mg-api] loaded {n} lots from disk")
     settings = get_settings()
+    role = _role(settings)
+    print(f"[mg-api] APP_ROLE={role}")
     purge_flag = Path(settings.lots_json_path).resolve().parent / "purge-usa.flag"
     if purge_flag.is_file():
         removed = lot_store.delete_region("usa")
@@ -49,10 +57,29 @@ async def lifespan(_app: FastAPI):
     car_search.init()
     print("[mg-api] cabinet + logistics + purchased cars db ready")
     search_task = asyncio.create_task(car_search.car_search_loop())
-    start_scraper_in_background()
+
+    # Scraper only on Windows factory (all | scraper). Public VPS receives lots.
+    if role in {"all", "scraper"}:
+        start_scraper_in_background()
+    else:
+        print("[mg-api] scraper disabled (APP_ROLE=public)")
+
+    sync_stop = asyncio.Event()
+    sync_task: asyncio.Task | None = None
+    # public: optional pull from Windows; scraper/all: optional push to VPS
+    if role == "public" or (
+        role in {"all", "scraper"} and (settings.lots_push_url or "").strip()
+    ):
+        sync_task = asyncio.create_task(lots_sync_loop(sync_stop))
+        if role in {"all", "scraper"}:
+            print(f"[mg-api] lots push → {(settings.lots_push_url or '')[:80]}")
+
 
     async def _localize_korea_bg() -> None:
         """Translate Hangul on existing Korea lots (dict + free Google, cached)."""
+        if role == "public":
+            # Catalog is overwritten by sync; translate on scraper node instead.
+            return
         await asyncio.sleep(45)
         try:
             from app.services.ko_ru import has_hangul, localize_korea_store
@@ -80,6 +107,9 @@ async def lifespan(_app: FastAPI):
 
     korea_ru_task = asyncio.create_task(_localize_korea_bg())
     yield
+    sync_stop.set()
+    if sync_task:
+        sync_task.cancel()
     korea_ru_task.cancel()
     search_task.cancel()
     try:
@@ -109,15 +139,20 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Stale DNS may still hit this Windows box for mg-group.by over HTTP.
-    # Send browsers to Vercel HTTPS; leave IP / nip.io hosts alone (API proxy).
-    _canonical = "https://www.mg-group.by"
+    # Windows (scraper): stale DNS for mg-group.by → public site on VPS.
+    # Prefer PUBLIC_SITE_URL (e.g. http://178.172.138.96); else legacy Vercel.
+    # Public VPS (APP_ROLE=public): domain points here — do not redirect.
+    _public = (settings.public_site_url or "").strip().rstrip("/")
+    _canonical = _public or "https://www.mg-group.by"
     _redirect_hosts = {"mg-group.by", "www.mg-group.by"}
+    _do_apex_redirect = _role(settings) != "public" and (
+        bool(_public) or bool(settings.redirect_apex_to_vercel)
+    )
 
     @app.middleware("http")
-    async def redirect_domain_to_vercel_https(request: Request, call_next):
+    async def redirect_domain_to_public_site(request: Request, call_next):
         host = (request.headers.get("host") or "").split(":")[0].strip().lower()
-        if host in _redirect_hosts:
+        if _do_apex_redirect and host in _redirect_hosts:
             path = request.url.path or "/"
             target = f"{_canonical}{path}"
             if request.url.query:
@@ -142,6 +177,7 @@ def create_app() -> FastAPI:
     app.include_router(pricing.router, prefix=prefix)
     app.include_router(content.router, prefix=prefix)
     app.include_router(scraper.router, prefix=prefix)
+    app.include_router(internal.router, prefix=prefix)
     app.include_router(auth.router, prefix=prefix)
     app.include_router(cabinet.router, prefix=prefix)
     app.include_router(logistics.router, prefix=prefix)
