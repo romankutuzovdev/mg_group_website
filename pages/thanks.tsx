@@ -68,5 +68,5 @@ export default function ThankYouPage({ dictionary }: Props) {
 }
 
 export const getStaticProps: GetStaticProps<Props> = async () => ({
-  props: { dictionary: getDictionary("ru") },
+  props: { dictionary: getDictionary() },
 });

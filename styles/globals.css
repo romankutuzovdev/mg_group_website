@@ -18,40 +18,86 @@
 
 @layer base {
   :root {
-    --background: 0 0% 96%;
-    --foreground: 0 0% 3.9%;
+    /* MG.GROUP — liquid glass + emerald brand (ui-ux-pro-max adapted) */
+    --background: 60 9% 98%;
+    --foreground: 24 10% 4%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 24 10% 4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 0 0% 90%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 90%;
-    --muted-foreground: 0 0% 40%;
-    --accent: 0 0% 90%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 24 10% 4%;
+    --primary: 142.1 70.6% 45.3%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 24 6% 92%;
+    --secondary-foreground: 24 10% 10%;
+    --muted: 24 6% 92%;
+    --muted-foreground: 25 5% 35%;
+    --accent: 142.1 70.6% 45.3%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 85%;
-    --input: 0 0% 85%;
-    --ring: 142.1 76.2% 36.3%;
-    --radius: 0.75rem;
+    --border: 24 6% 84%;
+    --input: 24 6% 84%;
+    --ring: 142.1 70.6% 45.3%;
+    --radius: 1rem;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
-  }
-  body {
-    @apply bg-[#f2f2f2] text-foreground;
+    font-family: var(--font-cormorant), Georgia, "Times New Roman", serif;
   }
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 4rem;
     scroll-padding-bottom: 5rem;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-bg-base text-base text-foreground antialiased;
+    font-family: var(--font-cormorant), Georgia, "Times New Roman", serif;
+    font-weight: 500;
+    line-height: 1.55;
+    letter-spacing: 0.01em;
+    background-image:
+      radial-gradient(1200px 500px at 10% -10%, rgba(34, 197, 94, 0.06), transparent 55%),
+      radial-gradient(900px 400px at 90% 0%, rgba(28, 25, 23, 0.04), transparent 50%);
+    background-attachment: fixed;
+  }
+  button,
+  input,
+  textarea,
+  select,
+  optgroup,
+  option {
+    font-family: inherit;
+    font-size: inherit;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: inherit;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    .motion-safe\:animate-fade-up,
+    .motion-safe\:animate-fade-up-delay-1,
+    .motion-safe\:animate-fade-up-delay-2,
+    .motion-safe\:animate-fade-up-delay-3,
+    .motion-safe\:animate-hero-ken {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
   }
 }
 
@@ -1010,5 +1056,128 @@
 @media (prefers-reduced-motion: reduce) {
   .catalog-region-tile {
     animation: none !important;
+  }
+}
+
+/* ——— Interactive 3D route car (Process) ——— */
+.route-car-3d {
+  width: 7.5rem;
+  height: 4.5rem;
+  perspective: 600px;
+  pointer-events: none;
+}
+
+.route-car-3d__scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-x, 12deg)) rotateY(var(--tilt-y, -18deg));
+  transition: transform 0.25s ease-out;
+}
+
+.route-car-3d__shadow {
+  position: absolute;
+  left: 12%;
+  right: 8%;
+  bottom: 0.15rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.55), transparent 70%);
+  filter: blur(2px);
+  transform: translateZ(-12px);
+}
+
+.route-car-3d__body {
+  position: absolute;
+  inset: 0.55rem 0.35rem 0.85rem;
+  transform-style: preserve-3d;
+}
+
+.route-car-3d__cabin {
+  position: absolute;
+  left: 8%;
+  right: 28%;
+  top: 8%;
+  bottom: 28%;
+  border-radius: 0.65rem 1.1rem 0.35rem 0.45rem;
+  background: linear-gradient(145deg, #3f3f46 0%, #18181b 55%, #09090b 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 10px 24px rgba(0, 0, 0, 0.35);
+  transform: translateZ(14px);
+}
+
+.route-car-3d__hood {
+  position: absolute;
+  left: 58%;
+  right: 4%;
+  top: 28%;
+  bottom: 28%;
+  border-radius: 0.35rem 0.85rem 0.55rem 0.25rem;
+  background: linear-gradient(135deg, #27272a, #0a0a0a);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transform: translateZ(10px) rotateY(-8deg);
+}
+
+.route-car-3d__glass {
+  position: absolute;
+  left: 18%;
+  right: 38%;
+  top: 14%;
+  height: 38%;
+  border-radius: 0.35rem 0.7rem 0.15rem 0.2rem;
+  background: linear-gradient(135deg, rgba(110, 231, 183, 0.35), rgba(15, 23, 42, 0.75));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transform: translateZ(18px);
+}
+
+.route-car-3d__stripe {
+  position: absolute;
+  left: 10%;
+  right: 12%;
+  top: 48%;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #22c55e, transparent);
+  transform: translateZ(16px);
+  filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.8));
+}
+
+.route-car-3d__wheel {
+  position: absolute;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 35%, #52525b 0 18%, transparent 19%),
+    radial-gradient(circle at 50% 50%, #22c55e 0 14%, #18181b 15% 48%, #09090b 49%);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 0 0 2px #27272a;
+  transform: translateZ(4px) rotateZ(var(--wheel-spin, 0deg));
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.route-car-3d__wheel--fl { left: 18%; bottom: -0.15rem; }
+.route-car-3d__wheel--fr { left: 58%; bottom: -0.15rem; }
+.route-car-3d__wheel--rl { left: 18%; bottom: 0.55rem; opacity: 0.55; transform: translateZ(-6px) scale(0.92) rotateZ(var(--wheel-spin, 0deg)); }
+.route-car-3d__wheel--rr { left: 58%; bottom: 0.55rem; opacity: 0.55; transform: translateZ(-6px) scale(0.92) rotateZ(var(--wheel-spin, 0deg)); }
+
+.route-car-3d__light {
+  position: absolute;
+  top: 42%;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: #fef08a;
+  box-shadow: 0 0 10px 3px rgba(250, 204, 21, 0.65);
+  transform: translateZ(16px);
+}
+.route-car-3d__light--l { right: 6%; }
+.route-car-3d__light--r { right: 12%; opacity: 0.7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .route-car-3d__scene,
+  .route-car-3d__wheel {
+    transition: none !important;
   }
 }

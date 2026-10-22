@@ -39,96 +39,98 @@ const Footer = ({ dictionary }: FooterProps) => {
   };
 
   return (
-    <footer id="footer" className="hidden border-t bg-background lg:block">
-      <div className="mx-auto max-w-7xl px-3 py-6 sm:px-4 sm:py-8">
+    <footer id="footer" className="hidden border-t border-stone-200/80 bg-stone-950 text-white lg:block">
+      <div className="mx-auto max-w-7xl px-3 py-8 sm:px-4 sm:py-10">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-4 md:gap-6">
           <div>
-            <h3 className="mb-2 text-sm font-semibold">{dictionary.footer.company.name}</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <h3 className="mb-2 font-display text-2xl font-semibold tracking-tight">
+              MG<span className="text-primary">.</span>GROUP
+            </h3>
+            <p className="text-xs text-white/55 leading-relaxed">
               {dictionary.footer.company.description}
             </p>
           </div>
           <div>
             <h3 className="mb-2 text-sm font-semibold">Разделы</h3>
-            <nav className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-              <a href="/avto/" className="hover:text-foreground transition-colors">
+            <nav className="flex flex-col gap-1.5 text-xs text-white/55">
+              <a href="/avto/" className="hover:text-white transition-colors">
                 Каталог авто
               </a>
-              <a href="/avto/usa/" className="hover:text-foreground transition-colors">
+              <a href="/avto/usa/" className="hover:text-white transition-colors">
                 Авто из США
               </a>
-              <a href="/avto/china/" className="hover:text-foreground transition-colors">
+              <a href="/avto/china/" className="hover:text-white transition-colors">
                 Авто из Китая
               </a>
-              <a href="/avto/korea/" className="hover:text-foreground transition-colors">
+              <a href="/avto/korea/" className="hover:text-white transition-colors">
                 Авто из Кореи
               </a>
-              <a href="/avto/uk/" className="hover:text-foreground transition-colors">
+              <a href="/avto/uk/" className="hover:text-white transition-colors">
                 Авто из Англии
               </a>
-              <a href="/mashinokomplekt/" className="hover:text-foreground transition-colors">
+              <a href="/mashinokomplekt/" className="hover:text-white transition-colors">
                 Машинокомплекты
               </a>
               <a
                 href="/kuplennye-mashinokomplekty/"
-                className="hover:text-foreground transition-colors"
+                className="hover:text-white transition-colors"
               >
                 Купленные комплекты
               </a>
-              <a href="/calculator/" className="hover:text-foreground transition-colors">
+              <a href="/calculator/" className="hover:text-white transition-colors">
                 Калькуляторы
               </a>
-              <a href="/calculator/usa/" className="hover:text-foreground transition-colors">
+              <a href="/calculator/usa/" className="hover:text-white transition-colors">
                 Просчёт США
               </a>
-              <a href="/calculator/angliya/" className="hover:text-foreground transition-colors">
+              <a href="/calculator/angliya/" className="hover:text-white transition-colors">
                 Просчёт Англия
               </a>
-              <a href="/calculator/vosstanovlenie/" className="hover:text-foreground transition-colors">
+              <a href="/calculator/vosstanovlenie/" className="hover:text-white transition-colors">
                 Восстановление
               </a>
-              <a href="/calculator/rastamozhka/" className="hover:text-foreground transition-colors">
+              <a href="/calculator/rastamozhka/" className="hover:text-white transition-colors">
                 Растаможка
               </a>
-              <a href="/otzyvy/" className="hover:text-foreground transition-colors">
+              <a href="/otzyvy/" className="hover:text-white transition-colors">
                 Отзывы
               </a>
-              <a href="/about/" className="hover:text-foreground transition-colors">
+              <a href="/about/" className="hover:text-white transition-colors">
                 {dictionary.nav.about}
               </a>
-              <a href="/faq/" className="hover:text-foreground transition-colors">
+              <a href="/faq/" className="hover:text-white transition-colors">
                 {dictionary.nav.faq}
               </a>
-              <a href="/contacts/" className="hover:text-foreground transition-colors">
+              <a href="/contacts/" className="hover:text-white transition-colors">
                 {dictionary.nav.contacts}
               </a>
-              <a href="/politika-konfidencialnosti/" className="hover:text-foreground transition-colors">
+              <a href="/politika-konfidencialnosti/" className="hover:text-white transition-colors">
                 Политика конфиденциальности
               </a>
-              <a href="/cookies/" className="hover:text-foreground transition-colors">
+              <a href="/cookies/" className="hover:text-white transition-colors">
                 Политика cookies
               </a>
             </nav>
-            <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-white/55">
               Города
             </p>
-            <nav className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
-              <a href="/gorod/minsk/" className="hover:text-foreground transition-colors">
+            <nav className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-white/55">
+              <a href="/gorod/minsk/" className="hover:text-white transition-colors">
                 Минск
               </a>
-              <a href="/gorod/grodno/" className="hover:text-foreground transition-colors">
+              <a href="/gorod/grodno/" className="hover:text-white transition-colors">
                 Гродно
               </a>
-              <a href="/gorod/brest/" className="hover:text-foreground transition-colors">
+              <a href="/gorod/brest/" className="hover:text-white transition-colors">
                 Брест
               </a>
-              <a href="/gorod/vitebsk/" className="hover:text-foreground transition-colors">
+              <a href="/gorod/vitebsk/" className="hover:text-white transition-colors">
                 Витебск
               </a>
-              <a href="/gorod/gomel/" className="hover:text-foreground transition-colors">
+              <a href="/gorod/gomel/" className="hover:text-white transition-colors">
                 Гомель
               </a>
-              <a href="/gorod/mogilev/" className="hover:text-foreground transition-colors">
+              <a href="/gorod/mogilev/" className="hover:text-white transition-colors">
                 Могилёв
               </a>
             </nav>
@@ -139,10 +141,10 @@ const Footer = ({ dictionary }: FooterProps) => {
               {phones.map((phone, index) => (
                 <div key={index} className="flex items-center">
                   <div className="flex items-center min-w-[200px] gap-2">
-                    <Phone className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    <Phone className="h-4 w-4 flex-shrink-0 text-white/55" />
                     <a 
                       href={`tel:${formatPhoneForLink(phone.number)}`}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-white/55 hover:text-white transition-colors"
                     >
                       {phone.number}
                     </a>
@@ -204,20 +206,20 @@ const Footer = ({ dictionary }: FooterProps) => {
                 href="https://maps.google.com/?q=Гродно+Гаспадарчая+19"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-start gap-2 text-muted-foreground hover:text-foreground group transition-colors"
+                className="flex items-start gap-2 text-white/55 hover:text-white group transition-colors"
               >
                 <MapPin className="h-4 w-4 mt-1 flex-shrink-0" />
                 <span>Г. Гродно, Ул. Гаспадарчая 19 каб.340/1 БЦ. Марро</span>
                 <ExternalLink className="h-4 w-4 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
               </a>
-              <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="flex items-center gap-2 text-white/55">
                 <Clock className="h-4 w-4 flex-shrink-0" />
                 <span className="whitespace-pre-line">{dictionary.contact.hours}</span>
               </div>
             </div>
           </div>
         </div>
-        <div className="mt-6 border-t pt-4 text-center text-xs text-muted-foreground">
+        <div className="mt-6 border-t pt-4 text-center text-xs text-white/55">
           <p suppressHydrationWarning>
             {dictionary.footer.copyright.replace("{year}", new Date().getFullYear().toString())}
           </p>

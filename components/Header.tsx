@@ -78,10 +78,10 @@ function GroupMenu({ group, pathname }: { group: NavGroup; pathname: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-2 text-[12px] font-semibold outline-none transition xl:px-2.5 xl:text-[13px]",
+          "inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1.5 text-[12px] font-semibold outline-none transition xl:px-2.5 xl:text-[13px]",
           open
-            ? "bg-accent/10 text-[#0D3F10]"
-            : "text-[#1a1a1a] hover:bg-zinc-100",
+            ? "bg-primary/10 text-emerald-900"
+            : "text-stone-800 hover:bg-stone-100/80",
         )}
       >
         {group.label}
@@ -89,15 +89,15 @@ function GroupMenu({ group, pathname }: { group: NavGroup; pathname: string }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="z-[120] w-[min(92vw,280px)] rounded-xl border-zinc-200 bg-white p-2 shadow-lg"
+        className="z-[120] w-[min(92vw,280px)] rounded-2xl border-stone-200/80 bg-white/95 p-2 shadow-xl backdrop-blur-xl"
       >
-        <DropdownMenuLabel className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+        <DropdownMenuLabel className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">
           {group.label}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {group.items.map((item) => (
-          <DropdownMenuItem key={item.href} asChild className="cursor-pointer rounded-lg p-0">
-            <Link href={item.href} className="block px-3 py-2.5 text-sm font-medium text-[#111]">
+          <DropdownMenuItem key={item.href} asChild className="cursor-pointer rounded-xl p-0">
+            <Link href={item.href} className="block px-3 py-2 text-[13px] font-medium text-stone-900">
               {item.label}
             </Link>
           </DropdownMenuItem>
@@ -118,11 +118,9 @@ const Header = ({ dictionary }: HeaderProps) => {
 
   return (
     <header
-      className="fixed inset-x-0 top-0 z-[100] border-b border-zinc-200 bg-white/95 shadow-sm backdrop-blur-md"
+      className="fixed inset-x-0 top-0 z-[100] border-b border-white/40 bg-white/70 shadow-[0_1px_0_rgba(28,25,23,0.04)] backdrop-blur-xl"
       role="banner"
       style={{
-        backgroundColor: "rgba(255,255,255,0.95)",
-        color: "#111111",
         paddingTop: "env(safe-area-inset-top)",
       }}
     >
@@ -130,8 +128,7 @@ const Header = ({ dictionary }: HeaderProps) => {
         <div className="flex h-14 items-center justify-between gap-2">
           <Link
             href={isHome ? "/#hero" : "/"}
-            className="flex shrink-0 items-center gap-2 font-bold"
-            style={{ color: "#111111" }}
+            className="flex shrink-0 items-center gap-2.5 text-stone-900"
             aria-label="На главную"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -140,8 +137,8 @@ const Header = ({ dictionary }: HeaderProps) => {
               alt={dictionary.footer.company.name}
               className="h-8 w-8 object-contain sm:h-9 sm:w-9"
             />
-            <span className="hidden text-sm sm:inline">
-              {dictionary.footer.company.name}
+            <span className="hidden text-[13px] font-semibold tracking-tight sm:inline">
+              MG<span className="text-primary">.</span>GROUP
             </span>
           </Link>
 
@@ -161,8 +158,8 @@ const Header = ({ dictionary }: HeaderProps) => {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "whitespace-nowrap rounded-md px-1.5 py-2 text-[12px] font-medium hover:bg-zinc-100 xl:px-2 xl:text-[13px]",
-                  pathActive(pathname, item.href) ? "text-[#0D3F10]" : "text-[#1a1a1a]",
+                  "cursor-pointer whitespace-nowrap rounded-md px-1.5 py-1.5 text-[12px] font-medium hover:bg-stone-100/80 xl:px-2 xl:text-[13px]",
+                  pathActive(pathname, item.href) ? "text-emerald-900" : "text-stone-800",
                 )}
               >
                 {item.label}
@@ -173,8 +170,7 @@ const Header = ({ dictionary }: HeaderProps) => {
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <a
               href={`tel:${dictionary.contact.phone}`}
-              className="hidden items-center gap-1.5 text-sm font-semibold lg:inline-flex"
-              style={{ color: "#111111" }}
+              className="hidden items-center gap-1.5 text-[13px] font-semibold text-stone-900 lg:inline-flex"
               aria-label={`Позвонить по номеру ${dictionary.contact.phone}`}
             >
               <Phone className="h-4 w-4" aria-hidden />
@@ -184,8 +180,8 @@ const Header = ({ dictionary }: HeaderProps) => {
             <Link
               href="/cabinet/"
               className={cn(
-                "hidden items-center justify-center gap-2 rounded-md bg-[#1B5E20] px-3 py-2 text-sm font-medium text-white hover:bg-[#0D3F10] lg:inline-flex",
-                pathActive(pathname, "/cabinet/") && "ring-2 ring-[#0D3F10]/ring-offset-2",
+                "hidden cursor-pointer items-center justify-center gap-2 rounded-full bg-stone-900 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-primary hover:text-stone-950 lg:inline-flex",
+                pathActive(pathname, "/cabinet/") && "ring-2 ring-primary ring-offset-2",
               )}
               aria-label="Личный кабинет"
             >
@@ -195,8 +191,7 @@ const Header = ({ dictionary }: HeaderProps) => {
 
             <a
               href={`tel:${dictionary.contact.phone}`}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-zinc-100 lg:hidden"
-              style={{ color: "#111111" }}
+              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-stone-900 hover:bg-stone-100 lg:hidden"
               aria-label={`Позвонить по номеру ${dictionary.contact.phone}`}
             >
               <Phone className="h-5 w-5" aria-hidden="true" />
@@ -206,17 +201,16 @@ const Header = ({ dictionary }: HeaderProps) => {
               <SheetTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-300 bg-white hover:bg-zinc-100 lg:hidden"
-                  style={{ color: "#111111" }}
+                  className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-stone-300/80 bg-white/80 text-stone-900 hover:bg-stone-100 lg:hidden"
                   aria-label={isOpen ? "Закрыть меню" : "Открыть меню"}
                 >
                   <Menu className="h-5 w-5" aria-hidden="true" />
                 </button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] overflow-y-auto bg-white sm:w-[360px]">
+              <SheetContent side="right" className="w-[300px] overflow-y-auto bg-stone-50 sm:w-[360px]">
                 <SheetHeader>
-                  <SheetTitle className="text-left" style={{ color: "#111111" }}>
-                    {dictionary.footer.company.name}
+                  <SheetTitle className="text-left text-base font-semibold text-stone-900">
+                    MG<span className="text-primary">.</span>GROUP
                   </SheetTitle>
                 </SheetHeader>
                 <div className="mt-8 flex flex-col gap-6">
@@ -224,11 +218,10 @@ const Header = ({ dictionary }: HeaderProps) => {
                     {PRODUCT_GROUPS.map((group) => {
                       const expanded = mobileOpen === group.id;
                       return (
-                        <div key={group.id} className="rounded-xl border border-zinc-200">
+                        <div key={group.id} className="rounded-2xl border border-stone-200 bg-white">
                           <button
                             type="button"
-                            className="flex w-full items-center justify-between px-3 py-3 text-left text-sm font-semibold"
-                            style={{ color: "#111111" }}
+                            className="flex w-full cursor-pointer items-center justify-between px-3 py-2.5 text-left text-[13px] font-semibold text-stone-900"
                             onClick={() =>
                               setMobileOpen(expanded ? null : group.id)
                             }
@@ -243,13 +236,13 @@ const Header = ({ dictionary }: HeaderProps) => {
                             />
                           </button>
                           {expanded ? (
-                            <div className="border-t border-zinc-100 px-2 pb-2 pt-1">
+                            <div className="border-t border-stone-100 px-2 pb-2 pt-1">
                               {group.items.map((item) => (
                                 <Link
                                   key={item.href}
                                   href={item.href}
                                   onClick={() => setIsOpen(false)}
-                                  className="block rounded-lg px-2 py-2.5 text-sm font-medium text-[#1a1a1a] hover:bg-zinc-100"
+                                  className="block cursor-pointer rounded-xl px-2 py-2 text-[13px] font-medium text-stone-800 hover:bg-stone-100"
                                 >
                                   {item.label}
                                 </Link>
@@ -266,8 +259,7 @@ const Header = ({ dictionary }: HeaderProps) => {
                           key={item.href}
                           href={item.href}
                           onClick={() => setIsOpen(false)}
-                          className="rounded-md px-2 py-2.5 text-left text-base hover:bg-zinc-100"
-                          style={{ color: "#1a1a1a" }}
+                          className="cursor-pointer rounded-xl px-2 py-2 text-left text-[13px] text-stone-800 hover:bg-stone-100"
                         >
                           {item.label}
                         </Link>
@@ -277,7 +269,7 @@ const Header = ({ dictionary }: HeaderProps) => {
                   <Link
                     href="/cabinet/"
                     onClick={() => setIsOpen(false)}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#1B5E20] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0D3F10] lg:hidden"
+                    className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-stone-900 px-4 py-2 text-[13px] font-semibold text-white hover:bg-primary hover:text-stone-950 lg:hidden"
                   >
                     <UserRound className="h-4 w-4" aria-hidden="true" />
                     Кабинет

@@ -1,0 +1,4 @@
+sedan-sports.glb / sedan.glb
+Source: Kenney Car Kit via models.codelove.in
+License: CC0 1.0 Universal (public domain)
+https://creativecommons.org/publicdomain/zero/1.0/

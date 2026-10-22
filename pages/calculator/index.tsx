@@ -53,21 +53,32 @@ export default function CalculatorHubPage({ dictionary }: Props) {
       <PageShell
         title="Калькуляторы"
         description="После входа: машинокомплект США и Англия, авто под восстановление и растаможка."
+        className="!pt-4 sm:!pt-5"
       >
+        {/* Плашки всегда сверху — до формы входа */}
+        <div className="mb-5 grid gap-3 sm:mb-6 sm:grid-cols-2">
+          {CALCULATORS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="group cursor-pointer rounded-2xl border border-stone-200 bg-gradient-to-br from-stone-900 to-stone-950 p-4 text-white shadow-[0_18px_40px_-28px_rgba(28,25,23,0.55)] transition hover:-translate-y-0.5 hover:border-primary/40 sm:p-5"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+                MG.GROUP
+              </p>
+              <h2 className="mt-1.5 text-xl font-semibold tracking-tight sm:text-2xl">
+                {item.title}
+              </h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-white/65">{item.text}</p>
+              <span className="mt-3 inline-flex text-sm font-semibold text-primary transition group-hover:gap-2">
+                Открыть →
+              </span>
+            </Link>
+          ))}
+        </div>
+
         <CalculatorGate showOverview>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {CALCULATORS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-xl border border-border bg-white p-5 transition hover:border-primary"
-              >
-                <h2 className="text-lg font-semibold text-text-primary">{item.title}</h2>
-                <p className="mt-1 text-sm text-text-secondary">{item.text}</p>
-              </Link>
-            ))}
-          </div>
-          <div className="mt-8">
+          <div className="mt-2">
             <QuoteHistoryPanel scope="mine" />
           </div>
         </CalculatorGate>

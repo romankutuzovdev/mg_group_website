@@ -246,29 +246,35 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
   return (
     <PageShell bare className="!max-w-none">
-      <div className="relative -mx-3 -mt-3 mb-4 overflow-hidden border-b border-zinc-200/80 bg-white sm:-mx-4 lg:-mx-6">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(800px_120px_at_0%_0%,rgba(16,185,129,0.1),transparent),radial-gradient(600px_100px_at_100%_0%,rgba(24,24,27,0.04),transparent)]" />
-        <div className="relative mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-3 py-3.5 sm:px-4 lg:px-6">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 text-[11px] font-bold text-white"
-            >
-              MG
-            </Link>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700/80">
+      <div className="relative -mx-3 -mt-[calc(3.5rem+env(safe-area-inset-top,0px))] mb-4 overflow-hidden border-b border-zinc-200/80 bg-white pt-[calc(3.5rem+env(safe-area-inset-top,0px))] sm:-mx-4 lg:-mx-6">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(800px_120px_at_0%_0%,rgba(16,185,129,0.12),transparent),radial-gradient(600px_100px_at_100%_0%,rgba(24,24,27,0.04),transparent)]" />
+        <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-3.5 lg:px-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
                 Client workspace
               </p>
-              <p className="text-sm font-semibold text-zinc-900">Личный кабинет</p>
+              <p className="mt-0.5 text-base font-semibold tracking-tight text-zinc-900 sm:text-lg">
+                Личный кабинет
+              </p>
+              <Link
+                href="/"
+                className="mt-2.5 inline-flex h-8 items-center gap-2 rounded-lg bg-zinc-900 px-2.5 text-[11px] font-bold text-white transition hover:bg-emerald-700"
+                aria-label="На главную MG.GROUP"
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/10 text-[9px]">
+                  MG
+                </span>
+                MG.GROUP
+              </Link>
             </div>
+            <Link
+              href="/"
+              className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline"
+            >
+              На сайт
+            </Link>
           </div>
-          <Link
-            href="/"
-            className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline"
-          >
-            На сайт
-          </Link>
         </div>
       </div>
 

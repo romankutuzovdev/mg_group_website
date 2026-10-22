@@ -30,27 +30,33 @@ export function LeadForm({ source = "contacts" }: LeadFormProps) {
     const model = String(data.get("model") || "").trim();
     const budget = String(data.get("budget") || "").trim();
 
-    if (isApiEnabled()) {
-      try {
-        await submitLead({
-          name,
-          phone,
-          messenger,
-          model,
-          budget,
-          source,
-          page: typeof window !== "undefined" ? window.location.pathname : undefined,
-        });
-      } catch (err) {
-        console.error("Lead API error:", err);
+    try {
+      if (isApiEnabled()) {
+        await Promise.race([
+          submitLead({
+            name,
+            phone,
+            messenger,
+            model,
+            budget,
+            source,
+            page: typeof window !== "undefined" ? window.location.pathname : undefined,
+          }).catch((err) => console.error("Lead API error:", err)),
+          new Promise((r) => setTimeout(r, 4500)),
+        ]);
       }
+    } finally {
+      try {
+        await router.push("/thanks/");
+      } catch {
+        if (typeof window !== "undefined") window.location.assign("/thanks/");
+      }
+      setSending(false);
     }
-
-    await router.push("/thanks/");
   }
 
   return (
-    <form onSubmit={onSubmit} className="relative card-premium rounded-2xl p-5 sm:p-8">
+    <form onSubmit={(e) => void onSubmit(e)} className="relative card-premium rounded-2xl p-5 sm:p-8">
       <p className="lux-kicker">Заявка на подбор</p>
       <h3 className="mt-2 font-display text-xl font-semibold">Бесплатный подбор под ваш запрос</h3>
 

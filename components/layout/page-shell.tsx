@@ -29,16 +29,17 @@ export function PageShell({
       )}
     >
       {!bare && title ? (
-        <div className="relative overflow-hidden border-b bg-white">
-          <div className="relative mx-auto max-w-7xl px-3 py-3.5 sm:px-4 sm:py-6 lg:px-6">
-            <p className="hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-primary sm:block">
+        <div className="relative overflow-hidden border-b border-stone-200/80 bg-stone-950 text-white">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(700px_240px_at_10%_0%,rgba(34,197,94,0.22),transparent_55%)]" />
+          <div className="relative mx-auto max-w-7xl px-3 pb-4 pt-3 sm:px-4 sm:pb-5 sm:pt-4 lg:px-6">
+            <p className="inline-flex rounded-full border border-primary/40 bg-primary/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
               MG.GROUP
             </p>
-            <h1 className="text-lg font-semibold tracking-tight sm:mt-1.5 sm:text-2xl md:text-3xl">
+            <h1 className="mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
               {title}
             </h1>
             {description ? (
-              <p className="mt-1 max-w-2xl text-xs text-muted-foreground sm:mt-2 sm:text-[15px]">
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
                 {description}
               </p>
             ) : null}
