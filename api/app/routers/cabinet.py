@@ -29,7 +29,12 @@ from app.models.cabinet import (
     UserOut,
     UserRoleUpdate,
 )
-from app.services.auth_deps import get_current_user, get_optional_user, require_admin_or_key
+from app.services.auth_deps import (
+    get_current_user,
+    get_optional_user,
+    require_admin_or_key,
+    require_owner_admin_or_key,
+)
 from app.services.cabinet_store import cabinet_store
 from app.services.dismantle_xlsx import build_dismantle_xlsx
 from app.data.store import lot_store
@@ -384,9 +389,9 @@ async def admin_reset_client_password(
 def admin_set_user_role(
     user_id: int,
     body: UserRoleUpdate,
-    actor: Annotated[UserOut, Depends(require_admin_or_key)],
+    actor: Annotated[UserOut, Depends(require_owner_admin_or_key)],
 ) -> UserOut:
-    """Only password admin (or CABINET_ADMIN_TELEGRAM_IDS) assigns managers."""
+    """Only site owner admin (or INGEST key) assigns managers — not managers themselves."""
     if not actor.is_admin:
         raise HTTPException(status_code=403, detail="Назначать менеджеров может только администратор")
     user = cabinet_store.set_user_manager(user_id, body.is_manager)

@@ -488,13 +488,23 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={logout}
-              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
-            >
-              Выйти
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {user.is_admin ? (
+                <Link
+                  href="/cabinet/managers/"
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
+                >
+                  Менеджеры
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                onClick={logout}
+                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+              >
+                Выйти
+              </button>
+            </div>
           </div>
 
           {!isStaff && view === "list" ? (

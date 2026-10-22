@@ -14,7 +14,6 @@ import {
   adminCreateClientAccount,
   adminCreateDeal,
   adminResetClientPassword,
-  adminSetUserManager,
   adminUpdateDeal,
   adminUploadDealMedia,
   dealKind,
@@ -651,25 +650,6 @@ export function AdminDealsPanel({
     return branches;
   }, [deals, users, currentUser?.id]);
 
-  const toggleManager = async (user: CabinetUser) => {
-    setBusy(true);
-    setError(null);
-    setOk(null);
-    try {
-      const next = await adminSetUserManager(user.id, !user.is_manager);
-      setUsers((prev) => prev.map((u) => (u.id === next.id ? next : u)));
-      setOk(
-        next.is_manager
-          ? `${userLabel(next)} назначен менеджером`
-          : `${userLabel(next)} больше не менеджер`,
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось изменить роль");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const patchDeal = async (dealId: number, body: Parameters<typeof adminUpdateDeal>[1]) => {
     setError(null);
     try {
@@ -962,66 +942,22 @@ export function AdminDealsPanel({
       ) : null}
 
       {canAssignRoles ? (
-        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div className="border-b border-zinc-100 px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-emerald-50/60 px-4 py-3.5 shadow-sm">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-800/70">
               Access control
             </p>
-            <h3 className="mt-0.5 text-sm font-semibold text-zinc-900">Роли сотрудников</h3>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              Назначьте менеджера — он сможет вести сделки и сроки оплаты.
+            <h3 className="mt-0.5 text-sm font-semibold text-zinc-900">Менеджеры</h3>
+            <p className="mt-0.5 text-xs text-zinc-600">
+              Назначение и снятие роли — на отдельной странице.
             </p>
           </div>
-          {users.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-zinc-500">Пока никто не входил в кабинет</p>
-          ) : (
-            <ul className="divide-y divide-zinc-100">
-              {users.map((u) => (
-                <li
-                  key={u.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-zinc-50/80"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-semibold text-zinc-600">
-                      {(userLabel(u).slice(0, 2) || "??").toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-zinc-900">
-                        {userLabel(u)}
-                      </p>
-                      <p className="text-[11px] text-zinc-400">
-                        {u.is_admin
-                          ? "Администратор"
-                          : u.is_manager
-                            ? "Менеджер"
-                            : "Клиент"}
-                        {u.created_at ? ` · с ${u.created_at.slice(0, 10)}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                  {u.is_admin ? (
-                    <span className="shrink-0 rounded-lg bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200/80">
-                      Админ
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void toggleManager(u)}
-                      className={[
-                        "shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm transition disabled:opacity-50",
-                        u.is_manager
-                          ? "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-                          : "bg-emerald-600 text-white hover:bg-emerald-500",
-                      ].join(" ")}
-                    >
-                      {u.is_manager ? "Снять" : "Назначить"}
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+          <a
+            href="/cabinet/managers/"
+            className="shrink-0 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-500"
+          >
+            Открыть
+          </a>
         </section>
       ) : null}
 
