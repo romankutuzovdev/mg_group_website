@@ -581,6 +581,40 @@ class CabinetStore:
                     return None
                 return self._user_from_row(row)
 
+    def set_user_consents(
+        self,
+        user_id: int,
+        *,
+        consent_service: bool | None = None,
+        consent_marketing: bool | None = None,
+    ) -> UserOut | None:
+        """Update marketing/service consent flags; None = leave unchanged."""
+        with self._lock:
+            with self._conn() as conn:
+                row = conn.execute(
+                    "SELECT * FROM users WHERE id = ?",
+                    (int(user_id),),
+                ).fetchone()
+                if not row:
+                    return None
+                keys = row.keys()
+                if consent_service is not None and "consent_service" in keys:
+                    conn.execute(
+                        "UPDATE users SET consent_service = ? WHERE id = ?",
+                        (1 if consent_service else 0, int(user_id)),
+                    )
+                if consent_marketing is not None and "consent_marketing" in keys:
+                    conn.execute(
+                        "UPDATE users SET consent_marketing = ? WHERE id = ?",
+                        (1 if consent_marketing else 0, int(user_id)),
+                    )
+                conn.commit()
+                row = conn.execute(
+                    "SELECT * FROM users WHERE id = ?",
+                    (int(user_id),),
+                ).fetchone()
+                return self._user_from_row(row) if row else None
+
     def _ensure_stages(self, conn: sqlite3.Connection, deal_id: int) -> None:
         for i, key in enumerate(STAGE_KEYS):
             status: StageStatus = "active" if i == 0 else "pending"

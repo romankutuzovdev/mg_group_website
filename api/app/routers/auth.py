@@ -262,12 +262,26 @@ def auth_password(
     # 1) Client account: phone as login
     client = cabinet_store.authenticate_phone(login, password)
     if client is not None:
+        if not body.consent_privacy:
+            raise HTTPException(
+                status_code=422,
+                detail="Нужно согласие с политикой конфиденциальности",
+            )
+        if not body.consent_service:
+            raise HTTPException(
+                status_code=422,
+                detail="Нужно согласие на сервисные уведомления",
+            )
+        user = cabinet_store.set_user_consents(
+            client.id,
+            consent_service=True,
+        ) or client
         token = create_access_token(
-            telegram_id=client.telegram_id,
-            user_id=client.id,
+            telegram_id=user.telegram_id,
+            user_id=user.id,
             settings=settings,
         )
-        return AuthResponse(access_token=token, user=client)
+        return AuthResponse(access_token=token, user=user)
 
     # 2) Legacy site admin password (settings env)
     expected_login = (settings.cabinet_admin_login or "").strip()

@@ -318,12 +318,18 @@ export async function loginWithTelegramWebApp(
 export async function loginWithPassword(
   login: string,
   password: string,
+  opts?: { consent_service?: boolean; consent_privacy?: boolean },
 ): Promise<{ access_token: string; user: CabinetUser }> {
   const data = await cabinetFetch<{ access_token: string; user: CabinetUser }>(
     "/api/v1/auth/password",
     {
       method: "POST",
-      body: JSON.stringify({ login, password }),
+      body: JSON.stringify({
+        login,
+        password,
+        consent_service: Boolean(opts?.consent_service),
+        consent_privacy: Boolean(opts?.consent_privacy),
+      }),
     },
   );
   setCabinetToken(data.access_token);
@@ -573,6 +579,8 @@ export type ContainerMoveResult = {
   sms_sent: number;
   sms_failed: number;
   sms_skipped: number;
+  /** SMS уходят в фоне по одной с паузой (~2 с). */
+  sms_queued?: number;
   recipients: string[];
 };
 

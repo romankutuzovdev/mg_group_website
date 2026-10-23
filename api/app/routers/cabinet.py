@@ -303,6 +303,8 @@ async def admin_create_client_account(
             last_name=body.last_name,
             # API-key actor имеет id=0 — не пишем фиктивного менеджера
             manager_user_id=actor.id if actor.id > 0 else None,
+            # Аккаунт от менеджера — сервисные SMS по сделкам (карта разбора)
+            consent_service=True,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -402,7 +404,7 @@ def admin_list_deals(
 
 
 @router.post("/admin/deals", response_model=DealOut)
-def admin_create_deal(
+async def admin_create_deal(
     body: DealCreate,
     admin: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> DealOut:
@@ -411,7 +413,7 @@ def admin_create_deal(
     if body.origin_region not in ("usa", "uk", "china", "korea"):
         raise HTTPException(status_code=422, detail="invalid origin_region")
     try:
-        return cabinet_store.create_deal(
+        deal = cabinet_store.create_deal(
             body,
             created_by_user_id=admin.id if admin.id else None,
         )
@@ -419,6 +421,14 @@ def admin_create_deal(
         raise HTTPException(status_code=404, detail="Клиент не найден — пусть войдёт в кабинет") from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # Сервисное SMS: машина добавлена + просьба заполнить карту разбора
+    client = cabinet_store.get_user_by_telegram_id(body.telegram_id)
+    if client and client.consent_service and (client.phone or "").strip():
+        from app.services.sms_by import notify_deal_added_fill_map
+
+        await notify_deal_added_fill_map(phone=client.phone, car=deal.title)
+    return deal
 
 
 @router.patch("/admin/deals/{deal_id}", response_model=DealOut)

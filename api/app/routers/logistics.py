@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from app.models.cabinet import UserOut
 from app.models.logistics import (
@@ -21,7 +21,7 @@ from app.models.logistics import (
 )
 from app.services.auth_deps import require_admin_or_key
 from app.services.logistics_store import logistics_store
-from app.services.sms_by import send_sms
+from app.services.sms_by import send_sms_queue
 
 router = APIRouter(prefix="/admin/logistics", tags=["logistics"])
 
@@ -129,9 +129,10 @@ def remove_deal_from_container(
 async def move_container_stage(
     container_id: int,
     body: ContainerMovePayload,
+    background_tasks: BackgroundTasks,
     _: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> ContainerMoveResult:
-    """Change stage and SMS every unique client phone in the container."""
+    """Change stage; SMS go out in background one-by-one with delay (no UI timeout)."""
     try:
         container = logistics_store.set_stage(container_id, body.stage)
     except KeyError as exc:
@@ -139,10 +140,9 @@ async def move_container_stage(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    sms_sent = 0
-    sms_failed = 0
     sms_skipped = 0
     recipients: list[str] = []
+    jobs: list[tuple[str, str]] = []
 
     if not body.send_sms:
         return ContainerMoveResult(
@@ -150,6 +150,7 @@ async def move_container_stage(
             sms_sent=0,
             sms_failed=0,
             sms_skipped=0,
+            sms_queued=0,
             recipients=[],
         )
 
@@ -174,20 +175,18 @@ async def move_container_stage(
             car=cars or primary.title,
             client=primary.client_name,
         )
-        result = await send_sms(phone, message)
+        jobs.append((phone, message))
         recipients.append(phone)
-        if result.ok:
-            sms_sent += 1
-        elif result.skipped:
-            sms_skipped += 1
-        else:
-            sms_failed += 1
+
+    if jobs:
+        background_tasks.add_task(send_sms_queue, jobs)
 
     return ContainerMoveResult(
         container=container,
-        sms_sent=sms_sent,
-        sms_failed=sms_failed,
+        sms_sent=0,
+        sms_failed=0,
         sms_skipped=sms_skipped,
+        sms_queued=len(jobs),
         recipients=recipients,
     )
 

@@ -6,10 +6,11 @@ Env: SMS_BY_TOKEN, SMS_BY_ALPHANAME_ID, SMS_BY_ENABLED
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Sequence
 
 import httpx
 
@@ -19,6 +20,10 @@ logger = logging.getLogger(__name__)
 
 SMS_BY_BASE = "https://app.sms.by/api/v1"
 CABINET_URL = "https://mg-group.by/cabinet/"
+# Пауза между SMS в очереди (логистика) — меньше отказов SMS.BY
+SMS_QUEUE_GAP_SEC = 2.0
+SMS_HTTP_TIMEOUT = 30.0
+SMS_MAX_ATTEMPTS = 3
 
 
 @dataclass(frozen=True)
@@ -78,7 +83,7 @@ async def send_sms(phone: str, message: str) -> SmsSendResult:
         "alphaname_id": alphaname_id,
     }
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=SMS_HTTP_TIMEOUT) as client:
             res = await client.post(url, params=params)
         body_preview = (res.text or "")[:400]
         if res.status_code >= 400:
@@ -100,8 +105,74 @@ async def send_sms(phone: str, message: str) -> SmsSendResult:
         logger.info("sms.by sent phone=%s sms_id=%s status=%s", phone_digits, sms_id, status)
         return SmsSendResult(ok=True, sms_id=sms_id, status=status)
     except Exception as exc:
-        logger.exception("sms.by error phone=%s", phone)
+        logger.warning("sms.by error phone=%s err=%s", phone, str(exc)[:200])
         return SmsSendResult(ok=False, error=str(exc)[:200])
+
+
+def _is_retryable(result: SmsSendResult) -> bool:
+    if result.ok or result.skipped:
+        return False
+    err = (result.error or "").lower()
+    return any(
+        token in err
+        for token in (
+            "timeout",
+            "timed out",
+            "connect",
+            "http_429",
+            "http_500",
+            "http_502",
+            "http_503",
+            "http_504",
+        )
+    )
+
+
+async def send_sms_with_retries(
+    phone: str,
+    message: str,
+    *,
+    attempts: int = SMS_MAX_ATTEMPTS,
+) -> SmsSendResult:
+    """Send one SMS; retry on timeouts / transient HTTP errors."""
+    last = SmsSendResult(ok=False, error="no_attempt")
+    for i in range(max(1, attempts)):
+        last = await send_sms(phone, message)
+        if last.ok or last.skipped or not _is_retryable(last):
+            return last
+        wait = 1.5 * (i + 1)
+        logger.info(
+            "sms.by retry phone=%s attempt=%s/%s wait=%.1fs err=%s",
+            phone,
+            i + 1,
+            attempts,
+            wait,
+            last.error,
+        )
+        await asyncio.sleep(wait)
+    return last
+
+
+async def send_sms_queue(
+    jobs: Sequence[tuple[str, str]],
+    *,
+    gap_sec: float = SMS_QUEUE_GAP_SEC,
+) -> None:
+    """Send many SMS one-by-one with a pause (logistics container move)."""
+    total = len(jobs)
+    for i, (phone, message) in enumerate(jobs):
+        if i > 0 and gap_sec > 0:
+            await asyncio.sleep(gap_sec)
+        result = await send_sms_with_retries(phone, message)
+        logger.info(
+            "sms.queue %s/%s phone=%s ok=%s skipped=%s err=%s",
+            i + 1,
+            total,
+            phone,
+            result.ok,
+            result.skipped,
+            result.error or "",
+        )
 
 
 def format_credentials_message(*, phone: str, password: str) -> str:
@@ -114,18 +185,32 @@ def format_credentials_message(*, phone: str, password: str) -> str:
     )
 
 
+def _car_line(car: str) -> str:
+    car_line = (car or "").strip() or "ваш авто"
+    if len(car_line) > 80:
+        return car_line[:77] + "…"
+    return car_line
+
+
 def format_fill_map_message(*, car: str, phone: str, password: str) -> str:
     """Urge client to fill dismantle map; include car + cabinet login."""
     login = normalize_sms_phone(phone) if phone else phone
-    car_line = (car or "").strip() or "ваш авто"
-    if len(car_line) > 80:
-        car_line = car_line[:77] + "…"
     return (
         f"MG.GROUP: заполните карту разбора в срочном порядке.\n"
-        f"Авто: {car_line}\n"
+        f"Авто: {_car_line(car)}\n"
         f"{CABINET_URL}\n"
         f"Логин: {login}\n"
         f"Пароль: {password}"
+    )
+
+
+def format_deal_added_fill_map_message(*, car: str) -> str:
+    """Service SMS: car added to cabinet — please fill dismantle map."""
+    return (
+        f"MG.GROUP: добавлен автомобиль.\n"
+        f"Авто: {_car_line(car)}\n"
+        f"Зайдите в кабинет и заполните карту разбора:\n"
+        f"{CABINET_URL}"
     )
 
 
@@ -142,3 +227,8 @@ async def notify_fill_dismantle_map(
         phone,
         format_fill_map_message(car=car, phone=phone, password=password),
     )
+
+
+async def notify_deal_added_fill_map(*, phone: str, car: str) -> SmsSendResult:
+    """Service SMS after manager adds a deal (requires consent_service)."""
+    return await send_sms(phone, format_deal_added_fill_map_message(car=car))

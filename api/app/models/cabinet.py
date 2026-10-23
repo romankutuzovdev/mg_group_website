@@ -115,6 +115,8 @@ class TelegramWebAppAuthPayload(BaseModel):
 class PasswordLoginPayload(BaseModel):
     login: str = Field(..., min_length=1, max_length=64)
     password: str = Field(..., min_length=1, max_length=128)
+    consent_service: bool = False
+    consent_privacy: bool = False
 
 
 class RegisterSendCodePayload(BaseModel):

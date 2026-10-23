@@ -98,10 +98,13 @@ class ContainerMovePayload(BaseModel):
 
 
 class ContainerMoveResult(BaseModel):
+    """Stage changed; SMS may be queued in background (sms_queued)."""
+
     container: ContainerOut
     sms_sent: int = 0
     sms_failed: int = 0
     sms_skipped: int = 0
+    sms_queued: int = 0
     recipients: list[str] = Field(default_factory=list)
 
 

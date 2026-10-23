@@ -355,9 +355,9 @@ export function LogisticsPanel() {
       });
       const bits = [`Этап: ${result.container.stage_label}`];
       if (moveSendSms) {
-        bits.push(`SMS: ${result.sms_sent}`);
-        if (result.sms_failed) bits.push(`ошибок ${result.sms_failed}`);
-        if (result.sms_skipped) bits.push(`пропущено ${result.sms_skipped}`);
+        const queued = result.sms_queued ?? result.sms_sent;
+        if (queued) bits.push(`SMS в очереди: ${queued} (по одной с паузой)`);
+        if (result.sms_skipped) bits.push(`без телефона: ${result.sms_skipped}`);
       }
       setOk(bits.join(" · "));
       setMoveId(null);

@@ -9,6 +9,11 @@ import {
   setCabinetToken,
 } from "@/lib/api/cabinet";
 import { ApiError } from "@/lib/api/client";
+import {
+  CABINET_POLICY_PATH,
+  acceptCabinetPolicyConsent,
+} from "@/lib/cabinet-consent";
+
 type Status = "loading" | "guest" | "user";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -39,6 +44,8 @@ export function CalculatorGate({
   const [error, setError] = useState<string | null>(null);
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
+  const [policyAccepted, setPolicyAccepted] = useState(false);
+  const [consentService, setConsentService] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -66,11 +73,23 @@ export function CalculatorGate({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (!policyAccepted) {
+      setError("Отметьте согласие с политикой конфиденциальности");
+      return;
+    }
+    if (!consentService) {
+      setError("Нужно согласие на сервисные уведомления");
+      return;
+    }
     setBusy(true);
     setError(null);
     setStatus("loading");
     try {
-      await loginWithPassword(login.trim(), password);
+      acceptCabinetPolicyConsent();
+      await loginWithPassword(login.trim(), password, {
+        consent_privacy: policyAccepted,
+        consent_service: consentService,
+      });
       setStatus("user");
       setPassword("");
     } catch (err) {
@@ -121,10 +140,44 @@ export function CalculatorGate({
               required
             />
           </label>
+          <div className="space-y-2">
+            <label className="flex cursor-pointer items-start gap-2 text-left text-xs leading-snug text-text-secondary">
+              <input
+                type="checkbox"
+                checked={policyAccepted}
+                onChange={(e) => setPolicyAccepted(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-emerald-600"
+                required
+              />
+              <span>
+                Согласен(на) с{" "}
+                <Link
+                  href={CABINET_POLICY_PATH}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-emerald-800 underline underline-offset-2"
+                >
+                  политикой конфиденциальности
+                </Link>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2 text-left text-xs leading-snug text-text-secondary">
+              <input
+                type="checkbox"
+                checked={consentService}
+                onChange={(e) => setConsentService(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-emerald-600"
+                required
+              />
+              <span>
+                Согласен(на) на сервисные уведомления (статус сделки, SMS о кабинете)
+              </span>
+            </label>
+          </div>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || !policyAccepted || !consentService}
             className="w-full rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
           >
             {busy ? "Входим…" : "Войти"}

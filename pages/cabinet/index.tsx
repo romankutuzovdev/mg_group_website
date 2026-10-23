@@ -234,6 +234,10 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
       setError("Отметьте согласие с политикой конфиденциальности");
       return;
     }
+    if (!consentService) {
+      setError("Нужно согласие на сервисные уведомления");
+      return;
+    }
     if (!phoneLogin.trim() || !phonePassword) {
       setError("Введите логин и пароль");
       return;
@@ -242,7 +246,10 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     setError(null);
     try {
       acceptCabinetPolicyConsent();
-      const res = await loginWithPassword(phoneLogin.trim(), phonePassword);
+      const res = await loginWithPassword(phoneLogin.trim(), phonePassword, {
+        consent_privacy: policyAccepted,
+        consent_service: consentService,
+      });
       setUser(res.user);
       setPhonePassword("");
       await Promise.all([loadDeals(), loadFavorites()]);
@@ -438,35 +445,49 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                       required
                     />
                   </label>
-                  <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
-                    <input
-                      type="checkbox"
-                      checked={policyAccepted}
-                      onChange={(e) => {
-                        const next = e.target.checked;
-                        setPolicyAccepted(next);
-                        if (next) acceptCabinetPolicyConsent();
-                        setError(null);
-                      }}
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
-                      required
-                    />
-                    <span>
-                      Я ознакомился(ась) и согласен(на) с{" "}
-                      <Link
-                        href={CABINET_POLICY_PATH}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-semibold text-emerald-800 underline underline-offset-2"
-                      >
-                        политикой конфиденциальности
-                      </Link>{" "}
-                      и обработкой персональных данных.
-                    </span>
-                  </label>
+                  <div className="mt-4 space-y-2.5">
+                    <label className="flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
+                      <input
+                        type="checkbox"
+                        checked={policyAccepted}
+                        onChange={(e) => {
+                          const next = e.target.checked;
+                          setPolicyAccepted(next);
+                          if (next) acceptCabinetPolicyConsent();
+                          setError(null);
+                        }}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
+                        required
+                      />
+                      <span>
+                        Согласен(на) с{" "}
+                        <Link
+                          href={CABINET_POLICY_PATH}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-emerald-800 underline underline-offset-2"
+                        >
+                          политикой конфиденциальности
+                        </Link>{" "}
+                        и обработкой персональных данных
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
+                      <input
+                        type="checkbox"
+                        checked={consentService}
+                        onChange={(e) => setConsentService(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
+                        required
+                      />
+                      <span>
+                        Согласен(на) на сервисные уведомления (статус сделки, SMS о кабинете)
+                      </span>
+                    </label>
+                  </div>
                   <button
                     type="submit"
-                    disabled={phoneBusy || !policyAccepted}
+                    disabled={phoneBusy || !policyAccepted || !consentService}
                     className="mt-5 w-full rounded-xl bg-emerald-600 px-3 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-50"
                   >
                     {phoneBusy ? "Входим…" : "Войти"}
@@ -501,19 +522,11 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                       autoComplete="given-name"
                     />
                   </label>
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      type="button"
-                      disabled={phoneBusy || !regPhone.trim()}
-                      onClick={() => void sendRegisterCode()}
-                      className="shrink-0 rounded-xl border border-zinc-200 bg-white px-3 py-3 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50"
-                    >
-                      {regCodeSent ? "Код ещё раз" : "Получить код"}
-                    </button>
+                  <div className="mt-3 flex items-end gap-2">
                     <label className="min-w-0 flex-1 text-xs font-medium text-zinc-500">
                       Код из SMS
                       <input
-                        className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-3 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
+                        className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
                         value={regCode}
                         onChange={(e) => setRegCode(e.target.value)}
                         placeholder="6 цифр"
@@ -522,6 +535,14 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                         required
                       />
                     </label>
+                    <button
+                      type="button"
+                      disabled={phoneBusy || !regPhone.trim()}
+                      onClick={() => void sendRegisterCode()}
+                      className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-2.5 text-[10px] font-semibold leading-none text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50 sm:px-2.5 sm:text-[11px]"
+                    >
+                      {regCodeSent ? "Ещё раз" : "Код"}
+                    </button>
                   </div>
                   {regHint ? (
                     <p className="mt-2 text-xs text-emerald-800">{regHint}</p>
