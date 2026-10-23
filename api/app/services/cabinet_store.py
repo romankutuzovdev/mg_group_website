@@ -223,6 +223,14 @@ class CabinetStore:
             conn.execute(
                 "ALTER TABLE users ADD COLUMN manager_user_id INTEGER"
             )
+        if "consent_marketing" not in user_cols:
+            conn.execute(
+                "ALTER TABLE users ADD COLUMN consent_marketing INTEGER NOT NULL DEFAULT 0"
+            )
+        if "consent_service" not in user_cols:
+            conn.execute(
+                "ALTER TABLE users ADD COLUMN consent_service INTEGER NOT NULL DEFAULT 0"
+            )
         conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone "
             "ON users(phone) WHERE phone != ''"
@@ -322,6 +330,12 @@ class CabinetStore:
         manager_user_id = 0
         if "manager_user_id" in keys and row["manager_user_id"]:
             manager_user_id = int(row["manager_user_id"])
+        consent_marketing = False
+        consent_service = False
+        if "consent_marketing" in keys:
+            consent_marketing = bool(int(row["consent_marketing"] or 0))
+        if "consent_service" in keys:
+            consent_service = bool(int(row["consent_service"] or 0))
         return UserOut(
             id=int(row["id"]),
             telegram_id=tid,
@@ -333,6 +347,8 @@ class CabinetStore:
             is_admin=is_admin_telegram(tid),
             is_manager=is_manager,
             manager_user_id=manager_user_id,
+            consent_marketing=consent_marketing,
+            consent_service=consent_service,
             created_at=row["created_at"] or "",
         )
 
@@ -426,6 +442,8 @@ class CabinetStore:
         first_name: str = "",
         last_name: str = "",
         manager_user_id: int | None = None,
+        consent_marketing: bool = False,
+        consent_service: bool = False,
     ) -> UserOut:
         normalized = normalize_phone(phone)
         pwd = (password or "").strip()
@@ -465,9 +483,10 @@ class CabinetStore:
                         """
                         INSERT INTO users (
                           telegram_id, username, first_name, last_name, photo_url,
-                          phone, password_hash, is_manager, manager_user_id, created_at
+                          phone, password_hash, is_manager, manager_user_id,
+                          consent_marketing, consent_service, created_at
                         )
-                        VALUES (?, ?, ?, ?, '', ?, ?, 0, ?, ?)
+                        VALUES (?, ?, ?, ?, '', ?, ?, 0, ?, ?, ?, ?)
                         """,
                         (
                             tg_id,
@@ -477,6 +496,8 @@ class CabinetStore:
                             normalized,
                             hash_password(pwd),
                             owner_id,
+                            1 if consent_marketing else 0,
+                            1 if consent_service else 0,
                             now,
                         ),
                     )

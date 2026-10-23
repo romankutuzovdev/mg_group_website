@@ -43,11 +43,11 @@ export function HomeDirections() {
         <div className="mb-8 flex flex-col gap-2 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary">Направления</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">
+            <h2 className="mt-2 text-4xl font-semibold tracking-tight text-white sm:text-5xl md:text-6xl">
               Что привезём под ключ
             </h2>
           </div>
-          <p className="max-w-sm text-base text-white/60">
+          <p className="max-w-sm text-lg text-white/70 sm:text-xl">
             Один процесс: подбор, проверка, логистика и растаможка.
           </p>
         </div>
@@ -78,11 +78,11 @@ export function HomeDirections() {
                     {item.chip}
                   </span>
                 </div>
-                <h3 className="relative mt-6 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                <h3 className="relative mt-6 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                   {item.title}
                 </h3>
-                <p className="relative mt-3 text-base leading-relaxed text-white/70">{item.text}</p>
-                <span className="relative mt-6 inline-flex items-center gap-2 text-sm font-semibold text-primary transition group-hover:gap-3">
+                <p className="relative mt-3 text-lg leading-relaxed text-white/75">{item.text}</p>
+                <span className="relative mt-6 inline-flex items-center gap-2 text-lg font-semibold text-primary transition group-hover:gap-3">
                   Смотреть
                   <span aria-hidden>→</span>
                 </span>

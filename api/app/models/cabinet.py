@@ -117,6 +117,21 @@ class PasswordLoginPayload(BaseModel):
     password: str = Field(..., min_length=1, max_length=128)
 
 
+class RegisterSendCodePayload(BaseModel):
+    phone: str = Field(..., min_length=7, max_length=40)
+
+
+class RegisterConfirmPayload(BaseModel):
+    phone: str = Field(..., min_length=7, max_length=40)
+    code: str = Field(..., min_length=4, max_length=12)
+    password: str = Field(..., min_length=4, max_length=64)
+    first_name: str = Field("", max_length=80)
+    last_name: str = Field("", max_length=80)
+    consent_marketing: bool = False
+    consent_service: bool = True
+    consent_privacy: bool = False
+
+
 class CreateClientAccountPayload(BaseModel):
     """Manager creates a cabinet login: phone = login, password set by manager."""
 
@@ -152,6 +167,8 @@ class UserOut(BaseModel):
     is_manager: bool = False
     # Менеджер, за которым закреплён клиент (аккаунт с телефоном).
     manager_user_id: int = 0
+    consent_marketing: bool = False
+    consent_service: bool = False
     created_at: str
 
 

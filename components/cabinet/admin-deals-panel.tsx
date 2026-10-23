@@ -223,7 +223,6 @@ export function AdminDealsPanel({
   const [clientFirstName, setClientFirstName] = useState("");
   const [clientLastName, setClientLastName] = useState("");
   const [clientPassword, setClientPassword] = useState(() => generateClientPassword());
-  const [sendSms, setSendSms] = useState(true);
   const [createdCreds, setCreatedCreds] = useState<{
     login: string;
     password: string;
@@ -461,7 +460,7 @@ export function AdminDealsPanel({
         password: clientPassword.trim(),
         first_name: clientFirstName.trim() || "Клиент",
         last_name: clientLastName.trim(),
-        send_sms: Boolean(sendSms),
+        send_sms: true,
       });
       const name = [created.user.first_name, created.user.last_name]
         .filter(Boolean)
@@ -484,14 +483,12 @@ export function AdminDealsPanel({
       setMobilePane("workspace");
       setCompose("none");
       const smsBit = created.sms_sent
-        ? "SMS отправлено."
-        : sendSms
-          ? created.sms_skipped
-            ? "SMS пропущено (ключи sms.by не заданы)."
-            : created.sms_error
-              ? `SMS ошибка: ${created.sms_error}.`
-              : "SMS не ушло."
-          : "SMS не запрашивали.";
+        ? "SMS отправлено (логин, пароль, ссылка)."
+        : created.sms_skipped
+          ? "SMS пропущено (ключи sms.by не заданы на сервере)."
+          : created.sms_error
+            ? `SMS ошибка: ${created.sms_error}.`
+            : "SMS не ушло.";
       setOk(
         `Аккаунт создан: ${created.login}. Закреплён за вами — выбран в «Новая сделка». ${smsBit}`,
       );
@@ -1026,15 +1023,10 @@ export function AdminDealsPanel({
               </div>
             </label>
           </div>
-          <label className="flex items-center gap-2 text-xs text-zinc-700">
-            <input
-              type="checkbox"
-              checked={sendSms}
-              onChange={(e) => setSendSms(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-300 text-emerald-600"
-            />
-            Отправить SMS с логином и паролем (sms.by)
-          </label>
+          <p className="rounded-xl border border-sky-100 bg-sky-50/80 px-3 py-2 text-xs text-sky-900">
+            После создания на телефон клиента автоматически уйдёт SMS: логин, пароль и ссылка
+            https://mg-group.by/cabinet/
+          </p>
           <button
             type="submit"
             disabled={busy}

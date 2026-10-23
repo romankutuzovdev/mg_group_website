@@ -15,7 +15,7 @@ const Benefits = ({ dictionary }: BenefitsProps) => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-12 sm:mb-16">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
             {dictionary.benefits.title}
           </h2>
           <div className="mt-4 sm:mt-6 flex items-center justify-center gap-2">
@@ -40,13 +40,13 @@ const Benefits = ({ dictionary }: BenefitsProps) => {
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4">
+                  <h3 className="text-2xl sm:text-3xl font-semibold mb-3 sm:mb-4">
                     {item.title}{' '}
                     <span className="text-primary" style={{ color: 'hsl(142.1 76.2% 27.3%)' }}>
                       {item.highlight}
                     </span>
                   </h3>
-                  <p className="text-muted-foreground text-base sm:text-lg leading-relaxed mb-4">
+                  <p className="text-muted-foreground text-lg sm:text-xl leading-relaxed mb-4">
                     {item.description}
                   </p>
                   {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">

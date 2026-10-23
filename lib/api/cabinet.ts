@@ -15,6 +15,8 @@ export type CabinetUser = {
   is_manager?: boolean;
   /** Менеджер, за которым закреплён клиент. */
   manager_user_id?: number;
+  consent_marketing?: boolean;
+  consent_service?: boolean;
   created_at: string;
 };
 
@@ -322,6 +324,36 @@ export async function loginWithPassword(
     {
       method: "POST",
       body: JSON.stringify({ login, password }),
+    },
+  );
+  setCabinetToken(data.access_token);
+  return data;
+}
+
+export async function registerSendCode(
+  phone: string,
+): Promise<{ ok: boolean; phone: string; status: string; debug_code?: string; hint?: string }> {
+  return cabinetFetch("/api/v1/auth/register/send-code", {
+    method: "POST",
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export async function registerConfirm(body: {
+  phone: string;
+  code: string;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+  consent_marketing?: boolean;
+  consent_service?: boolean;
+  consent_privacy?: boolean;
+}): Promise<{ access_token: string; user: CabinetUser }> {
+  const data = await cabinetFetch<{ access_token: string; user: CabinetUser }>(
+    "/api/v1/auth/register/confirm",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
     },
   );
   setCabinetToken(data.access_token);

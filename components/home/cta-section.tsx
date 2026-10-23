@@ -19,10 +19,10 @@ export function CtaSection() {
             <p className="font-display text-5xl font-semibold leading-none tracking-tight text-white sm:text-6xl md:text-7xl">
               MG<span className="text-primary">.</span>GROUP
             </p>
-            <h2 className="mt-6 max-w-xl font-sans text-xl font-medium leading-snug text-white/90 sm:text-2xl md:text-3xl">
+            <h2 className="mt-6 max-w-xl font-sans text-2xl font-medium leading-snug text-white/90 sm:text-3xl md:text-4xl">
               Готовы подобрать авто мечты из США, Китая или Кореи?
             </h2>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-white/55 sm:text-base">
+            <p className="mt-4 max-w-md text-lg leading-relaxed text-white/70 sm:text-xl">
               Бесплатная консультация и расчёт полной стоимости под ключ — обычно за 24 часа.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
@@ -48,7 +48,7 @@ export function CtaSection() {
 
           <ul className="space-y-3 border-t border-white/10 pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
             {reasons.map((reason) => (
-              <li key={reason} className="flex items-start gap-3 text-sm text-white/70">
+              <li key={reason} className="flex items-start gap-3 text-lg text-white/80">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 {reason}
               </li>

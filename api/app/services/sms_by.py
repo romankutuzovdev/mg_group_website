@@ -107,10 +107,10 @@ async def send_sms(phone: str, message: str) -> SmsSendResult:
 def format_credentials_message(*, phone: str, password: str) -> str:
     login = normalize_sms_phone(phone) if phone else phone
     return (
-        f"MG.GROUP кабинет\n"
+        f"MG.GROUP: аккаунт создан.\n"
         f"Логин: {login}\n"
         f"Пароль: {password}\n"
-        f"{CABINET_URL}"
+        f"Вход: {CABINET_URL}"
     )
 
 

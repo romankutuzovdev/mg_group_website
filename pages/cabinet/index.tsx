@@ -34,6 +34,8 @@ import {
   getCabinetToken,
   loginDev,
   loginWithPassword,
+  registerConfirm,
+  registerSendCode,
   setCabinetToken,
   dealKind,
   stageKeysForDeal,
@@ -100,8 +102,18 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [devAuthEnabled, setDevAuthEnabled] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [phoneLogin, setPhoneLogin] = useState("");
   const [phonePassword, setPhonePassword] = useState("");
+  const [regPhone, setRegPhone] = useState("");
+  const [regCode, setRegCode] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regPassword2, setRegPassword2] = useState("");
+  const [regFirstName, setRegFirstName] = useState("");
+  const [regCodeSent, setRegCodeSent] = useState(false);
+  const [regHint, setRegHint] = useState<string | null>(null);
+  const [consentMarketing, setConsentMarketing] = useState(false);
+  const [consentService, setConsentService] = useState(true);
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [policyAccepted, setPolicyAccepted] = useState(false);
 
@@ -241,6 +253,77 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     }
   };
 
+  const sendRegisterCode = async () => {
+    if (!regPhone.trim()) {
+      setError("Укажите телефон");
+      return;
+    }
+    setPhoneBusy(true);
+    setError(null);
+    setRegHint(null);
+    try {
+      const res = await registerSendCode(regPhone.trim());
+      setRegCodeSent(true);
+      if (res.debug_code) {
+        setRegHint(`SMS не настроено на сервере. Код для теста: ${res.debug_code}`);
+        setRegCode(res.debug_code);
+      } else {
+        setRegHint("Код отправлен в SMS. Действует 10 минут.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось отправить код");
+    } finally {
+      setPhoneBusy(false);
+    }
+  };
+
+  const registerBySms = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!policyAccepted) {
+      setError("Отметьте согласие с политикой конфиденциальности");
+      return;
+    }
+    if (!consentService) {
+      setError("Нужно согласие на сервисные уведомления");
+      return;
+    }
+    if (!regPhone.trim() || !regCode.trim() || !regPassword) {
+      setError("Заполните телефон, код из SMS и пароль");
+      return;
+    }
+    if (regPassword.length < 4) {
+      setError("Пароль минимум 4 символа");
+      return;
+    }
+    if (regPassword !== regPassword2) {
+      setError("Пароли не совпадают");
+      return;
+    }
+    setPhoneBusy(true);
+    setError(null);
+    try {
+      acceptCabinetPolicyConsent();
+      const res = await registerConfirm({
+        phone: regPhone.trim(),
+        code: regCode.trim(),
+        password: regPassword,
+        first_name: regFirstName.trim(),
+        consent_marketing: consentMarketing,
+        consent_service: consentService,
+        consent_privacy: policyAccepted,
+      });
+      setUser(res.user);
+      setRegPassword("");
+      setRegPassword2("");
+      setRegCode("");
+      await Promise.all([loadDeals(), loadFavorites()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось зарегистрироваться");
+    } finally {
+      setPhoneBusy(false);
+    }
+  };
+
   const isStaff = Boolean(user?.is_admin || user?.is_manager);
   const activeDeals = deals.filter((d) => d.status === "active").length;
 
@@ -295,71 +378,239 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                 Следите за сделками, картой разбора и избранным
               </p>
             </div>
-            <form
-              onSubmit={(e) => void loginByPhone(e)}
-              className="rounded-2xl border border-zinc-200/90 bg-white p-5 text-left shadow-[0_8px_30px_-18px_rgba(15,23,42,0.35)] sm:p-6"
-            >
-              <p className="text-sm font-semibold text-zinc-900">Логин и пароль</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                Клиентам — телефон и пароль от менеджера. Админу — логин/пароль с сервера
-                (`/admin/` или здесь).
-              </p>
-              <label className="mt-5 block text-xs font-medium text-zinc-500">
-                Логин
-                <input
-                  className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-3 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
-                  value={phoneLogin}
-                  onChange={(e) => setPhoneLogin(e.target.value)}
-                  placeholder="Телефон или логин"
-                  autoComplete="username"
-                  required
-                />
-              </label>
-              <label className="mt-3 block text-xs font-medium text-zinc-500">
-                Пароль
-                <input
-                  type="password"
-                  className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-3 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
-                  value={phonePassword}
-                  onChange={(e) => setPhonePassword(e.target.value)}
-                  autoComplete="current-password"
-                  required
-                />
-              </label>
-              <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
-                <input
-                  type="checkbox"
-                  checked={policyAccepted}
-                  onChange={(e) => {
-                    const next = e.target.checked;
-                    setPolicyAccepted(next);
-                    if (next) acceptCabinetPolicyConsent();
+            <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 text-left shadow-[0_8px_30px_-18px_rgba(15,23,42,0.35)] sm:p-6">
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("login");
                     setError(null);
                   }}
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
-                  required
-                />
-                <span>
-                  Я ознакомился(ась) и согласен(на) с{" "}
-                  <Link
-                    href={CABINET_POLICY_PATH}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold text-emerald-800 underline underline-offset-2"
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                    authMode === "login"
+                      ? "bg-white text-zinc-900 shadow-sm"
+                      : "text-zinc-500 hover:text-zinc-800"
+                  }`}
+                >
+                  Вход
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("register");
+                    setError(null);
+                  }}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                    authMode === "register"
+                      ? "bg-white text-zinc-900 shadow-sm"
+                      : "text-zinc-500 hover:text-zinc-800"
+                  }`}
+                >
+                  Регистрация
+                </button>
+              </div>
+
+              {authMode === "login" ? (
+                <form onSubmit={(e) => void loginByPhone(e)} className="mt-4">
+                  <p className="text-sm font-semibold text-zinc-900">Логин и пароль</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Телефон и пароль (свой или от менеджера). Админу — логин с сервера.
+                  </p>
+                  <label className="mt-5 block text-xs font-medium text-zinc-500">
+                    Логин
+                    <input
+                      className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-3 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
+                      value={phoneLogin}
+                      onChange={(e) => setPhoneLogin(e.target.value)}
+                      placeholder="Телефон или логин"
+                      autoComplete="username"
+                      required
+                    />
+                  </label>
+                  <label className="mt-3 block text-xs font-medium text-zinc-500">
+                    Пароль
+                    <input
+                      type="password"
+                      className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-3 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
+                      value={phonePassword}
+                      onChange={(e) => setPhonePassword(e.target.value)}
+                      autoComplete="current-password"
+                      required
+                    />
+                  </label>
+                  <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
+                    <input
+                      type="checkbox"
+                      checked={policyAccepted}
+                      onChange={(e) => {
+                        const next = e.target.checked;
+                        setPolicyAccepted(next);
+                        if (next) acceptCabinetPolicyConsent();
+                        setError(null);
+                      }}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
+                      required
+                    />
+                    <span>
+                      Я ознакомился(ась) и согласен(на) с{" "}
+                      <Link
+                        href={CABINET_POLICY_PATH}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-emerald-800 underline underline-offset-2"
+                      >
+                        политикой конфиденциальности
+                      </Link>{" "}
+                      и обработкой персональных данных.
+                    </span>
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={phoneBusy || !policyAccepted}
+                    className="mt-5 w-full rounded-xl bg-emerald-600 px-3 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-50"
                   >
-                    политикой конфиденциальности
-                  </Link>{" "}
-                  и обработкой персональных данных. Без согласия вход недоступен.
-                </span>
-              </label>
-              <button
-                type="submit"
-                disabled={phoneBusy || !policyAccepted}
-                className="mt-5 w-full rounded-xl bg-emerald-600 px-3 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-50"
-              >
-                {phoneBusy ? "Входим…" : "Войти"}
-              </button>
-            </form>
+                    {phoneBusy ? "Входим…" : "Войти"}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={(e) => void registerBySms(e)} className="mt-4">
+                  <p className="text-sm font-semibold text-zinc-900">Регистрация по SMS</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    На телефон придёт код подтверждения. Затем задайте пароль для входа.
+                  </p>
+                  <label className="mt-5 block text-xs font-medium text-zinc-500">
+                    Телефон
+                    <input
+                      className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-3 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
+                      value={regPhone}
+                      onChange={(e) => {
+                        setRegPhone(e.target.value);
+                        setRegCodeSent(false);
+                      }}
+                      placeholder="+375 XX XXX-XX-XX"
+                      autoComplete="tel"
+                      required
+                    />
+                  </label>
+                  <label className="mt-3 block text-xs font-medium text-zinc-500">
+                    Имя (необязательно)
+                    <input
+                      className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-3 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
+                      value={regFirstName}
+                      onChange={(e) => setRegFirstName(e.target.value)}
+                      autoComplete="given-name"
+                    />
+                  </label>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={phoneBusy || !regPhone.trim()}
+                      onClick={() => void sendRegisterCode()}
+                      className="shrink-0 rounded-xl border border-zinc-200 bg-white px-3 py-3 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50"
+                    >
+                      {regCodeSent ? "Код ещё раз" : "Получить код"}
+                    </button>
+                    <label className="min-w-0 flex-1 text-xs font-medium text-zinc-500">
+                      Код из SMS
+                      <input
+                        className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-3 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
+                        value={regCode}
+                        onChange={(e) => setRegCode(e.target.value)}
+                        placeholder="6 цифр"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        required
+                      />
+                    </label>
+                  </div>
+                  {regHint ? (
+                    <p className="mt-2 text-xs text-emerald-800">{regHint}</p>
+                  ) : null}
+                  <label className="mt-3 block text-xs font-medium text-zinc-500">
+                    Пароль
+                    <input
+                      type="password"
+                      className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-3 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      autoComplete="new-password"
+                      required
+                      minLength={4}
+                    />
+                  </label>
+                  <label className="mt-3 block text-xs font-medium text-zinc-500">
+                    Повтор пароля
+                    <input
+                      type="password"
+                      className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-3 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
+                      value={regPassword2}
+                      onChange={(e) => setRegPassword2(e.target.value)}
+                      autoComplete="new-password"
+                      required
+                      minLength={4}
+                    />
+                  </label>
+                  <div className="mt-4 space-y-2.5">
+                    <label className="flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
+                      <input
+                        type="checkbox"
+                        checked={policyAccepted}
+                        onChange={(e) => {
+                          const next = e.target.checked;
+                          setPolicyAccepted(next);
+                          if (next) acceptCabinetPolicyConsent();
+                          setError(null);
+                        }}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
+                        required
+                      />
+                      <span>
+                        Согласен(на) с{" "}
+                        <Link
+                          href={CABINET_POLICY_PATH}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-emerald-800 underline underline-offset-2"
+                        >
+                          политикой конфиденциальности
+                        </Link>{" "}
+                        и обработкой персональных данных
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
+                      <input
+                        type="checkbox"
+                        checked={consentService}
+                        onChange={(e) => setConsentService(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
+                        required
+                      />
+                      <span>
+                        Согласен(на) на сервисные уведомления (статус сделки, SMS о кабинете)
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
+                      <input
+                        type="checkbox"
+                        checked={consentMarketing}
+                        onChange={(e) => setConsentMarketing(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
+                      />
+                      <span>
+                        Согласен(на) на рекламную и информационную рассылку MG.GROUP
+                      </span>
+                    </label>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={phoneBusy || !policyAccepted || !consentService}
+                    className="mt-5 w-full rounded-xl bg-emerald-600 px-3 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    {phoneBusy ? "Создаём…" : "Зарегистрироваться"}
+                  </button>
+                </form>
+              )}
+            </div>
 
             {devAuthEnabled ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-center">

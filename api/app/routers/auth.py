@@ -12,10 +12,14 @@ from app.models.cabinet import (
     DealCreate,
     DealUpdate,
     PasswordLoginPayload,
+    RegisterConfirmPayload,
+    RegisterSendCodePayload,
     StageUpdate,
 )
 from app.services.auth_deps import create_access_token
 from app.services.cabinet_store import cabinet_store
+from app.services.passwords import normalize_phone
+from app.services import sms_otp
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -121,8 +125,94 @@ def _ensure_demo_deals(telegram_id: int) -> None:
 
 @router.get("/config")
 def auth_config(settings: Annotated[Settings, Depends(get_settings)]) -> dict:
-    """Public auth flags for the cabinet UI (password login only)."""
-    return {"dev_enabled": bool(settings.cabinet_dev_auth)}
+    """Public auth flags for the cabinet UI."""
+    from app.services.sms_by import is_configured
+
+    return {
+        "dev_enabled": bool(settings.cabinet_dev_auth),
+        "sms_enabled": is_configured(),
+        "register_enabled": True,
+    }
+
+
+@router.post("/register/send-code")
+async def register_send_code(body: RegisterSendCodePayload) -> dict:
+    """Send SMS OTP for self-registration."""
+    try:
+        phone = normalize_phone(body.phone)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    existing = cabinet_store.get_user_by_phone(phone)
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail="Аккаунт с этим телефоном уже есть — войдите по паролю",
+        )
+
+    ok, status, debug_code = await sms_otp.send_registration_code(phone)
+    if not ok:
+        raise HTTPException(status_code=400, detail=status)
+
+    out: dict = {"ok": True, "phone": phone, "status": status}
+    # Only expose code when SMS provider skipped (dev / not configured)
+    if debug_code:
+        out["debug_code"] = debug_code
+        out["hint"] = "SMS не настроено на сервере — используйте debug_code"
+    return out
+
+
+@router.post("/register/confirm", response_model=AuthResponse)
+async def register_confirm(
+    body: RegisterConfirmPayload,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AuthResponse:
+    """Verify SMS code and create cabinet account."""
+    try:
+        phone = normalize_phone(body.phone)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    ok, err = sms_otp.verify_code(phone, body.code)
+    if not ok:
+        raise HTTPException(status_code=400, detail=err)
+
+    if not body.consent_privacy:
+        raise HTTPException(
+            status_code=422,
+            detail="Нужно согласие с политикой конфиденциальности",
+        )
+    if not body.consent_service:
+        raise HTTPException(
+            status_code=422,
+            detail="Нужно согласие на сервисные уведомления",
+        )
+
+    if cabinet_store.get_user_by_phone(phone):
+        raise HTTPException(
+            status_code=409,
+            detail="Аккаунт с этим телефоном уже есть — войдите по паролю",
+        )
+
+    try:
+        user = cabinet_store.create_client_account(
+            phone=phone,
+            password=body.password,
+            first_name=body.first_name,
+            last_name=body.last_name,
+            manager_user_id=None,
+            consent_marketing=bool(body.consent_marketing),
+            consent_service=bool(body.consent_service),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    token = create_access_token(
+        telegram_id=user.telegram_id,
+        user_id=user.id,
+        settings=settings,
+    )
+    return AuthResponse(access_token=token, user=user)
 
 
 @router.get("/telegram/config")

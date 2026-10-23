@@ -317,24 +317,18 @@ async def admin_create_client_account(
         raise
     phone = user.phone or phone_norm
     pwd = body.password.strip()
-    sms_sent = False
-    sms_skipped = False
-    sms_error = ""
-    if body.send_sms:
-        from app.services.sms_by import notify_client_credentials
+    # Всегда шлём SMS с логином, паролем и ссылкой (менеджер создал аккаунт)
+    from app.services.sms_by import notify_client_credentials
 
-        sms = await notify_client_credentials(phone=phone, password=pwd)
-        sms_sent = sms.ok
-        sms_skipped = sms.skipped
-        sms_error = sms.error if not sms.ok else ""
+    sms = await notify_client_credentials(phone=phone, password=pwd)
     return ClientAccountCreatedOut(
         user=user,
         phone=phone,
         login=phone,
         password=pwd,
-        sms_sent=sms_sent,
-        sms_skipped=sms_skipped,
-        sms_error=sms_error,
+        sms_sent=sms.ok,
+        sms_skipped=sms.skipped,
+        sms_error=sms.error if not sms.ok else "",
     )
 
 

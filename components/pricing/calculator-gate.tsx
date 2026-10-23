@@ -9,8 +9,6 @@ import {
   setCabinetToken,
 } from "@/lib/api/cabinet";
 import { ApiError } from "@/lib/api/client";
-import { CarSearchPanel } from "@/components/pricing/car-search-panel";
-
 type Status = "loading" | "guest" | "user";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -154,7 +152,6 @@ export function CalculatorGate({
         </p>
       ) : null}
       {children}
-      <CarSearchPanel />
     </div>
   );
 }

@@ -18,7 +18,7 @@ export function PartnersTicker() {
         <div className="partners-ticker-track items-center gap-8 px-6">
           {items.map((name, index) => (
             <span key={`${name}-${index}`} className="flex shrink-0 items-center gap-8">
-              <span className="text-sm font-semibold uppercase tracking-[0.2em] text-white/80">
+              <span className="text-base font-semibold uppercase tracking-[0.2em] !text-white sm:text-lg">
                 {name}
               </span>
               <span className="h-1 w-1 rounded-full bg-primary" aria-hidden />
