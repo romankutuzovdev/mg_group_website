@@ -146,58 +146,71 @@ export function ProcessRouteJourney() {
         <div className="relative mt-12 rounded-[1.75rem] border border-white/10 bg-gradient-to-b from-stone-900/90 to-stone-950 p-5 shadow-[0_40px_100px_-50px_rgba(34,197,94,0.45)] sm:mt-14 sm:p-8 md:p-10">
           <div className="pointer-events-none absolute inset-0 rounded-[1.75rem] bg-[linear-gradient(120deg,transparent_40%,rgba(255,255,255,0.03)_50%,transparent_60%)]" />
 
-          <div className="relative mb-10 hidden h-48 md:block" aria-hidden>
-            {/* road */}
-            <div className="absolute left-6 right-6 top-[62%] h-3 -translate-y-1/2 overflow-hidden rounded-full bg-stone-800 ring-1 ring-white/10">
-              <div className="absolute inset-y-1 left-0 right-0 bg-[repeating-linear-gradient(90deg,transparent_0_18px,#22c55e55_18px_28px)] opacity-70" />
-              <div
-                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary/80 to-primary/20 transition-[width] duration-700 ease-out"
-                style={{ width: `${Math.max(progress * 100, 4)}%` }}
-              />
-            </div>
+          <div className="relative mb-10 hidden h-52 overflow-visible md:block" aria-hidden>
+            {/* Track inset so edge labels fit inside the card */}
+            <div className="absolute inset-x-10 inset-y-0 lg:inset-x-14">
+              {/* road */}
+              <div className="absolute left-0 right-0 top-[58%] h-3 -translate-y-1/2 overflow-hidden rounded-full bg-stone-800 ring-1 ring-white/10">
+                <div className="absolute inset-y-1 left-0 right-0 bg-[repeating-linear-gradient(90deg,transparent_0_18px,#22c55e55_18px_28px)] opacity-70" />
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary/80 to-primary/20 transition-[width] duration-700 ease-out"
+                  style={{ width: `${Math.max(progress * 100, 4)}%` }}
+                />
+              </div>
 
-            {/* waypoints */}
-            {STEPS.map((s, i) => {
-              const left = `${(i / (STEPS.length - 1)) * 100}%`;
-              const on = i <= active;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="absolute top-[62%] z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer"
-                  style={{ left }}
-                  onClick={() => setActive(i)}
-                  aria-label={`${s.step}. ${s.title}`}
-                  aria-current={i === active ? "step" : undefined}
-                >
-                  <span
+              {/* waypoints */}
+              {STEPS.map((s, i) => {
+                const left = `${(i / (STEPS.length - 1)) * 100}%`;
+                const on = i <= active;
+                const edge =
+                  i === 0 ? "items-start text-left" : i === STEPS.length - 1 ? "items-end text-right" : "items-center text-center";
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
                     className={[
-                      "flex h-11 w-11 items-center justify-center rounded-full text-xs font-bold transition duration-300",
-                      on
-                        ? "bg-primary text-stone-950 shadow-[0_0_24px_rgba(34,197,94,0.55)] ring-2 ring-primary/40"
-                        : "bg-stone-800 text-white/50 ring-1 ring-white/15 hover:text-white",
+                      "absolute top-[58%] z-20 flex -translate-y-1/2 cursor-pointer flex-col",
+                      i === 0
+                        ? "left-0 translate-x-0"
+                        : i === STEPS.length - 1
+                          ? "right-0 translate-x-0"
+                          : "-translate-x-1/2",
+                      edge,
                     ].join(" ")}
+                    style={i > 0 && i < STEPS.length - 1 ? { left } : undefined}
+                    onClick={() => setActive(i)}
+                    aria-label={`${s.step}. ${s.title}`}
+                    aria-current={i === active ? "step" : undefined}
                   >
-                    {s.step}
-                  </span>
-                  <span className="mt-3 block whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">
-                    {s.place}
-                  </span>
-                </button>
-              );
-            })}
+                    <span
+                      className={[
+                        "flex h-11 w-11 items-center justify-center rounded-full text-xs font-bold transition duration-300",
+                        on
+                          ? "bg-primary text-stone-950 shadow-[0_0_24px_rgba(34,197,94,0.55)] ring-2 ring-primary/40"
+                          : "bg-stone-800 text-white/50 ring-1 ring-white/15 hover:text-white",
+                      ].join(" ")}
+                    >
+                      {s.step}
+                    </span>
+                    <span className="mt-3 max-w-[7.5rem] text-[10px] font-semibold uppercase leading-snug tracking-[0.12em] text-white/55 lg:max-w-none lg:whitespace-nowrap lg:text-[11px]">
+                      {s.place}
+                    </span>
+                  </button>
+                );
+              })}
 
-            {/* Real 3D GLB car */}
-            <div
-              className="absolute top-0 z-30 -translate-x-1/2 transition-[left] duration-700 ease-out"
-              style={{ left: `calc(${progress * 100}% )` }}
-            >
-              <RouteCar3d
-                progress={progress}
-                tiltX={tilt.x}
-                tiltY={tilt.y}
-                reduced={reduced}
-              />
+              {/* Real 3D GLB car */}
+              <div
+                className="absolute top-0 z-30 -translate-x-1/2 transition-[left] duration-700 ease-out"
+                style={{ left: `${progress * 100}%` }}
+              >
+                <RouteCar3d
+                  progress={progress}
+                  tiltX={tilt.x}
+                  tiltY={tilt.y}
+                  reduced={reduced}
+                />
+              </div>
             </div>
           </div>
 

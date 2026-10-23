@@ -11,7 +11,7 @@ const DUST = Array.from({ length: 16 }, (_, i) => ({
 
 export function Hero() {
   return (
-    <section id="hero" className="relative min-h-[70svh] overflow-hidden pt-[calc(3.5rem+env(safe-area-inset-top))] sm:min-h-[85svh] md:min-h-[88vh]">
+    <section id="hero" className="relative min-h-[70svh] overflow-hidden pt-[calc(4.25rem+env(safe-area-inset-top))] sm:min-h-[85svh] md:min-h-[88vh]">
       <HeroBackdrop />
       <div className="hero-overlay absolute inset-0" />
       <div className="hero-aurora" />
@@ -26,7 +26,7 @@ export function Hero() {
       </div>
       <div className="bg-noise absolute inset-0 opacity-30" />
 
-      <div className="relative mx-auto flex min-h-[calc(70svh-3.5rem-env(safe-area-inset-top))] max-w-7xl flex-col justify-end px-3 py-6 pb-8 sm:min-h-[calc(85svh-4rem-env(safe-area-inset-top))] sm:justify-center sm:px-6 sm:py-16 md:min-h-[calc(88vh-4rem-env(safe-area-inset-top))] lg:px-8">
+      <div className="relative mx-auto flex min-h-[calc(70svh-4.25rem-env(safe-area-inset-top))] max-w-7xl flex-col justify-end px-3 py-6 pb-8 sm:min-h-[calc(85svh-4.25rem-env(safe-area-inset-top))] sm:justify-center sm:px-6 sm:py-16 md:min-h-[calc(88vh-4.25rem-env(safe-area-inset-top))] lg:px-8">
         <div className="badge-primary animate-fade-up mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-accent/20 px-3 py-1.5 text-xs font-medium sm:mb-6 sm:text-sm">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />

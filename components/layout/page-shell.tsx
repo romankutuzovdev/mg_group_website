@@ -25,7 +25,7 @@ export function PageShell({
       className={cn(
         full
           ? "flex min-h-[100dvh] w-full flex-1 flex-col bg-[#f2f2f2]"
-          : "pt-[calc(3.5rem+env(safe-area-inset-top,0px))]",
+          : "pt-[calc(4.25rem+env(safe-area-inset-top,0px))]",
       )}
     >
       {!bare && title ? (

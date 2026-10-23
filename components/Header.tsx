@@ -78,14 +78,14 @@ function GroupMenu({ group, pathname }: { group: NavGroup; pathname: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1.5 text-[12px] font-semibold outline-none transition xl:px-2.5 xl:text-[13px]",
+          "inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2.5 py-2 text-[13px] font-semibold outline-none transition xl:px-3 xl:text-[14px]",
           open
             ? "bg-primary/10 text-emerald-900"
             : "text-stone-800 hover:bg-stone-100/80",
         )}
       >
         {group.label}
-        <ChevronDown className="h-3.5 w-3.5 opacity-60" aria-hidden />
+        <ChevronDown className="h-4 w-4 opacity-60" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
@@ -124,26 +124,26 @@ const Header = ({ dictionary }: HeaderProps) => {
         paddingTop: "env(safe-area-inset-top)",
       }}
     >
-      <div className="mx-auto max-w-[90rem] px-3 sm:px-4">
-        <div className="flex h-14 items-center justify-between gap-2">
+      <div className="mx-auto max-w-[90rem] px-3 sm:px-5">
+        <div className="flex h-16 items-center justify-between gap-3 sm:h-[4.25rem]">
           <Link
             href={isHome ? "/#hero" : "/"}
-            className="flex shrink-0 items-center gap-2.5 text-stone-900"
+            className="flex shrink-0 items-center gap-2.5 text-stone-900 sm:gap-3"
             aria-label="На главную"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo_new.svg"
               alt={dictionary.footer.company.name}
-              className="h-8 w-8 object-contain sm:h-9 sm:w-9"
+              className="h-9 w-9 object-contain sm:h-10 sm:w-10"
             />
-            <span className="hidden text-[13px] font-semibold tracking-tight sm:inline">
+            <span className="hidden text-[15px] font-semibold tracking-tight sm:inline">
               MG<span className="text-primary">.</span>GROUP
             </span>
           </Link>
 
           <nav
-            className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 lg:flex xl:gap-1"
+            className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 lg:flex xl:gap-1.5"
             role="navigation"
             aria-label="Основная навигация"
           >
@@ -151,14 +151,14 @@ const Header = ({ dictionary }: HeaderProps) => {
               <GroupMenu key={group.id} group={group} pathname={pathname} />
             ))}
 
-            <span className="mx-1 hidden h-4 w-px bg-zinc-200 xl:block" aria-hidden />
+            <span className="mx-1.5 hidden h-4 w-px bg-zinc-200 xl:block" aria-hidden />
 
             {SECONDARY.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "cursor-pointer whitespace-nowrap rounded-md px-1.5 py-1.5 text-[12px] font-medium hover:bg-stone-100/80 xl:px-2 xl:text-[13px]",
+                  "cursor-pointer whitespace-nowrap rounded-md px-2 py-2 text-[13px] font-medium hover:bg-stone-100/80 xl:px-2.5 xl:text-[14px]",
                   pathActive(pathname, item.href) ? "text-emerald-900" : "text-stone-800",
                 )}
               >
@@ -167,10 +167,10 @@ const Header = ({ dictionary }: HeaderProps) => {
             ))}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
             <a
               href={`tel:${dictionary.contact.phone}`}
-              className="hidden items-center gap-1.5 text-[13px] font-semibold text-stone-900 lg:inline-flex"
+              className="hidden items-center gap-1.5 text-[14px] font-semibold text-stone-900 lg:inline-flex"
               aria-label={`Позвонить по номеру ${dictionary.contact.phone}`}
             >
               <Phone className="h-4 w-4" aria-hidden />
@@ -180,7 +180,7 @@ const Header = ({ dictionary }: HeaderProps) => {
             <Link
               href="/cabinet/"
               className={cn(
-                "hidden cursor-pointer items-center justify-center gap-2 rounded-full bg-stone-900 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-primary hover:text-stone-950 lg:inline-flex",
+                "hidden cursor-pointer items-center justify-center gap-2 rounded-full bg-stone-900 px-4 py-2 text-[14px] font-semibold text-white transition hover:bg-primary hover:text-stone-950 lg:inline-flex",
                 pathActive(pathname, "/cabinet/") && "ring-2 ring-primary ring-offset-2",
               )}
               aria-label="Личный кабинет"
@@ -191,7 +191,7 @@ const Header = ({ dictionary }: HeaderProps) => {
 
             <a
               href={`tel:${dictionary.contact.phone}`}
-              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-stone-900 hover:bg-stone-100 lg:hidden"
+              className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-stone-900 hover:bg-stone-100 lg:hidden"
               aria-label={`Позвонить по номеру ${dictionary.contact.phone}`}
             >
               <Phone className="h-5 w-5" aria-hidden="true" />
@@ -201,7 +201,7 @@ const Header = ({ dictionary }: HeaderProps) => {
               <SheetTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-stone-300/80 bg-white/80 text-stone-900 hover:bg-stone-100 lg:hidden"
+                  className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-stone-300/80 bg-white/80 text-stone-900 hover:bg-stone-100 lg:hidden"
                   aria-label={isOpen ? "Закрыть меню" : "Открыть меню"}
                 >
                   <Menu className="h-5 w-5" aria-hidden="true" />

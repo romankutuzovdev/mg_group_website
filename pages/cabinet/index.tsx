@@ -246,7 +246,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
   return (
     <PageShell bare className="!max-w-none">
-      <div className="relative -mx-3 -mt-[calc(3.5rem+env(safe-area-inset-top,0px))] mb-4 overflow-hidden border-b border-zinc-200/80 bg-white pt-[calc(3.5rem+env(safe-area-inset-top,0px))] sm:-mx-4 lg:-mx-6">
+      <div className="relative -mx-3 -mt-[calc(4.25rem+env(safe-area-inset-top,0px))] mb-4 overflow-hidden border-b border-zinc-200/80 bg-white pt-[calc(4.25rem+env(safe-area-inset-top,0px))] sm:-mx-4 lg:-mx-6">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(800px_120px_at_0%_0%,rgba(16,185,129,0.12),transparent),radial-gradient(600px_100px_at_100%_0%,rgba(24,24,27,0.04),transparent)]" />
         <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-3.5 lg:px-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
