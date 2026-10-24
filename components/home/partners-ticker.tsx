@@ -1,12 +1,17 @@
 import { SOURCE_LABELS } from "@/lib/auctions/types";
 
-/** Аукционы США и Англии — бегущая строка на главной. */
+/** Площадки США, UK, Кореи и Китая — бегущая строка на главной. */
 const AUCTIONS = [
   SOURCE_LABELS.copart,
   SOURCE_LABELS.iaai,
   SOURCE_LABELS.manheim,
   SOURCE_LABELS.copart_uk,
   SOURCE_LABELS.salvage_market,
+  SOURCE_LABELS.encar,
+  "Che168",
+  "Guazi",
+  "Mobile.de",
+  "Autoplius.lt",
 ];
 
 export function PartnersTicker() {

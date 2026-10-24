@@ -39,7 +39,7 @@ export function CtaSection() {
                 href="/avto/"
                 variant="secondary"
                 size="lg"
-                className="w-full rounded-full border-white/25 bg-white/5 text-white hover:bg-white/10 sm:w-auto"
+                className="w-full rounded-full border-white/25 bg-white/5 !text-white hover:bg-white/10 hover:!text-white sm:w-auto"
               >
                 Каталог авто
               </LinkButton>

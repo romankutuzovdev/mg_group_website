@@ -7,7 +7,7 @@ interface HeroProps {
   dictionary: Dictionary;
 }
 
-const PARTNERS = ["Copart", "IAAI", "Manheim", "Mobile.de", "Autoplius"] as const;
+const PARTNERS = ["Copart", "IAAI", "Manheim", "Mobile.de", "Autoplius", "Encar", "Che168", "Guazi"] as const;
 
 /**
  * First viewport: brand, headline, line, CTAs, full-bleed Mercedes hero.

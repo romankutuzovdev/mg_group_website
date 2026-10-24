@@ -7,7 +7,7 @@ export const COMPANY = {
   address: "г. Гродно, ул. Гаспадарчая 19, каб. 340/1, БЦ Марро",
   hoursWeekdays: "Будни — 9:00–19:00",
   hoursWeekend: "Суббота, воскресенье — выходной",
-  partners: "Copart, IAAI, Manheim, Mobile.de, Autoplius.lt",
+  partners: "Copart, IAAI, Manheim, Mobile.de, Autoplius.lt, Encar, Che168, Guazi",
 } as const;
 
 /** Координаты БЦ «Марро», ул. Гаспадарчая 19, Гродно */
@@ -68,7 +68,7 @@ export const PHONES: CompanyPhone[] = [
 export const HEADER_PHONES = [PHONES[2], PHONES[3]] as const;
 
 export const HERO = {
-  badge: "Официальные партнёры Copart, IAAI, Manheim, Mobile.de, Autoplius.lt",
+  badge: "Официальные партнёры Copart, IAAI, Manheim, Mobile.de, Autoplius.lt, Encar, Che168, Guazi",
   title: "Автомобили под заказ из США, Китая и Кореи",
   subtitle: "Машинокомплекты штучно и оптом из США и Англии",
   cards: [
@@ -86,7 +86,7 @@ export const HERO = {
     },
   ],
   trust: [
-    "Официальные партнёры Copart, IAAI, Manheim, Mobile.de, Autoplius.lt",
+    "Официальные партнёры Copart, IAAI, Manheim, Mobile.de, Autoplius.lt, Encar, Che168, Guazi",
     "Доставка автомобилей и машинокомплектов оптом",
     "Гарантия качества и оригинальности",
     "Полное таможенное оформление",
@@ -272,7 +272,7 @@ export const CAR_FINDER = {
 export const SITE_METADATA = {
   title: "MG.GROUP — Авто под заказ из США, Китая и Кореи | Машинокомплекты из США и Англии",
   description:
-    "Подбор и доставка авто под заказ из США, Китая и Кореи. Машинокомплекты из США и Англии. Официальные партнёры Copart, IAAI, Manheim, Mobile.de. Консультация и таможенное оформление.",
+    "Подбор и доставка авто под заказ из США, Китая и Кореи. Машинокомплекты из США и Англии. Официальные партнёры Copart, IAAI, Manheim, Mobile.de, Encar, Che168, Guazi. Консультация и таможенное оформление.",
   keywords: [
     "авто под заказ из США",
     "авто под заказ из Китая",

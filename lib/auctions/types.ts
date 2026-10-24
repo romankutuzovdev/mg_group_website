@@ -203,7 +203,7 @@ export const SOURCE_LABELS: Record<AuctionSource, string> = {
   manheim: "Manheim",
   salvage_market: "SalvageMarket",
   encar: "Encar",
-  china_market: "Китай",
+  china_market: "Che168 / Guazi",
 };
 
 export const REGION_LABELS: Record<AuctionRegion, string> = {
