@@ -1,70 +1,84 @@
-import { Check } from 'lucide-react';
-import type { Dictionary } from '@/lib/dictionary';
+import type { Dictionary } from "@/lib/dictionary";
 
 interface BenefitsProps {
   dictionary: Dictionary;
 }
 
+/**
+ * Editorial advantages — typography-led, no icon boxes / timeline AI pattern.
+ */
 const Benefits = ({ dictionary }: BenefitsProps) => {
-  return (
-    <section id="benefits" className="py-16 sm:py-24 bg-background relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 -z-10 opacity-5">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:2rem_2rem] sm:bg-[size:4rem_4rem]" />
-      </div>
+  const items = dictionary.benefits.items;
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-12 sm:mb-16">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
-            {dictionary.benefits.title}
-          </h2>
-          <div className="mt-4 sm:mt-6 flex items-center justify-center gap-2">
-            <div className="h-1 w-8 bg-primary/30 rounded-full" />
-            <div className="h-1 w-12 bg-primary rounded-full" />
-            <div className="h-1 w-8 bg-primary/30 rounded-full" />
+  return (
+    <section
+      id="benefits"
+      className="relative overflow-hidden border-y border-stone-200 bg-[#f3f1ec] text-stone-950"
+      aria-labelledby="benefits-heading"
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_420px_at_0%_0%,rgba(34,197,94,0.07),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-[linear-gradient(120deg,transparent,rgba(28,25,23,0.03))]" />
+
+      <div className="relative mx-auto max-w-[1400px] px-4 py-16 sm:px-6 sm:py-20 lg:px-10 lg:py-28">
+        <div className="grid gap-12 border-b border-stone-900/10 pb-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-end lg:gap-20 lg:pb-16">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-stone-500">
+              Почему MG.GROUP
+            </p>
+            <h2
+              id="benefits-heading"
+              className="mt-4 max-w-[12ch] font-display text-[clamp(2.4rem,6vw,4.75rem)] font-semibold leading-[0.95] tracking-[-0.04em] text-stone-950"
+            >
+              {dictionary.benefits.title}
+            </h2>
           </div>
+          <p className="max-w-md text-[15px] leading-relaxed text-stone-600 sm:text-base lg:justify-self-end lg:pb-3 lg:text-right">
+            Три принципа сделки: отбор лота, маршрут без сюрпризов и прозрачные условия до выдачи.
+          </p>
         </div>
-        
-        <div className="grid gap-12 sm:gap-16 relative">
-          {dictionary.benefits.items.map((item, index) => (
-            <div key={index} className="relative">
-              {/* Connecting line */}
-              {index !== dictionary.benefits.items.length - 1 && (
-                <div className="absolute left-8 sm:left-12 top-20 sm:top-24 bottom-0 w-[2px] bg-gradient-to-b from-primary/20 to-transparent -z-10" />
-              )}
-              
-              <div className="flex flex-col sm:flex-row items-start gap-6 sm:gap-8">
-                <div className="flex-shrink-0 w-16 h-16 sm:w-24 sm:h-24 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                  <div className="text-2xl sm:text-4xl font-bold text-primary" style={{ color: 'hsl(142.1 76.2% 27.3%)' }}>
-                    {item.number}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-2xl sm:text-3xl font-semibold mb-3 sm:mb-4">
-                    {item.title}{' '}
-                    <span className="text-primary" style={{ color: 'hsl(142.1 76.2% 27.3%)' }}>
-                      {item.highlight}
-                    </span>
-                  </h3>
-                  <p className="text-muted-foreground text-lg sm:text-xl leading-relaxed mb-4">
-                    {item.description}
-                  </p>
-                  {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                    {[1, 2].map((_, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                        <Check className="h-3 w-3 sm:h-4 sm:w-4 text-primary" style={{ color: 'hsl(142.1 76.2% 27.3%)' }} />
-                        <span>Преимущество {i + 1}</span>
-                      </div>
-                    ))}
-                  </div> */}
-                </div>
+
+        <ol className="divide-y divide-stone-900/10">
+          {items.map((item, index) => (
+            <li
+              key={item.number}
+              className="group relative grid gap-6 py-10 sm:gap-8 sm:py-12 lg:grid-cols-[7rem_1fr_minmax(0,22rem)] lg:items-start lg:gap-12 lg:py-14"
+            >
+              <div className="flex items-baseline gap-3 lg:block">
+                <span className="font-mono text-[11px] tracking-[0.28em] text-stone-400 transition group-hover:text-primary">
+                  {item.number}
+                </span>
+                <span
+                  className="hidden font-display text-[clamp(3.5rem,8vw,6.5rem)] font-semibold leading-none tracking-[-0.06em] text-stone-950/[0.06] transition duration-500 group-hover:text-primary/15 lg:mt-3 lg:block"
+                  aria-hidden
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </span>
               </div>
-            </div>
+
+              <div>
+                <h3 className="max-w-xl font-display text-[clamp(1.6rem,3.2vw,2.55rem)] font-semibold leading-[1.08] tracking-[-0.03em] text-stone-950">
+                  <span className="normal-case">
+                    {toTitleCase(item.title)}{" "}
+                  </span>
+                  <span className="text-primary">{toTitleCase(item.highlight)}</span>
+                </h3>
+                <div className="mt-5 h-px w-12 origin-left bg-stone-900/20 transition duration-500 group-hover:w-20 group-hover:bg-primary" />
+              </div>
+
+              <p className="max-w-md text-[15px] leading-relaxed text-stone-600 sm:text-base lg:pt-2">
+                {item.description}
+              </p>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
     </section>
   );
 };
+
+function toTitleCase(value: string) {
+  const lower = value.toLocaleLowerCase("ru-RU");
+  return lower.charAt(0).toLocaleUpperCase("ru-RU") + lower.slice(1);
+}
 
 export default Benefits;

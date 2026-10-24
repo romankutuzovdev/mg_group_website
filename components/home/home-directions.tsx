@@ -25,8 +25,8 @@ const DIRECTIONS = [
     title: "Спецтехника",
     text: "Гидроциклы, квадроциклы, лодки, строительная техника — отдельным запросом.",
     href: "/contacts/",
-    image: "/services/asia-mid.jpg",
-    imageAlt: "Техника под заказ",
+    image: "/services/spec-atv.jpg",
+    imageAlt: "Квадроцикл — спецтехника под заказ",
     featured: false,
   },
 ] as const;
