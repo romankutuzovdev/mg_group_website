@@ -1,5 +1,9 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LinkButton } from "@/components/site/button";
+import { fetchLotMeta } from "@/lib/api/client";
 import type { AuctionLot, AuctionRegion } from "@/lib/auctions/types";
 import { REGION_LABELS } from "@/lib/auctions/types";
 import { getMakesForRegion } from "@/lib/catalog";
@@ -36,6 +40,10 @@ function makeHref(region: AuctionRegion, makeName: string) {
     (m) => m.name.toLowerCase() === makeName.trim().toLowerCase(),
   );
   return found ? `/avto/${region}/${found.slug}/` : `/avto/${region}/`;
+}
+
+function usaMakeHref(makeName: string) {
+  return makeHref("usa", makeName);
 }
 
 function formatMoney(amount: number, currency: string) {
@@ -86,12 +94,55 @@ export function buildCatalogShowcaseData(lots: AuctionLot[]): CatalogShowcaseDat
   };
 }
 
-export function CatalogShowcase({
-  data = { total: 0, counts: { usa: 0, china: 0, korea: 0, uk: 0 }, topMakesUsa: [] },
-}: {
-  data?: CatalogShowcaseData;
-}) {
-  const { total, counts, topMakesUsa: buckets } = data;
+const EMPTY_SHOWCASE: CatalogShowcaseData = {
+  total: 0,
+  counts: { usa: 0, china: 0, korea: 0, uk: 0 },
+  topMakesUsa: [],
+};
+
+export function CatalogShowcase({ data = EMPTY_SHOWCASE }: { data?: CatalogShowcaseData }) {
+  const [live, setLive] = useState(data);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [meta, usa] = await Promise.all([
+          fetchLotMeta(),
+          fetchLotMeta({ region: "usa" }),
+        ]);
+        if (cancelled) return;
+        const byRegion = meta.counts_by_region || {};
+        const topMakesUsa = (usa.top_makes || [])
+          .filter((row) => row.make && row.count > 0)
+          .slice(0, 8)
+          .map((row) => ({
+            make: row.make,
+            count: row.count,
+            minBid: row.min_bid || 0,
+            currency: (row.currency === "GBP" || row.currency === "KRW"
+              ? row.currency
+              : "USD") as ShowcaseMakeBucket["currency"],
+            href: usaMakeHref(row.make),
+          }));
+        setLive({
+          total: meta.total || 0,
+          counts: {
+            usa: byRegion.usa || 0,
+            china: byRegion.china || 0,
+            korea: byRegion.korea || 0,
+            uk: byRegion.uk || 0,
+          },
+          topMakesUsa,
+        });
+      } catch {
+        /* keep the numbers baked at build time */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const { total, counts, topMakesUsa: buckets } = live;
 
   return (
     <section id="catalog-showcase" className="border-t border-border bg-white py-14 md:py-20">

@@ -68,7 +68,7 @@ const STEPS = [
     id: "sea",
     step: "04",
     title: "Море + таможня",
-    desc: "Турция → Новороссийск → Гродно → Минск",
+    desc: "",
     place: "Атлантика",
   },
   {
@@ -240,7 +240,9 @@ export function ProcessRouteJourney() {
                   </span>
                   <span>
                     <span className="block text-lg font-semibold text-white">{s.title}</span>
-                    <span className="mt-1 block text-sm text-white/60">{s.desc}</span>
+                    {s.desc ? (
+                      <span className="mt-1 block text-sm text-white/60">{s.desc}</span>
+                    ) : null}
                   </span>
                 </button>
               );
@@ -275,7 +277,9 @@ export function ProcessRouteJourney() {
                     {s.step}
                   </p>
                   <h3 className="mt-2 text-lg font-semibold text-white">{s.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-white/60">{s.desc}</p>
+                  {s.desc ? (
+                    <p className="mt-2 text-sm leading-relaxed text-white/60">{s.desc}</p>
+                  ) : null}
                 </button>
               );
             })}

@@ -50,6 +50,8 @@ const PRODUCT_GROUPS: NavGroup[] = [
     href: "/mashinokomplekt/",
     accent: true,
     items: [
+      { href: "/mashinokomplekt/", label: "Все комплекты" },
+      { href: "/mashinokomplekt/chto-takoe/", label: "Что такое машинокомплект" },
       { href: "/mashinokomplekt/usa/", label: "Комплекты из США" },
       { href: "/mashinokomplekt/uk/", label: "Комплекты из Англии" },
       { href: "/kuplennye-mashinokomplekty/", label: "Купленные комплекты" },

@@ -37,6 +37,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     afterBullets: [
       "Стёкла везём, но без гарантии. Сиденья и другие позиции можно добавить в заказ отдельно.",
     ],
+    links: [{ href: "/mashinokomplekt/chto-takoe/", label: "Подробнее о машинокомплекте" }],
   },
   {
     id: "komplektnost-zakaza",
@@ -46,7 +47,10 @@ export const FAQ_ITEMS: FaqItem[] = [
       "Да. Базово работаем по четырём схемам разборки: машинокомплект (МШК), полукомплект (П/К), ноускат (НСК) и моторокомплект (ДВС).",
       "К любой схеме через бланк разборки можно добавить детали или отказаться от ненужных. Это сразу влияет на итоговую стоимость.",
     ],
-    links: [{ href: "/mashinokomplekt/", label: "Машинокомплекты" }],
+    links: [
+      { href: "/mashinokomplekt/chto-takoe/", label: "Что такое машинокомплект" },
+      { href: "/mashinokomplekt/", label: "Машинокомплекты" },
+    ],
   },
   {
     id: "evropejskie-avto",

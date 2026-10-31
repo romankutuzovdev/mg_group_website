@@ -83,6 +83,9 @@ export default function MashinokomplektPage({ dictionary, lots }: Props) {
           <LinkButton href={kitOriginPath("uk")} variant="secondary">
             Из Англии
           </LinkButton>
+          <LinkButton href="/mashinokomplekt/chto-takoe/" variant="secondary">
+            Что такое комплект
+          </LinkButton>
           <LinkButton href="/calculator/mashinokomplekt/" variant="secondary">
             Калькулятор комплекта
           </LinkButton>

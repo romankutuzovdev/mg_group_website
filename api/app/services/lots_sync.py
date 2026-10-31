@@ -167,11 +167,18 @@ async def push_catalog_once() -> dict[str, Any]:
 
     payload = build_export_payload()
     raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    logger.info(
+        "lots push start: %s lots, %s bytes",
+        int(payload.get("counts", {}).get("total") or len(payload.get("lots") or [])),
+        len(raw),
+    )
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=30.0)) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(1800.0, connect=60.0)) as client:
         res = await client.post(url, content=raw, headers=headers)
-    if res.status_code >= 400:
-        raise RuntimeError(f"lots push HTTP {res.status_code}: {(res.text or '')[:200]}")
+    if res.status_code >= 300:
+        raise RuntimeError(
+            f"lots push HTTP {res.status_code}: {(res.headers.get('location') or res.text or '')[:200]}"
+        )
 
     count = int(payload.get("counts", {}).get("total") or len(payload.get("lots") or []))
     _status["mode"] = "push"

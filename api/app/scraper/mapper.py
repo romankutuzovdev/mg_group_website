@@ -515,19 +515,21 @@ def map_bidcars_row(row: dict[str, Any]) -> AuctionLot | None:
     est_max = _money("estimatedMax")
     buy_now = _money("buyNowPrice")
     sold = bool(row.get("sold"))
-    when = datetime.now(timezone.utc)
+    auction_date = ""
     auction_raw = str(row.get("auctionDate") or "").strip()
     if auction_raw:
         try:
             when = datetime.fromisoformat(auction_raw.replace("Z", "+00:00"))
             if when.tzinfo is None:
                 when = when.replace(tzinfo=timezone.utc)
+            auction_date = when.isoformat()
         except Exception:
-            # Bid.cars shows "Wed 10 Sep, 15:30 GMT+2" — keep now / sold offset
+            # Bid.cars shows "Wed 10 Sep, 15:30 GMT+2". Without a real timestamp
+            # an unsold lot must stay in the catalog (empty date is not "ended").
             if sold:
-                when = when - timedelta(days=14)
+                auction_date = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
     elif sold:
-        when = when - timedelta(days=14)
+        auction_date = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
 
     try:
         odo = int(float(row.get("odometer") or 0))
@@ -573,7 +575,7 @@ def map_bidcars_row(row: dict[str, Any]) -> AuctionLot | None:
         estimatedCostMax=est_max,
         currency="USD",
         location=location,
-        auctionDate=when.isoformat(),
+        auctionDate=auction_date,
         imageUrl=gallery[0],
         imageUrls=gallery,
         transmission=_spec("transmission"),
