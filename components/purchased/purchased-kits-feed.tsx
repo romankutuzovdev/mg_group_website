@@ -140,10 +140,11 @@ export function PurchasedKitsFeed() {
           if (!cancelled) audi = await pickAudi(wider?.items ?? []);
         }
         if (cancelled) return;
-        const rest = audi
-          ? kits.filter((car) => car.id !== audi.id && !/audi/i.test(car.make))
+        const featured = audi;
+        const rest = featured
+          ? kits.filter((car) => car.id !== featured.id && !/audi/i.test(car.make))
           : kits;
-        const next = audi ? [audi, ...rest] : rest;
+        const next = featured ? [featured, ...rest] : rest;
         if (next.length) setCars(next);
       })
       .catch(() => {});
