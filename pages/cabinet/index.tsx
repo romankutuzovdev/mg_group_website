@@ -3,6 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  CarFront,
+  Heart,
+  LogOut,
+  Route,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import SEO from "@/components/SEO";
 import { PageShell } from "@/components/layout/page-shell";
 import { DealRouteSections } from "@/components/cabinet/deal-route-sections";
@@ -18,6 +28,7 @@ import { LogisticsPanel } from "@/components/cabinet/logistics-panel";
 import { PurchasedCarsAdmin } from "@/components/cabinet/purchased-cars-admin";
 import { QuoteHistoryPanel } from "@/components/cabinet/quote-history-panel";
 import { FavoriteButton } from "@/components/auctions/favorite-button";
+import { ConsentCheck } from "@/components/site/consent-check";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
 import { consultationMessage } from "@/lib/company";
@@ -335,38 +346,35 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   const activeDeals = deals.filter((d) => d.status === "active").length;
 
   return (
-    <PageShell bare className="!max-w-none">
-      <div className="relative -mx-3 -mt-[calc(4.25rem+env(safe-area-inset-top,0px))] mb-4 overflow-hidden border-b border-zinc-200/80 bg-white pt-[calc(4.25rem+env(safe-area-inset-top,0px))] sm:-mx-4 lg:-mx-6">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(800px_120px_at_0%_0%,rgba(16,185,129,0.12),transparent),radial-gradient(600px_100px_at_100%_0%,rgba(24,24,27,0.04),transparent)]" />
-        <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-3.5 lg:px-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                Client workspace
-              </p>
-              <p className="mt-0.5 text-base font-semibold tracking-tight text-zinc-900 sm:text-lg">
-                Личный кабинет
-              </p>
-              <Link
-                href="/"
-                className="mt-2.5 inline-flex h-8 items-center gap-2 rounded-lg bg-zinc-900 px-2.5 text-[11px] font-bold text-white transition hover:bg-emerald-700"
-                aria-label="На главную MG.GROUP"
-              >
-                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/10 text-[9px]">
-                  MG
-                </span>
-                MG.GROUP
-              </Link>
-            </div>
-            <Link
-              href="/"
-              className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline"
-            >
-              На сайт
+    <PageShell bare className="!max-w-none !px-0 !pb-0">
+      <header className="relative -mt-[calc(4.25rem+env(safe-area-inset-top,0px))] overflow-hidden bg-zinc-950 pt-[calc(4.25rem+env(safe-area-inset-top,0px))] text-white">
+        <div className="absolute inset-0 bg-[url('/hero/mercedes-whole.jpg')] bg-cover bg-[center_58%] opacity-25" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(9,9,11,.98)_0%,rgba(9,9,11,.9)_45%,rgba(9,9,11,.25)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(700px_260px_at_75%_110%,rgba(16,185,129,.22),transparent)]" />
+        <div className="relative mx-auto flex min-h-[208px] max-w-7xl flex-col justify-between px-4 py-7 sm:min-h-[240px] sm:px-6 sm:py-9 lg:px-8">
+          <div className="flex items-center justify-between gap-4">
+            <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.14em] text-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/10 text-[10px] backdrop-blur">MG</span>
+              MG.GROUP
+            </Link>
+            <Link href="/" className="group inline-flex items-center gap-2 text-xs font-medium text-white/65 transition hover:text-white">
+              На сайт <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
             </Link>
           </div>
+          <div className="max-w-2xl pt-8">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-emerald-400">Private client space</p>
+            <h1 className="mt-2 font-serif text-3xl tracking-[-0.03em] sm:text-5xl">
+              {user ? `Добро пожаловать, ${user.first_name || "клиент"}` : "Ваш автомобиль — всегда на виду"}
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/60 sm:text-base">
+              {user ? "Сделки, документы и весь маршрут автомобиля в одном пространстве." : "Контролируйте сделку от покупки до выдачи: этапы, фото, платежи и логистика без лишних звонков."}
+            </p>
+          </div>
         </div>
-      </div>
+      </header>
+
+      <main className="bg-[#f4f2ed] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div className="mx-auto max-w-7xl">
 
       {error ? (
         <p className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm text-rose-800">
@@ -375,17 +383,38 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
       ) : null}
 
       {!user ? (
-        <div className="flex w-full flex-1 flex-col gap-6 pb-8">
-          <div className="mx-auto w-full max-w-md space-y-4">
-            <div className="text-center sm:pt-4">
-              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-                Вход в кабинет
-              </h1>
-              <p className="mt-1.5 text-sm text-zinc-500">
-                Следите за сделками, картой разбора и избранным
-              </p>
+        <div className="grid w-full gap-5 pb-4 lg:grid-cols-[minmax(0,1fr)_minmax(380px,480px)] lg:gap-8">
+          <aside className="relative hidden min-h-[620px] overflow-hidden rounded-[2rem] bg-zinc-900 p-8 text-white lg:flex lg:flex-col lg:justify-between">
+            <div className="absolute inset-0 bg-[url('/services/catalog-mercedes.jpg')] bg-cover bg-center opacity-30" />
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-zinc-950/15" />
+            <div className="relative">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] backdrop-blur">
+                <Sparkles className="h-3 w-3 text-emerald-400" /> Premium service
+              </span>
             </div>
-            <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 text-left shadow-[0_8px_30px_-18px_rgba(15,23,42,0.35)] sm:p-6">
+            <div className="relative max-w-lg">
+              <h2 className="font-serif text-4xl leading-[1.05] tracking-[-0.03em]">Одна сделка.<br />Полная прозрачность.</h2>
+              <div className="mt-7 grid gap-3">
+                {[
+                  [Route, "Живой маршрут", "Все этапы доставки и текущий статус"],
+                  [CarFront, "Фото автомобиля", "Материалы по мере движения сделки"],
+                  [ShieldCheck, "Безопасный доступ", "Персональные данные под защитой"],
+                ].map(([Icon, title, text]) => (
+                  <div key={String(title)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.07] p-3.5 backdrop-blur-md">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-400 text-zinc-950"><Icon className="h-5 w-5" /></span>
+                    <span><b className="block text-sm">{String(title)}</b><span className="text-xs text-white/55">{String(text)}</span></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+          <div className="w-full space-y-4">
+            <div className="rounded-[2rem] border border-black/5 bg-white p-5 text-left shadow-[0_24px_70px_-40px_rgba(24,24,27,.35)] sm:p-8">
+              <div className="mb-6">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-700">Личный кабинет</p>
+                <h2 className="mt-2 font-serif text-3xl tracking-tight text-zinc-950">Вход в пространство</h2>
+                <p className="mt-2 text-sm text-zinc-500">Используйте телефон и пароль, полученный при регистрации.</p>
+              </div>
               <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1">
                 <button
                   type="button"
@@ -421,7 +450,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                 <form onSubmit={(e) => void loginByPhone(e)} className="mt-4">
                   <p className="text-sm font-semibold text-zinc-900">Логин и пароль</p>
                   <p className="mt-1 text-xs text-zinc-500">
-                    Телефон и пароль (свой или от менеджера). Админу — логин с сервера.
+                    Телефон и пароль (свой или от менеджера).
                   </p>
                   <label className="mt-5 block text-xs font-medium text-zinc-500">
                     Логин
@@ -446,44 +475,37 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                     />
                   </label>
                   <div className="mt-4 space-y-2.5">
-                    <label className="flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
-                      <input
-                        type="checkbox"
-                        checked={policyAccepted}
-                        onChange={(e) => {
-                          const next = e.target.checked;
-                          setPolicyAccepted(next);
-                          if (next) acceptCabinetPolicyConsent();
-                          setError(null);
-                        }}
-                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
-                        required
-                      />
-                      <span>
-                        Согласен(на) с{" "}
-                        <Link
-                          href={CABINET_POLICY_PATH}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-semibold text-emerald-800 underline underline-offset-2"
-                        >
-                          политикой конфиденциальности
-                        </Link>{" "}
-                        и обработкой персональных данных
-                      </span>
-                    </label>
-                    <label className="flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
-                      <input
-                        type="checkbox"
-                        checked={consentService}
-                        onChange={(e) => setConsentService(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
-                        required
-                      />
-                      <span>
-                        Согласен(на) на сервисные уведомления (статус сделки, SMS о кабинете)
-                      </span>
-                    </label>
+                    <ConsentCheck
+                      checked={policyAccepted}
+                      required
+                      onCheckedChange={(next) => {
+                        setPolicyAccepted(next);
+                        if (next) acceptCabinetPolicyConsent();
+                        setError(null);
+                      }}
+                    >
+                      Согласен(на) с{" "}
+                      <Link
+                        href={CABINET_POLICY_PATH}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-emerald-800 underline underline-offset-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        политикой конфиденциальности
+                      </Link>{" "}
+                      и обработкой персональных данных
+                    </ConsentCheck>
+                    <ConsentCheck
+                      checked={consentService}
+                      required
+                      onCheckedChange={(next) => {
+                        setConsentService(next);
+                        setError(null);
+                      }}
+                    >
+                      Согласен(на) на сервисные уведомления (статус сделки, SMS о кабинете)
+                    </ConsentCheck>
                   </div>
                   <button
                     type="submit"
@@ -572,55 +594,43 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                     />
                   </label>
                   <div className="mt-4 space-y-2.5">
-                    <label className="flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
-                      <input
-                        type="checkbox"
-                        checked={policyAccepted}
-                        onChange={(e) => {
-                          const next = e.target.checked;
-                          setPolicyAccepted(next);
-                          if (next) acceptCabinetPolicyConsent();
-                          setError(null);
-                        }}
-                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
-                        required
-                      />
-                      <span>
-                        Согласен(на) с{" "}
-                        <Link
-                          href={CABINET_POLICY_PATH}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-semibold text-emerald-800 underline underline-offset-2"
-                        >
-                          политикой конфиденциальности
-                        </Link>{" "}
-                        и обработкой персональных данных
-                      </span>
-                    </label>
-                    <label className="flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
-                      <input
-                        type="checkbox"
-                        checked={consentService}
-                        onChange={(e) => setConsentService(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
-                        required
-                      />
-                      <span>
-                        Согласен(на) на сервисные уведомления (статус сделки, SMS о кабинете)
-                      </span>
-                    </label>
-                    <label className="flex cursor-pointer items-start gap-2.5 text-left text-xs leading-snug text-zinc-600">
-                      <input
-                        type="checkbox"
-                        checked={consentMarketing}
-                        onChange={(e) => setConsentMarketing(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500/40"
-                      />
-                      <span>
-                        Согласен(на) на рекламную и информационную рассылку MG.GROUP
-                      </span>
-                    </label>
+                    <ConsentCheck
+                      checked={policyAccepted}
+                      required
+                      onCheckedChange={(next) => {
+                        setPolicyAccepted(next);
+                        if (next) acceptCabinetPolicyConsent();
+                        setError(null);
+                      }}
+                    >
+                      Согласен(на) с{" "}
+                      <Link
+                        href={CABINET_POLICY_PATH}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-emerald-800 underline underline-offset-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        политикой конфиденциальности
+                      </Link>{" "}
+                      и обработкой персональных данных
+                    </ConsentCheck>
+                    <ConsentCheck
+                      checked={consentService}
+                      required
+                      onCheckedChange={(next) => {
+                        setConsentService(next);
+                        setError(null);
+                      }}
+                    >
+                      Согласен(на) на сервисные уведомления (статус сделки, SMS о кабинете)
+                    </ConsentCheck>
+                    <ConsentCheck
+                      checked={consentMarketing}
+                      onCheckedChange={setConsentMarketing}
+                    >
+                      Согласен(на) на рекламную и информационную рассылку MG.GROUP
+                    </ConsentCheck>
                   </div>
                   <button
                     type="submit"
@@ -711,16 +721,12 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
               >
                 Написать менеджеру
               </a>
-              {" · "}
-              <Link href="/admin/" className="font-semibold text-zinc-700 underline underline-offset-2">
-                Вход админа
-              </Link>
             </p>
           </div>
         </div>
       ) : (
-        <div className="flex w-full flex-1 flex-col space-y-4 pb-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200/90 bg-white p-3.5 shadow-sm sm:p-4">
+        <div className="flex w-full flex-1 flex-col space-y-5 pb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-[1.75rem] border border-black/5 bg-white p-4 shadow-[0_20px_55px_-40px_rgba(24,24,27,.4)] sm:p-5">
             <div className="flex items-center gap-3">
               {user.photo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -730,7 +736,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                   className="h-11 w-11 rounded-xl object-cover ring-1 ring-zinc-200"
                 />
               ) : (
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-bold text-white shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-950 text-sm font-bold text-white shadow-sm ring-4 ring-emerald-50">
                   {(user.first_name || "U").slice(0, 1)}
                 </div>
               )}
@@ -772,30 +778,28 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
               <button
                 type="button"
                 onClick={logout}
-                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:border-zinc-300 hover:bg-zinc-50"
               >
-                Выйти
+                <LogOut className="h-3.5 w-3.5" /> Выйти
               </button>
             </div>
           </div>
 
           {!isStaff && view === "list" ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {[
-                { label: "Сделки", value: deals.length },
-                { label: "В работе", value: activeDeals },
-                { label: "Избранное", value: favorites.length },
+                { label: "Все сделки", value: deals.length, icon: BriefcaseBusiness },
+                { label: "Сейчас в пути", value: activeDeals, icon: Route },
+                { label: "В избранном", value: favorites.length, icon: Heart },
               ].map((s) => (
                 <div
                   key={s.label}
-                  className="rounded-2xl border border-zinc-200/90 bg-white px-3.5 py-3 shadow-sm"
+                  className="group rounded-[1.5rem] border border-black/5 bg-white p-4 shadow-[0_18px_50px_-40px_rgba(24,24,27,.45)] transition hover:-translate-y-0.5 hover:shadow-lg sm:p-5"
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-                    {s.label}
-                  </p>
-                  <p className="mt-0.5 text-xl font-semibold tabular-nums text-zinc-900">
-                    {s.value}
-                  </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{s.label}</p><p className="mt-2 font-serif text-3xl tabular-nums text-zinc-950">{s.value}</p></div>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 transition group-hover:bg-emerald-600 group-hover:text-white"><s.icon className="h-4 w-4" /></span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -803,7 +807,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
           {view === "list" ? (
             <div className="space-y-5">
-              <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+              <div className="flex gap-1 overflow-x-auto rounded-2xl border border-black/5 bg-white p-1.5 shadow-sm">
                 {(
                   [
                     { id: "deals" as const, label: `Сделки${deals.length ? ` · ${deals.length}` : ""}` },
@@ -824,10 +828,10 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                     key={t.id}
                     type="button"
                     onClick={() => selectTab(t.id)}
-                    className={`shrink-0 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${
+                    className={`shrink-0 rounded-xl px-4 py-2.5 text-xs font-semibold transition ${
                       tab === t.id
-                        ? "bg-zinc-900 text-white shadow-sm"
-                        : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
+                        ? "bg-zinc-950 text-white shadow-sm"
+                        : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
                     }`}
                   >
                     {t.label}
@@ -836,7 +840,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
               </div>
 
               {tab === "favorites" ? (
-              <div className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:p-5">
+              <div className="rounded-[1.75rem] border border-black/5 bg-white p-5 shadow-[0_20px_60px_-45px_rgba(24,24,27,.45)] sm:p-7">
                 <div className="flex flex-wrap items-end justify-between gap-2">
                   <div>
                     <h2 className="text-base font-semibold text-zinc-900">Избранные авто</h2>
@@ -955,9 +959,9 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                         <button
                           type="button"
                           onClick={() => void openDeal(deal.id)}
-                          className="flex w-full gap-3 overflow-hidden rounded-2xl border border-zinc-200/90 bg-white p-3 text-left shadow-sm transition hover:border-emerald-300/70 hover:shadow-[0_12px_28px_-18px_rgba(16,185,129,0.45)] sm:p-3.5"
+                          className="group flex w-full gap-4 overflow-hidden rounded-[1.5rem] border border-black/5 bg-white p-3 text-left shadow-[0_18px_50px_-42px_rgba(24,24,27,.5)] transition hover:-translate-y-0.5 hover:border-emerald-300/70 hover:shadow-xl sm:p-4"
                         >
-                          <div className="h-[4.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-xl bg-zinc-100 sm:h-24 sm:w-32">
+                          <div className="h-[5rem] w-[6rem] shrink-0 overflow-hidden rounded-2xl bg-zinc-100 sm:h-28 sm:w-40">
                             <CoverThumb
                               src={cover}
                               className="h-full w-full object-cover"
@@ -999,7 +1003,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                             </div>
                             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100">
                               <div
-                                className="h-full rounded-full bg-emerald-500 transition-all"
+                                className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
@@ -1172,6 +1176,8 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
           ) : null}
         </div>
       )}
+      </div>
+      </main>
     </PageShell>
   );
 }

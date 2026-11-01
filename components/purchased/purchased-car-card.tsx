@@ -66,10 +66,12 @@ export function PurchasedCarCard({ car }: { car: PurchasedCar }) {
             <dt className="text-text-muted">Аукцион</dt>
             <dd className="font-medium">{formatMoney(car.auctionPrice, car.currency)}</dd>
           </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-text-muted">Доставка</dt>
-            <dd className="font-medium">{formatMoney(car.delivery, car.currency)}</dd>
-          </div>
+          {car.delivery > 0 ? (
+            <div className="flex justify-between gap-4">
+              <dt className="text-text-muted">Доставка</dt>
+              <dd className="font-medium">{formatMoney(car.delivery, car.currency)}</dd>
+            </div>
+          ) : null}
           {car.dismantle > 0 ? (
             <div className="flex justify-between gap-4">
               <dt className="text-text-muted">Разбор</dt>

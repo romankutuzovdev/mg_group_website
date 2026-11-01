@@ -39,10 +39,11 @@ export function HomeDirections() {
 
   return (
     <section
-      className="relative border-b border-white/10 bg-[#070707] text-white"
+      id="directions"
+      className="scroll-mt-16 relative border-b border-white/10 bg-[#070707] text-white"
       aria-label="Направления"
     >
-      <div className="mx-auto max-w-[1400px] px-4 pt-16 sm:px-6 sm:pt-20 lg:px-10 lg:pt-24">
+      <div className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 sm:pt-20 lg:px-8 lg:pt-24">
         <div className="grid gap-10 border-b border-white/10 pb-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-end lg:gap-16 lg:pb-14">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-white/40">
@@ -59,7 +60,7 @@ export function HomeDirections() {
         </div>
 
         <div className="grid gap-3 py-3 sm:gap-4 sm:py-4 lg:grid-cols-12 lg:gap-4 lg:py-5">
-          <DirectionPanel item={featured} className="min-h-[420px] sm:min-h-[520px] lg:col-span-7 lg:min-h-[640px]" />
+          <DirectionPanel item={featured} className="min-h-[420px] sm:min-h-[440px] lg:col-span-7 lg:min-h-[500px]" />
           <div className="grid gap-3 sm:gap-4 lg:col-span-5 lg:grid-rows-2">
             {rest.map((item) => (
               <DirectionPanel

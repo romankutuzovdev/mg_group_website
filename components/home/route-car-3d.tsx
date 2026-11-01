@@ -8,7 +8,7 @@ const RouteCarGlb = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-28 w-40 animate-pulse rounded-2xl bg-white/5 sm:h-32 sm:w-48" aria-hidden />
+      <div className="h-36 w-60 motion-safe:animate-pulse rounded-2xl bg-white/5 sm:h-40 sm:w-72" aria-hidden />
     ),
   },
 );
@@ -23,7 +23,7 @@ type Props = {
   reduced?: boolean;
 };
 
-/** 3D GLB sedan (Kenney · CC0) with soft loading fallback. */
+/** Detailed grand tourer with a static pose under reduced motion. */
 export function RouteCar3d({
   progress,
   tiltX = 0,
@@ -138,7 +138,7 @@ export function ProcessRouteJourney() {
             </h2>
           </div>
           <p className="max-w-sm text-base text-white/60">
-            Средний срок — 2–3 месяца. Наведите на этап или дождитесь, пока машина проедет путь.
+            Средний срок — 2–3 месяца. Выберите этап или дождитесь, пока машина проедет путь.
           </p>
         </div>
 
@@ -146,7 +146,7 @@ export function ProcessRouteJourney() {
         <div className="relative mt-12 rounded-[1.75rem] border border-white/10 bg-gradient-to-b from-stone-900/90 to-stone-950 p-5 shadow-[0_40px_100px_-50px_rgba(34,197,94,0.45)] sm:mt-14 sm:p-8 md:p-10">
           <div className="pointer-events-none absolute inset-0 rounded-[1.75rem] bg-[linear-gradient(120deg,transparent_40%,rgba(255,255,255,0.03)_50%,transparent_60%)]" />
 
-          <div className="relative mb-10 hidden h-52 overflow-visible md:block" aria-hidden>
+          <div className="relative mb-10 hidden h-64 overflow-visible md:block" aria-hidden>
             {/* Track inset so edge labels fit inside the card */}
             <div className="absolute inset-x-10 inset-y-0 lg:inset-x-14">
               {/* road */}
@@ -201,8 +201,8 @@ export function ProcessRouteJourney() {
 
               {/* Real 3D GLB car */}
               <div
-                className="absolute top-0 z-30 -translate-x-1/2 transition-[left] duration-700 ease-out"
-                style={{ left: `${progress * 100}%` }}
+                className="absolute top-0 z-30 -translate-x-1/2 transition-[left] duration-700 ease-out motion-reduce:transition-none"
+                style={{ left: `${8 + progress * 84}%` }}
               >
                 <RouteCar3d
                   progress={progress}
@@ -300,6 +300,9 @@ export function ProcessRouteJourney() {
               {playing && !reduced ? "Пауза" : "Автопроигрывание"}
             </button>
           </div>
+          <p className="relative mt-4 text-[10px] text-white/45">
+            3D: <a className="underline underline-offset-2 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept" target="_blank" rel="noopener noreferrer">Car Concept</a> · Eric Chadwick / DGG, 2024 · <a className="underline underline-offset-2 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · цвет адаптирован.
+          </p>
         </div>
       </div>
     </section>

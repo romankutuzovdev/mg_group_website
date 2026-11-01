@@ -18,6 +18,7 @@ import {
 type Props = {
   limit?: number;
   showHeaderLink?: boolean;
+  hideWhenEmpty?: boolean;
 };
 
 function mapApiCase(item: ApiCase): ClientCase {
@@ -38,7 +39,7 @@ function mapApiCase(item: ApiCase): ClientCase {
   };
 }
 
-export function CasesFeed({ limit, showHeaderLink = true }: Props) {
+export function CasesFeed({ limit, showHeaderLink = true, hideWhenEmpty = false }: Props) {
   const [items, setItems] = useState<ClientCase[]>(() => getCasesFeedItems(limit));
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export function CasesFeed({ limit, showHeaderLink = true }: Props) {
   }, [limit]);
 
   const summary = casesSummary(items);
+  if (hideWhenEmpty && items.length === 0) return null;
 
   return (
     <section id="cases" className="scroll-mt-28 border-t border-border bg-bg-base py-14 md:py-24">

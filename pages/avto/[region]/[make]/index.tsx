@@ -103,7 +103,7 @@ export default function AvtoMakePage({
         ]}
       />
 
-      <PageShell bare>
+      <PageShell bare className="!max-w-none !p-0">
         <CatalogHero
           compact
           title={h1}
@@ -115,6 +115,7 @@ export default function AvtoMakePage({
           ]}
           wash={visual.wash}
           glow={visual.glow}
+          image={visual.image}
           ctas={[
             ...(lots.length
               ? [{ href: "#lots", label: "Лоты", variant: "primary" as const }]
@@ -136,7 +137,7 @@ export default function AvtoMakePage({
           }
         />
 
-        <div className="mx-auto max-w-7xl space-y-12 px-3 py-8 sm:px-4 sm:py-12 lg:px-6">
+        <div className="mx-auto max-w-7xl space-y-16 px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <RegionMosaic lotCounts={regionLotCounts} active={region.slug} variant="strip" />
 
           <CatalogSection

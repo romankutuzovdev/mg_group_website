@@ -1,0 +1,6 @@
+Car Concept by Eric Chadwick, Darmstadt Graphics Group GmbH, 2024.
+Source: https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept
+License: Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Rendering adaptation: graphite-blue exterior materials, normalized scale and studio lighting.
+The original model includes Khronos trademarks, which retain their respective ownership.

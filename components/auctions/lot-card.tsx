@@ -161,7 +161,7 @@ export function LotCard({
           <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5 sm:gap-3 sm:p-3">
             <div className="min-w-0 rounded-xl bg-[#0D3F10]/92 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/10 backdrop-blur-md sm:px-3.5 sm:py-2.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200/90">
-                Текущая ставка
+                {lot.region === "china" || lot.region === "korea" ? "Цена на площадке" : "Текущая ставка"}
               </p>
               <p className="font-display text-xl font-bold tabular-nums tracking-tight text-white sm:text-2xl">
                 {formatMoney(lot.currentBid, lot.currency)}

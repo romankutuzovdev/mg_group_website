@@ -13,6 +13,7 @@ import {
   CABINET_POLICY_PATH,
   acceptCabinetPolicyConsent,
 } from "@/lib/cabinet-consent";
+import { ConsentCheck } from "@/components/site/consent-check";
 
 type Status = "loading" | "guest" | "user";
 
@@ -102,27 +103,28 @@ export function CalculatorGate({
 
   if (status === "loading") {
     return (
-      <div className="mx-auto max-w-md py-4 text-center">
-        <p className="text-sm text-text-muted">Проверяем вход…</p>
+      <div className="mx-auto max-w-md rounded-2xl border border-stone-200 bg-white px-6 py-10 text-center">
+        <span className="mx-auto block h-8 w-8 animate-pulse rounded-full border-2 border-accent/25 border-t-accent" aria-hidden />
+        <p className="mt-4 text-sm text-text-muted">Проверяем вход…</p>
       </div>
     );
   }
 
   if (status === "guest") {
     return (
-      <div className="mx-auto max-w-md rounded-xl border border-border bg-white p-5 text-center sm:p-6">
-        <h2 className="text-lg font-semibold text-text-primary">
-          Калькуляторы доступны только авторизованным пользователям
+      <div className="mx-auto max-w-xl rounded-2xl border border-stone-200 bg-white p-6 sm:p-9">
+        <p className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-accent-dark">Защищённый расчёт</p>
+        <h2 className="mx-auto mt-3 max-w-md text-center font-display text-2xl font-semibold tracking-[-0.03em] text-stone-950 sm:text-3xl">
+          Войдите, чтобы продолжить
         </h2>
-        <p className="mt-2 text-sm text-text-secondary">
-          Войдите логином и паролем (клиентский телефон или админ с сервера), чтобы считать
-          машинокомплект, авто под восстановление и растаможку.
+        <p className="mx-auto mt-3 max-w-md text-center text-sm leading-relaxed text-stone-500">
+          Используйте телефон или логин клиента. Расчёты сохранятся в кабинете и будут доступны менеджеру.
         </p>
-        <form onSubmit={(e) => void submit(e)} className="mt-4 space-y-3 text-left">
+        <form onSubmit={(e) => void submit(e)} className="mt-7 space-y-4 text-left">
           <label className="block text-sm">
-            <span className="text-text-muted">Логин</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">Логин</span>
             <input
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm"
+              className="mt-2 h-12 w-full rounded-xl border border-stone-200 bg-stone-50 px-4 text-sm outline-none transition hover:border-stone-300 focus:border-accent-dark focus:bg-white focus:ring-2 focus:ring-accent/15"
               value={login}
               onChange={(e) => setLogin(e.target.value)}
               autoComplete="username"
@@ -130,10 +132,10 @@ export function CalculatorGate({
             />
           </label>
           <label className="block text-sm">
-            <span className="text-text-muted">Пароль</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">Пароль</span>
             <input
               type="password"
-              className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm"
+              className="mt-2 h-12 w-full rounded-xl border border-stone-200 bg-stone-50 px-4 text-sm outline-none transition hover:border-stone-300 focus:border-accent-dark focus:bg-white focus:ring-2 focus:ring-accent/15"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
@@ -141,56 +143,51 @@ export function CalculatorGate({
             />
           </label>
           <div className="space-y-2">
-            <label className="flex cursor-pointer items-start gap-2 text-left text-xs leading-snug text-text-secondary">
-              <input
-                type="checkbox"
-                checked={policyAccepted}
-                onChange={(e) => setPolicyAccepted(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-emerald-600"
-                required
-              />
-              <span>
-                Согласен(на) с{" "}
-                <Link
-                  href={CABINET_POLICY_PATH}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-semibold text-emerald-800 underline underline-offset-2"
-                >
-                  политикой конфиденциальности
-                </Link>
-              </span>
-            </label>
-            <label className="flex cursor-pointer items-start gap-2 text-left text-xs leading-snug text-text-secondary">
-              <input
-                type="checkbox"
-                checked={consentService}
-                onChange={(e) => setConsentService(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-emerald-600"
-                required
-              />
-              <span>
-                Согласен(на) на сервисные уведомления (статус сделки, SMS о кабинете)
-              </span>
-            </label>
+            <ConsentCheck
+              checked={policyAccepted}
+              required
+              className="text-text-secondary"
+              onCheckedChange={(next) => {
+                setPolicyAccepted(next);
+                setError(null);
+              }}
+            >
+              Согласен(на) с{" "}
+              <Link
+                href={CABINET_POLICY_PATH}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-emerald-800 underline underline-offset-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                политикой конфиденциальности
+              </Link>
+            </ConsentCheck>
+            <ConsentCheck
+              checked={consentService}
+              required
+              className="text-text-secondary"
+              onCheckedChange={(next) => {
+                setConsentService(next);
+                setError(null);
+              }}
+            >
+              Согласен(на) на сервисные уведомления (статус сделки, SMS о кабинете)
+            </ConsentCheck>
           </div>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <button
             type="submit"
             disabled={busy || !policyAccepted || !consentService}
-            className="w-full rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="min-h-12 w-full cursor-pointer rounded-xl bg-accent-dark px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50"
           >
             {busy ? "Входим…" : "Войти"}
           </button>
         </form>
-        <p className="mt-3 text-xs text-text-muted">
+        <p className="mt-5 text-center text-xs text-text-muted">
           Нет аккаунта?{" "}
           <Link href="/cabinet/" className="font-semibold text-emerald-800 underline underline-offset-2">
             Личный кабинет
-          </Link>
-          {" · "}
-          <Link href="/admin/" className="font-semibold underline underline-offset-2">
-            Админ
           </Link>
         </p>
       </div>
@@ -200,7 +197,7 @@ export function CalculatorGate({
   return (
     <div className="space-y-5">
       {showOverview ? (
-        <p className="rounded-lg border border-border bg-white px-4 py-3 text-sm text-text-secondary">
+        <p className="rounded-xl border border-stone-200 bg-white px-5 py-4 text-sm text-stone-600">
           Здесь есть калькулятор для машинокомплекта (США и Англия), авто под восстановление и растаможка.
         </p>
       ) : null}

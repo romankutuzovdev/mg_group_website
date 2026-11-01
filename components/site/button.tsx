@@ -6,7 +6,7 @@ type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-[#1B5E20] text-white hover:bg-[#0D3F10] shadow-sm",
+    "bg-accent-dark text-white hover:bg-accent-hover shadow-sm",
   secondary:
     "border border-zinc-300 bg-white text-zinc-900 hover:border-zinc-500 hover:bg-zinc-50",
   outline:
@@ -15,9 +15,9 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
-  sm: "min-h-9 px-4 py-2 text-sm rounded-md",
-  md: "min-h-11 px-6 py-3 text-sm rounded-md",
-  lg: "min-h-12 px-8 py-4 text-base rounded-md",
+  sm: "min-h-9 px-4 py-2 text-sm rounded-xl",
+  md: "min-h-11 px-6 py-3 text-sm rounded-xl",
+  lg: "min-h-12 px-8 py-4 text-base rounded-xl",
 };
 
 type ButtonProps = ComponentPropsWithoutRef<"button"> & {
@@ -31,7 +31,7 @@ type LinkButtonProps = ComponentPropsWithoutRef<typeof Link> & {
 };
 
 const base =
-  "inline-flex items-center justify-center gap-2 font-medium transition-[color,background-color,border-color,transform,box-shadow] duration-200 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  "inline-flex cursor-pointer items-center justify-center gap-2 font-medium transition-[color,background-color,border-color,transform,box-shadow] duration-200 motion-safe:active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 export function Button({
   variant = "primary",

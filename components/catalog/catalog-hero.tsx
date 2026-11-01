@@ -21,6 +21,7 @@ type Props = {
   /** CSS background (gradient) */
   wash?: string;
   glow?: string;
+  image?: string;
   /** Optional right-side visual (logo, code badge) */
   media?: ReactNode;
   compact?: boolean;
@@ -35,6 +36,7 @@ export function CatalogHero({
   ctas = [],
   wash,
   glow,
+  image = "/services/catalog-mercedes.jpg",
   media,
   compact = false,
   className,
@@ -47,12 +49,14 @@ export function CatalogHero({
         className,
       )}
       style={{
-        background:
-          wash ||
-          "linear-gradient(145deg, #041008 0%, #0a1f12 38%, #0d2818 62%, #06140c 100%)",
+        background: wash || "#080a09",
       }}
     >
-      {/* Atmosphere */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-60 motion-safe:animate-hero-ken"
+        style={{ backgroundImage: `url('${image}')` }}
+        aria-hidden
+      />
       <div
         className="pointer-events-none absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full blur-3xl"
         style={{ background: glow || "rgba(34,197,94,0.28)" }}
@@ -63,24 +67,12 @@ export function CatalogHero({
         style={{ background: glow || "rgba(34,197,94,0.18)" }}
         aria-hidden
       />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.07) 1px, transparent 0)",
-          backgroundSize: "28px 28px",
-        }}
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 bg-[url('/hero-mercedes-night.png')] bg-cover bg-[position:70%_45%] opacity-[0.18] mix-blend-luminosity"
-        aria-hidden
-      />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-black/25" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/95 via-black/70 to-black/20" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" aria-hidden />
 
       <div
         className={cn(
-          "relative mx-auto flex max-w-7xl flex-col justify-end px-3 pb-8 pt-[calc(4.25rem+env(safe-area-inset-top,0px))] sm:px-4 sm:pb-12 lg:px-6",
+          "relative mx-auto flex max-w-7xl flex-col justify-end px-4 pb-10 pt-[calc(5rem+env(safe-area-inset-top,0px))] sm:px-6 sm:pb-14 lg:px-8",
           compact ? "min-h-[42svh]" : "min-h-[58svh] sm:min-h-[64svh]",
         )}
       >
@@ -90,15 +82,17 @@ export function CatalogHero({
 
         <div className="grid items-end gap-8 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="min-w-0">
-            <p className="lux-kicker text-white/90">{brand}</p>
-            <h1 className="mt-3 max-w-3xl font-display text-3xl font-bold leading-[1.1] tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.25rem]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/65">
+              {brand}<span className="mx-3 text-primary">/</span>Каталог
+            </p>
+            <h1 className="mt-5 max-w-3xl font-display text-[clamp(2.25rem,5vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.045em] text-white">
               {title}
             </h1>
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-white/75 sm:text-lg">
               {description}
             </p>
             {ctas.length > 0 ? (
-              <div className="mt-7 flex flex-wrap gap-3">
+              <div className="mt-8 flex flex-wrap gap-3">
                 {ctas.map((cta, i) => (
                   <LinkButton
                     key={`${i}-${cta.href}-${cta.label}`}
@@ -113,7 +107,7 @@ export function CatalogHero({
           </div>
 
           {media ? (
-            <div className="hidden justify-end lg:flex">{media}</div>
+            <div className="hidden justify-end border-l border-white/15 pl-8 lg:flex">{media}</div>
           ) : null}
         </div>
       </div>
@@ -138,19 +132,19 @@ export function CatalogSection({
 }) {
   return (
     <section id={id} className={cn("scroll-mt-24", className)}>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-stone-200 pb-6">
         <div>
-          <h2 className="font-display text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
+          <h2 className="font-display text-2xl font-semibold tracking-[-0.03em] text-stone-950 sm:text-3xl">
             {title}
           </h2>
           {subtitle ? (
-            <p className="mt-1 max-w-2xl text-sm text-zinc-500">{subtitle}</p>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500 sm:text-base">{subtitle}</p>
           ) : null}
         </div>
         {action ? (
           <Link
             href={action.href}
-            className="text-sm font-semibold text-primary transition hover:text-[#0D3F10]"
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-accent-dark underline-offset-4 transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
           >
             {action.label}
           </Link>

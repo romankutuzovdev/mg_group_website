@@ -77,7 +77,7 @@ export default function AvtoHubPage({
         ]}
       />
 
-      <PageShell bare>
+      <PageShell bare className="!max-w-none !p-0">
         <CatalogHero
           title={h1}
           description="Авто из США, Китая, Кореи и Англии: ставка на аукционе, прозрачный просчёт и доставка под ключ в Беларусь."
@@ -106,7 +106,7 @@ export default function AvtoHubPage({
           }
         />
 
-        <div className="mx-auto max-w-7xl space-y-14 px-3 py-10 sm:px-4 sm:py-14 lg:px-6">
+        <div className="mx-auto max-w-7xl space-y-16 px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <CatalogSection
             id="regions"
             title="Откуда привозим"

@@ -93,7 +93,7 @@ export default function AvtoModelPage({
         ]}
       />
 
-      <PageShell bare>
+      <PageShell bare className="!max-w-none !p-0">
         <CatalogHero
           compact
           title={h1}
@@ -106,6 +106,7 @@ export default function AvtoModelPage({
           ]}
           wash={visual.wash}
           glow={visual.glow}
+          image={model.image || visual.image}
           ctas={[
             { href: lots.length ? "#lots" : "/calculator/", label: lots.length ? "Смотреть лоты" : "Просчёт", variant: "primary" },
             { href: catalogPath(region.slug, make.slug), label: `Все ${make.name}`, variant: "outline" },
@@ -129,7 +130,7 @@ export default function AvtoModelPage({
           }
         />
 
-        <div className="mx-auto max-w-7xl space-y-12 px-3 py-8 sm:px-4 sm:py-12 lg:px-6">
+        <div className="mx-auto max-w-7xl space-y-16 px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <RegionMosaic lotCounts={regionLotCounts} active={region.slug} variant="strip" />
 
           <CatalogSection

@@ -27,18 +27,18 @@ export function MakeCard({
       href={href ?? catalogPath(regionSlug, make.slug)}
       className={cn(
         "group relative flex flex-col overflow-hidden rounded-2xl",
-        "border border-zinc-200/70 bg-white",
+        "border border-stone-200 bg-white",
         "transition duration-300 ease-out",
-        "hover:-translate-y-1 hover:border-primary/40",
-        "hover:shadow-[0_20px_40px_-24px_rgba(13,63,16,0.45)]",
+        "hover:border-stone-400",
+        "hover:shadow-[0_20px_45px_-30px_rgba(0,0,0,0.35)]",
       )}
     >
-      <div className="relative flex aspect-[5/4] items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#f8faf8_0%,#ffffff_55%,#f3f6f3_100%)] p-5">
+      <div className="relative flex aspect-[5/4] items-center justify-center overflow-hidden bg-stone-50 p-5">
         <div
           className="pointer-events-none absolute inset-0 opacity-0 transition duration-500 group-hover:opacity-100"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 35%, rgba(34,197,94,0.16), transparent 62%)",
+              "radial-gradient(ellipse at 50% 35%, rgba(34,197,94,0.1), transparent 62%)",
           }}
         />
         <div
@@ -64,11 +64,11 @@ export function MakeCard({
           </span>
         ) : null}
       </div>
-      <div className="border-t border-zinc-100 px-3 py-3.5 text-center">
-        <p className="truncate font-display text-sm font-semibold text-zinc-900 transition group-hover:text-primary">
+      <div className="border-t border-stone-100 px-4 py-4 text-left">
+        <p className="truncate font-display text-base font-semibold text-stone-950 transition group-hover:text-accent-dark">
           {make.name}
         </p>
-        <p className="mt-0.5 text-[11px] text-zinc-500">
+        <p className="mt-1 text-[11px] text-stone-500">
           {hasLots
             ? lotLabel(lotCount!)
             : `${make.models.length} модел${make.models.length === 1 ? "ь" : make.models.length < 5 ? "и" : "ей"}`}

@@ -14,7 +14,7 @@ export type PurchasedCar = {
   trim?: string;
   image: string;
   source: string;
-  region: "США" | "Англия";
+  region: "США" | "Англия" | "Китай" | "Корея";
   purchasedAt: string;
   damage: string;
   odometer: string;

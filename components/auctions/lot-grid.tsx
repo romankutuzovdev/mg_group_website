@@ -13,7 +13,7 @@ export function LotGrid({
 }) {
   if (lots.length === 0) {
     return (
-      <div className="card-premium rounded-xl p-12 text-center">
+      <div className="rounded-2xl border border-stone-200 bg-white p-12 text-center">
         <p className="font-display text-xl font-semibold">Лоты не найдены</p>
         <p className="mt-2 text-text-secondary">Попробуйте изменить фильтры или сбросить их.</p>
       </div>
@@ -21,7 +21,7 @@ export function LotGrid({
   }
 
   return (
-    <div className="grid content-start gap-3 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
+    <div className="grid content-start gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6">
       {lots.map((lot, index) => (
         <LotCard
           key={lot.id}

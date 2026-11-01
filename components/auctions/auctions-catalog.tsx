@@ -36,7 +36,7 @@ const YEAR_OPTIONS = Array.from({ length: 2027 - 1990 }, (_, i) => 2026 - i);
 const REGION_FILTER_ORDER: AuctionRegion[] = ["usa", "korea", "china", "uk"];
 
 const fieldClass =
-  "mt-1.5 block h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-white px-3 text-sm leading-10 text-text-primary outline-none transition placeholder:text-zinc-400 focus:border-accent focus:ring-2 focus:ring-accent/15";
+  "mt-2 block h-11 w-full min-w-0 max-w-full rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm leading-10 text-stone-900 outline-none transition placeholder:text-stone-400 hover:border-stone-300 focus:border-accent-dark focus:bg-white focus:ring-2 focus:ring-accent/15";
 
 const selectClass =
   `${fieldClass} cursor-pointer appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat pr-9 ` +
@@ -639,10 +639,10 @@ export function AuctionsCatalog({
                     buynow: tab.value === "buy-now",
                   })
                 }
-                className={`min-h-9 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                className={`min-h-10 cursor-pointer rounded-full border px-3.5 py-2 text-xs font-medium transition ${
                   active
-                    ? "bg-accent text-white"
-                    : "bg-zinc-100 text-text-secondary hover:bg-zinc-200"
+                    ? "border-accent-dark bg-accent-dark text-white"
+                    : "border-stone-200 bg-white text-stone-600 hover:border-stone-400 hover:text-stone-950"
                 }`}
               >
                 {tab.label}
@@ -901,7 +901,7 @@ export function AuctionsCatalog({
       <button
         type="button"
         onClick={reset}
-        className="w-full rounded-xl border border-border py-3 text-sm font-medium text-text-secondary transition hover:border-accent hover:text-accent-dark"
+        className="min-h-11 w-full cursor-pointer rounded-xl border border-stone-300 bg-white py-3 text-sm font-medium text-stone-600 transition hover:border-accent-dark hover:text-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         Сбросить фильтры
       </button>
@@ -911,19 +911,25 @@ export function AuctionsCatalog({
   return (
     <div className="catalog-layout">
       <aside className="catalog-filters-sticky hidden lg:block">
-        <div className="catalog-filters-panel rounded-2xl border border-border bg-bg-elevated p-4 shadow-sm xl:p-5">
-          <p className="font-display text-lg font-semibold">Фильтры</p>
-          <div className="mt-4 min-w-0">{renderFilterFields()}</div>
+        <div className="catalog-filters-panel rounded-2xl border border-stone-200 bg-white p-5 xl:p-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-stone-400">Точный поиск</p>
+          <div className="mt-2 flex items-end justify-between gap-3 border-b border-stone-200 pb-5">
+            <p className="font-display text-2xl font-semibold tracking-tight text-stone-950">Фильтры</p>
+            {activeCount > 0 ? (
+              <span className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent-dark">{activeCount}</span>
+            ) : null}
+          </div>
+          <div className="mt-5 min-w-0">{renderFilterFields()}</div>
         </div>
       </aside>
 
       <div className="catalog-results min-w-0 flex-1">
-        <div className="sticky top-[4.25rem] z-30 -mx-4 mb-4 border-b border-border bg-bg-base/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-bg-base/80 lg:static lg:z-auto lg:mx-0 lg:mb-5 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none">
-          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm sm:gap-3">
+        <div className="sticky top-[4.25rem] z-30 -mx-4 mb-6 border-y border-stone-200 bg-[#fafaf9]/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-[#fafaf9]/85 lg:static lg:z-auto lg:mx-0 lg:border-x-0 lg:border-t-0 lg:bg-transparent lg:px-0 lg:pb-5 lg:pt-0 lg:backdrop-blur-none">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
             <button
               type="button"
               onClick={() => setSheetOpen(true)}
-              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-bg-elevated px-3.5 py-2 text-sm font-semibold text-text-primary shadow-sm lg:hidden"
+              className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-950 lg:hidden"
             >
               <SlidersHorizontal className="h-4 w-4" aria-hidden />
               Фильтры
@@ -935,22 +941,21 @@ export function AuctionsCatalog({
             </button>
 
             {!region ? (
-              <>
-                <span className="badge-primary rounded-full px-3 py-1 font-medium">
-                  США — {counts.usa}
-                </span>
-                <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-text-secondary">
-                  {REGION_LABELS.korea} — {counts.korea}
-                </span>
-                <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-text-secondary">
-                  {REGION_LABELS.china} — {counts.china}
-                </span>
-                <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-text-secondary">
-                  {REGION_LABELS.uk} — {counts.uk}
-                </span>
-              </>
+              REGION_FILTER_ORDER.map((item) => {
+                const active = f.regionFilter === item;
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => patch({ regionFilter: active ? "" : item })}
+                    className={`min-h-9 cursor-pointer rounded-full border px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${active ? "border-accent-dark bg-accent-dark text-white" : "border-stone-200 bg-white text-stone-600 hover:border-stone-400 hover:text-stone-950"}`}
+                  >
+                    {REGION_LABELS[item]} <span className="ml-1 tabular-nums opacity-65">{counts[item]}</span>
+                  </button>
+                );
+              })
             ) : null}
-            <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-text-secondary">
+            <span className="ml-auto rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-600">
               Всего: {allCount.toLocaleString("ru-RU")}
               {activeCount > 0 ? (
                 <>
@@ -969,7 +974,7 @@ export function AuctionsCatalog({
               <button
                 type="button"
                 onClick={reset}
-                className="rounded-full border border-border px-3 py-1 text-xs font-medium text-text-secondary hover:border-accent hover:text-accent-dark"
+                className="min-h-9 cursor-pointer rounded-full border border-stone-300 px-3 py-1 text-xs font-medium text-stone-600 hover:border-accent hover:text-accent-dark"
               >
                 Сбросить
               </button>
@@ -978,7 +983,7 @@ export function AuctionsCatalog({
         </div>
 
         {foundCount === 0 && !apiLoading ? (
-          <div className="card-premium rounded-xl p-12 text-center">
+          <div className="rounded-2xl border border-stone-200 bg-white p-12 text-center">
             <p className="font-display text-xl font-semibold">Лоты не найдены</p>
             <p className="mt-2 text-text-secondary">
               Попробуйте изменить фильтры или сбросить их.
@@ -1004,7 +1009,7 @@ export function AuctionsCatalog({
                     onClick={() =>
                       void loadPage(page + 1, "append", queryFilters)
                     }
-                    className="rounded-full border border-border bg-bg-elevated px-5 py-2.5 text-sm font-semibold text-text-primary shadow-sm transition hover:border-accent hover:text-accent-dark"
+                    className="min-h-11 cursor-pointer rounded-xl border border-stone-300 bg-white px-6 py-2.5 text-sm font-semibold text-stone-950 transition hover:border-accent hover:text-accent-dark"
                   >
                     Показать ещё
                   </button>
@@ -1020,7 +1025,7 @@ export function AuctionsCatalog({
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="bottom"
-          className="flex h-[min(92dvh,44rem)] w-full max-w-none flex-col gap-0 overflow-hidden rounded-t-2xl border-x-0 bg-bg-elevated p-0 lg:hidden"
+          className="flex h-[min(92dvh,44rem)] w-full max-w-none flex-col gap-0 overflow-hidden rounded-t-2xl border-x-0 bg-[#fafaf9] p-0 lg:hidden"
         >
           <SheetHeader className="shrink-0 border-b border-border px-4 py-3.5 pr-12 text-left sm:px-5">
             <SheetTitle className="font-display text-lg">Фильтры</SheetTitle>
@@ -1032,7 +1037,7 @@ export function AuctionsCatalog({
             <button
               type="button"
               onClick={() => setSheetOpen(false)}
-              className="w-full rounded-xl bg-accent py-3.5 text-sm font-semibold text-white transition hover:bg-accent-dark"
+              className="w-full cursor-pointer rounded-xl bg-accent-dark py-3.5 text-sm font-semibold text-white transition hover:bg-accent-hover"
             >
               Показать {foundCount.toLocaleString("ru-RU")} {lotsWord(foundCount)}
             </button>
@@ -1046,7 +1051,7 @@ export function AuctionsCatalog({
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block min-w-0 max-w-full">
-      <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">
         {label}
       </span>
       {children}
