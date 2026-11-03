@@ -140,6 +140,20 @@ SCRAPER_BIDCARS_REQUEST_DELAY_MS=600
 SCRAPER_MAX_PAGES_BIDCARS=50
 ```
 
+**Прокси (сервер в Беларуси).** С BY-адреса bid.cars не открывается вовсе. В `api/.env`:
+
+```env
+SCRAPER_PROXY_URL=http://user:pass@host:port
+SCRAPER_PROXY_HOSTS=            # пусто = весь Chrome парсера через прокси; bid.cars,bid.car = только они
+SCRAPER_PROXY_LOCAL_PORT=9280
+```
+
+API поднимает локальный переходник `127.0.0.1:9280`, который добавляет логин/пароль
+прокси (Chrome не умеет брать их из командной строки). Chrome стартует с
+`--proxy-server=http://127.0.0.1:9280` (или PAC при списке хостов) — это делают и
+`chrome_cdp.py`, и `scripts/chrome-cdp-watchdog.ps1`. После изменения `.env` нужно
+перезапустить и API, и Chrome. Статус: `GET /api/v1/scraper/status` → `proxy`.
+
 Дата аукциона = `now + time_left`, поэтому `prune_ended` убирает лоты после торгов сам.
 Если Cloudflare снова показывает проверку — агент отдаёт `last_blocked: cloudflare`,
 вкладка остаётся открытой: кликните проверку в Chrome на Windows и подождите цикл.

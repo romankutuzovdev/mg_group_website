@@ -563,6 +563,15 @@ class SourceAgent:
         self.status.running = False
 
 
+def _proxy_status() -> dict[str, Any]:
+    try:
+        from app.scraper.proxy_forwarder import forwarder_status
+
+        return forwarder_status()
+    except Exception as exc:  # pragma: no cover - defensive
+        return {"configured": False, "error": str(exc)[:120]}
+
+
 class MultiAgentOrchestrator:
     """Owns one Google Chrome (or CDP attach) and N agent tabs in that window."""
 
@@ -796,6 +805,7 @@ class MultiAgentOrchestrator:
             "photos": photos,
             "photos_enabled": settings.scraper_photos_enabled,
             "r2": r2,
+            "proxy": _proxy_status(),
             "calc_tab_url": settings.scraper_calc_tab_url if settings.scraper_calc_tab_enabled else None,
             "calc_tab_open": bool(self._calc_page and not self._calc_page.is_closed()),
             "mode": "multi_agent_one_chrome_tabs",

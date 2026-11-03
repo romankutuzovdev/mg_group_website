@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableDelayedExpansion
 REM Start ONE Google Chrome with remote debugging for MG.GROUP scrapers.
 REM Under Windows Service / NSSM use headless (set MG_CHROME_HEADLESS=1, default on).
 REM Agents reuse labeled tabs after API restart.
@@ -21,6 +22,17 @@ if "%CHROME%"=="" (
   exit /b 1
 )
 
+REM Outbound proxy from api\.env (SCRAPER_PROXY_URL) -> local forwarder started by mg-api
+set PROXYARG=
+set PROXYPORT=9280
+if exist "%~dp0..\.env" (
+  for /f "usebackq tokens=1,* delims==" %%A in ("%~dp0..\.env") do (
+    if /I "%%A"=="SCRAPER_PROXY_LOCAL_PORT" set PROXYPORT=%%B
+    if /I "%%A"=="SCRAPER_PROXY_URL" if not "%%B"=="" set PROXYARG=--proxy-server=http://127.0.0.1:!PROXYPORT!
+  )
+)
+if not "%PROXYARG%"=="" echo Outbound proxy: %PROXYARG%
+
 curl -s -m 2 "http://127.0.0.1:%PORT%/json/version" >nul 2>&1
 if not errorlevel 1 (
   echo Chrome CDP already running on port %PORT%.
@@ -42,6 +54,7 @@ if "%HEADLESS%"=="1" (
     --no-first-run ^
     --no-default-browser-check ^
     --disable-dev-shm-usage ^
+    %PROXYARG% ^
     about:blank
 ) else (
   start "" "%CHROME%" ^
@@ -51,6 +64,7 @@ if "%HEADLESS%"=="1" (
     --no-first-run ^
     --no-default-browser-check ^
     --disable-dev-shm-usage ^
+    %PROXYARG% ^
     about:blank
 )
 

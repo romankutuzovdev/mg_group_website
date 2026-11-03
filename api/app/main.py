@@ -94,6 +94,17 @@ async def lifespan(_app: FastAPI):
 
     # Scraper only on Windows factory (all | scraper). Public VPS receives lots.
     if role in {"all", "scraper"}:
+        from app.scraper.proxy_forwarder import start_forwarder_from_settings
+
+        try:
+            fwd = await start_forwarder_from_settings()
+            if fwd is not None:
+                print(
+                    f"[mg-api] scraper proxy forwarder 127.0.0.1:{fwd.local_port} "
+                    f"-> {fwd.upstream.host}:{fwd.upstream.port}"
+                )
+        except Exception as exc:
+            print(f"[mg-api] proxy forwarder failed: {exc}")
         start_scraper_in_background()
     else:
         print("[mg-api] scraper disabled (APP_ROLE=public)")

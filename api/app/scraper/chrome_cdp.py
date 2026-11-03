@@ -267,6 +267,16 @@ def _launch_chrome(port: int, *, headless: bool) -> None:
         "--enable-extensions",
         "--disable-extensions-file-access-check",
     ]
+    try:
+        from app.scraper.proxy_forwarder import chrome_args as _proxy_args
+
+        proxy_flags = _proxy_args()
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("proxy flags skipped: %s", exc)
+        proxy_flags = []
+    if proxy_flags:
+        args.extend(proxy_flags)
+        logger.info("Chrome outbound proxy: %s", proxy_flags[0][:60])
     ext_paths = _extension_load_paths()
     if ext_paths:
         joined = ",".join(ext_paths)

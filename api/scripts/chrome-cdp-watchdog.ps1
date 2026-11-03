@@ -91,6 +91,35 @@ function Stop-ChromeUsingProfile([string]$Profile) {
   Clear-ProfileLocks $Profile
 }
 
+# SCRAPER_PROXY_URL in api\.env -> Chrome goes through the local auth forwarder
+# (127.0.0.1:SCRAPER_PROXY_LOCAL_PORT, started by mg-api). Hosts list -> PAC.
+function Get-ProxyChromeArgs([string]$EnvFile) {
+  $out = @()
+  if (-not $EnvFile -or -not (Test-Path $EnvFile)) { return $out }
+  $kv = @{}
+  foreach ($line in Get-Content $EnvFile) {
+    if ($line -match '^\s*(SCRAPER_PROXY_URL|SCRAPER_PROXY_HOSTS|SCRAPER_PROXY_LOCAL_PORT)\s*=\s*(.*)$') {
+      $kv[$matches[1]] = $matches[2].Trim().Trim('"').Trim("'")
+    }
+  }
+  if (-not $kv["SCRAPER_PROXY_URL"]) { return $out }
+  $port = 9280
+  if ($kv["SCRAPER_PROXY_LOCAL_PORT"]) { $port = [int]$kv["SCRAPER_PROXY_LOCAL_PORT"] }
+  $hosts = @()
+  if ($kv["SCRAPER_PROXY_HOSTS"]) {
+    $hosts = @($kv["SCRAPER_PROXY_HOSTS"].Split(",") | ForEach-Object { $_.Trim().ToLower().TrimStart(".") } | Where-Object { $_ })
+  }
+  if ($hosts.Count -gt 0) {
+    $conds = @($hosts | ForEach-Object { "dnsDomainIs(host, '.$_') || host == '$_'" }) -join " || "
+    $pac = "function FindProxyForURL(url, host) { if ($conds) return 'PROXY 127.0.0.1:$port'; return 'DIRECT'; }"
+    $b64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pac))
+    $out += "--proxy-pac-url=data:application/x-ns-proxy-autoconfig;base64,$b64"
+  } else {
+    $out += "--proxy-server=http://127.0.0.1:$port"
+  }
+  return $out
+}
+
 function Start-ChromeCdp(
   [string]$ChromeExe,
   [int]$Port,
@@ -124,6 +153,12 @@ function Start-ChromeCdp(
   $argList.Add("--disable-features=Translate,BackForwardCache")
   $argList.Add("--enable-extensions")
   $argList.Add("--disable-extensions-file-access-check")
+
+  $proxyArgs = Get-ProxyChromeArgs (Join-Path (Split-Path -Parent $PSScriptRoot) ".env")
+  foreach ($pa in $proxyArgs) {
+    $argList.Add($pa)
+    Write-Host "  outbound proxy: $($pa.Substring(0, [Math]::Min(60, $pa.Length)))"
+  }
 
   # Optional extra unpacked addons (api\data\chrome-extensions) - your Web Store ones stay in the profile
   if ($ExtraExtRoot -and (Test-Path $ExtraExtRoot)) {

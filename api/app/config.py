@@ -56,6 +56,15 @@ class Settings(BaseSettings):
     # Public VPS must set false — domain points at this host.
     redirect_apex_to_vercel: bool = True
 
+    # Outbound proxy for the scraper Chrome + server-side photo downloads.
+    # Bid.cars (Cloudflare) does not open from a BY address — set
+    # http://user:pass@host:port here. The API runs a local forwarder on
+    # 127.0.0.1:<local_port> that adds the credentials; Chrome is pointed at it.
+    scraper_proxy_url: str = ""
+    # Empty = ALL scraper traffic via the proxy. "bid.cars,bid.car" = only those.
+    scraper_proxy_hosts: str = ""
+    scraper_proxy_local_port: int = 9280
+
     # Scraper — one Google Chrome, one tab per source (CDP on Windows)
     scraper_autostart: bool = True
     scraper_sources: str = "bidcars,copart_uk,manheim,salvage_market,encar,china_market"

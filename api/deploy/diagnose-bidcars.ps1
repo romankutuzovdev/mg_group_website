@@ -136,7 +136,7 @@ Section "10. Scraper keys in api\.env (values of secrets hidden)"
 $envFile = Join-Path $apiDir ".env"
 if (Test-Path $envFile) {
   Get-Content $envFile | Where-Object { $_ -match "^(APP_ROLE|SCRAPER_[A-Z_]+|LOTS_PUSH_URL|LOTS_PUSH_INTERVAL_SECONDS|PUBLIC_SITE_URL|R2_ENABLED|R2_BUCKET|R2_PUBLIC_BASE_URL|CALC_CHROME[A-Z_]*)=" } |
-    ForEach-Object { if ($_ -match "KEY|TOKEN|SECRET|PASS") { ($_ -replace "=.*", "=<hidden>") } else { $_ } } | ForEach-Object { Write-Host "  $_" }
+    ForEach-Object { if ($_ -match "KEY|TOKEN|SECRET|PASS|PROXY_URL") { ($_ -replace "=.*", "=<hidden>") } else { $_ } } | ForEach-Object { Write-Host "  $_" }
 } else { Write-Host "  $envFile not found" -ForegroundColor Red }
 
 Section "11. Last service log lines"

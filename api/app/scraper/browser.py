@@ -70,9 +70,15 @@ async def launch_chromium(
             )
         logger.warning("CDP exhausted — falling back to Playwright launch")
 
+    from app.scraper.proxy_forwarder import playwright_proxy
+
+    launch_extra: dict[str, Any] = {}
+    proxy_opt = playwright_proxy()
+    if proxy_opt:
+        launch_extra["proxy"] = proxy_opt
     attempts: list[tuple[str, dict[str, Any]]] = [
-        ("chrome", {"headless": headless, "channel": "chrome"}),
-        ("bundled", {"headless": headless}),
+        ("chrome", {"headless": headless, "channel": "chrome", **launch_extra}),
+        ("bundled", {"headless": headless, **launch_extra}),
     ]
     last_err: Exception | None = None
     for label, kwargs in attempts:

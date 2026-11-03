@@ -686,7 +686,11 @@ async def archive_gallery(
     if missing:
         sem = asyncio.Semaphore(_download_concurrency())
         timeout = httpx.Timeout(12.0, connect=5.0)
-        async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
+        from app.scraper.proxy_forwarder import httpx_kwargs
+
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=timeout, **httpx_kwargs()
+        ) as client:
             tasks = [
                 _download_one(
                     lot_id=lot_id,
