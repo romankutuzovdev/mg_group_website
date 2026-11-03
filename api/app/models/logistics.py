@@ -128,6 +128,47 @@ class SmsTemplateUpdate(BaseModel):
     body: str | None = Field(None, min_length=1, max_length=700)
 
 
+SmsLogStatus = Literal["queued", "sent", "delivered", "failed", "skipped"]
+
+SMS_LOG_STATUS_LABELS: dict[str, str] = {
+    "queued": "В очереди",
+    "sent": "Отправлено",
+    "delivered": "Доставлено",
+    "failed": "Ошибка",
+    "skipped": "Пропущено",
+}
+
+
+class SmsLogOut(BaseModel):
+    """One SMS sent (or skipped) when a container changed stage."""
+
+    id: int
+    container_id: int | None = None
+    container_code: str = ""
+    stage: str = ""
+    stage_label: str = ""
+    deal_ids: list[int] = Field(default_factory=list)
+    cars: str = ""
+    client_name: str = ""
+    phone: str = ""
+    message: str = ""
+    status: SmsLogStatus = "queued"
+    status_label: str = ""
+    sms_id: int | None = None
+    error: str = ""
+    created_at: str = ""
+    sent_at: str = ""
+    delivered_at: str = ""
+    checked_at: str = ""
+
+
+class SmsLogRefreshResult(BaseModel):
+    checked: int = 0
+    delivered: int = 0
+    failed: int = 0
+    entries: list[SmsLogOut] = Field(default_factory=list)
+
+
 class LogisticsBoardOut(BaseModel):
     pool: list[LogisticsDealCard]
     containers: list[ContainerOut]

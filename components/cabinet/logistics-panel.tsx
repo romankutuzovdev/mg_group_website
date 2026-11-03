@@ -5,6 +5,7 @@ import type {
   ContainerStage,
   LogisticsDealCard,
   ShippingContainer,
+  SmsLogEntry,
   SmsTemplate,
 } from "@/lib/api/cabinet";
 import {
@@ -18,7 +19,9 @@ import {
   adminRemoveDealFromContainer,
   adminUpdateSmsTemplate,
   fetchLogisticsBoard,
+  fetchSmsLog,
   mediaAbsoluteUrl,
+  refreshSmsLog,
 } from "@/lib/api/cabinet";
 import { CoverThumb } from "@/components/cabinet/deal-photos";
 
@@ -71,6 +74,26 @@ const STAGE_TONE: Record<
     ring: "ring-green-300",
   },
 };
+
+const SMS_STATUS_CHIP: Record<string, string> = {
+  queued: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+  sent: "bg-sky-50 text-sky-700 ring-sky-200",
+  delivered: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  failed: "bg-rose-50 text-rose-700 ring-rose-200",
+  skipped: "bg-amber-50 text-amber-700 ring-amber-200",
+};
+
+function fmtWhen(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 function tone(stage: string) {
   return STAGE_TONE[stage] || STAGE_TONE.loading;
@@ -208,6 +231,11 @@ export function LogisticsPanel() {
   const [moveTemplateId, setMoveTemplateId] = useState<number | "">("");
 
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showSmsLog, setShowSmsLog] = useState(false);
+  const [smsLog, setSmsLog] = useState<SmsLogEntry[]>([]);
+  const [smsLogContainer, setSmsLogContainer] = useState<number | "">("");
+  const [smsLogBusy, setSmsLogBusy] = useState(false);
+  const [smsLogNote, setSmsLogNote] = useState<string | null>(null);
   const [tplTitle, setTplTitle] = useState("");
   const [tplBody, setTplBody] = useState("");
   const [editingTpl, setEditingTpl] = useState<SmsTemplate | null>(null);
@@ -232,6 +260,53 @@ export function LogisticsPanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadSmsLog = useCallback(
+    async (containerId?: number | "") => {
+      const cid = containerId === undefined ? smsLogContainer : containerId;
+      try {
+        const rows = await fetchSmsLog({ containerId: cid === "" ? null : cid, limit: 300 });
+        setSmsLog(rows);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Не удалось загрузить журнал SMS");
+      }
+    },
+    [smsLogContainer],
+  );
+
+  useEffect(() => {
+    if (!showSmsLog) return;
+    void loadSmsLog();
+  }, [showSmsLog, loadSmsLog]);
+
+  // Пока есть SMS в очереди — подтягиваем журнал, чтобы статусы обновлялись сами.
+  useEffect(() => {
+    if (!showSmsLog) return;
+    if (!smsLog.some((e) => e.status === "queued")) return;
+    const t = window.setTimeout(() => void loadSmsLog(), 3000);
+    return () => window.clearTimeout(t);
+  }, [showSmsLog, smsLog, loadSmsLog]);
+
+  const checkDelivery = async () => {
+    setSmsLogBusy(true);
+    setSmsLogNote(null);
+    try {
+      const res = await refreshSmsLog({
+        containerId: smsLogContainer === "" ? null : smsLogContainer,
+        limit: 300,
+      });
+      setSmsLog(res.entries);
+      setSmsLogNote(
+        res.checked
+          ? `Проверено: ${res.checked} · доставлено: ${res.delivered}`
+          : "Нет отправленных SMS, ожидающих подтверждения",
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось проверить доставку");
+    } finally {
+      setSmsLogBusy(false);
+    }
+  };
 
   const stats = useMemo(() => {
     const carsIn = containers.reduce((n, c) => n + c.deals.length, 0);
@@ -360,8 +435,14 @@ export function LogisticsPanel() {
         if (result.sms_skipped) bits.push(`без телефона: ${result.sms_skipped}`);
       }
       setOk(bits.join(" · "));
+      const movedId = moveId;
       setMoveId(null);
       await load();
+      if (moveSendSms) {
+        setSmsLogContainer(movedId);
+        setShowSmsLog(true);
+        void loadSmsLog(movedId);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось сменить этап");
     } finally {
@@ -451,6 +532,13 @@ export function LogisticsPanel() {
               className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50"
             >
               {showTemplates ? "Скрыть шаблоны" : "Шаблоны SMS"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSmsLog((v) => !v)}
+              className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50"
+            >
+              {showSmsLog ? "Скрыть журнал" : "Журнал SMS"}
             </button>
             <button
               type="button"
@@ -668,6 +756,129 @@ export function LogisticsPanel() {
               ) : null}
             </div>
           </form>
+        </section>
+      ) : null}
+
+      {showSmsLog ? (
+        <section className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900">Журнал SMS</h3>
+              <p className="mt-0.5 text-[11px] text-zinc-500">
+                Что ушло клиентам при смене этапа и что подтвердил SMS.BY как доставленное.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs"
+                value={smsLogContainer}
+                onChange={(e) => {
+                  const v = e.target.value === "" ? "" : Number(e.target.value);
+                  setSmsLogContainer(v);
+                  void loadSmsLog(v);
+                }}
+              >
+                <option value="">Все контейнеры</option>
+                {containers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code}
+                    {c.title ? ` · ${c.title}` : ""}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={smsLogBusy}
+                onClick={() => void checkDelivery()}
+                className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                {smsLogBusy ? "Проверяем…" : "Проверить доставку"}
+              </button>
+              <button
+                type="button"
+                disabled={smsLogBusy}
+                onClick={() => void loadSmsLog()}
+                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 disabled:opacity-50"
+              >
+                Обновить
+              </button>
+            </div>
+          </div>
+          {smsLogNote ? <p className="text-[11px] text-zinc-500">{smsLogNote}</p> : null}
+          {smsLog.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-zinc-200 p-4 text-center text-xs text-zinc-500">
+              Пока ни одной SMS. Они появятся здесь после смены этапа контейнера.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-[11px]">
+                <thead className="text-[10px] uppercase tracking-wide text-zinc-400">
+                  <tr>
+                    <th className="px-2 py-1.5 font-semibold">Когда</th>
+                    <th className="px-2 py-1.5 font-semibold">Контейнер · этап</th>
+                    <th className="px-2 py-1.5 font-semibold">Клиент</th>
+                    <th className="px-2 py-1.5 font-semibold">Телефон</th>
+                    <th className="px-2 py-1.5 font-semibold">Статус</th>
+                    <th className="px-2 py-1.5 font-semibold">Доставлено</th>
+                    <th className="px-2 py-1.5 font-semibold">Текст</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {smsLog.map((e) => (
+                    <tr key={e.id} className="align-top">
+                      <td className="whitespace-nowrap px-2 py-2 text-zinc-500">
+                        {fmtWhen(e.created_at)}
+                      </td>
+                      <td className="px-2 py-2">
+                        <p className="font-semibold text-zinc-900">{e.container_code || "—"}</p>
+                        <p className="text-zinc-500">{e.stage_label}</p>
+                      </td>
+                      <td className="px-2 py-2">
+                        <p className="text-zinc-900">{e.client_name || "—"}</p>
+                        <p className="max-w-[220px] truncate text-zinc-500" title={e.cars}>
+                          {e.cars}
+                        </p>
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2 text-zinc-700">
+                        {e.phone || "—"}
+                      </td>
+                      <td className="px-2 py-2">
+                        <span
+                          className={[
+                            "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1",
+                            SMS_STATUS_CHIP[e.status] ?? SMS_STATUS_CHIP.queued,
+                          ].join(" ")}
+                        >
+                          {e.status_label}
+                        </span>
+                        {e.error ? (
+                          <p className="mt-1 max-w-[180px] text-[10px] text-rose-600">{e.error}</p>
+                        ) : null}
+                        {e.sms_id ? (
+                          <p className="mt-0.5 text-[10px] text-zinc-400">id {e.sms_id}</p>
+                        ) : null}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2 text-zinc-600">
+                        {e.delivered_at
+                          ? fmtWhen(e.delivered_at)
+                          : e.status === "sent"
+                            ? "ждём подтверждения"
+                            : "—"}
+                      </td>
+                      <td className="px-2 py-2">
+                        <p
+                          className="max-w-[260px] whitespace-pre-wrap text-zinc-600"
+                          title={e.message}
+                        >
+                          {e.message || "—"}
+                        </p>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       ) : null}
 

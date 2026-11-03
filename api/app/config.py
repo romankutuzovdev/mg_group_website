@@ -69,8 +69,20 @@ class Settings(BaseSettings):
     # Permanent Chrome tab with site calculator (kept open 24/7)
     scraper_calc_tab_enabled: bool = True
     scraper_calc_tab_url: str = "http://127.0.0.1/calculator/"
-    # Search pages per Bid.cars cycle (was 0=whole catalog → multi-hour hang).
-    scraper_max_pages_bidcars: int = 20
+    # Bid.cars: the site's own search JSON (/app/search/request) is called from the
+    # Chrome tab that already passed Cloudflare — 50 lots per request, no lot pages.
+    # One search is capped at 50 pages (2 500 lots), so the catalog is swept in
+    # partitions: auction-type × year range (status Active), plus Live.
+    scraper_bidcars_api: bool = True
+    scraper_bidcars_statuses: str = "Active,Live"
+    scraper_bidcars_auction_types: str = "Copart,IAAI"
+    scraper_bidcars_year_ranges: str = (
+        "1900-2012,2013-2016,2017-2019,2020-2021,2022-2023,2024-2027"
+    )
+    # Pause between JSON requests (parallel bursts get empty responses).
+    scraper_bidcars_request_delay_ms: int = 600
+    # Search pages per Bid.cars sweep (site max 50; 0 → 50).
+    scraper_max_pages_bidcars: int = 50
     scraper_max_pages_bidcars_sold: int = 0
     # Max lot detail pages to open per cycle; rest stay as search-card seeds
     # (photo enricher / next cycles fill galleries).

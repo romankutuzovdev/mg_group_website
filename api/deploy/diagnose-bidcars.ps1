@@ -29,8 +29,12 @@ try { Get-Service mg-api | Format-Table Name, Status, StartType -AutoSize } catc
 try { Get-Service mg-chrome-cdp -ErrorAction Stop | Format-Table Name, Status, StartType -AutoSize } catch { Write-Host "  (no mg-chrome-cdp service - fine for headed mode)" }
 
 Section "2. API health ($base)"
-$h = Get-Json "$base/health"
-if ($h) { Write-Host "  status=$($h.status) lots=$($h.lots)" }
+# Right after a deploy uvicorn needs up to ~2 min to load lots.json — retry instead of failing at once.
+$h = $null
+for ($i = 1; $i -le 12; $i++) {
+  try { $h = Invoke-RestMethod -Uri "$base/health" -TimeoutSec 10; break } catch { Write-Host "  waiting for API ($i/12)..."; Start-Sleep -Seconds 10 }
+}
+if ($h) { Write-Host "  status=$($h.status) lots=$($h.lots)" } else { Write-Host "  API DOWN on $base after 2 min - service is up but uvicorn not listening (crash loop?)" -ForegroundColor Red }
 
 Section "3. Scraper status"
 $s = Get-Json "$base/api/v1/scraper/status"
@@ -107,8 +111,26 @@ foreach ($u in @("https://bid.cars/", "https://bid.cars/en/search/results?search
   }
 }
 
-Section "9. VPS reachable from here (push target)"
-try { $vh = Invoke-RestMethod "http://178.172.138.96/health" -TimeoutSec 15; Write-Host "  VPS health lots=$($vh.lots)" } catch { Write-Host "  VPS unreachable: $($_.Exception.Message)" -ForegroundColor Red }
+Section "9. Push target (VPS) from this server"
+try {
+  Resolve-DnsName mg-group.by -Type A -ErrorAction Stop | ForEach-Object { Write-Host "  DNS mg-group.by -> $($_.IPAddress)" }
+} catch { Write-Host "  DNS mg-group.by failed: $($_.Exception.Message)" -ForegroundColor Red }
+try {
+  $hosts = Get-Content "$env:SystemRoot\System32\drivers\etc\hosts" -ErrorAction Stop | Where-Object { $_ -match "mg-group" -and $_ -notmatch "^\s*#" }
+  if ($hosts) { Write-Host "  hosts file overrides: $($hosts -join '; ')" -ForegroundColor Yellow }
+} catch {}
+foreach ($u in @("https://mg-group.by/health", "http://178.172.138.96/health")) {
+  try {
+    $r = Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 20 -MaximumRedirection 0 -ErrorAction Stop
+    Write-Host "  $($r.StatusCode) $u  $($r.Content.Substring(0, [Math]::Min(80, $r.Content.Length)))"
+  } catch {
+    $code = $null; try { $code = [int]$_.Exception.Response.StatusCode } catch {}
+    $loc = $null; try { $loc = $_.Exception.Response.Headers["Location"] } catch {}
+    if ($code -ge 300 -and $code -lt 400) { Write-Host "  $code redirect -> $loc  ($u reachable)" }
+    elseif ($code) { Write-Host "  HTTP $code $u" -ForegroundColor Yellow }
+    else { Write-Host "  NO CONNECTION $u : $($_.Exception.Message)" -ForegroundColor Red }
+  }
+}
 
 Section "10. Scraper keys in api\.env (values of secrets hidden)"
 $envFile = Join-Path $apiDir ".env"
@@ -119,13 +141,26 @@ if (Test-Path $envFile) {
 
 Section "11. Last service log lines"
 $logs = @()
-try { $nssm = Join-Path $apiDir "deploy\nssm.exe"; if (Test-Path $nssm) { $logs += (& $nssm get mg-api AppStdout 2>$null); $logs += (& $nssm get mg-api AppStderr 2>$null) } } catch {}
-$logs += Get-ChildItem (Join-Path $apiDir "logs"), (Join-Path $AppDir "logs") -Filter *.log -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 2 -ExpandProperty FullName
-foreach ($lf in ($logs | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique)) {
-  Write-Host "  --- $lf ---"
-  Get-Content $lf -Tail 40 | Where-Object { $_ -match "bidcars|Cloudflare|CDP|blocked|lots push|agent|Chrome" } | Select-Object -Last 25 | ForEach-Object { Write-Host "  $_" }
+try {
+  $nssm = Join-Path $apiDir "deploy\nssm.exe"
+  if (Test-Path -LiteralPath $nssm) {
+    foreach ($k in @("AppStdout", "AppStderr")) {
+      $v = (& $nssm get mg-api $k 2>$null | Out-String).Trim()
+      if ($v -and $v -match "^[A-Za-z]:\\" -and $v -notmatch "[\r\n]") { $logs += $v }
+    }
+  }
+} catch {}
+foreach ($dir in @((Join-Path $apiDir "logs"), (Join-Path $AppDir "logs"), (Join-Path $apiDir "data\logs"))) {
+  if (Test-Path -LiteralPath $dir) {
+    $logs += Get-ChildItem -LiteralPath $dir -Filter *.log -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 2 -ExpandProperty FullName
+  }
 }
-if (-not $logs) { Write-Host "  no log files found (check NSSM AppStdout setting)" }
+$logs = @($logs | Where-Object { $_ -and (Test-Path -LiteralPath $_ -ErrorAction SilentlyContinue) } | Select-Object -Unique)
+foreach ($lf in $logs) {
+  Write-Host "  --- $lf ---"
+  Get-Content -LiteralPath $lf -Tail 400 -ErrorAction SilentlyContinue | Where-Object { $_ -match "bidcars|Cloudflare|CDP|blocked|lots push|agent|Chrome|Traceback|Error" } | Select-Object -Last 30 | ForEach-Object { Write-Host "  $_" }
+}
+if ($logs.Count -eq 0) { Write-Host "  no log files found (NSSM AppStdout not set) - use: nssm get mg-api AppStdout" }
 
 Write-Host ""
 Write-Host "Done. Copy everything above." -ForegroundColor Green

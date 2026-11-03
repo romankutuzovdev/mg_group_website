@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.config import get_settings
@@ -14,7 +14,9 @@ from app.models.logistics import (
     CONTAINER_STAGES,
     ContainerOut,
     ContainerStage,
+    SMS_LOG_STATUS_LABELS,
     LogisticsDealCard,
+    SmsLogOut,
     SmsTemplateOut,
     container_stage_label,
 )
@@ -104,6 +106,28 @@ class LogisticsStore:
                     );
                     CREATE INDEX IF NOT EXISTS idx_container_items_deal
                       ON container_items(deal_id);
+                    CREATE TABLE IF NOT EXISTS sms_log (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      container_id INTEGER,
+                      container_code TEXT NOT NULL DEFAULT '',
+                      stage TEXT NOT NULL DEFAULT '',
+                      deal_ids TEXT NOT NULL DEFAULT '',
+                      cars TEXT NOT NULL DEFAULT '',
+                      client_name TEXT NOT NULL DEFAULT '',
+                      phone TEXT NOT NULL DEFAULT '',
+                      message TEXT NOT NULL DEFAULT '',
+                      status TEXT NOT NULL DEFAULT 'queued',
+                      sms_id INTEGER,
+                      error TEXT NOT NULL DEFAULT '',
+                      created_at TEXT NOT NULL,
+                      sent_at TEXT NOT NULL DEFAULT '',
+                      delivered_at TEXT NOT NULL DEFAULT '',
+                      checked_at TEXT NOT NULL DEFAULT ''
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_sms_log_container
+                      ON sms_log(container_id, id);
+                    CREATE INDEX IF NOT EXISTS idx_sms_log_status
+                      ON sms_log(status, sms_id);
                     """
                 )
                 self._seed_templates(conn)
@@ -458,6 +482,179 @@ class LogisticsStore:
                     (int(container_id),),
                 ).fetchone()
                 return self._container_from_row(conn, row)
+
+    # ---- SMS log (stage change notifications) -------------------------------
+
+    def log_sms(
+        self,
+        *,
+        container_id: int | None,
+        container_code: str,
+        stage: str,
+        deal_ids: list[int],
+        cars: str,
+        client_name: str,
+        phone: str,
+        message: str,
+        status: str = "queued",
+        error: str = "",
+    ) -> int:
+        """Insert one log row (status queued/skipped) and return its id."""
+        with self._lock:
+            with self._conn() as conn:
+                cur = conn.execute(
+                    """
+                    INSERT INTO sms_log (
+                      container_id, container_code, stage, deal_ids, cars,
+                      client_name, phone, message, status, error, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        int(container_id) if container_id is not None else None,
+                        container_code or "",
+                        stage or "",
+                        ",".join(str(int(d)) for d in deal_ids),
+                        (cars or "")[:300],
+                        (client_name or "")[:120],
+                        (phone or "")[:32],
+                        (message or "")[:800],
+                        status,
+                        (error or "")[:300],
+                        _now(),
+                    ),
+                )
+                conn.commit()
+                return int(cur.lastrowid)
+
+    def mark_sms_result(
+        self,
+        log_id: int,
+        *,
+        ok: bool,
+        skipped: bool = False,
+        sms_id: int | None = None,
+        error: str = "",
+    ) -> None:
+        """Background queue finished one SMS: sent / failed / skipped."""
+        status = "sent" if ok else ("skipped" if skipped else "failed")
+        with self._lock:
+            with self._conn() as conn:
+                conn.execute(
+                    """
+                    UPDATE sms_log
+                    SET status = ?, sms_id = COALESCE(?, sms_id), error = ?,
+                        sent_at = CASE WHEN ? THEN ? ELSE sent_at END
+                    WHERE id = ?
+                    """,
+                    (
+                        status,
+                        int(sms_id) if sms_id is not None else None,
+                        (error or "")[:300],
+                        1 if ok else 0,
+                        _now(),
+                        int(log_id),
+                    ),
+                )
+                conn.commit()
+
+    def mark_sms_delivery(
+        self,
+        log_id: int,
+        *,
+        delivered_at: str = "",
+        error: str = "",
+        failed: bool = False,
+    ) -> None:
+        with self._lock:
+            with self._conn() as conn:
+                if delivered_at:
+                    conn.execute(
+                        """
+                        UPDATE sms_log
+                        SET status = 'delivered', delivered_at = ?, checked_at = ?, error = ''
+                        WHERE id = ?
+                        """,
+                        (delivered_at, _now(), int(log_id)),
+                    )
+                elif failed:
+                    conn.execute(
+                        "UPDATE sms_log SET status = 'failed', error = ?, checked_at = ? WHERE id = ?",
+                        ((error or "")[:300], _now(), int(log_id)),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE sms_log SET checked_at = ? WHERE id = ?",
+                        (_now(), int(log_id)),
+                    )
+                conn.commit()
+
+    def list_sms_log(
+        self,
+        *,
+        container_id: int | None = None,
+        limit: int = 200,
+        ids: list[int] | None = None,
+    ) -> list[SmsLogOut]:
+        where: list[str] = []
+        params: list = []
+        if container_id is not None:
+            where.append("container_id = ?")
+            params.append(int(container_id))
+        if ids:
+            where.append(f"id IN ({','.join('?' for _ in ids)})")
+            params.extend(int(i) for i in ids)
+        sql = "SELECT * FROM sms_log"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        sql += " ORDER BY id DESC LIMIT ?"
+        params.append(max(1, min(2000, int(limit))))
+        with self._lock:
+            with self._conn() as conn:
+                rows = conn.execute(sql, params).fetchall()
+                return [self._sms_log_from_row(r) for r in rows]
+
+    def sms_log_pending_delivery(self, *, max_age_hours: int = 72, limit: int = 100) -> list[SmsLogOut]:
+        """Sent rows with an SMS.BY id whose delivery is still unknown."""
+        since = (
+            datetime.now(timezone.utc) - timedelta(hours=max(1, max_age_hours))
+        ).replace(microsecond=0).isoformat()
+        with self._lock:
+            with self._conn() as conn:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM sms_log
+                    WHERE status = 'sent' AND sms_id IS NOT NULL AND created_at >= ?
+                    ORDER BY id DESC LIMIT ?
+                    """,
+                    (since, max(1, min(500, int(limit)))),
+                ).fetchall()
+                return [self._sms_log_from_row(r) for r in rows]
+
+    @staticmethod
+    def _sms_log_from_row(row: sqlite3.Row) -> SmsLogOut:
+        status = row["status"] if row["status"] in SMS_LOG_STATUS_LABELS else "queued"
+        raw_ids = str(row["deal_ids"] or "")
+        deal_ids = [int(x) for x in raw_ids.split(",") if x.strip().isdigit()]
+        return SmsLogOut(
+            id=int(row["id"]),
+            container_id=int(row["container_id"]) if row["container_id"] is not None else None,
+            container_code=row["container_code"] or "",
+            stage=row["stage"] or "",
+            stage_label=container_stage_label(row["stage"] or ""),
+            deal_ids=deal_ids,
+            cars=row["cars"] or "",
+            client_name=row["client_name"] or "",
+            phone=row["phone"] or "",
+            message=row["message"] or "",
+            status=status,  # type: ignore[arg-type]
+            status_label=SMS_LOG_STATUS_LABELS.get(status, status),
+            sms_id=int(row["sms_id"]) if row["sms_id"] is not None else None,
+            error=row["error"] or "",
+            created_at=row["created_at"] or "",
+            sent_at=row["sent_at"] or "",
+            delivered_at=row["delivered_at"] or "",
+            checked_at=row["checked_at"] or "",
+        )
 
     def list_templates(self) -> list[SmsTemplateOut]:
         with self._lock:

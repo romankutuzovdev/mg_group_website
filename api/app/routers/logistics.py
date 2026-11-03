@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from app.models.cabinet import UserOut
 from app.models.logistics import (
@@ -15,13 +15,15 @@ from app.models.logistics import (
     ContainerOut,
     ContainerUpdate,
     LogisticsBoardOut,
+    SmsLogOut,
+    SmsLogRefreshResult,
     SmsTemplateCreate,
     SmsTemplateOut,
     SmsTemplateUpdate,
 )
 from app.services.auth_deps import require_admin_or_key
 from app.services.logistics_store import logistics_store
-from app.services.sms_by import send_sms_queue
+from app.services.sms_by import SmsSendResult, check_sms, send_sms_queue
 
 router = APIRouter(prefix="/admin/logistics", tags=["logistics"])
 
@@ -142,7 +144,7 @@ async def move_container_stage(
 
     sms_skipped = 0
     recipients: list[str] = []
-    jobs: list[tuple[str, str]] = []
+    jobs: list[tuple[str, str, int]] = []
 
     if not body.send_sms:
         return ContainerMoveResult(
@@ -160,6 +162,19 @@ async def move_container_stage(
         phone = (deal.client_phone or "").strip()
         if not phone:
             sms_skipped += 1
+            # Journal row so the logist sees who did NOT get a message.
+            logistics_store.log_sms(
+                container_id=container.id,
+                container_code=container.code,
+                stage=container.stage,
+                deal_ids=[deal.deal_id],
+                cars=deal.title,
+                client_name=deal.client_name,
+                phone="",
+                message="",
+                status="skipped",
+                error="Нет телефона клиента",
+            )
             continue
         by_phone.setdefault(phone, []).append(deal)
 
@@ -175,11 +190,21 @@ async def move_container_stage(
             car=cars or primary.title,
             client=primary.client_name,
         )
-        jobs.append((phone, message))
+        log_id = logistics_store.log_sms(
+            container_id=container.id,
+            container_code=container.code,
+            stage=container.stage,
+            deal_ids=[d.deal_id for d in deals],
+            cars=cars or primary.title,
+            client_name=primary.client_name,
+            phone=phone,
+            message=message,
+        )
+        jobs.append((phone, message, log_id))
         recipients.append(phone)
 
     if jobs:
-        background_tasks.add_task(send_sms_queue, jobs)
+        background_tasks.add_task(send_sms_queue, jobs, on_result=_record_sms_result)
 
     return ContainerMoveResult(
         container=container,
@@ -188,6 +213,66 @@ async def move_container_stage(
         sms_skipped=sms_skipped,
         sms_queued=len(jobs),
         recipients=recipients,
+    )
+
+
+_SMS_ERROR_LABELS = {
+    "disabled": "SMS.BY выключен (SMS_BY_ENABLED=false)",
+    "not_configured": "SMS.BY не настроен (нет токена / альфа-имени)",
+    "empty_message": "Пустой текст SMS",
+}
+
+
+def _record_sms_result(log_id: int, result: SmsSendResult) -> None:
+    err = result.error or ""
+    logistics_store.mark_sms_result(
+        log_id,
+        ok=result.ok,
+        skipped=result.skipped,
+        sms_id=result.sms_id,
+        error=_SMS_ERROR_LABELS.get(err, err),
+    )
+
+
+@router.get("/sms-log", response_model=list[SmsLogOut])
+def list_sms_log(
+    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    container_id: int | None = Query(None, ge=1),
+    limit: int = Query(200, ge=1, le=2000),
+) -> list[SmsLogOut]:
+    """Journal of stage-change SMS: queued → sent → delivered / failed / skipped."""
+    return logistics_store.list_sms_log(container_id=container_id, limit=limit)
+
+
+@router.post("/sms-log/refresh", response_model=SmsLogRefreshResult)
+async def refresh_sms_log(
+    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    container_id: int | None = Query(None, ge=1),
+    limit: int = Query(200, ge=1, le=2000),
+) -> SmsLogRefreshResult:
+    """Ask SMS.BY (checkSMS) which sent messages were delivered, then return the journal."""
+    pending = logistics_store.sms_log_pending_delivery(limit=100)
+    checked = delivered = failed = 0
+    for entry in pending:
+        if entry.sms_id is None:
+            continue
+        res = await check_sms(entry.sms_id)
+        checked += 1
+        if res.ok and res.delivered_at:
+            delivered += 1
+            logistics_store.mark_sms_delivery(entry.id, delivered_at=res.delivered_at)
+        elif res.ok:
+            logistics_store.mark_sms_delivery(entry.id)
+        elif res.error == "not_configured":
+            break
+        else:
+            # Transient check error — keep "sent", remember why.
+            logistics_store.mark_sms_delivery(entry.id, error=res.error)
+    return SmsLogRefreshResult(
+        checked=checked,
+        delivered=delivered,
+        failed=failed,
+        entries=logistics_store.list_sms_log(container_id=container_id, limit=limit),
     )
 
 

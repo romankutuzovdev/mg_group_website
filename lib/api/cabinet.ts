@@ -651,6 +651,60 @@ export async function adminMoveContainer(
   });
 }
 
+export type SmsLogStatus = "queued" | "sent" | "delivered" | "failed" | "skipped";
+
+/** Журнал SMS при смене этапа контейнера (что ушло, что дошло). */
+export type SmsLogEntry = {
+  id: number;
+  container_id: number | null;
+  container_code: string;
+  stage: string;
+  stage_label: string;
+  deal_ids: number[];
+  cars: string;
+  client_name: string;
+  phone: string;
+  message: string;
+  status: SmsLogStatus;
+  status_label: string;
+  sms_id: number | null;
+  error: string;
+  created_at: string;
+  sent_at: string;
+  delivered_at: string;
+  checked_at: string;
+};
+
+export type SmsLogRefreshResult = {
+  checked: number;
+  delivered: number;
+  failed: number;
+  entries: SmsLogEntry[];
+};
+
+function smsLogQuery(params: { containerId?: number | null; limit?: number }): string {
+  const q = new URLSearchParams();
+  if (params.containerId) q.set("container_id", String(params.containerId));
+  if (params.limit) q.set("limit", String(params.limit));
+  const str = q.toString();
+  return str ? `?${str}` : "";
+}
+
+export async function fetchSmsLog(
+  params: { containerId?: number | null; limit?: number } = {},
+): Promise<SmsLogEntry[]> {
+  return cabinetFetch(`/api/v1/admin/logistics/sms-log${smsLogQuery(params)}`);
+}
+
+/** Спросить SMS.BY, какие отправленные SMS доставлены; вернуть обновлённый журнал. */
+export async function refreshSmsLog(
+  params: { containerId?: number | null; limit?: number } = {},
+): Promise<SmsLogRefreshResult> {
+  return cabinetFetch(`/api/v1/admin/logistics/sms-log/refresh${smsLogQuery(params)}`, {
+    method: "POST",
+  });
+}
+
 export async function adminCreateSmsTemplate(payload: {
   title: string;
   body: string;

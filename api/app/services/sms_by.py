@@ -10,7 +10,8 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Sequence
+from datetime import datetime, timezone
+from typing import Any, Callable, Sequence
 
 import httpx
 
@@ -154,13 +155,21 @@ async def send_sms_with_retries(
 
 
 async def send_sms_queue(
-    jobs: Sequence[tuple[str, str]],
+    jobs: Sequence[tuple[str, str] | tuple[str, str, int]],
     *,
     gap_sec: float = SMS_QUEUE_GAP_SEC,
+    on_result: Callable[[int, SmsSendResult], Any] | None = None,
 ) -> None:
-    """Send many SMS one-by-one with a pause (logistics container move)."""
+    """Send many SMS one-by-one with a pause (logistics container move).
+
+    A job may carry a third item — the ``sms_log`` row id — in which case
+    ``on_result(log_id, result)`` is called after every send so the journal
+    shows what actually left SMS.BY.
+    """
     total = len(jobs)
-    for i, (phone, message) in enumerate(jobs):
+    for i, job in enumerate(jobs):
+        phone, message = job[0], job[1]
+        log_id = int(job[2]) if len(job) > 2 and job[2] is not None else None
         if i > 0 and gap_sec > 0:
             await asyncio.sleep(gap_sec)
         result = await send_sms_with_retries(phone, message)
@@ -173,6 +182,64 @@ async def send_sms_queue(
             result.skipped,
             result.error or "",
         )
+        if log_id is not None and on_result is not None:
+            try:
+                on_result(log_id, result)
+            except Exception as exc:  # never break the queue over the journal
+                logger.warning("sms.queue log update failed id=%s: %s", log_id, exc)
+
+
+@dataclass(frozen=True)
+class SmsCheckResult:
+    ok: bool
+    sms_id: int
+    sent_at: str = ""
+    delivered_at: str = ""
+    error: str = ""
+
+
+def _unix_to_iso(value: Any) -> str:
+    try:
+        ts = float(value)
+    except (TypeError, ValueError):
+        return ""
+    if ts <= 0:
+        return ""
+    return datetime.fromtimestamp(ts, tz=timezone.utc).replace(microsecond=0).isoformat()
+
+
+async def check_sms(sms_id: int) -> SmsCheckResult:
+    """SMS.BY ``checkSMS`` — delivery timestamps for one sent SMS.
+
+    Response: ``{"sms_id": 2637396, "sent": 1616407661, "delivered": 1616407673}``;
+    ``delivered`` missing/0 means not delivered yet.
+    """
+    settings = get_settings()
+    token = (settings.sms_by_token or "").strip()
+    if not settings.sms_by_enabled or not token:
+        return SmsCheckResult(ok=False, sms_id=int(sms_id), error="not_configured")
+    try:
+        async with httpx.AsyncClient(timeout=SMS_HTTP_TIMEOUT) as client:
+            res = await client.get(
+                f"{SMS_BY_BASE}/checkSMS", params={"token": token, "sms_id": int(sms_id)}
+            )
+        if res.status_code >= 400:
+            return SmsCheckResult(ok=False, sms_id=int(sms_id), error=f"http_{res.status_code}")
+        data = res.json() if res.content else {}
+        if not isinstance(data, dict):
+            return SmsCheckResult(ok=False, sms_id=int(sms_id), error="bad_response")
+        if data.get("error"):
+            return SmsCheckResult(
+                ok=False, sms_id=int(sms_id), error=str(data.get("error"))[:200]
+            )
+        return SmsCheckResult(
+            ok=True,
+            sms_id=int(sms_id),
+            sent_at=_unix_to_iso(data.get("sent")),
+            delivered_at=_unix_to_iso(data.get("delivered")),
+        )
+    except Exception as exc:
+        return SmsCheckResult(ok=False, sms_id=int(sms_id), error=str(exc)[:200])
 
 
 def format_credentials_message(*, phone: str, password: str) -> str:

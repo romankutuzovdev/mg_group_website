@@ -1,14 +1,18 @@
-"""Full Bid.cars scrape: every search result → open lot page → all fields + photos.
+"""Bid.cars → USA catalog.
 
-Search entry:
-  https://bid.cars/en/search/results?...&status=All&type=Automobile...
+Primary path (``scraper_bidcars_api``): the site's own search JSON that the
+results page calls — ``GET /app/search/request?...&status=Active&page=N`` —
+50 lots per request with estimated cost, bid, VIN, sale document, specs and the
+full ``img_large`` gallery. It is fetched *inside* the Chrome tab that already
+passed Cloudflare (same cookies / IP), so no lot pages are opened at all.
 
-Requires headed Chrome (Cloudflare). For each automobile:
-  1) collect lot URLs from search pages
-  2) open https://bid.cars/en/lot/...
-  3) extract specs, Estimated cost, bid, VIN, sale doc, keys, drive status
-  4) collect the lot gallery (not similar vehicles)
-  5) upsert into the catalog with photosEnrichedAt set
+One search is capped at 50 pages (2 500 lots), so the catalog is swept in
+partitions: ``auction-type`` (Copart / IAAI) × ``year-from..year-to`` ranges,
+plus the short ``Live`` list. Requests are sequential with a small delay —
+parallel bursts get empty bodies back.
+
+Legacy path (``scrape_bidcars_dom``): DOM search cards + lot pages. Used only
+when the JSON path is disabled or returns nothing without being blocked.
 """
 
 from __future__ import annotations
@@ -17,7 +21,7 @@ import asyncio
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
@@ -655,7 +659,7 @@ def _seed_row_from_link(item: dict[str, Any]) -> dict[str, Any] | None:
     return seed
 
 
-async def scrape_bidcars(
+async def scrape_bidcars_dom(
     *,
     max_pages: int = 0,
     sold_pages: int = 0,
@@ -942,3 +946,467 @@ async def scrape_bidcars(
     finally:
         for task in list(pending_resp):
             task.cancel()
+
+
+# ---------------------------------------------------------------------------
+# JSON search path (/app/search/request) — called from the Cloudflare-cleared tab
+# ---------------------------------------------------------------------------
+
+API_SEARCH_PATH = "/app/search/request"
+
+_SPEC_TRANSMISSION = {"0": "Automatic", "1": "Manual"}
+_SPEC_FUEL = {"0": "Gasoline", "1": "Diesel", "2": "Electric"}
+_SPEC_DRIVE = {"0": "FWD", "1": "RWD", "2": "AWD", "3": "4WD"}
+
+# Runs in the page: same-origin fetch carries cf_clearance + session cookies.
+_FETCH_JSON_JS = """
+async ({ url }) => {
+  try {
+    const r = await fetch(url, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    const text = await r.text();
+    return { status: r.status, text: text.slice(0, 4000000) };
+  } catch (e) {
+    return { status: 0, text: '', error: String(e) };
+  }
+}
+"""
+
+
+def api_search_url(
+    *,
+    status: str = "Active",
+    auction_type: str = "All",
+    year_from: int = 1900,
+    year_to: int = 2027,
+    page: int = 1,
+    make: str = "All",
+) -> str:
+    query = urlencode(
+        [
+            ("search-type", "filters"),
+            ("status", status),
+            ("type", "Automobile"),
+            ("make", make),
+            ("model", "All"),
+            ("year-from", str(year_from)),
+            ("year-to", str(year_to)),
+            ("auction-type", auction_type),
+            ("page", str(page)),
+        ]
+    )
+    return f"{API_SEARCH_PATH}?{query}"
+
+
+def _money_str(value: Any) -> str:
+    """'$6,400' / 6300 / 'null' → '6400' / '6300' / ''."""
+    if value is None or isinstance(value, bool):
+        return ""
+    if isinstance(value, (int, float)):
+        return str(int(value)) if value > 0 else ""
+    raw = re.sub(r"[^\d.]", "", str(value))
+    if not raw:
+        return ""
+    try:
+        num = float(raw)
+    except ValueError:
+        return ""
+    return str(int(num)) if num > 0 else ""
+
+
+def _ordered_images(raw: Any) -> list[str]:
+    """``{"img_1": url, "img_2": url}`` (or a list) → ordered unique URLs."""
+    pairs: list[tuple[int, str]] = []
+    if isinstance(raw, dict):
+        for key, val in raw.items():
+            m = re.search(r"(\d+)", str(key))
+            idx = int(m.group(1)) if m else len(pairs)
+            pairs.append((idx, str(val or "").strip()))
+        pairs.sort(key=lambda kv: kv[0])
+    elif isinstance(raw, list):
+        pairs = [(i, str(v or "").strip()) for i, v in enumerate(raw)]
+    out: list[str] = []
+    for _, url in pairs:
+        if url.startswith("http") and url not in out:
+            out.append(url)
+    return out
+
+
+def _as_int(value: Any) -> int:
+    try:
+        return int(float(str(value).replace(",", "").strip() or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def row_from_api_item(
+    item: dict[str, Any], *, now: datetime | None = None
+) -> dict[str, Any] | None:
+    """Map one ``/app/search/request`` item to the row shape ``map_bidcars_row`` eats."""
+    if not isinstance(item, dict):
+        return None
+    lot = str(item.get("lot") or "").strip()
+    if not lot:
+        return None
+    if str(item.get("type") or "Automobile").lower() not in {"automobile", ""}:
+        return None
+    moment = now or datetime.now(timezone.utc)
+    tag = str(item.get("tag") or "").strip()
+    url = f"https://bid.cars/en/lot/{lot}/{tag}" if tag else f"https://bid.cars/en/lot/{lot}"
+
+    images = _ordered_images(item.get("img_large")) or _ordered_images(item.get("img"))
+    if not images:
+        return None
+    images = images[:60]
+
+    search_status = str(item.get("search_status") or "").strip().lower()
+    status_code = _as_int(item.get("status"))
+    # ``status`` 2 shows up on both "ended" and "live" (auction running now) —
+    # only trust it when search_status is missing.
+    sold = search_status in {"ended", "sold", "archived"} or (
+        not search_status and status_code >= 2
+    )
+
+    time_left = _as_int(item.get("time_left"))
+    if sold:
+        auction_date = (moment - timedelta(days=14)).isoformat()
+    elif time_left > 0:
+        auction_date = (moment + timedelta(seconds=time_left)).isoformat()
+    elif search_status == "live":
+        # Running right now — keep it for a couple of hours, next cycle refreshes.
+        auction_date = (moment + timedelta(hours=2)).isoformat()
+    else:
+        auction_date = ""
+
+    specs = item.get("specs") if isinstance(item.get("specs"), dict) else {}
+    fuel = _SPEC_FUEL.get(str(specs.get("fuel_type") if specs.get("fuel_type") is not None else ""), "")
+    if _as_int(specs.get("hybrid")) == 1:
+        fuel = "Hybrid"
+    transmission = _SPEC_TRANSMISSION.get(
+        str(specs.get("transmission") if specs.get("transmission") is not None else ""), ""
+    )
+    drive = _SPEC_DRIVE.get(
+        str(specs.get("drive_type") if specs.get("drive_type") is not None else ""), ""
+    )
+    engine = str(specs.get("engine_rendered") or "").strip().strip(",").strip()
+    key_info = str(specs.get("key_info") or "").strip()
+    start_code = str(item.get("start_code") or "").strip()
+
+    price = _money_str(item.get("prebid_price")) or _money_str(item.get("final_bid"))
+    if sold:
+        price = _money_str(item.get("final_bid")) or price
+
+    # "2023 Nissan Rogue, SV" → title "2023 Nissan Rogue" (trim after the comma
+    # would otherwise leak into the model name).
+    name = str(item.get("name_long") or item.get("name") or "").strip()
+    name = re.sub(r"\.{3,}$", "", name).split(",")[0].strip()
+
+    def _clean(val: Any) -> str:
+        text = str(val or "").strip()
+        return "" if text in {"---", "--", "-", "null", "None"} else text
+
+    row: dict[str, Any] = {
+        "lotNumber": lot,
+        "url": url,
+        "title": name,
+        "vin": str(item.get("vin") or "").strip().upper(),
+        "price": price,
+        "buyNowPrice": _money_str(item.get("buy_now_price")),
+        "estimatedMin": _money_str(item.get("estimated_min")),
+        "estimatedMax": _money_str(item.get("estimated_max")),
+        "sold": sold,
+        "location": _clean(item.get("location")),
+        "odometer": _as_int(item.get("odometer")),
+        "primaryDamage": _clean(item.get("primary_damage")),
+        "secondaryDamage": "",
+        "lossType": _clean(item.get("loss_type")),
+        "saleDocument": _clean(item.get("sale_document_split") or item.get("sale_document")),
+        "seller": _clean(item.get("seller_long") or item.get("seller")),
+        "engine": engine,
+        "transmission": transmission,
+        "fuel": fuel,
+        "drive": drive,
+        "exteriorColor": "",
+        "hasKeys": bool(re.search(r"present|yes", key_info, re.I)),
+        "runsDrives": bool(re.search(r"run|drive|start", start_code, re.I)),
+        "startCode": start_code,
+        "keyInfo": key_info,
+        "auctionDate": auction_date,
+        "images": images,
+        "image": images[0],
+        "fromJson": True,
+    }
+    if len(images) >= 2:
+        row["photosEnrichedAt"] = moment.isoformat()
+    return row
+
+
+def _api_body_kind(status: int, text: str) -> str:
+    """'ok' | 'empty' | 'cloudflare' | 'error'."""
+    body = (text or "").strip()
+    if status in (403, 503) or (
+        body.startswith("<")
+        and re.search(r"just a moment|cf-chl|challenge-platform|attention required", body, re.I)
+    ):
+        return "cloudflare"
+    if status == 0 or status >= 500:
+        return "error"
+    if not body:
+        return "empty"
+    if body[0] not in "{[":
+        return "error"
+    return "ok"
+
+
+def _sweep_plan(settings: Any) -> list[dict[str, Any]]:
+    """status × auction-type × year-range partitions for one cycle."""
+    statuses = [
+        s.strip() for s in str(settings.scraper_bidcars_statuses or "Active").split(",") if s.strip()
+    ] or ["Active"]
+    types = [
+        t.strip() for t in str(settings.scraper_bidcars_auction_types or "All").split(",") if t.strip()
+    ] or ["All"]
+    ranges: list[tuple[int, int]] = []
+    for chunk in str(settings.scraper_bidcars_year_ranges or "").split(","):
+        m = re.fullmatch(r"\s*(\d{4})\s*-\s*(\d{4})\s*", chunk)
+        if m:
+            lo, hi = int(m.group(1)), int(m.group(2))
+            ranges.append((min(lo, hi), max(lo, hi)))
+    if not ranges:
+        ranges = [(1900, 2027)]
+    plan: list[dict[str, Any]] = []
+    for status in statuses:
+        if status.lower() == "live":
+            # Live list is short and unpartitioned.
+            plan.append({"status": "Live", "auction_type": "All", "year_from": 1900, "year_to": 2027})
+            continue
+        for auction_type in types:
+            for lo, hi in ranges:
+                plan.append(
+                    {"status": status, "auction_type": auction_type, "year_from": lo, "year_to": hi}
+                )
+    return plan
+
+
+async def scrape_bidcars_api(
+    *,
+    max_pages: int = 0,
+    page: Page | None = None,
+    browser: Any = None,
+    headless: bool = True,
+    on_progress: Any = None,
+    plan: list[dict[str, Any]] | None = None,
+    delay_ms: int | None = None,
+) -> list[dict[str, Any]]:
+    """Sweep Bid.cars search JSON from the Chrome tab; upsert page by page."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    session = TabSession()
+    tab = await session.start(page=page, browser=browser, headless=headless)
+
+    pages_cap = max_pages if max_pages and max_pages > 0 else 50
+    pages_cap = max(1, min(50, pages_cap))
+    pause = delay_ms if delay_ms is not None else int(
+        getattr(settings, "scraper_bidcars_request_delay_ms", 600) or 0
+    )
+    sweeps = plan if plan is not None else _sweep_plan(settings)
+
+    seen: set[str] = set()
+    total_upserted = 0
+    total_new = 0
+    requests_done = 0
+
+    def _tick(*, page_idx: int = 0) -> None:
+        if not callable(on_progress):
+            return
+        try:
+            on_progress(
+                page=page_idx,
+                upserted=total_upserted,
+                new=total_new,
+                details=requests_done,
+                unique=len(seen),
+            )
+        except Exception:
+            pass
+
+    try:
+        # Land on the results page once so Cloudflare clearance + session cookies
+        # exist for same-origin fetch(). Reuse the tab if it is already there.
+        if "bid.cars" not in (tab.url or ""):
+            await tab.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=45_000)
+        blocked = await _wait_ready(tab, seconds=25)
+        if blocked == "cloudflare":
+            logger.error("bidcars Cloudflare — solve the check in Chrome, then wait")
+            return [{"_blocked": True, "reason": "cloudflare"}]
+
+        logger.info(
+            "bidcars → JSON sweeps=%s pages≤%s delay=%sms", len(sweeps), pages_cap, pause
+        )
+        cloudflare_hits = 0
+        empty_responses = 0
+        for sweep in sweeps:
+            label = "{status} {auction_type} {year_from}-{year_to}".format(**sweep)
+            sweep_rows = 0
+            page_idx = 0
+            retries_here = 0
+            while page_idx < pages_cap:
+                if retries_here == 0:
+                    page_idx += 1
+                url = api_search_url(
+                    status=sweep["status"],
+                    auction_type=sweep["auction_type"],
+                    year_from=sweep["year_from"],
+                    year_to=sweep["year_to"],
+                    page=page_idx,
+                )
+                try:
+                    res = await asyncio.wait_for(
+                        tab.evaluate(_FETCH_JSON_JS, {"url": url}), timeout=40.0
+                    )
+                except Exception as exc:
+                    logger.warning("bidcars %s p%s fetch: %s", label, page_idx, exc)
+                    res = {"status": 0, "text": ""}
+                requests_done += 1
+                status = int((res or {}).get("status") or 0)
+                text = str((res or {}).get("text") or "")
+                kind = _api_body_kind(status, text)
+
+                if kind == "cloudflare":
+                    cloudflare_hits += 1
+                    logger.error("bidcars %s p%s: Cloudflare challenge (http %s)", label, page_idx, status)
+                    if cloudflare_hits >= 2:
+                        # Leave the tab on the results page: the check can be
+                        # clicked in headed Chrome, next cycle retries.
+                        try:
+                            lot_store.persist()
+                        except Exception:
+                            pass
+                        return [{"_blocked": True, "reason": "cloudflare"}]
+                    # Reload the results page (clearance cookie refresh), then
+                    # retry the SAME page once.
+                    try:
+                        await tab.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=45_000)
+                        await _wait_ready(tab, seconds=25)
+                    except Exception:
+                        pass
+                    await tab.wait_for_timeout(max(pause, 1500))
+                    retries_here = 1
+                    continue
+                if kind == "error":
+                    logger.warning("bidcars %s p%s: http %s / non-JSON body", label, page_idx, status)
+                    await tab.wait_for_timeout(max(pause * 3, 1500))
+                    empty_responses += 1
+                    if empty_responses >= 3:
+                        break
+                    retries_here = 1 if retries_here == 0 else 0
+                    continue
+                retries_here = 0
+                if kind == "empty":
+                    # Past the last page (site returns an empty body) — next sweep.
+                    break
+
+                try:
+                    payload = json.loads(text)
+                except Exception as exc:
+                    logger.warning("bidcars %s p%s: bad JSON: %s", label, page_idx, exc)
+                    break
+                items = payload.get("data") if isinstance(payload, dict) else payload
+                if not isinstance(items, list) or not items:
+                    break
+                empty_responses = 0
+                cloudflare_hits = 0
+
+                mapped = []
+                now = datetime.now(timezone.utc)
+                for item in items:
+                    row = row_from_api_item(item, now=now)
+                    if not row:
+                        continue
+                    lot = map_bidcars_row(row)
+                    if lot:
+                        mapped.append(lot)
+                        seen.add(row["lotNumber"])
+                if mapped:
+                    up, new = lot_store.upsert_many(mapped)
+                    total_upserted += up
+                    total_new += new
+                    sweep_rows += up
+                _tick(page_idx=page_idx)
+                if page_idx % 10 == 0:
+                    try:
+                        lot_store.persist()
+                    except Exception as exc:
+                        logger.warning("bidcars persist: %s", exc)
+                if len(items) < 50:
+                    break
+                if pause > 0:
+                    await tab.wait_for_timeout(pause)
+            logger.info("bidcars sweep %s: %s lots", label, sweep_rows)
+            try:
+                lot_store.persist()
+            except Exception as exc:
+                logger.warning("bidcars persist: %s", exc)
+
+        logger.info(
+            "bidcars JSON complete: unique=%s upserted=%s new=%s requests=%s",
+            len(seen),
+            total_upserted,
+            total_new,
+            requests_done,
+        )
+        return [
+            {
+                "_ok": True,
+                "upserted": total_upserted,
+                "new": total_new,
+                "unique": len(seen),
+                "details": requests_done,
+                "via": "json",
+            }
+        ]
+    except Exception as exc:
+        logger.exception("bidcars JSON scrape failed: %s", exc)
+        return [{"_blocked": True, "reason": re.sub(r"\s+", " ", str(exc))[:180]}]
+
+
+async def scrape_bidcars(
+    *,
+    max_pages: int = 0,
+    sold_pages: int = 0,
+    headless: bool = True,
+    timeout_ms: int = 60000,
+    page: Page | None = None,
+    browser: Any = None,
+    detail_limit: int | None = None,
+    on_progress: Any = None,
+) -> list[dict[str, Any]]:
+    """Entry point used by the worker: JSON sweeps first, DOM crawl as fallback."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    if getattr(settings, "scraper_bidcars_api", True):
+        result = await scrape_bidcars_api(
+            max_pages=max_pages,
+            page=page,
+            browser=browser,
+            headless=headless,
+            on_progress=on_progress,
+        )
+        first = result[0] if result else {}
+        if first.get("_blocked") or int(first.get("unique") or 0) > 0:
+            return result
+        logger.warning("bidcars JSON path returned nothing — falling back to DOM crawl")
+    return await scrape_bidcars_dom(
+        max_pages=max_pages,
+        sold_pages=sold_pages,
+        headless=headless,
+        timeout_ms=timeout_ms,
+        page=page,
+        browser=browser,
+        detail_limit=detail_limit,
+        on_progress=on_progress,
+    )

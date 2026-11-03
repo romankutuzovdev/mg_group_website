@@ -116,8 +116,34 @@ curl -X POST http://127.0.0.1:8000/api/v1/admin/purchased-cars \
 
 ## Парсер newly listed (один Chrome, вкладки)
 
-Не Bid.cars. Обходит **Copart.com**, **IAAI**, **Copart UK**, **Manheim**, **SalvageMarket**, **Encar** —
+Обходит **Bid.cars** (США), **Copart UK**, **Manheim**, **SalvageMarket**, **Encar**, **Autohome** —
 каждый источник в **своей вкладке одного Google Chrome**. Новые лоты upsert в store (+ persist JSON).
+
+### США: Bid.cars через search JSON
+
+Вкладка Bid.cars один раз проходит Cloudflare, дальше парсер из этой же вкладки вызывает
+`GET /app/search/request?...&status=Active&page=N` (то, что сама страница результатов
+грузит через XHR): 50 лотов за запрос — оценка (`estimated_min/max`), ставка, VIN,
+документ, пробег, характеристики и вся галерея `img_large`. Страницы лотов не открываются.
+
+Один поиск ограничен 50 страницами (2 500 лотов), поэтому каталог собирается по
+разделам `auction-type` (Copart / IAAI) × диапазон годов + короткий список `Live`.
+Запросы строго последовательные с паузой (`SCRAPER_BIDCARS_REQUEST_DELAY_MS`) —
+на параллельные Bid.cars отдаёт пустые ответы.
+
+```env
+SCRAPER_BIDCARS_API=true
+SCRAPER_BIDCARS_STATUSES=Active,Live
+SCRAPER_BIDCARS_AUCTION_TYPES=Copart,IAAI
+SCRAPER_BIDCARS_YEAR_RANGES=1900-2012,2013-2016,2017-2019,2020-2021,2022-2023,2024-2027
+SCRAPER_BIDCARS_REQUEST_DELAY_MS=600
+SCRAPER_MAX_PAGES_BIDCARS=50
+```
+
+Дата аукциона = `now + time_left`, поэтому `prune_ended` убирает лоты после торгов сам.
+Если Cloudflare снова показывает проверку — агент отдаёт `last_blocked: cloudflare`,
+вкладка остаётся открытой: кликните проверку в Chrome на Windows и подождите цикл.
+`SCRAPER_BIDCARS_API=false` возвращает старый обход DOM (карточки + страницы лотов).
 
 На фронте Manheim, SalvageMarket и Copart UK **Category B** помечаются как **«Закрытый аукцион»**.
 
