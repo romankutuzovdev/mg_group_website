@@ -169,6 +169,31 @@ def sweep_orphan_photos(live_ids: set[str]) -> int:
     return removed
 
 
+def reconcile_photo_archives(live_ids: set[str]) -> dict[str, int]:
+    """Remove local and R2 galleries that are absent from the live catalog."""
+    # A temporarily empty catalog usually means startup/sync trouble. Individual
+    # prune/delete paths already remove known ended lots, so a global sweep can wait.
+    if not live_ids:
+        logger.warning("archive reconcile skipped: live catalog is empty")
+        return {"local_folders": 0, "r2_prefixes": 0, "r2_objects": 0}
+    local_folders = sweep_orphan_photos(live_ids)
+    r2_prefixes = 0
+    r2_objects = 0
+    try:
+        from app.services.r2_photos import sweep_orphan_r2
+
+        stats = sweep_orphan_r2(live_ids)
+        r2_prefixes = int(stats.get("prefixes") or 0)
+        r2_objects = int(stats.get("objects") or 0)
+    except Exception as exc:
+        logger.warning("archive reconcile R2 skipped: %s", exc)
+    return {
+        "local_folders": local_folders,
+        "r2_prefixes": r2_prefixes,
+        "r2_objects": r2_objects,
+    }
+
+
 def resolve_photo_file(lot_id: str, filename: str) -> Path | None:
     name = Path(filename).name
     if not name or name != filename or name in {".", ".."}:

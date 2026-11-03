@@ -45,25 +45,22 @@ def sync_status() -> dict[str, Any]:
 
 
 def _rewrite_local_to_cdn(lot: dict[str, Any]) -> dict[str, Any]:
-    """Best-effort: /api/lot-photos/... → R2 public URL when R2 is configured."""
-    try:
-        from app.services.r2_photos import local_api_to_cdn_url, r2_enabled
+    """Keep only CDN URLs confirmed during photo promotion.
 
-        if not r2_enabled():
-            return lot
-    except Exception:
-        return lot
-
-    def one(u: str) -> str:
-        cdn = local_api_to_cdn_url(u)
-        return cdn or u
-
+    ``promote_gallery_urls`` rewrites each local URL only after both the display
+    image and its thumbnail upload successfully. Blindly rewriting remaining
+    local URLs here used to publish broken R2 links after a partial upload.
+    """
     out = dict(lot)
-    if out.get("imageUrl"):
-        out["imageUrl"] = one(str(out["imageUrl"]))
-    imgs = out.get("imageUrls")
-    if isinstance(imgs, list):
-        out["imageUrls"] = [one(str(u)) for u in imgs if u]
+    raw_images = out.get("imageUrls")
+    images = [str(url) for url in raw_images if url] if isinstance(raw_images, list) else []
+    public_images = [url for url in images if not url.startswith("/api/lot-photos/")]
+    cover = str(out.get("imageUrl") or "")
+    if cover.startswith("/api/lot-photos/"):
+        cover = public_images[0] if public_images else ""
+    if images:
+        out["imageUrls"] = public_images or None
+    out["imageUrl"] = cover
     return out
 
 

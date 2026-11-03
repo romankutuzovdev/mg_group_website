@@ -127,6 +127,47 @@ def _region_pool(region: str | None) -> list[AuctionLot]:
     return _snap_region.get(key, [])
 
 
+def _slim_lot_for_list(lot: AuctionLot) -> AuctionLot:
+    """Return a card payload with one small cover instead of the full gallery."""
+    imgs = [
+        u.strip()
+        for u in ([lot.imageUrl] if lot.imageUrl else []) + list(lot.imageUrls or [])
+        if (u or "").strip()
+    ]
+    seen: set[str] = set()
+    gallery: list[str] = []
+    for u in imgs:
+        key = u[:-7] if u.endswith("-th.jpg") else u
+        if key in seen:
+            continue
+        seen.add(key)
+        gallery.append(u)
+
+    from app.services.lot_photos import is_our_photo, to_catalog_thumb_url
+
+    ours = [u for u in gallery if is_our_photo(u) and not u.endswith("-th.jpg")]
+    cover = ours[0] if ours else (gallery[0] if gallery else "")
+    if cover.startswith("/api/lot-photos/"):
+        try:
+            from app.services.lot_photos import thumb_file_exists
+
+            if thumb_file_exists(cover):
+                cover = to_catalog_thumb_url(cover)
+        except Exception:
+            pass
+    elif cover and is_our_photo(cover):
+        # R2 upload promotes the generated thumb alongside the display JPEG.
+        cover = to_catalog_thumb_url(cover)
+    return lot.model_copy(
+        update={
+            "imageUrl": cover,
+            "imageUrls": [cover] if cover else None,
+            "photoCount": max(1, len(gallery)) if gallery else 0,
+            "similarSold": None,
+        }
+    )
+
+
 @router.get("", response_model=LotListResponse)
 def list_lots(
     q: str | None = None,
@@ -219,60 +260,7 @@ def list_lots(
     # List cards only need a cover thumb — full galleries live on GET /lots/{slug}.
     # Sending 40 CDN URLs × N lots made pagination payloads huge and infinite
     # scroll stalled after the first page(s).
-    slim_items: list[AuctionLot] = []
-    for lot in page_items:
-        imgs = [
-            u.strip()
-            for u in ([lot.imageUrl] if lot.imageUrl else [])
-            + list(lot.imageUrls or [])
-            if (u or "").strip()
-        ]
-        seen: set[str] = set()
-        gallery: list[str] = []
-        for u in imgs:
-            key = u[:-7] if u.endswith("-th.jpg") else u
-            if key in seen:
-                continue
-            seen.add(key)
-            gallery.append(u)
-
-        from app.services.lot_photos import is_our_photo
-
-        ours = [
-            u
-            for u in gallery
-            if is_our_photo(u) and not u.endswith("-th.jpg")
-        ]
-        cover = ours[0] if ours else (gallery[0] if gallery else "")
-        if cover.startswith("/api/lot-photos/"):
-            try:
-                from app.services.lot_photos import (
-                    thumb_file_exists,
-                    to_catalog_thumb_url,
-                )
-
-                if thumb_file_exists(cover):
-                    cover = to_catalog_thumb_url(cover)
-            except Exception:
-                pass
-        else:
-            try:
-                from app.services.r2_photos import is_cdn_photo
-                from app.services.lot_photos import to_catalog_thumb_url
-
-                if is_cdn_photo(cover):
-                    cover = to_catalog_thumb_url(cover)
-            except Exception:
-                pass
-        slim_items.append(
-            lot.model_copy(
-                update={
-                    "imageUrl": cover,
-                    "imageUrls": [cover] if cover else None,
-                    "photoCount": max(1, len(gallery)) if gallery else 0,
-                }
-            )
-        )
+    slim_items = [_slim_lot_for_list(lot) for lot in page_items]
 
     # Always emit all catalog regions (even 0) so clients never hide Korea/China.
     counts = {"usa": 0, "uk": 0, "korea": 0, "china": 0}
@@ -305,7 +293,7 @@ def featured_lots(limit: int = Query(4, ge=1, le=24)) -> list[AuctionLot]:
         return (live, abs(ts - now.timestamp() * 1000))
 
     ranked = sorted(pool, key=score)
-    return ranked[:limit]
+    return [_slim_lot_for_list(lot) for lot in ranked[:limit]]
 
 
 @router.get("/meta", response_model=LotMetaResponse)
@@ -384,9 +372,12 @@ def bulk_upsert(lots: list[AuctionLot]) -> LotBulkUpsertResponse:
 
 @router.delete("/{lot_id}", dependencies=[Depends(_require_ingest_key)])
 def delete_lot(lot_id: str) -> dict[str, bool]:
+    settings = get_settings()
     ok = lot_store.delete(lot_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Lot not found")
+    if settings.scraper_persist:
+        lot_store.persist()
     return {"deleted": True}
 
 

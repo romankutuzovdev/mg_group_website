@@ -1,0 +1,12 @@
+{
+  "project": "MG.GROUP",
+  "decisions": [
+    "Homepage uses graphite photo sections alternating with warm white content, restrained emerald accents, consistent rounded-xl buttons and rounded-2xl cards.",
+    "Keep the homepage to nine main sections. Consolidate auction and popular-model previews into one country-tabbed showcase.",
+    "Hero uses a single editorial headline, two calls to action and an accessible x-ray control; statistics live below the hero.",
+    "Delivery journey uses a detailed graphite grand tourer with studio lighting, without toy-like bobbing.",
+    "Catalog hierarchy continues the homepage showroom direction: photo-led market heroes, editorial country navigation, warm-white results, restrained graphite filters, and consistent emerald actions.",
+    "Calculator hub is a premium calculation center: photo-led hero, asymmetric scenario cards, restrained trust signals, and a calm protected-access form.",
+    "Client cabinet is a private premium workspace: cinematic graphite masthead, warm-white dashboard canvas, compact KPI cards, editorial tabs, and a photo-led secure sign-in experience."
+  ]
+}

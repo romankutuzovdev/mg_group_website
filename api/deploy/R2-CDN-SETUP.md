@@ -57,11 +57,31 @@ Invoke-RestMethod http://127.0.0.1/api/v1/scraper/r2-status
 
 Если `enabled: false` — смотрите `disabled_reason` (часто пустой `R2_PUBLIC_BASE_URL` или S3 API вместо `pub-….r2.dev`).
 
+Проверить реальное подключение к бакету и наличие хотя бы одного объекта:
+
+```powershell
+Invoke-RestMethod -Headers @{ "X-API-Key" = "секрет" } `
+  http://127.0.0.1/api/v1/scraper/r2-check
+```
+
+`reachable: true` подтверждает доступ к R2. `sample_public_url` должен открывать
+картинку без авторизации. Ключи этот метод не возвращает.
+
 Уже скачанные фото на диске залить в R2 одним проходом (нужен `X-API-Key`):
 
 ```powershell
 Invoke-RestMethod -Method POST -Headers @{ "X-API-Key" = "секрет" } `
   "http://127.0.0.1/api/v1/scraper/r2/promote-locals?limit=500"
 ```
+
+Принудительно удалить локальные и R2-папки лотов, которых уже нет в каталоге:
+
+```powershell
+Invoke-RestMethod -Method POST -Headers @{ "X-API-Key" = "секрет" } `
+  http://127.0.0.1/api/v1/scraper/r2/reconcile
+```
+
+Такая сверка также выполняется автоматически раз в час. Интервал меняется через
+`R2_CLEANUP_INTERVAL_SECONDS`; при пустом каталоге очистка R2 блокируется.
 
 Если ключи светились в чате/мессенджере — **перевыпустите** API token в Cloudflare.

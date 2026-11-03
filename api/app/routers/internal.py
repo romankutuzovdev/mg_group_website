@@ -20,6 +20,7 @@ from app.services.lots_sync import (
     push_catalog_once,
     sync_status,
 )
+from app.services.scraper_proxy import scraper_api_base
 
 router = APIRouter(prefix="/internal", tags=["internal"])
 
@@ -52,6 +53,7 @@ def lots_sync_status() -> dict:
         "lots_source_url": (settings.lots_source_url or "")[:120],
         "lots_push_url": (settings.lots_push_url or "")[:120],
         "public_site_url": (settings.public_site_url or "")[:120],
+        "scraper_api_url": scraper_api_base()[:120],
         "interval_seconds": settings.lots_sync_interval_seconds,
         "push_interval_seconds": settings.lots_push_interval_seconds,
         **sync_status(),

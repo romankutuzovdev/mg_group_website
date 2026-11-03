@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -57,6 +58,39 @@ async def lifespan(_app: FastAPI):
     car_search.init()
     print("[mg-api] cabinet + logistics + purchased cars db ready")
     search_task = asyncio.create_task(car_search.car_search_loop())
+
+    archive_cleanup_task: asyncio.Task | None = None
+    if role in {"all", "scraper"}:
+        async def _archive_cleanup_loop() -> None:
+            interval = max(300, int(settings.r2_cleanup_interval_seconds or 3600))
+            await asyncio.sleep(60)
+            while True:
+                try:
+                    from app.services.lot_photos import reconcile_photo_archives
+
+                    released = await asyncio.to_thread(
+                        lot_store.release_sold_photo_archives
+                    )
+                    if released and settings.scraper_persist:
+                        await asyncio.to_thread(lot_store.persist)
+                    live_photo_ids = {
+                        lot.id
+                        for lot in lot_store.all()
+                        if not getattr(lot, "sold", False)
+                    }
+                    stats = await asyncio.to_thread(
+                        reconcile_photo_archives, live_photo_ids
+                    )
+                    stats["sold_galleries"] = released
+                    if any(stats.values()):
+                        print(f"[mg-api] photo archive cleanup: {stats}")
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    print(f"[mg-api] photo archive cleanup failed: {exc}")
+                await asyncio.sleep(interval)
+
+        archive_cleanup_task = asyncio.create_task(_archive_cleanup_loop())
 
     # Scraper only on Windows factory (all | scraper). Public VPS receives lots.
     if role in {"all", "scraper"}:
@@ -112,6 +146,8 @@ async def lifespan(_app: FastAPI):
         sync_task.cancel()
     korea_ru_task.cancel()
     search_task.cancel()
+    if archive_cleanup_task:
+        archive_cleanup_task.cancel()
     try:
         await scraper_worker.stop()
     except Exception:
@@ -138,6 +174,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Catalog responses contain repeated JSON keys and compress very well.
+    app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 
     # Windows (scraper): stale DNS for mg-group.by → public site on VPS.
     # Prefer PUBLIC_SITE_URL (e.g. http://178.172.138.96); else legacy Vercel.

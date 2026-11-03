@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     lots_push_url: str = ""
     lots_push_api_key: str = ""  # defaults to ingest_api_key
     lots_push_interval_seconds: int = 180
+    # Public VPS → Windows API for Chrome-only requests (calculator lot-from-url).
+    # e.g. http://91.149.133.54  (empty: derived from LOTS_SOURCE_URL host)
+    scraper_api_url: str = ""
+    scraper_api_key: str = ""  # defaults to lots_source / ingest key
+    scraper_api_timeout_seconds: float = 75.0
     # One-shot / on-demand: pull cabinet.db+uploads from Windows onto VPS
     # http://91.149.133.54/api/v1/internal/cabinet-backup
     cabinet_source_url: str = ""
@@ -145,6 +150,8 @@ class Settings(BaseSettings):
     r2_bucket: str = "mg-lot-photos"
     # e.g. https://pub-xxxxx.r2.dev  or  https://img.mg-group.by
     r2_public_base_url: str = ""
+    # Periodically remove R2/local galleries missing from the current catalog.
+    r2_cleanup_interval_seconds: int = 3600
 
 
 

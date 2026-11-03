@@ -71,6 +71,34 @@ def scraper_r2_status() -> dict:
     return r2_status()
 
 
+@router.get("/r2-check", dependencies=[Depends(_require_key)])
+def scraper_r2_check() -> dict:
+    """Read-only R2 connectivity check; never returns credentials."""
+    from app.services.r2_photos import r2_probe
+
+    return r2_probe()
+
+
+@router.post("/r2/reconcile", dependencies=[Depends(_require_key)])
+def scraper_r2_reconcile() -> dict:
+    """Remove local/R2 galleries whose lot is absent from the catalog."""
+    from app.data.store import lot_store
+    from app.services.lot_photos import reconcile_photo_archives
+
+    settings = get_settings()
+    sold_galleries = lot_store.release_sold_photo_archives()
+    if sold_galleries and settings.scraper_persist:
+        lot_store.persist()
+    live_photo_ids = {
+        lot.id for lot in lot_store.all() if not getattr(lot, "sold", False)
+    }
+    return {
+        "ok": True,
+        "sold_galleries": sold_galleries,
+        **reconcile_photo_archives(live_photo_ids),
+    }
+
+
 @router.post("/r2/promote-locals", dependencies=[Depends(_require_key)])
 def scraper_r2_promote_locals(
     limit: int = Query(200, ge=1, le=5000),

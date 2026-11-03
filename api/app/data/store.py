@@ -379,7 +379,10 @@ class LotStore:
                 return False
             self._by_slug.pop(lot.slug, None)
             self.revision += 1
-            return True
+        from app.services.lot_photos import delete_lot_photos
+
+        delete_lot_photos(lot_id)
+        return True
 
     def delete_region(self, region: str) -> int:
         """Drop every lot in a region. Returns how many were removed."""
@@ -394,7 +397,49 @@ class LotStore:
                     self._by_slug.pop(lot.slug, None)
             if ids:
                 self.revision += 1
-            return len(ids)
+        if ids:
+            from app.services.lot_photos import delete_lot_photos
+
+            for lot_id in ids:
+                delete_lot_photos(lot_id)
+        return len(ids)
+
+    def release_sold_photo_archives(self) -> int:
+        """Keep sold-history records but remove their archived galleries.
+
+        Bid.cars sold rows are useful for comparable-sale prices, but their
+        full local/R2 galleries should not consume storage after the auction.
+        Remote source covers are retained when available.
+        """
+        released: list[str] = []
+        with self._lock:
+            for lot in list(self._by_id.values()):
+                if not getattr(lot, "sold", False):
+                    continue
+                urls = _dedupe_urls(
+                    list(lot.imageUrls or []) + ([lot.imageUrl] if lot.imageUrl else [])
+                )
+                if not any(_is_our_archived_url(url) for url in urls):
+                    continue
+                remotes = [url for url in urls if not _is_our_archived_url(url)]
+                data = lot.model_dump()
+                data["imageUrls"] = remotes or None
+                data["imageUrl"] = remotes[0] if remotes else ""
+                data["photoCount"] = len(remotes)
+                data["photosEnrichedAt"] = None
+                updated = AuctionLot.model_validate(data)
+                self._by_id[updated.id] = updated
+                self._by_slug[updated.slug] = updated
+                released.append(updated.id)
+            if released:
+                self.revision += 1
+
+        if released:
+            from app.services.lot_photos import delete_lot_photos
+
+            for lot_id in released:
+                delete_lot_photos(lot_id)
+        return len(released)
 
     def prune_ended(
         self,

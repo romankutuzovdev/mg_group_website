@@ -105,8 +105,21 @@ def calc_weight(body: WeightPriceRequest) -> dict:
 
 @router.post("/lot-from-url")
 async def lot_from_url(body: LotFromUrlRequest) -> dict:
-    """Open auction URL in Chrome and scrape live fields (never from catalog DB)."""
+    """Open auction URL in Chrome and scrape live fields (never from catalog DB).
+
+    Public VPS has no Chrome: forward to the Windows API (SCRAPER_API_URL) and
+    return its answer as-is so the site shows what Chrome actually saw.
+    """
     from app.services.lot_lookup import soft_lot_payload
+    from app.services.scraper_proxy import proxy_lot_from_url, should_proxy_lot_lookup
+
+    if should_proxy_lot_lookup():
+        try:
+            return await proxy_lot_from_url(body.url)
+        except RuntimeError as exc:
+            soft = soft_lot_payload(body.url, f"scraper_proxy_failed:{exc}"[:300])
+            soft["via"] = "scraper_proxy_failed"
+            return soft
 
     try:
         return await fetch_lot_from_url(body.url)

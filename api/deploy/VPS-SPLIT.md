@@ -106,6 +106,25 @@ JWT_SECRET=...
 TELEGRAM_BOT_TOKEN=...
 ```
 
+### Калькулятор: лот по ссылке открывается на Windows
+
+`POST /api/v1/pricing/lot-from-url` открывает страницу аукциона в Chrome, а Chrome есть
+только на Windows. На VPS задайте `SCRAPER_API_URL=http://91.149.133.54` — public-нода
+перешлёт запрос на Windows и вернёт сайту его ответ без изменений (в ответе `proxied: true`).
+Без этой переменной калькулятор на VPS отвечает `chrome_failed: Chrome CDP not ready`.
+
+Проверка с VPS (должен вернуться `ok: true` и `via: lot_lookup_tab`):
+
+```bash
+curl -s -X POST -H 'Content-Type: application/json' \
+  -d '{"url":"https://bid.cars/en/lot/0-45998137/2020-Audi-A4-WAUENAF42LN006619"}' \
+  https://mg-group.by/api/v1/pricing/lot-from-url
+```
+
+Если в ответе `via: scraper_proxy_failed`, поле `error` говорит почему: `scraper_unreachable`
+(фаервол/VPN на Windows) или `scraper_http_5xx`. Текущий адрес виден в
+`GET /api/v1/internal/lots-sync-status` → `scraper_api_url`.
+
 ### База кабинета на хостере
 
 `cabinet.db` + `uploads/` (сделки, Telegram-юзеры, логистика, купленные авто) живут **только на VPS**.  

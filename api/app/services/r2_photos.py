@@ -85,6 +85,37 @@ def r2_status() -> dict[str, Any]:
     }
 
 
+def r2_probe() -> dict[str, Any]:
+    """Read-only connectivity check with one optional object sample."""
+    status = r2_status()
+    if not status["enabled"]:
+        return {**status, "reachable": False, "sample_key": None}
+    client = _client()
+    if client is None:
+        return {**status, "reachable": False, "sample_key": None}
+    try:
+        resp = client.list_objects_v2(
+            Bucket=get_settings().r2_bucket.strip(),
+            Prefix=f"{_KEY_PREFIX}/",
+            MaxKeys=1,
+        )
+        rows = resp.get("Contents") or []
+        sample = str(rows[0].get("Key") or "") if rows else None
+        return {
+            **status,
+            "reachable": True,
+            "sample_key": sample,
+            "sample_public_url": f"{public_base()}/{sample}" if sample else None,
+        }
+    except Exception as exc:
+        return {
+            **status,
+            "reachable": False,
+            "sample_key": None,
+            "error": str(exc)[:200],
+        }
+
+
 def region_uses_cdn(region: str | None, source: str | None = None) -> bool:
     """Upload/archive to R2 for every known auction region when R2 is on."""
     if not r2_enabled():
@@ -177,20 +208,24 @@ def clear_client_cache() -> None:
     _client.cache_clear()
 
 
-def upload_lot_dir(lot_id: str) -> int:
-    """Upload all files in the local lot photo folder to R2. Returns uploaded count."""
+def upload_lot_dir(lot_id: str) -> set[str]:
+    """Upload local lot files to R2 and return filenames confirmed uploaded.
+
+    Returning the exact filenames matters: a partial R2 failure must not make us
+    publish CDN URLs for objects that were never stored.
+    """
     if not r2_enabled():
-        return 0
+        return set()
     from app.services.lot_photos import lot_dir, safe_lot_id
 
     client = _client()
     if client is None:
-        return 0
+        return set()
     folder = lot_dir(lot_id)
     if not folder.is_dir():
-        return 0
+        return set()
     bucket = get_settings().r2_bucket.strip()
-    uploaded = 0
+    uploaded: set[str] = set()
     for path in sorted(folder.iterdir()):
         if not path.is_file() or path.name.startswith("."):
             continue
@@ -203,14 +238,16 @@ def upload_lot_dir(lot_id: str) -> int:
                 key,
                 ExtraArgs={
                     "ContentType": ctype,
-                    "CacheControl": "public, max-age=604800, immutable",
+                    # Filenames include a content hash, so these objects can be
+                    # cached for a year without serving stale replacements.
+                    "CacheControl": "public, max-age=31536000, immutable",
                 },
             )
-            uploaded += 1
+            uploaded.add(path.name)
         except Exception as exc:
             logger.warning("R2 upload %s: %s", key, exc)
     if uploaded:
-        logger.info("R2 uploaded %s files for lot %s", uploaded, lot_id)
+        logger.info("R2 uploaded %s files for lot %s", len(uploaded), lot_id)
     return uploaded
 
 
@@ -248,6 +285,63 @@ def delete_lot_prefix(lot_id: str) -> int:
     return deleted
 
 
+def sweep_orphan_r2(live_ids: set[str]) -> dict[str, int]:
+    """Delete R2 lot prefixes that no longer exist in the catalog.
+
+    This repairs leftovers from interrupted pruning, manual deletes and old
+    deployments. Only direct children of ``lots/`` are considered.
+    """
+    if not r2_enabled():
+        return {"prefixes": 0, "objects": 0}
+    # An empty catalog can be a transient startup/scrape failure. Never turn
+    # that into a bucket-wide deletion.
+    if not live_ids:
+        logger.warning("R2 orphan sweep skipped: live catalog is empty")
+        return {"prefixes": 0, "objects": 0}
+    from app.services.lot_photos import safe_lot_id
+
+    client = _client()
+    if client is None:
+        return {"prefixes": 0, "objects": 0}
+    bucket = get_settings().r2_bucket.strip()
+    live = {safe_lot_id(lot_id) for lot_id in live_ids}
+    orphan_ids: set[str] = set()
+    token: str | None = None
+    try:
+        while True:
+            kwargs: dict[str, Any] = {
+                "Bucket": bucket,
+                "Prefix": f"{_KEY_PREFIX}/",
+                "Delimiter": "/",
+                "MaxKeys": 1000,
+            }
+            if token:
+                kwargs["ContinuationToken"] = token
+            resp = client.list_objects_v2(**kwargs)
+            for row in resp.get("CommonPrefixes") or []:
+                prefix = str(row.get("Prefix") or "")
+                parts = prefix.strip("/").split("/")
+                if len(parts) == 2 and parts[0] == _KEY_PREFIX and parts[1] not in live:
+                    orphan_ids.add(parts[1])
+            if not resp.get("IsTruncated"):
+                break
+            token = resp.get("NextContinuationToken")
+    except Exception as exc:
+        logger.warning("R2 orphan scan failed: %s", exc)
+        return {"prefixes": 0, "objects": 0}
+
+    objects = 0
+    for lot_id in sorted(orphan_ids):
+        objects += delete_lot_prefix(lot_id)
+    if orphan_ids:
+        logger.info(
+            "R2 orphan sweep removed %s prefixes / %s objects",
+            len(orphan_ids),
+            objects,
+        )
+    return {"prefixes": len(orphan_ids), "objects": objects}
+
+
 def promote_gallery_urls(
     lot_id: str,
     urls: list[str],
@@ -268,7 +362,7 @@ def promote_gallery_urls(
         return urls
 
     uploaded = upload_lot_dir(lot_id)
-    if uploaded <= 0:
+    if not uploaded:
         logger.warning(
             "R2 promote %s: no files uploaded (folder empty or upload failed)",
             lot_id,
@@ -281,11 +375,25 @@ def promote_gallery_urls(
         if not u:
             continue
         if is_local_photo(u):
-            cdn = local_api_to_cdn_url(u)
+            filename = Path(u.split("?", 1)[0]).name
+            thumb_name = ""
+            if not filename.endswith("-th.jpg") and "." in filename:
+                stem, dot, ext = filename.rpartition(".")
+                thumb_name = f"{stem}-th.{ext}" if dot else ""
+            # Catalog cards derive the thumb URL from the display URL. Only
+            # publish the CDN display URL when its generated thumb is there too.
+            confirmed = filename in uploaded and (
+                not thumb_name or thumb_name in uploaded
+            )
+            cdn = local_api_to_cdn_url(u) if confirmed else None
             if cdn:
                 u = cdn
             else:
-                logger.warning("R2 promote %s: could not map %s", lot_id, u[:80])
+                logger.warning(
+                    "R2 promote %s: keeping local URL; object not confirmed: %s",
+                    lot_id,
+                    filename,
+                )
         if u in seen:
             continue
         seen.add(u)
