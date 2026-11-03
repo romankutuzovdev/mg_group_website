@@ -52,45 +52,47 @@ export function QuoteHistoryPanel({ scope }: { scope: "mine" | "all" }) {
   }, [scope]);
 
   return (
-    <section className="rounded-xl border border-border bg-white p-4 sm:p-5">
-      <h2 className="text-sm font-semibold">
-        {scope === "all" ? "Просчёты всех пользователей" : "Мои просчёты"}
-      </h2>
-      <p className="mt-1 text-xs text-text-muted">
-        {scope === "all"
-          ? "Каждый просчёт также приходит администраторам в Telegram."
-          : "История ваших расчётов в калькуляторах."}
-      </p>
-      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-      {rows == null && !error ? <p className="mt-3 text-sm text-text-muted">Загрузка…</p> : null}
+    <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3 sm:px-5">
+        <h2 className="text-sm font-semibold text-zinc-900">
+          {scope === "all" ? "Все просчёты" : "Мои просчёты"}
+        </h2>
+        {rows ? (
+          <span className="text-xs tabular-nums text-zinc-500">{rows.length} записей</span>
+        ) : null}
+      </div>
+      {error ? <p className="px-5 py-4 text-[13px] text-rose-700">{error}</p> : null}
+      {rows == null && !error ? <p className="px-5 py-4 text-[13px] text-zinc-500">Загрузка…</p> : null}
       {rows && rows.length === 0 ? (
-        <p className="mt-3 text-sm text-text-muted">Пока нет просчётов.</p>
+        <p className="px-5 py-10 text-center text-[13px] text-zinc-500">Пока нет просчётов.</p>
       ) : null}
       {rows && rows.length > 0 ? (
-        <ul className="mt-3 divide-y divide-border">
+        <ul className="divide-y divide-zinc-100">
           {rows.map((row) => (
-            <li key={row.id} className="py-3 text-sm">
+            <li key={row.id} className="px-4 py-3 text-[13px] sm:px-5">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-medium text-text-primary">
-                  {KIND_LABEL[row.kind] || row.kind}
-                  {row.title ? ` · ${row.title}` : ""}
+                <span className="font-medium text-zinc-900">
+                  <span className="mr-2 inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200">
+                    {KIND_LABEL[row.kind] || row.kind}
+                  </span>
+                  {row.title || ""}
                 </span>
-                <time className="text-xs text-text-muted">
+                <time className="text-xs tabular-nums text-zinc-500">
                   {new Date(row.created_at).toLocaleString("ru-RU")}
                 </time>
               </div>
               {scope === "all" ? (
-                <p className="mt-0.5 text-xs text-text-secondary">{person(row)}</p>
+                <p className="mt-1 text-xs text-zinc-600">{person(row)}</p>
               ) : null}
-              {money(row) ? <p className="mt-0.5 text-text-secondary">{money(row)}</p> : null}
-              {row.location ? <p className="mt-0.5 text-xs text-text-muted">{row.location}</p> : null}
-              {row.summary ? <p className="mt-0.5 text-xs text-text-muted">{row.summary}</p> : null}
+              {money(row) ? <p className="mt-0.5 tabular-nums text-zinc-800">{money(row)}</p> : null}
+              {row.location ? <p className="mt-0.5 text-xs text-zinc-500">{row.location}</p> : null}
+              {row.summary ? <p className="mt-0.5 text-xs text-zinc-500">{row.summary}</p> : null}
               {row.lot_url ? (
                 <a
                   href={row.lot_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-0.5 block truncate text-xs text-accent-dark underline underline-offset-2"
+                  className="mt-0.5 block truncate text-xs text-emerald-700 underline-offset-2 hover:underline"
                 >
                   {row.lot_url}
                 </a>

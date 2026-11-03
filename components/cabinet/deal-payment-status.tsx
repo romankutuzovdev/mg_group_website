@@ -107,11 +107,11 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
   ];
 
   return (
-    <section className="rounded-xl border border-border bg-white p-3 sm:p-4">
+    <section className="rounded-lg border border-zinc-200 bg-white shadow-sm p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold">Оплата</h3>
-          <p className="mt-0.5 text-xs text-text-muted">
+          <h3 className="text-sm font-semibold text-zinc-900">Оплата</h3>
+          <p className="mt-0.5 text-xs text-zinc-500">
             {doneCount === 2
               ? "Оба этапа оплаты закрыты"
               : doneCount === 1
@@ -119,7 +119,7 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
                 : "Ожидает оплаты"}
           </p>
         </div>
-        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
+        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium tabular-nums text-zinc-600 ring-1 ring-inset ring-zinc-200">
           {doneCount}/2
         </span>
       </div>
@@ -129,28 +129,28 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
           <li
             key={row.stage}
             className={[
-              "flex flex-col gap-2 rounded-xl border px-3 py-3 sm:flex-row sm:items-center sm:justify-between",
+              "flex flex-col gap-2 rounded-md border px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between",
               row.paid
-                ? "border-emerald-200 bg-emerald-50/60"
+                ? "border-emerald-200 bg-emerald-50/40"
                 : paymentDueOverdue(row.due)
-                  ? "border-red-200 bg-red-50/70"
-                  : "border-border bg-zinc-50/50",
+                  ? "border-rose-200 bg-rose-50/50"
+                  : "border-zinc-200 bg-white",
             ].join(" ")}
           >
             <div className="flex min-w-0 items-start gap-3">
               <span
                 className={[
-                  "mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                  "mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
                   row.paid
                     ? "bg-emerald-600 text-white"
-                    : "bg-zinc-200 text-zinc-600",
+                    : "bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-200",
                 ].join(" ")}
               >
                 {row.paid ? "✓" : row.stage}
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-zinc-900">{row.label}</p>
-                <p className="text-xs text-text-muted">
+                <p className="text-[13px] font-medium text-zinc-900">{row.label}</p>
+                <p className="text-xs text-zinc-500">
                   {row.paid
                     ? `Закрыт${formatAt(row.at) ? ` · ${formatAt(row.at)}` : ""}`
                     : row.canClose
@@ -163,14 +163,14 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
                     : ""}
                 </p>
                 {isAdmin ? (
-                  <label className="mt-2 block text-[11px] text-text-muted">
+                  <label className="mt-2 block text-[11px] text-zinc-500">
                     Срок оплаты
                     <input
                       type="date"
                       disabled={busy}
                       value={row.due || ""}
                       onChange={(e) => saveDue(row.stage, e.target.value)}
-                      className="mt-1 block w-full max-w-[11rem] rounded-lg border border-border bg-white px-2 py-1.5 text-sm text-zinc-900"
+                      className="mt-1 block h-8 w-full max-w-[11rem] rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-zinc-900 shadow-sm"
                     />
                   </label>
                 ) : null}
@@ -184,7 +184,7 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
                     type="button"
                     disabled={busy}
                     onClick={() => setStage(row.stage, false)}
-                    className="min-h-10 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 sm:min-h-0"
+                    className="inline-flex h-8 items-center rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
                   >
                     Снять отметку
                   </button>
@@ -193,7 +193,7 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
                     type="button"
                     disabled={busy || !row.canClose}
                     onClick={() => setStage(row.stage, true)}
-                    className="min-h-10 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 sm:min-h-0"
+                    className="inline-flex h-8 items-center rounded-md bg-emerald-600 px-3 text-xs font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
                   >
                     Этап закрыт
                   </button>
@@ -202,10 +202,10 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
             ) : (
               <span
                 className={[
-                  "self-start rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:self-center",
+                  "self-start rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset sm:self-center",
                   row.paid
-                    ? "bg-emerald-100 text-emerald-800"
-                    : "bg-zinc-200 text-zinc-600",
+                    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                    : "bg-zinc-100 text-zinc-600 ring-zinc-200",
                 ].join(" ")}
               >
                 {row.paid ? "Оплачено" : "Ожидает"}
@@ -216,7 +216,7 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
       </ol>
 
       {error ? (
-        <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs text-red-700">
+        <p className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
           {error}
         </p>
       ) : null}

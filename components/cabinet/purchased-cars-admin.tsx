@@ -128,9 +128,9 @@ export function PurchasedCarsAdmin() {
   );
 
   return (
-    <div className="rounded-2xl border border-border bg-bg-elevated p-5 sm:p-6">
-      <h2 className="font-display text-lg font-semibold">Купленные авто (витрина)</h2>
-      <p className="mt-1 text-sm text-text-secondary">
+    <div className="rounded-lg border border-zinc-200 bg-white shadow-sm p-4 sm:p-5">
+      <h2 className="text-sm font-semibold text-zinc-900">Новая запись витрины</h2>
+      <p className="mt-0.5 text-xs text-zinc-500">
         Раздел временно скрыт с сайта. Записи можно сохранять в базе — появятся после возврата витрины.
         Машинокомплекты сюда не входят.
       </p>

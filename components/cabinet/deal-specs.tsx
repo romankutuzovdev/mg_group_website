@@ -36,22 +36,22 @@ export function DealSpecsGrid({
   return (
     <div
       className={[
-        "overflow-hidden rounded-xl border border-zinc-200/80 bg-white",
+        "overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
     >
-      <div className="border-b border-zinc-100 px-3 py-2">
-        <p className="text-xs font-semibold text-zinc-800">Характеристики лота</p>
+      <div className="border-b border-zinc-100 px-4 py-3">
+        <p className="text-sm font-semibold text-zinc-900">Характеристики лота</p>
       </div>
-      <dl className="grid grid-cols-2 gap-px bg-zinc-100 sm:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-px bg-zinc-100">
         {rows.map((row) => (
-          <div key={row.label} className="bg-white px-3 py-2">
-            <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-              {row.label}
-            </dt>
-            <dd className="mt-0.5 text-sm font-medium text-zinc-900">{row.value}</dd>
+          <div key={row.label} className="bg-white px-4 py-2.5">
+            <dt className="text-[11px] font-medium text-zinc-500">{row.label}</dt>
+            <dd className="mt-0.5 truncate text-[13px] font-medium text-zinc-900" title={row.value}>
+              {row.value}
+            </dd>
           </div>
         ))}
       </dl>

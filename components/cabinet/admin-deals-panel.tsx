@@ -823,12 +823,12 @@ export function AdminDealsPanel({
   };
 
   const field =
-    "mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-sm outline-none ring-emerald-500/30 transition focus:bg-white focus:ring-2";
-  const labelMuted = "font-medium text-zinc-500";
+    "mt-1.5 h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20";
+  const labelMuted = "font-medium text-zinc-600";
 
   if (loading && !loadedOnce) {
     return (
-      <div className="flex min-h-[280px] items-center justify-center rounded-2xl border border-zinc-200/80 bg-white">
+      <div className="flex min-h-[280px] items-center justify-center rounded-lg border border-zinc-200 bg-white shadow-sm">
         <div className="flex items-center gap-3 text-sm text-zinc-500">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
           Загрузка CRM…
@@ -839,7 +839,7 @@ export function AdminDealsPanel({
 
   if (!loadedOnce && error) {
     return (
-      <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-2xl border border-rose-200 bg-rose-50/60 px-4 text-center">
+      <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-lg border border-rose-200 bg-rose-50/60 px-4 text-center">
         <p className="max-w-md text-sm text-rose-800">{error}</p>
         <button
           type="button"
@@ -853,75 +853,65 @@ export function AdminDealsPanel({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Workspace header */}
-      <div className="relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_180px_at_10%_-20%,rgba(16,185,129,0.12),transparent),radial-gradient(600px_160px_at_90%_0%,rgba(245,158,11,0.08),transparent)]" />
-        <div className="relative flex flex-col gap-4 p-4 sm:flex-row sm:items-end sm:justify-between sm:p-5">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700/80">
-              CRM · Pipeline
-            </p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
-              Менеджеры и клиенты
-            </h2>
-            <p className="mt-1 max-w-xl text-xs text-zinc-500 sm:text-sm">
-              Иерархия менеджер → клиент → авто. Создавайте аккаунты, сделки и контролируйте оплату.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setMobilePane("clients");
-                setCompose((v) => (v === "client" ? "none" : "client"));
-              }}
-              className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50"
-            >
-              {compose === "client" ? "Скрыть" : "+ Клиент"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (compose === "deal") setCompose("none");
-                else openDealCompose();
-              }}
-              className="rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800"
-            >
-              {compose === "deal" ? "Скрыть" : "+ Сделка"}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void load()}
-              className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-600 shadow-sm transition hover:bg-zinc-50 disabled:opacity-50"
-            >
-              Обновить
-            </button>
-          </div>
+    <div className="space-y-5">
+      {/* Page header */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">CRM · клиенты</h1>
+          <p className="mt-1 max-w-2xl text-[13px] text-zinc-500">
+            Менеджер → клиент → автомобиль. Аккаунты, сделки, сроки оплаты.
+          </p>
         </div>
-
-        <div className="relative grid grid-cols-2 gap-px border-t border-zinc-100 bg-zinc-100 sm:grid-cols-4">
-          {[
-            { label: "Клиенты", value: stats.clients },
-            { label: "Сделки", value: stats.deals },
-            { label: "В работе", value: stats.active },
-            { label: "Менеджеры", value: stats.managers },
-          ].map((s) => (
-            <div key={s.label} className="bg-white px-4 py-3">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-                {s.label}
-              </p>
-              <p className="mt-0.5 text-xl font-semibold tabular-nums text-zinc-900">
-                {s.value}
-              </p>
-            </div>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void load()}
+            className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-200 bg-white px-3.5 text-[13px] font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:opacity-50"
+          >
+            Обновить
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMobilePane("clients");
+              setCompose((v) => (v === "client" ? "none" : "client"));
+            }}
+            className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-200 bg-white px-3.5 text-[13px] font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:opacity-50"
+          >
+            {compose === "client" ? "Скрыть форму" : "+ Клиент"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (compose === "deal") setCompose("none");
+              else openDealCompose();
+            }}
+            className="inline-flex h-9 items-center justify-center rounded-md bg-emerald-600 px-3.5 text-[13px] font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {compose === "deal" ? "Скрыть форму" : "+ Сделка"}
+          </button>
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {[
+          { label: "Клиенты", value: stats.clients },
+          { label: "Сделки", value: stats.deals },
+          { label: "В работе", value: stats.active },
+          { label: "Менеджеры", value: stats.managers },
+        ].map((s) => (
+          <div key={s.label} className="rounded-lg border border-zinc-200 bg-white shadow-sm px-4 py-3.5">
+            <p className="text-xs font-medium text-zinc-500">{s.label}</p>
+            <p className="mt-1.5 text-2xl font-semibold tabular-nums tracking-tight text-zinc-900">
+              {s.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
       {error ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-800">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-800">
           <span>{error}</span>
           <button
             type="button"
@@ -933,26 +923,20 @@ export function AdminDealsPanel({
         </div>
       ) : null}
       {ok ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs text-emerald-900">
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[13px] text-emerald-900">
           {ok}
         </div>
       ) : null}
 
       {canAssignRoles ? (
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-emerald-50/60 px-4 py-3.5 shadow-sm">
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white shadow-sm px-4 py-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-800/70">
-              Access control
-            </p>
-            <h3 className="mt-0.5 text-sm font-semibold text-zinc-900">Менеджеры</h3>
-            <p className="mt-0.5 text-xs text-zinc-600">
-              Назначение и снятие роли — на отдельной странице.
+            <h3 className="text-sm font-semibold text-zinc-900">Роли менеджеров</h3>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Назначение и снятие роли менеджера на отдельной странице.
             </p>
           </div>
-          <a
-            href="/cabinet/managers/"
-            className="shrink-0 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-500"
-          >
+          <a href="/cabinet/managers/" className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-200 bg-white px-3.5 text-[13px] font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:opacity-50">
             Открыть
           </a>
         </section>
@@ -961,13 +945,10 @@ export function AdminDealsPanel({
       {compose === "client" ? (
         <form
           onSubmit={(e) => void createClientAccount(e)}
-          className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5"
+          className="space-y-3 rounded-lg border border-zinc-200 bg-white shadow-sm p-4 sm:p-5"
         >
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700/80">
-              Onboarding
-            </p>
-            <h3 className="mt-0.5 text-sm font-semibold text-zinc-900">Новый аккаунт клиента</h3>
+            <h3 className="text-sm font-semibold text-zinc-900">Новый аккаунт клиента</h3>
             <p className="mt-0.5 text-xs text-zinc-500">
               Логин — номер телефона. Пароль задаёте вы и передаёте клиенту.
             </p>
@@ -1016,26 +997,26 @@ export function AdminDealsPanel({
                 <button
                   type="button"
                   onClick={() => setClientPassword(generateClientPassword())}
-                  className="shrink-0 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50"
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-200 bg-white px-3.5 text-[13px] font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:opacity-50 shrink-0"
                 >
                   Сгенерировать
                 </button>
               </div>
             </label>
           </div>
-          <p className="rounded-xl border border-sky-100 bg-sky-50/80 px-3 py-2 text-xs text-sky-900">
+          <p className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
             После создания на телефон клиента автоматически уйдёт SMS: логин, пароль и ссылка
             https://mg-group.by/cabinet/
           </p>
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-600 disabled:opacity-50 sm:w-auto"
+            className="inline-flex h-9 items-center justify-center rounded-md bg-emerald-600 px-3.5 text-[13px] font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50 w-full sm:w-auto"
           >
             {busy ? "Создаём…" : "Создать аккаунт"}
           </button>
           {createdCreds ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm">
+            <div className="rounded-md border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm">
               <p className="font-semibold text-emerald-900">Передайте клиенту</p>
               <p className="mt-1 text-xs text-zinc-500">{createdCreds.name}</p>
               <p className="mt-2 font-mono text-sm">
@@ -1065,13 +1046,10 @@ export function AdminDealsPanel({
         ref={dealFormRef}
         id="admin-deal-compose"
         onSubmit={(e) => void submit(e)}
-        className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm ring-2 ring-emerald-500/20 sm:p-5"
+        className="scroll-mt-4 space-y-3 rounded-lg border border-zinc-200 bg-white shadow-sm p-4 ring-2 ring-emerald-500/15 sm:p-5"
       >
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700/80">
-            Deal intake
-          </p>
-          <h3 className="mt-0.5 text-sm font-semibold text-zinc-900">Новая сделка</h3>
+          <h3 className="text-sm font-semibold text-zinc-900">Новая сделка</h3>
           <p className="mt-0.5 text-xs text-zinc-500">
             Клиент, лот с аукциона, менеджер и сроки двух этапов оплаты.
           </p>
@@ -1297,7 +1275,7 @@ export function AdminDealsPanel({
           </label>
         </div>
         {telegramId ? (
-          <p className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500">
+          <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500">
             Менеджер сделки:{" "}
             <span className="font-semibold text-zinc-800">
               {(() => {
@@ -1372,7 +1350,7 @@ export function AdminDealsPanel({
       ) : null}
 
       {/* CRM board: clients | cars */}
-      <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
         {/* Mobile tabs */}
         <div className="flex border-b border-zinc-100 lg:hidden">
           <button
@@ -1414,21 +1392,18 @@ export function AdminDealsPanel({
             <div className="border-b border-zinc-100 bg-white p-3">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
-                    Contacts
-                  </p>
                   <p className="text-sm font-semibold text-zinc-900">Клиенты</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setCompose("client")}
-                  className="rounded-lg bg-zinc-900 px-2.5 py-1.5 text-[11px] font-semibold text-white"
+                  className="inline-flex h-7 items-center rounded-md bg-zinc-900 px-2.5 text-[11px] font-medium text-white"
                 >
                   + Новый
                 </button>
               </div>
               <input
-                className="mt-2.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-sm outline-none ring-emerald-500/30 placeholder:text-zinc-400 focus:bg-white focus:ring-2"
+                className="mt-2.5 h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-[13px] shadow-sm outline-none placeholder:text-zinc-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Поиск…"
@@ -1517,10 +1492,7 @@ export function AdminDealsPanel({
                   </button>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
-                        Client workspace
-                      </p>
-                      <h3 className="truncate text-base font-semibold text-zinc-900 sm:text-lg">
+                      <h3 className="truncate text-base font-semibold text-zinc-900">
                         {selectedClient.label}
                       </h3>
                       <p className="mt-0.5 text-xs text-zinc-500">
@@ -1599,7 +1571,7 @@ export function AdminDealsPanel({
                         type="button"
                         disabled={busy}
                         onClick={() => void resetSelectedPassword()}
-                        className="rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                        className="inline-flex h-8 items-center rounded-md bg-zinc-900 px-3 text-xs font-medium text-white shadow-sm disabled:opacity-50"
                       >
                         {busy ? "Сохраняем…" : "Сохранить пароль"}
                       </button>
@@ -1633,7 +1605,7 @@ export function AdminDealsPanel({
 
                 <div className="flex-1 space-y-2.5 overflow-y-auto p-3 sm:p-4 lg:max-h-[min(68vh,720px)]">
                   {selectedClient.deals.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-12 text-center">
+                    <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/60 px-4 py-12 text-center">
                       <p className="text-sm font-medium text-zinc-700">
                         У клиента пока нет авто
                       </p>
@@ -1643,7 +1615,7 @@ export function AdminDealsPanel({
                       <button
                         type="button"
                         onClick={() => openDealCompose(selectedClient.telegramId)}
-                        className="mt-4 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500"
+                        className="inline-flex h-9 items-center justify-center rounded-md bg-emerald-600 px-3.5 text-[13px] font-medium text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50 mt-4"
                       >
                         Создать сделку
                       </button>
@@ -1662,7 +1634,7 @@ export function AdminDealsPanel({
                       return (
                         <article
                           key={deal.id}
-                          className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm"
+                          className="overflow-hidden rounded-md border border-zinc-200 bg-white"
                         >
                           <button
                             type="button"

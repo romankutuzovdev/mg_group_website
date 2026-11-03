@@ -54,15 +54,10 @@ export function DealTrackingLink({ deal, isManager = false, onUpdated }: Props) 
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-      <div className="border-b border-zinc-100 bg-gradient-to-br from-zinc-50 to-sky-50/40 px-4 py-3.5 sm:px-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-800/80">
-          Tracking
-        </p>
-        <h3 className="mt-0.5 text-base font-semibold text-zinc-900 sm:text-lg">
-          Трекер авто
-        </h3>
-        <p className="mt-1 text-xs text-zinc-500">
+    <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <div className="border-b border-zinc-100 px-4 py-3 sm:px-5">
+        <h3 className="text-sm font-semibold text-zinc-900">Трекер авто</h3>
+        <p className="mt-0.5 text-xs text-zinc-500">
           {isManager
             ? "Вставьте ссылку на внешний ресурс, где клиент смотрит статус авто."
             : "Откройте ссылку — там трекер для отслеживания вашего авто."}
@@ -75,7 +70,7 @@ export function DealTrackingLink({ deal, isManager = false, onUpdated }: Props) 
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3.5 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
+            className="flex items-center justify-between gap-3 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-[13px] font-medium text-zinc-900 transition hover:border-emerald-300 hover:bg-emerald-50/40"
           >
             <span className="min-w-0 truncate">{href}</span>
             <span className="shrink-0 text-xs font-semibold text-emerald-700">
@@ -83,7 +78,7 @@ export function DealTrackingLink({ deal, isManager = false, onUpdated }: Props) 
             </span>
           </a>
         ) : (
-          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
+          <p className="rounded-md border border-dashed border-zinc-200 bg-zinc-50/60 px-4 py-6 text-center text-[13px] text-zinc-500">
             {isManager
               ? "Ссылка ещё не добавлена"
               : "Менеджер пока не добавил ссылку на трекер"}
@@ -95,7 +90,7 @@ export function DealTrackingLink({ deal, isManager = false, onUpdated }: Props) 
             <label className="block text-xs font-medium text-zinc-500">
               Ссылка на трекер
               <input
-                className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-sm outline-none ring-emerald-500/30 transition focus:bg-white focus:ring-2"
+                className="mt-1.5 h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-[13px] shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://…"
@@ -106,7 +101,7 @@ export function DealTrackingLink({ deal, isManager = false, onUpdated }: Props) 
               type="button"
               disabled={busy}
               onClick={() => void save()}
-              className="rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:opacity-50"
+              className="inline-flex h-8 items-center rounded-md bg-zinc-900 px-3 text-xs font-medium text-white shadow-sm transition hover:bg-zinc-800 disabled:opacity-50"
             >
               {busy ? "Сохраняем…" : "Сохранить ссылку"}
             </button>

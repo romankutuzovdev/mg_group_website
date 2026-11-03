@@ -114,7 +114,7 @@ export function ManagersAdmin() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-10 text-center text-sm text-zinc-500 shadow-sm">
+      <div className="rounded-lg border border-zinc-200 bg-white shadow-sm px-4 py-10 text-center text-[13px] text-zinc-500">
         Загрузка…
       </div>
     );
@@ -122,11 +122,11 @@ export function ManagersAdmin() {
 
   if (!me) {
     return (
-      <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm">
-        <p className="text-sm text-zinc-600">Войдите в кабинет как администратор.</p>
+      <div className="space-y-4 rounded-lg border border-zinc-200 bg-white shadow-sm p-6 text-center">
+        <p className="text-[13px] text-zinc-600">Войдите в кабинет как администратор.</p>
         <Link
           href="/cabinet/"
-          className="inline-flex rounded-xl bg-zinc-900 px-4 py-2.5 text-xs font-semibold text-white"
+          className="inline-flex h-9 items-center rounded-md bg-zinc-900 px-3.5 text-[13px] font-medium text-white"
         >
           В кабинет
         </Link>
@@ -136,13 +136,13 @@ export function ManagersAdmin() {
 
   if (!me.is_admin) {
     return (
-      <div className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center shadow-sm">
-        <p className="text-sm font-medium text-amber-950">
+      <div className="space-y-4 rounded-lg border border-amber-200 bg-amber-50 p-6 text-center">
+        <p className="text-[13px] font-medium text-amber-950">
           Назначать менеджеров может только администратор
         </p>
         <Link
           href="/cabinet/"
-          className="inline-flex rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-xs font-semibold text-amber-900"
+          className="inline-flex h-9 items-center rounded-md border border-amber-300 bg-white px-3.5 text-[13px] font-medium text-amber-900"
         >
           Назад в кабинет
         </Link>
@@ -152,14 +152,13 @@ export function ManagersAdmin() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-500">
-        Назначьте сотрудников — они смогут вести сделки и сроки оплаты.
-        Сейчас менеджеров:{" "}
-        <span className="font-semibold tabular-nums text-zinc-800">{managersCount}</span>
+      <p className="text-[13px] text-zinc-500">
+        Менеджер ведёт сделки клиентов и сроки оплаты. Сейчас менеджеров:{" "}
+        <span className="font-medium tabular-nums text-zinc-900">{managersCount}</span>
       </p>
 
       {error ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-800">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-800">
           <span>{error}</span>
           <button
             type="button"
@@ -171,26 +170,23 @@ export function ManagersAdmin() {
         </div>
       ) : null}
       {ok ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs text-emerald-900">
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[13px] text-emerald-900">
           {ok}
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-4 py-3">
-          <label className="block text-[11px] font-medium text-zinc-500">
-            Поиск
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Имя, телефон, @username…"
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-zinc-50/60 px-3.5 py-2.5 text-sm outline-none ring-emerald-500/25 transition focus:bg-white focus:ring-2"
-            />
-          </label>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Поиск: имя, телефон, @username"
+            className="h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-[13px] shadow-sm outline-none placeholder:text-zinc-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+          />
         </div>
 
         {filtered.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-zinc-500">
+          <p className="px-4 py-10 text-center text-[13px] text-zinc-500">
             {users.length === 0
               ? "Пока никто не входил в кабинет"
               : "Никого не найдено по запросу"}
@@ -200,7 +196,7 @@ export function ManagersAdmin() {
             {filtered.map((u) => (
               <li
                 key={u.id}
-                className="flex items-center justify-between gap-3 px-4 py-3.5 transition hover:bg-zinc-50/80"
+                className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-zinc-50"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   {u.photo_url ? (
@@ -208,18 +204,18 @@ export function ManagersAdmin() {
                     <img
                       src={u.photo_url}
                       alt=""
-                      className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
+                      className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
                     />
                   ) : (
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-semibold text-zinc-600">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200">
                       {initials(u)}
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-zinc-900">
+                    <p className="truncate text-[13px] font-medium text-zinc-900">
                       {userLabel(u)}
                     </p>
-                    <p className="text-[11px] text-zinc-400">
+                    <p className="text-[11px] text-zinc-500">
                       {roleLabel(u)}
                       {u.created_at ? ` · с ${u.created_at.slice(0, 10)}` : ""}
                       {u.telegram_id ? ` · TG ${u.telegram_id}` : ""}
@@ -227,7 +223,7 @@ export function ManagersAdmin() {
                   </div>
                 </div>
                 {u.is_admin ? (
-                  <span className="shrink-0 rounded-lg bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200/80">
+                  <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
                     Админ
                   </span>
                 ) : (
@@ -236,10 +232,10 @@ export function ManagersAdmin() {
                     disabled={busyId != null}
                     onClick={() => void toggleManager(u)}
                     className={[
-                      "shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm transition disabled:opacity-50",
+                      "inline-flex h-8 shrink-0 items-center rounded-md px-3 text-xs font-medium shadow-sm transition disabled:opacity-50",
                       u.is_manager
                         ? "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-                        : "bg-emerald-600 text-white hover:bg-emerald-500",
+                        : "bg-emerald-600 text-white hover:bg-emerald-700",
                     ].join(" ")}
                   >
                     {busyId === u.id

@@ -3,7 +3,8 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import type { GetStaticProps } from "next";
 import SEO from "@/components/SEO";
-import { PageShell } from "@/components/layout/page-shell";
+import { CabinetFrame } from "@/components/cabinet/app-shell";
+import { Button, Notice, inputClass, labelClass } from "@/components/cabinet/ui";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
 import { loginWithPassword } from "@/lib/api/cabinet";
@@ -71,25 +72,33 @@ export default function AdminLoginPage({ dictionary }: Props) {
       <Head>
         <meta name="robots" content="noindex, nofollow" />
       </Head>
-      <PageShell>
-        <div className="mx-auto w-full max-w-md rounded-xl border border-border bg-white p-5 sm:p-6">
-          <h1 className="text-lg font-semibold text-text-primary">Вход администратора</h1>
-          <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-3">
-            <label className="block text-sm">
-              <span className="text-text-muted">Логин</span>
+      <CabinetFrame>
+        <div className="flex min-h-[100dvh] flex-col items-center justify-center px-4 py-10">
+          <Link href="/" className="mb-6 flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-zinc-900 text-xs font-bold text-white">
+              MG
+            </span>
+            <span className="text-sm font-semibold text-zinc-900">MG.GROUP</span>
+          </Link>
+          <div className="w-full max-w-[400px] rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:p-7">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Вход администратора</h1>
+          <p className="mt-1 text-[13px] text-zinc-500">Служебный доступ к CRM и логистике.</p>
+          <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-4">
+            <label className={labelClass}>
+              Логин
               <input
-                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm"
+                className={`${inputClass} mt-1.5`}
                 value={login}
                 onChange={(e) => setLogin(e.target.value)}
                 autoComplete="username"
                 required
               />
             </label>
-            <label className="block text-sm">
-              <span className="text-text-muted">Пароль</span>
+            <label className={labelClass}>
+              Пароль
               <input
                 type="password"
-                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm"
+                className={`${inputClass} mt-1.5`}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
@@ -128,21 +137,20 @@ export default function AdminLoginPage({ dictionary }: Props) {
                 Согласен(на) на сервисные уведомления (статус сделки, SMS о кабинете)
               </ConsentCheck>
             </div>
-            {error ? (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {error}
-              </p>
-            ) : null}
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-            >
+            {error ? <Notice tone="danger">{error}</Notice> : null}
+            <Button type="submit" variant="primary" disabled={busy} className="h-10 w-full text-sm">
               {busy ? "Входим…" : "Войти"}
-            </button>
+            </Button>
           </form>
+          </div>
+          <p className="mt-6 text-[13px] text-zinc-500">
+            Клиент?{" "}
+            <Link href="/cabinet/" className="font-medium text-zinc-900 underline underline-offset-2">
+              Вход в личный кабинет
+            </Link>
+          </p>
         </div>
-      </PageShell>
+      </CabinetFrame>
     </>
   );
 }

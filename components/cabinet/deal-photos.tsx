@@ -43,11 +43,11 @@ export function DealPhotos({ deal, isAdmin = false, onUpdated }: Props) {
   };
 
   return (
-    <section className="rounded-xl border border-border bg-white p-3 sm:p-4">
+    <section className="rounded-lg border border-zinc-200 bg-white shadow-sm p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold">Фото авто</h3>
-          <p className="mt-0.5 text-xs text-text-muted">
+          <h3 className="text-sm font-semibold text-zinc-900">Фото авто</h3>
+          <p className="mt-0.5 text-xs text-zinc-500">
             {photos.length
               ? `${photos.length} фото`
               : isAdmin
@@ -72,7 +72,7 @@ export function DealPhotos({ deal, isAdmin = false, onUpdated }: Props) {
               type="button"
               disabled={busy}
               onClick={() => inputRef.current?.click()}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 sm:min-h-0"
+              className="inline-flex h-8 items-center justify-center rounded-md bg-emerald-600 px-3 text-xs font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
             >
               {busy ? "Загрузка…" : "+ Добавить фото"}
             </button>
@@ -81,7 +81,7 @@ export function DealPhotos({ deal, isAdmin = false, onUpdated }: Props) {
       </div>
 
       {error ? (
-        <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs text-red-700">
+        <p className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
           {error}
         </p>
       ) : null}
@@ -95,7 +95,7 @@ export function DealPhotos({ deal, isAdmin = false, onUpdated }: Props) {
                 <button
                   type="button"
                   onClick={() => setLightbox(photo)}
-                  className="block w-full overflow-hidden rounded-xl border border-border bg-zinc-50 text-left transition hover:border-emerald-400/60"
+                  className="block w-full overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 text-left transition hover:border-emerald-400"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -110,7 +110,7 @@ export function DealPhotos({ deal, isAdmin = false, onUpdated }: Props) {
           })}
         </ul>
       ) : (
-        <div className="mt-3 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-3 py-8 text-center text-xs text-zinc-400">
+        <div className="mt-3 rounded-md border border-dashed border-zinc-200 bg-zinc-50/60 px-3 py-8 text-center text-[13px] text-zinc-500">
           {isAdmin ? "Нажмите «Добавить фото», чтобы загрузить снимки" : "Фото появятся здесь"}
         </div>
       )}

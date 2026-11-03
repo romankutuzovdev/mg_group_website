@@ -193,12 +193,12 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-white">
-      <div className="border-b border-border bg-gradient-to-br from-zinc-50 to-emerald-50/50 px-4 py-3.5 sm:px-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700/80">
+    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <div className="border-b border-zinc-100 px-4 py-3 sm:px-5">
+        <h3 className="text-sm font-semibold text-zinc-900">
           {kit ? "Путь машинокомплекта" : "Путь автомобиля"}
-        </p>
-        <p className="mt-1 font-display text-lg font-semibold tracking-tight text-zinc-900">
+        </h3>
+        <p className="mt-1 text-[13px] font-medium text-zinc-700">
           {kit ? (
             <>
               Аукцион
@@ -226,7 +226,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
             <label className="block text-xs">
               <span className="text-zinc-500">Откуда</span>
               <select
-                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm"
+                className="mt-1 h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-[13px] shadow-sm"
                 value={deal.origin_region || "usa"}
                 disabled={busy}
                 onChange={(e) =>
@@ -241,7 +241,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
             <label className="block text-xs">
               <span className="text-zinc-500">Старт</span>
               <select
-                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm"
+                className="mt-1 h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-[13px] shadow-sm"
                 value={deal.origin_point || "dismantle"}
                 disabled={busy}
                 onChange={(e) =>
@@ -257,14 +257,14 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
         ) : null}
       </div>
 
-      <ol className="divide-y divide-border">
+      <ol className="divide-y divide-zinc-100">
         {sections.map((section, idx) => {
           const open = openKeys.has(section.key);
           const isActive = section.status === "active";
           const isDone = section.status === "done";
 
           return (
-            <li key={section.key} className={isActive ? "bg-emerald-50/40" : "bg-white"}>
+            <li key={section.key} className={isActive ? "bg-emerald-50/30" : "bg-white"}>
               <button
                 type="button"
                 onClick={() => toggleSection(section.key)}
@@ -272,29 +272,29 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
               >
                 <span
                   className={[
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
                     isDone
                       ? "bg-emerald-600 text-white"
                       : isActive
-                        ? "bg-emerald-100 text-emerald-800 ring-2 ring-emerald-400"
-                        : "bg-zinc-100 text-zinc-500",
+                        ? "bg-white text-emerald-700 ring-2 ring-emerald-500"
+                        : "bg-zinc-100 text-zinc-500 ring-1 ring-inset ring-zinc-200",
                   ].join(" ")}
                 >
                   {isDone ? "✓" : idx + 1}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-display text-base font-semibold text-zinc-900">
+                    <p className="text-[13px] font-semibold text-zinc-900">
                       {section.label}
                     </p>
                     <span
                       className={[
-                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                        "rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
                         isDone
-                          ? "bg-emerald-100 text-emerald-800"
+                          ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
                           : isActive
-                            ? "bg-emerald-600 text-white"
-                            : "bg-zinc-200 text-zinc-600",
+                            ? "bg-emerald-600 text-white ring-emerald-600"
+                            : "bg-zinc-100 text-zinc-600 ring-zinc-200",
                       ].join(" ")}
                     >
                       {statusWord(section.status)}

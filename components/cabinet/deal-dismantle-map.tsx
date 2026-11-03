@@ -399,24 +399,58 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
   const regionBadge =
     (map?.origin_region || deal.origin_region) === "uk" ? "Англия" : "США";
 
+  // Одни и те же кнопки сверху и снизу карты — после длинной таблицы не нужно
+  // прокручивать наверх, чтобы отметить карту заполненной.
+  const actionButtons = (
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+      <button
+        type="button"
+        onClick={() => void onDownload()}
+        disabled={downloading || loading || !map}
+        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-3.5 text-[13px] font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:opacity-50 sm:w-auto"
+      >
+        {downloading ? "Скачиваем…" : "Скачать Excel"}
+      </button>
+      {!lockedForClient ? (
+        <button
+          type="button"
+          onClick={() => void setCompleted(!completed)}
+          disabled={completing || loading || !map}
+          className={[
+            "inline-flex h-9 w-full items-center justify-center rounded-md px-3.5 text-[13px] font-medium shadow-sm transition disabled:opacity-50 sm:w-auto",
+            completed
+              ? "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+              : "bg-emerald-600 text-white hover:bg-emerald-700",
+          ].join(" ")}
+        >
+          {completing
+            ? "Сохраняем…"
+            : completed
+              ? "Снять отметку"
+              : "Отметить как заполненную"}
+        </button>
+      ) : null}
+    </div>
+  );
+
   return (
-    <section className="rounded-xl border border-border bg-white p-3 sm:p-4">
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold sm:text-base">
+            <h3 className="text-sm font-semibold text-zinc-900">
               {map?.title || "Карта разбора"}
             </h3>
-            <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-700">
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
               {regionBadge}
             </span>
             {completed ? (
-              <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
                 Заполнена
               </span>
             ) : (
               <span
-                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ring-zinc-200 ${
                   saveState === "saving"
                     ? "bg-amber-50 text-amber-800"
                     : saveState === "saved"
@@ -436,7 +470,7 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-text-muted">
+          <p className="mt-0.5 text-xs text-zinc-500">
             {lockedForClient
               ? "Карта отмечена как заполненная. Изменить её может только менеджер."
               : completed && isManager
@@ -448,35 +482,7 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
                     : "Карта Англии: количество и доп. упаковка (да / —). Отметить можно один раз."}
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <button
-            type="button"
-            onClick={() => void onDownload()}
-            disabled={downloading || loading || !map}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-emerald-600/40 bg-white px-3.5 py-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 sm:min-h-0 sm:w-auto"
-          >
-            {downloading ? "Скачиваем…" : "Скачать Excel"}
-          </button>
-          {!lockedForClient ? (
-            <button
-              type="button"
-              onClick={() => void setCompleted(!completed)}
-              disabled={completing || loading || !map}
-              className={[
-                "inline-flex min-h-11 w-full items-center justify-center rounded-lg px-3.5 py-2.5 text-sm font-semibold disabled:opacity-50 sm:min-h-0 sm:w-auto",
-                completed
-                  ? "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-                  : "bg-emerald-600 text-white hover:bg-emerald-500",
-              ].join(" ")}
-            >
-              {completing
-                ? "Сохраняем…"
-                : completed
-                  ? "Снять отметку"
-                  : "Отметить как заполненную"}
-            </button>
-          ) : null}
-        </div>
+        {actionButtons}
       </div>
 
       {lockedForClient ? (
@@ -603,6 +609,16 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
               </tbody>
             </table>
           </div>
+        </div>
+      ) : null}
+      {map ? (
+        <div className="mt-4 flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-zinc-500">
+            {completed
+              ? "Карта отмечена как заполненная."
+              : "Проверили все позиции? Отметьте карту заполненной, менеджер получит уведомление."}
+          </p>
+          {actionButtons}
         </div>
       ) : null}
     </section>
