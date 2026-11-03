@@ -169,11 +169,11 @@ if (Test-Path $smokeLog) {
   Get-Content $smokeLog -Tail 50 | ForEach-Object { Write-Host "  $_" }
 }
 if ($alive) {
-  Write-Host "  smoke OK — stopping test process"
+  Write-Host "  smoke OK - stopping test process"
   Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
   Start-Sleep 1
 } else {
-  Write-Host "  smoke FAILED — Caddy exits immediately; fix errors in smoke-err.log above" -ForegroundColor Red
+  Write-Host "  smoke FAILED - Caddy exits immediately; fix errors in smoke-err.log above" -ForegroundColor Red
   Write-Host "  Common: port 80 busy, bad Caddyfile, missing caddy.exe deps"
   # still try to reinstall service below so logs are wired
 }
@@ -189,7 +189,7 @@ Start-Sleep 1
 & $nssm set $CaddyService Application $caddyExe
 & $nssm set $CaddyService AppDirectory $caddyDir
 & $nssm set $CaddyService AppParameters "run --config Caddyfile --adapter caddyfile"
-# NSSM wants newline-separated env in ONE value for some versions — use registry-safe form:
+# NSSM wants newline-separated env in ONE value for some versions - use registry-safe form:
 $envBlock = "HOME=$caddyDir`0XDG_DATA_HOME=$dataDir`0XDG_CONFIG_HOME=$configDir"
 & $nssm set $CaddyService AppEnvironmentExtra HOME=$caddyDir
 & $nssm set $CaddyService AppEnvironmentExtra HOME=$caddyDir XDG_DATA_HOME=$dataDir XDG_CONFIG_HOME=$configDir

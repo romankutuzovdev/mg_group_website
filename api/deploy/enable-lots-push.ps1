@@ -1,4 +1,4 @@
-# Enable Windows → VPS catalog push (fixes empty catalog on mg-group.by).
+# Enable Windows -> VPS catalog push (fixes empty catalog on mg-group.by).
 # Run on Windows as Admin:
 #   powershell -ExecutionPolicy Bypass -File C:\mg-api\api\deploy\enable-lots-push.ps1
 #
@@ -59,7 +59,7 @@ try {
   Write-Host "Health check failed: $_"
 }
 
-Write-Host "Force one push…"
+Write-Host "Force one push..."
 try {
   $headers = @{ "X-API-Key" = $IngestKey }
   $r = Invoke-RestMethod -Method Post -Headers $headers `

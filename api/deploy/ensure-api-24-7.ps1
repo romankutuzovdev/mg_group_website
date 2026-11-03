@@ -1,6 +1,6 @@
 # Keep mg-api + scrapers up 24/7 on Windows Server.
 # - NSSM: auto-restart uvicorn on crash
-# - Scheduled task every 2 min: health check → Start-Service → POST /scraper/start
+# - Scheduled task every 2 min: health check -> Start-Service -> POST /scraper/start
 # - Ensures Chrome CDP keepalive task exists (calls ensure-chrome-24-7 if missing)
 #
 # Run once as Administrator (interactive / AnyDesk user):
@@ -22,10 +22,10 @@ $taskKeep = "MG-API-Keepalive"
 $behindCaddy = Join-Path $deployDir ".behind-caddy"
 
 if (-not (Test-Path $apiDir)) {
-  throw "Missing $apiDir — clone repo to $AppDir first"
+  throw "Missing $apiDir - clone repo to $AppDir first"
 }
 
-# Resolve API port (Caddy → loopback 8080)
+# Resolve API port (Caddy -> loopback 8080)
 if ($ApiPort -le 0) {
   if (Test-Path $behindCaddy) { $ApiPort = 8080 } else { $ApiPort = 80 }
 }
@@ -64,17 +64,17 @@ if (Test-Path $nssm) {
       Start-Sleep -Seconds 5
     }
   } else {
-    Write-Host "Service $ServiceName not found — run setup-windows.ps1 first" -ForegroundColor Yellow
+    Write-Host "Service $ServiceName not found - run setup-windows.ps1 first" -ForegroundColor Yellow
   }
 } else {
-  Write-Host "nssm.exe missing at $nssm — skip NSSM tweak" -ForegroundColor Yellow
+  Write-Host "nssm.exe missing at $nssm - skip NSSM tweak" -ForegroundColor Yellow
 }
 
 # --- Chrome 24/7 (if not already registered) ---
 $chromeKeep = Get-ScheduledTask -TaskName "MG-Chrome-CDP-Keepalive" -ErrorAction SilentlyContinue
 $chromeEnsure = Join-Path $deployDir "ensure-chrome-24-7.ps1"
 if (-not $chromeKeep -and (Test-Path $chromeEnsure)) {
-  Write-Host "==> Chrome keepalive missing — running ensure-chrome-24-7.ps1"
+  Write-Host "==> Chrome keepalive missing - running ensure-chrome-24-7.ps1"
   try {
     & $psExe -NoProfile -ExecutionPolicy Bypass -File $chromeEnsure -AppDir $AppDir
   } catch {
@@ -121,7 +121,7 @@ if (`$svc -and `$svc.Status -ne 'Running') {
 
 # 2) Health
 if (-not (Ok-Http `$health)) {
-  Log "health FAIL — Restart-Service `$svcName"
+  Log "health FAIL - Restart-Service `$svcName"
   try { Restart-Service `$svcName -Force } catch { Log "Restart-Service failed: `$_" }
   Start-Sleep -Seconds 10
   if (-not (Ok-Http `$health)) { Log "health still FAIL after restart"; exit 0 }
@@ -130,7 +130,7 @@ if (-not (Ok-Http `$health)) {
 
 # 3) Chrome CDP (trigger existing chrome keepalive task if CDP down)
 if (-not (Ok-Cdp)) {
-  Log "Chrome window is not open — asking the desktop task to open Copart"
+  Log "Chrome window is not open - asking the desktop task to open Copart"
   try { Start-ScheduledTask -TaskName 'MG-Chrome-CDP-Keepalive' -EA SilentlyContinue } catch {}
   try { Start-ScheduledTask -TaskName 'MG-Chrome-CDP' -EA SilentlyContinue } catch {}
 }
@@ -139,7 +139,7 @@ if (-not (Ok-Cdp)) {
 try {
   `$st = Invoke-RestMethod -Uri `$statusUrl -TimeoutSec 15
   if (-not `$st.running) {
-    Log "scraper not running — POST /scraper/start"
+    Log "scraper not running - POST /scraper/start"
     try { Invoke-RestMethod -Method Post -Uri `$startUrl -TimeoutSec 30 | Out-Null } catch { Log "scraper start: `$_" }
   }
 } catch {
@@ -194,4 +194,4 @@ try {
 Write-Host ""
 Write-Host "24/7 API: NSSM AppExit + tasks $taskKeep / $taskBoot" -ForegroundColor Green
 Write-Host "Log: $dataDir\api-keepalive.log"
-Write-Host "If Copart/IAAI show last_blocked=incapsula — log into auctions in headed Chrome once."
+Write-Host "If Copart/IAAI show last_blocked=incapsula - log into auctions in headed Chrome once."

@@ -29,7 +29,7 @@ try { Get-Service mg-api | Format-Table Name, Status, StartType -AutoSize } catc
 try { Get-Service mg-chrome-cdp -ErrorAction Stop | Format-Table Name, Status, StartType -AutoSize } catch { Write-Host "  (no mg-chrome-cdp service - fine for headed mode)" }
 
 Section "2. API health ($base)"
-# Right after a deploy uvicorn needs up to ~2 min to load lots.json — retry instead of failing at once.
+# Right after a deploy uvicorn needs up to ~2 min to load lots.json - retry instead of failing at once.
 $h = $null
 for ($i = 1; $i -le 12; $i++) {
   try { $h = Invoke-RestMethod -Uri "$base/health" -TimeoutSec 10; break } catch { Write-Host "  waiting for API ($i/12)..."; Start-Sleep -Seconds 10 }

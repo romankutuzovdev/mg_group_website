@@ -32,7 +32,7 @@ try {
   Write-Host "OK (via API): $OutFile ($((Get-Item $OutFile).Length) bytes)"
   exit 0
 } catch {
-  Write-Warning "API export failed ($($_.Exception.Message)) — packing files directly"
+  Write-Warning "API export failed ($($_.Exception.Message)) - packing files directly"
 }
 
 if (Test-Path $OutFile) { Remove-Item -Force $OutFile }

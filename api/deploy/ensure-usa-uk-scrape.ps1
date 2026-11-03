@@ -14,7 +14,7 @@ try {
   $cdp = Invoke-WebRequest -Uri "http://127.0.0.1:9223/json/version" -UseBasicParsing -TimeoutSec 5
   Write-Host "  OK $($cdp.StatusCode)"
 } catch {
-  Write-Host "  CDP down — start headed Chrome first:" -ForegroundColor Yellow
+  Write-Host "  CDP down - start headed Chrome first:" -ForegroundColor Yellow
   Write-Host "  powershell -ExecutionPolicy Bypass -File $AppDir\api\deploy\start-headed-chrome.ps1"
   throw "Chrome CDP is required for Bid.cars and Copart UK"
 }
@@ -44,12 +44,29 @@ try {
   Write-Host "  scraper start: $_" -ForegroundColor Yellow
 }
 
-Write-Host "==> 5) One-shot Bid.cars (USA) + Copart UK"
-foreach ($src in @("bidcars", "copart_uk", "salvage_market")) {
+Write-Host "==> 5) Bid.cars (USA): background agent sweeps search JSON (no run-once - same Chrome tab)"
+for ($i = 1; $i -le 9; $i++) {
+  Start-Sleep -Seconds 20
+  try {
+    $st = Invoke-RestMethod -Uri "$base/api/v1/scraper/status" -TimeoutSec 15
+    $a = $st.agents.bidcars
+    if ($a) {
+      Write-Host ("  bidcars: running={0} cycles={1} pages={2} upserted={3} new={4} blocked={5} err={6}" -f `
+        $a.running, $a.cycles, $a.last_raw, $a.last_mapped, $a.last_new, $a.last_blocked, $a.last_error)
+      if ($a.last_blocked -eq "cloudflare") { Write-Host "  -> click the Cloudflare check in the Bid.cars Chrome tab, agent retries by itself" -ForegroundColor Yellow }
+      if ($a.cycles -ge 1 -or [int]($a.last_mapped) -gt 200) { break }
+    } else {
+      Write-Host "  bidcars agent not in status yet (scraper starting)..."
+    }
+  } catch { Write-Host "  status: $_" -ForegroundColor Yellow }
+}
+
+Write-Host "==> 5b) One-shot Copart UK + SalvageMarket"
+foreach ($src in @("copart_uk", "salvage_market")) {
   Write-Host "  run-once $src ..."
   try {
     $r = Invoke-WebRequest -Uri "$base/api/v1/scraper/run-once?sources=$src" -Method POST -UseBasicParsing -TimeoutSec 120
-    Write-Host "  $src → $($r.StatusCode) $($r.Content.Substring(0, [Math]::Min(240, $r.Content.Length)))"
+    Write-Host "  $src -> $($r.StatusCode) $($r.Content.Substring(0, [Math]::Min(240, $r.Content.Length)))"
   } catch {
     Write-Host "  $src failed (may still run in background loop): $_" -ForegroundColor Yellow
   }
@@ -68,4 +85,4 @@ try {
 
 Write-Host ""
 Write-Host "Keep Chrome open on Bid.cars + Copart UK. Pass Cloudflare if asked."
-Write-Host "USA cards appear as Bid.cars seeds search pages; UK needs VPN + Copart login."
+Write-Host "USA fills from Bid.cars search JSON (~50 lots/request); UK needs VPN + Copart login."
