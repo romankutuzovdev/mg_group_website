@@ -479,11 +479,22 @@ class PhotoEnrichmentAgent:
                 ) else (lot.source or lot.region or "")
                 from app.services.lot_photos import (
                     archive_gallery,
+                    is_our_photo as is_our_photo_url,
                     merge_gallery_urls,
                 )
 
-                # Always open the lot page in Chrome — never skip via DB CDN alone.
-                urls = await self.enrich_lot(page, lot)
+                # Bid.cars: the search JSON already gave the full gallery —
+                # archive it straight away, no lot page needed. Other sources
+                # always open the lot page in Chrome.
+                json_gallery = [
+                    u
+                    for u in list(lot.imageUrls or [])
+                    if u and u.startswith("http") and not is_our_photo_url(u)
+                ]
+                if (lot.source or "") == "bidcars" and lot.photosEnrichedAt and len(json_gallery) >= 3:
+                    urls = _dedupe(json_gallery, lot.source)[:40]
+                else:
+                    urls = await self.enrich_lot(page, lot)
                 saved: list[str] = []
                 if urls:
                     # Download with Chrome cookies so auction CDNs succeed.

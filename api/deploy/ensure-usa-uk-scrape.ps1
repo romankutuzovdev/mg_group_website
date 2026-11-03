@@ -22,6 +22,28 @@ try {
 Write-Host "==> 2) Pull latest + restart mg-api"
 & (Join-Path $AppDir "api\deploy\update-from-git.ps1")
 
+Write-Host "==> 2b) Chrome must run with the proxy flag when SCRAPER_PROXY_URL is set"
+$envFile = Join-Path $AppDir "api\.env"
+$proxySet = $false
+if (Test-Path $envFile) {
+  $proxySet = [bool](Get-Content $envFile | Where-Object { $_ -match "^\s*SCRAPER_PROXY_URL\s*=\s*\S" })
+}
+if ($proxySet) {
+  $cdpProc = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
+    Where-Object { $_.CommandLine -match "remote-debugging-port=9223" } | Select-Object -First 1
+  if ($cdpProc -and ($cdpProc.CommandLine -notmatch "--proxy-server=|--proxy-pac-url=")) {
+    Write-Host "  CDP Chrome runs WITHOUT proxy flags - restarting it via start-headed-chrome.ps1" -ForegroundColor Yellow
+    & (Join-Path $AppDir "api\deploy\start-headed-chrome.ps1") -SkipApiRestart
+    Start-Sleep -Seconds 15
+  } elseif ($cdpProc) {
+    Write-Host "  OK: Chrome has proxy flags"
+  } else {
+    Write-Host "  no CDP chrome process found via WMI (session mismatch?) - skip"
+  }
+} else {
+  Write-Host "  SCRAPER_PROXY_URL not set in api\.env - Chrome goes direct (BY IP: Bid.cars will not open)" -ForegroundColor Yellow
+}
+
 Write-Host "==> 3) Wait for health"
 $ok = $false
 for ($i = 1; $i -le 20; $i++) {

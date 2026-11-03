@@ -1239,9 +1239,20 @@ async def scrape_bidcars_api(
         if "bid.cars" not in (tab.url or ""):
             await tab.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=45_000)
         blocked = await _wait_ready(tab, seconds=25)
+        if blocked:
+            # Stuck challenge or Chrome error page (proxy down?) — one fresh
+            # navigation, then give the check up to 45s to auto-solve.
+            logger.warning("bidcars tab not ready (%s) — reloading search page", blocked)
+            try:
+                await tab.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=45_000)
+            except Exception as exc:
+                logger.warning("bidcars reload failed: %s", exc)
+            blocked = await _wait_ready(tab, seconds=45)
         if blocked == "cloudflare":
             logger.error("bidcars Cloudflare — solve the check in Chrome, then wait")
             return [{"_blocked": True, "reason": "cloudflare"}]
+        if blocked:
+            return [{"_blocked": True, "reason": blocked}]
 
         logger.info(
             "bidcars → JSON sweeps=%s pages≤%s delay=%sms", len(sweeps), pages_cap, pause

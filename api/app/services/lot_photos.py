@@ -626,6 +626,82 @@ async def _archive_via_chrome_page(
     return saved
 
 
+_NAV_ONLY_HOSTS = ("pluto.bid.car", "images.bid.cars", "bid.cars", "bid.car")
+
+
+def _needs_tab_navigation(url: str) -> bool:
+    """Bid.cars CDN (Cloudflare) answers 403 to fetch()/XHR and to the API host,
+    but a top-level tab navigation to the image URL returns the JPEG."""
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except Exception:
+        return False
+    return any(host == h or host.endswith("." + h) for h in _NAV_ONLY_HOSTS)
+
+
+async def _archive_via_tab_navigation(
+    page: Any | None,
+    *,
+    lot_id: str,
+    folder: Path,
+    pending: list[tuple[int, str]],
+) -> dict[int, str]:
+    """Open each image URL as a document in a helper tab and read the response body.
+
+    Goes through Chrome's own proxy/cookies; one navigation per photo.
+    """
+    saved: dict[int, str] = {}
+    if page is None or not pending:
+        return saved
+    try:
+        helper = await page.context.new_page()
+    except Exception as exc:
+        logger.debug("helper tab for photos: %s", exc)
+        return saved
+    challenged = 0
+    try:
+        for i, url in pending:
+            raw: bytes | None = None
+            for attempt in (1, 2):
+                try:
+                    resp = await helper.goto(url, wait_until="domcontentloaded", timeout=25_000)
+                except Exception as exc:
+                    logger.debug("tab photo %s: %s", url[:80], exc)
+                    break
+                if resp is None:
+                    break
+                ctype = (resp.headers.get("content-type") or "").lower()
+                if resp.status < 400 and ("image" in ctype or "octet-stream" in ctype):
+                    try:
+                        raw = await resp.body()
+                    except Exception:
+                        raw = None
+                    break
+                if resp.status in (403, 503) and attempt == 1:
+                    # Cloudflare check on the CDN zone — give it a moment to
+                    # auto-solve in the real browser, then load once more.
+                    challenged += 1
+                    await helper.wait_for_timeout(4500)
+                    continue
+                break
+            if not raw:
+                if challenged >= 3 and not saved:
+                    logger.warning("tab photo downloads blocked for %s — stop early", lot_id)
+                    break
+                continue
+            path = _write_display(folder, lot_id, i, url, raw)
+            if path:
+                saved[i] = path
+    finally:
+        try:
+            await helper.close()
+        except Exception:
+            pass
+    if saved:
+        logger.info("tab-navigation archived %s/%s photos for %s", len(saved), len(pending), lot_id)
+    return saved
+
+
 async def archive_gallery(
     lot_id: str,
     urls: list[str],
@@ -664,16 +740,43 @@ async def archive_gallery(
     if not remote and local_kept:
         return local_kept
 
+    # Bid.cars CDN: only a real tab navigation gets the JPEG (fetch/XHR → 403).
+    nav_pending: list[tuple[int, str]] = []
+    other_urls: list[str] = []
+    for i, url in enumerate(remote, start=1):
+        if _needs_tab_navigation(url):
+            existing = _existing_display(folder, lot_id, i, _prefer_download_url(url))
+            if existing:
+                continue
+            nav_pending.append((i, _prefer_download_url(url)))
+        else:
+            other_urls.append(url)
+    chrome_saved: dict[int, str] = {}
+    if nav_pending and page is not None:
+        chrome_saved.update(
+            await _archive_via_tab_navigation(
+                page, lot_id=lot_id, folder=folder, pending=nav_pending
+            )
+        )
+    for i, url in enumerate(remote, start=1):
+        if _needs_tab_navigation(url) and i not in chrome_saved:
+            existing = _existing_display(folder, lot_id, i, _prefer_download_url(url))
+            if existing:
+                chrome_saved[i] = existing
+
     # Copart CDN returns 403 to the Windows host. Pull bytes through the open
     # Chrome tab (same IP and cookies as the Copart UK page).
-    chrome_saved = await _archive_via_chrome_page(
-        page, lot_id=lot_id, folder=folder, urls=remote
-    )
+    if other_urls:
+        chrome_saved.update(
+            await _archive_via_chrome_page(
+                page, lot_id=lot_id, folder=folder, urls=remote
+            )
+        )
 
     missing: list[tuple[int, str]] = [
         (i, url)
         for i, url in enumerate(remote, start=1)
-        if not chrome_saved.get(i)
+        if not chrome_saved.get(i) and not _needs_tab_navigation(url)
     ]
     pw_request = None
     if page is not None and missing:

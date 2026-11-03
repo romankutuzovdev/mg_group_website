@@ -159,6 +159,7 @@ class SourceAgent:
         self.scrape = scrape
         self.mapper = mapper
         self.interval_seconds = interval_seconds
+        self._blocked_streak = 0
         self.status = AgentStatus(name=name)
         self._stop = asyncio.Event()
         self._task: asyncio.Task | None = None
@@ -539,17 +540,36 @@ class SourceAgent:
                 self._page = None
                 self.status.tab_open = False
             elif blocked and keep_open:
-                logger.warning(
-                    "agent %s blocked (%s) — leave Chrome tab open, solve challenge, then wait %ss",
-                    self.name,
-                    blocked,
-                    settings.scraper_blocked_retry_seconds,
-                )
-                try:
-                    if self._page and not self._page.is_closed():
-                        await self._page.bring_to_front()
-                except Exception:
-                    pass
+                self._blocked_streak += 1
+                if self._blocked_streak >= 2:
+                    # Stuck challenge / error page: a fresh tab usually passes.
+                    logger.warning(
+                        "agent %s blocked %s cycles in a row (%s) — closing tab, reopening fresh",
+                        self.name,
+                        self._blocked_streak,
+                        blocked,
+                    )
+                    try:
+                        await close_agent_tab(self._page, force=True)
+                    except Exception:
+                        pass
+                    self._page = None
+                    self.status.tab_open = False
+                    self._blocked_streak = 0
+                else:
+                    logger.warning(
+                        "agent %s blocked (%s) — leave Chrome tab open, solve challenge, then wait %ss",
+                        self.name,
+                        blocked,
+                        settings.scraper_blocked_retry_seconds,
+                    )
+                    try:
+                        if self._page and not self._page.is_closed():
+                            await self._page.bring_to_front()
+                    except Exception:
+                        pass
+            if not blocked:
+                self._blocked_streak = 0
             sleep_for = (
                 max(30, settings.scraper_blocked_retry_seconds)
                 if blocked

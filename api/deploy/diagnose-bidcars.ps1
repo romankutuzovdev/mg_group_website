@@ -98,6 +98,44 @@ try {
     Format-Table Name, InterfaceDescription, Status -AutoSize
 } catch {}
 
+Section "7b. Scraper proxy (SCRAPER_PROXY_URL -> local forwarder -> upstream)"
+$envFileP = Join-Path $apiDir ".env"
+$proxyLine = $null; $proxyPort = 9280
+if (Test-Path $envFileP) {
+  $proxyLine = Get-Content $envFileP | Where-Object { $_ -match "^\s*SCRAPER_PROXY_URL\s*=\s*\S" } | Select-Object -First 1
+  $pp = Get-Content $envFileP | Where-Object { $_ -match "^\s*SCRAPER_PROXY_LOCAL_PORT\s*=\s*(\d+)" } | Select-Object -First 1
+  if ($pp -and $pp -match "(\d+)\s*$") { $proxyPort = [int]$matches[1] }
+}
+if (-not $proxyLine) {
+  Write-Host "  SCRAPER_PROXY_URL is NOT set -> Chrome goes direct from BY, Bid.cars blocked" -ForegroundColor Red
+} else {
+  Write-Host "  SCRAPER_PROXY_URL set (hidden); local forwarder port $proxyPort"
+  if ($s -and $s.proxy) { Write-Host "  API status.proxy: " ($s.proxy | ConvertTo-Json -Compress) }
+  $lst = $null
+  try { $lst = Get-NetTCPConnection -LocalPort $proxyPort -State Listen -ErrorAction Stop | Select-Object -First 1 } catch {}
+  if ($lst) { Write-Host "  forwarder LISTENING on 127.0.0.1:$proxyPort" } else { Write-Host "  forwarder NOT listening on $proxyPort (API not restarted after .env change?)" -ForegroundColor Red }
+  try {
+    $viaProxy = Invoke-RestMethod -Uri "https://ipinfo.io/json" -Proxy "http://127.0.0.1:$proxyPort" -TimeoutSec 25
+    Write-Host "  exit via forwarder: ip=$($viaProxy.ip) country=$($viaProxy.country) org=$($viaProxy.org)"
+    if ($viaProxy.country -eq "BY") { Write-Host "  still BY through the proxy?!" -ForegroundColor Red }
+  } catch { Write-Host "  request via forwarder FAILED: $($_.Exception.Message)" -ForegroundColor Red }
+  try {
+    $cp = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -match "remote-debugging-port=$CdpPort" } | Select-Object -First 1
+    if ($cp) {
+      if ($cp.CommandLine -match "--proxy-server=|--proxy-pac-url=") { Write-Host "  CDP Chrome has proxy flag" }
+      else { Write-Host "  CDP Chrome started WITHOUT proxy flag -> run deploy\start-headed-chrome.ps1" -ForegroundColor Red }
+    }
+  } catch {}
+  try {
+    $r = Invoke-WebRequest -Uri "https://bid.cars/" -Proxy "http://127.0.0.1:$proxyPort" -UseBasicParsing -TimeoutSec 25 -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130 Safari/537.36"
+    Write-Host "  bid.cars via forwarder: $($r.StatusCode)"
+  } catch {
+    $code = $null; try { $code = [int]$_.Exception.Response.StatusCode } catch {}
+    if ($code) { Write-Host "  bid.cars via forwarder: HTTP $code (403 = Cloudflare check, normal for non-browser; Chrome passes it)" }
+    else { Write-Host "  bid.cars via forwarder: NO CONNECTION $($_.Exception.Message)" -ForegroundColor Red }
+  }
+}
+
 Section "8. Bid.cars from this server (plain HTTP, no browser)"
 foreach ($u in @("https://bid.cars/", "https://bid.cars/en/search/results?search-type=filters&status=All&type=Automobile")) {
   try {
