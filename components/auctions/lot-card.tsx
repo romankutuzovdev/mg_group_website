@@ -119,6 +119,7 @@ export function LotCard({
             src={cover}
             alt={`${lot.year} ${lot.make} ${lot.model}`}
             fill
+            tone="dark"
             priority={priority}
             loading={priority ? "eager" : "lazy"}
             decoding="async"

@@ -217,6 +217,7 @@ function LotResult({ lot }: { lot: Card }) {
           src={resolveLotImageUrl(lot.imageUrl)}
           alt={lot.title}
           fill
+          tone="dark"
           className="object-cover transition duration-500 group-hover:scale-[1.04] motion-reduce:transform-none"
         />
         {region ? (
