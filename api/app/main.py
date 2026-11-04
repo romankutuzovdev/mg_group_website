@@ -18,10 +18,12 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 from app import __version__
+from app.services import support_chat
 from app.config import get_settings
 from app.data.store import lot_store
 from app.routers import (
     ai,
+    support,
     auction_pages,
     auth,
     cabinet,
@@ -66,6 +68,7 @@ async def lifespan(_app: FastAPI):
     purchased_cars_store.init()
     quote_history.init()
     car_search.init()
+    support_chat.init()
     print("[mg-api] cabinet + logistics + purchased cars db ready")
     search_task = asyncio.create_task(car_search.car_search_loop())
 
@@ -161,8 +164,14 @@ async def lifespan(_app: FastAPI):
             print(f"[mg-api] korea RU failed: {exc}")
 
     korea_ru_task = asyncio.create_task(_localize_korea_bg())
+    # One poller per bot: only the public node talks to the support bot.
+    support_task: asyncio.Task | None = None
+    if role in {"public", "all"} and support_chat.is_enabled():
+        support_task = asyncio.create_task(support_chat.poll_loop(sync_stop))
     yield
     sync_stop.set()
+    if support_task:
+        support_task.cancel()
     if sync_task:
         sync_task.cancel()
     korea_ru_task.cancel()
@@ -235,6 +244,7 @@ def create_app() -> FastAPI:
     app.include_router(lots.router, prefix=prefix)
     app.include_router(pricing.router, prefix=prefix)
     app.include_router(ai.router, prefix=prefix)
+    app.include_router(support.router, prefix=prefix)
     app.include_router(content.router, prefix=prefix)
     app.include_router(scraper.router, prefix=prefix)
     app.include_router(internal.router, prefix=prefix)

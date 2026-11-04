@@ -170,6 +170,10 @@ class Settings(BaseSettings):
     sms_by_token: str = ""
     sms_by_alphaname_id: str = ""
 
+    # Live chat: a separate bot, comma-separated manager chat ids. Empty = hidden.
+    support_bot_token: str = ""
+    support_chat_ids: str = ""
+
     # AI car picker. Empty key = chat hidden on the site.
     openai_api_key: str = ""
     openai_model: str = "gpt-5.4-mini"

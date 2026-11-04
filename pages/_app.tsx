@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import { DisableStaticExportPrefetch } from "@/components/layout/disable-static-export-prefetch";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { CookieConsent } from "@/components/site/cookie-consent";
+import { SupportChat } from "@/components/support/support-chat";
 import { YandexMetrika } from "@/components/site/yandex-metrika";
 import { getDictionary } from "@/lib/dictionary";
 import "@/styles/globals.css";
@@ -27,6 +28,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <main className="app-main app-main--full">
           <Component {...pageProps} />
         </main>
+        <SupportChat appRoute />
         <CookieConsent />
       </div>
     );
@@ -41,6 +43,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <Component {...pageProps} />
       </main>
       <Footer dictionary={dictionary} />
+      <SupportChat />
       <MobileBottomNav />
       <CookieConsent />
     </div>
