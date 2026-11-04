@@ -182,6 +182,7 @@ class LotStore:
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
+        self._persist_lock = threading.Lock()
         self._by_id: dict[str, AuctionLot] = {}
         self._by_slug: dict[str, AuctionLot] = {}
         self.revision = 0
@@ -487,8 +488,15 @@ class LotStore:
 
     def persist(self, path: str | Path | None = None) -> int:
         out = Path(path or get_settings().lots_json_path)
+        # One writer at a time (shared .tmp), and the catalog lock only for the
+        # snapshot: dumping ~60k lots under it froze /health and every reader.
+        with self._persist_lock:
+            return self._persist_locked(out)
+
+    def _persist_locked(self, out: Path) -> int:
         with self._lock:
-            lots = [lot.model_dump(exclude_none=True) for lot in self._by_id.values()]
+            snapshot = list(self._by_id.values())
+        lots = [lot.model_dump(exclude_none=True) for lot in snapshot]
         lots.sort(key=lambda x: float(x.get("currentBid") or 0), reverse=True)
         payload = {
             "generatedAt": datetime.now(timezone.utc).isoformat(),
@@ -516,8 +524,8 @@ class LotStore:
         return len(lots)
 
     def __len__(self) -> int:
-        with self._lock:
-            return len(self._by_id)
+        # No lock: len(dict) is atomic, and /health must never wait on the catalog.
+        return len(self._by_id)
 
 
 lot_store = LotStore()

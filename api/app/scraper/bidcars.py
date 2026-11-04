@@ -1347,18 +1347,14 @@ async def scrape_bidcars_api(
                     total_new += new
                     sweep_rows += up
                 _tick(page_idx=page_idx)
-                if page_idx % 10 == 0:
-                    try:
-                        lot_store.persist()
-                    except Exception as exc:
-                        logger.warning("bidcars persist: %s", exc)
                 if len(items) < 50:
                     break
                 if pause > 0:
                     await tab.wait_for_timeout(pause)
             logger.info("bidcars sweep %s: %s lots", label, sweep_rows)
+            # Full-catalog write: once per sweep, off this event loop.
             try:
-                lot_store.persist()
+                await asyncio.to_thread(lot_store.persist)
             except Exception as exc:
                 logger.warning("bidcars persist: %s", exc)
 

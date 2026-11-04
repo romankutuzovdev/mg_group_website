@@ -52,3 +52,22 @@ class SoldArchiveTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PersistLockTests(unittest.TestCase):
+    def test_len_does_not_wait_for_catalog_lock(self):
+        import threading
+
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "app.data.store.get_settings",
+            return_value=SimpleNamespace(lots_json_path=str(Path(tmp) / "lots.json")),
+        ):
+            store = LotStore()
+            result = {}
+            with store._lock:
+                t = threading.Thread(target=lambda: result.update(n=len(store)))
+                t.start()
+                t.join(timeout=1)
+            self.assertEqual(result.get("n"), 0)
+            self.assertEqual(store.persist(), 0)
+            self.assertTrue((Path(tmp) / "lots.json").is_file())
