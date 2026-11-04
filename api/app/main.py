@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -7,6 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+
+# Under NSSM on Windows stdout is cp1251: one non-ASCII print() killed startup.
+# Logs must never be able to take the API down.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 
 from app import __version__
 from app.config import get_settings
@@ -117,7 +126,7 @@ async def lifespan(_app: FastAPI):
     ):
         sync_task = asyncio.create_task(lots_sync_loop(sync_stop))
         if role in {"all", "scraper"}:
-            print(f"[mg-api] lots push → {(settings.lots_push_url or '')[:80]}")
+            print(f"[mg-api] lots push -> {(settings.lots_push_url or '')[:80]}")
 
 
     async def _localize_korea_bg() -> None:
@@ -142,7 +151,7 @@ async def lifespan(_app: FastAPI):
             if not sample:
                 print("[mg-api] korea RU: nothing to translate")
                 return
-            print(f"[mg-api] korea RU: localizing catalog ({len(sample)}+ Hangul lots)…")
+            print(f"[mg-api] korea RU: localizing catalog ({len(sample)}+ Hangul lots)...")
             stats = await asyncio.to_thread(
                 lambda: localize_korea_store(limit=0, allow_network=True)
             )
