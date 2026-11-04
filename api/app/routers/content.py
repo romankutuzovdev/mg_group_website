@@ -75,18 +75,59 @@ def popular_models() -> list[dict]:
     return sc.POPULAR_MODELS
 
 
+# Cars people actually order: the block used to show the priciest lots
+# (Rolls-Royce, Bentley) and Korean won read as dollars.
+_CASE_MAKES = (
+    "toyota", "honda", "nissan", "mazda", "hyundai", "kia", "ford", "chevrolet",
+    "volkswagen", "subaru", "skoda", "renault", "peugeot", "mitsubishi", "jeep",
+    "dodge", "vauxhall", "seat",
+)
+_CASE_BID_USD = (1500.0, 12000.0)
+_CASE_MIN_YEAR = 2014
+_GBP_USD = 1.29
+
+
+def _clean_model(lot: AuctionLot) -> str:
+    """'Nissan' + 'Nissan Rogue' → 'Rogue' (some scrapes repeat the make)."""
+    model = (lot.model or "").strip()
+    make = (lot.make or "").strip()
+    if make and model.lower().startswith(make.lower() + " "):
+        return model[len(make) + 1 :].strip()
+    return model
+
+
+def pick_case_lots(lots: list[AuctionLot], limit: int) -> list[AuctionLot]:
+    """Mass-market USA / UK lots with a sane bid, one per make, then a second round."""
+    fits: dict[str, list[AuctionLot]] = {}
+    for lot in lots:
+        if lot.region not in {"usa", "uk"} or lot.sold or not lot.imageUrl:
+            continue
+        make = (lot.make or "").lower()
+        bid = lot.currentBid * (_GBP_USD if lot.currency == "GBP" else 1.0)
+        if (
+            make in _CASE_MAKES
+            and _CASE_BID_USD[0] <= bid <= _CASE_BID_USD[1]
+            and lot.year >= _CASE_MIN_YEAR
+        ):
+            fits.setdefault(make, []).append(lot)
+    for group in fits.values():
+        group.sort(key=lambda l: (-l.year, l.currentBid, l.id))
+    picked: list[AuctionLot] = []
+    order = [m for m in _CASE_MAKES if m in fits]
+    for round_idx in range(3):
+        for make in order:
+            if round_idx < len(fits[make]) and len(picked) < limit:
+                picked.append(fits[make][round_idx])
+    return picked
+
+
 @router.get("/cases")
 def cases(limit: int = Query(12, ge=1, le=50)) -> dict:
     """Example client cases derived from catalog lots + turnkey quote."""
     settings = get_settings()
     items = []
-    seen_makes: set[str] = set()
-    for lot in lot_store.all():
-        if lot.make in seen_makes and len(items) >= 3:
-            # diversify a bit
-            if len(seen_makes) < 8 and lot.make in seen_makes:
-                continue
-        title = f"{lot.year} {lot.make} {lot.model}"
+    for lot in pick_case_lots(lot_store.all(), limit * 2):
+        title = f"{lot.year} {lot.make} {_clean_model(lot)}"
         if lot.region == "uk":
             bid = lot.currentBid if lot.currency == "GBP" else lot.currentBid * 0.79
             q = quote_copart_uk(
@@ -118,7 +159,7 @@ def cases(limit: int = Query(12, ge=1, le=50)) -> dict:
         items.append(
             {
                 "id": f"auction-{lot.id}",
-                "title": f"{lot.make} {lot.model} {lot.year}",
+                "title": f"{lot.make} {_clean_model(lot)} {lot.year}",
                 "subtitle": f"Лот #{lot.lotNumber}",
                 "image": lot.imageUrl,
                 "region": "Англия" if lot.region == "uk" else "США",
