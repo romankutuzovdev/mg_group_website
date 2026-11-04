@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { MessageCircle, Send, X } from "lucide-react";
+import { Check, CheckCheck, MessageCircle, Send, X } from "lucide-react";
 import { apiUrl } from "@/lib/api/config";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,7 @@ type Msg = {
 
 const SESSION_KEY = "mg_support_session";
 const SEEN_KEY = "mg_support_seen";
+const READ_DELAY_MS = 2000;
 
 function readStorage(key: string): string {
   try {
@@ -40,10 +41,13 @@ function ensureSession(): string {
   return id;
 }
 
+function formatTime(ms: number): string {
+  return new Date(ms).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
+
 export function SupportChat({ appRoute = false }: { appRoute?: boolean }) {
   const [enabled, setEnabled] = useState(false);
   const [greeting, setGreeting] = useState("");
-  const [online, setOnline] = useState(false);
   const [open, setOpen] = useState(false);
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -51,6 +55,9 @@ export function SupportChat({ appRoute = false }: { appRoute?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [seen, setSeen] = useState(0);
+  // User messages before this index show two ticks; the rest wait for the timer.
+  const [readCount, setReadCount] = useState(Infinity);
+  const readTimer = useRef<number | undefined>(undefined);
   const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -60,7 +67,6 @@ export function SupportChat({ appRoute = false }: { appRoute?: boolean }) {
       .then((data) => {
         if (cancelled || !data.enabled) return;
         setGreeting(String(data.greeting || ""));
-        setOnline(Boolean(data.online));
         setSessionId(ensureSession());
         setSeen(Number(readStorage(SEEN_KEY)) || 0);
         setEnabled(true);
@@ -94,6 +100,8 @@ export function SupportChat({ appRoute = false }: { appRoute?: boolean }) {
     return () => window.clearInterval(timer);
   }, [enabled, sessionId, open, pull]);
 
+  useEffect(() => () => window.clearTimeout(readTimer.current), []);
+
   const lastAgentAt = messages.reduce(
     (max, m) => (m.role === "agent" && m.createdAt > max ? m.createdAt : max),
     0,
@@ -112,6 +120,7 @@ export function SupportChat({ appRoute = false }: { appRoute?: boolean }) {
   if (!enabled) return null;
 
   const unread = !open && lastAgentAt > seen;
+  let userIndex = 0;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -138,6 +147,10 @@ export function SupportChat({ appRoute = false }: { appRoute?: boolean }) {
         return;
       }
       setDraft("");
+      const sentBefore = messages.filter((m) => m.role === "user").length;
+      setReadCount((count) => Math.min(count, sentBefore));
+      window.clearTimeout(readTimer.current);
+      readTimer.current = window.setTimeout(() => setReadCount(Infinity), READ_DELAY_MS);
       await pull();
     } catch {
       setError("Нет связи с сервером. Попробуйте ещё раз.");
@@ -161,14 +174,8 @@ export function SupportChat({ appRoute = false }: { appRoute?: boolean }) {
             <div className="min-w-0">
               <p className="text-sm font-semibold">Менеджер MG.GROUP</p>
               <p className="flex items-center gap-1.5 text-xs text-white/70">
-                <span
-                  className={cn(
-                    "h-2 w-2 rounded-full",
-                    online ? "bg-emerald-400" : "bg-zinc-500",
-                  )}
-                  aria-hidden
-                />
-                {online ? "Менеджер онлайн" : "Сейчас не в сети, ответим в рабочее время"}
+                <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
+                В сети
               </p>
             </div>
             <button
@@ -185,26 +192,42 @@ export function SupportChat({ appRoute = false }: { appRoute?: boolean }) {
             <p className="max-w-[85%] rounded-2xl rounded-bl-sm bg-white px-3 py-2 text-sm text-zinc-800 shadow-sm">
               {greeting}
             </p>
-            {messages.map((m) =>
-              m.role === "system" ? (
+            {messages.map((m) => {
+              const read = m.role === "user" && userIndex++ < readCount;
+              return m.role === "system" ? (
                 <p key={m.id} className="px-2 text-center text-xs text-zinc-500">
                   {m.content}
                 </p>
               ) : (
                 <div key={m.id} className={m.role === "user" ? "flex justify-end" : ""}>
-                  <p
+                  <div
                     className={cn(
-                      "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm shadow-sm",
+                      "inline-block max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm",
                       m.role === "user"
                         ? "rounded-br-sm bg-primary text-white"
                         : "rounded-bl-sm bg-white text-zinc-800",
                     )}
                   >
-                    {m.content}
-                  </p>
+                    <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                    <p
+                      className={cn(
+                        "mt-0.5 flex items-center justify-end gap-1 text-[10px] leading-none",
+                        m.role === "user" ? "text-white/75" : "text-zinc-400",
+                      )}
+                    >
+                      {formatTime(m.createdAt)}
+                      {m.role === "user" ? (
+                        read ? (
+                          <CheckCheck className="h-3.5 w-3.5" aria-label="Прочитано" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5" aria-label="Отправлено" />
+                        )
+                      ) : null}
+                    </p>
+                  </div>
                 </div>
-              ),
-            )}
+              );
+            })}
           </div>
 
           {error ? <p className="px-3 pt-2 text-xs text-red-600">{error}</p> : null}
@@ -238,9 +261,9 @@ export function SupportChat({ appRoute = false }: { appRoute?: boolean }) {
           <MessageCircle className="h-6 w-6" aria-hidden />
           {unread ? (
             <span className="absolute right-0.5 top-0.5 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white" />
-          ) : online ? (
+          ) : (
             <span className="absolute right-0.5 top-0.5 h-3 w-3 rounded-full bg-emerald-300 ring-2 ring-white" />
-          ) : null}
+          )}
         </button>
       )}
     </div>
