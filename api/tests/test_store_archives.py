@@ -71,3 +71,61 @@ class PersistLockTests(unittest.TestCase):
             self.assertEqual(result.get("n"), 0)
             self.assertEqual(store.persist(), 0)
             self.assertTrue((Path(tmp) / "lots.json").is_file())
+
+
+class PruneBackgroundCleanupTests(unittest.TestCase):
+    def _store(self, tmp):
+        settings = SimpleNamespace(
+            lots_json_path=str(Path(tmp) / "lots.json"),
+            scraper_prune_ended=True,
+            scraper_auction_grace_hours=0,
+        )
+        patcher = patch("app.data.store.get_settings", return_value=settings)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return LotStore()
+
+    def _lot(self, lot_id, when):
+        return AuctionLot(
+            id=lot_id, slug=lot_id, region="korea", source="encar", lotNumber=lot_id,
+            make="Ford", model="Mustang", year=2020, auctionDate=when,
+        )
+
+    def test_prune_returns_before_slow_photo_delete_finishes(self):
+        import threading
+        import time
+
+        release = threading.Event()
+        deleted = []
+
+        def slow_delete(lot_id):
+            release.wait(5)
+            deleted.append(lot_id)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self._store(tmp)
+            store.upsert_many([self._lot("old", "2020-01-01T00:00:00+00:00")])
+            with patch("app.services.lot_photos.delete_lot_photos", side_effect=slow_delete), patch(
+                "app.services.lot_photos.sweep_orphan_photos", return_value=0
+            ):
+                started = time.perf_counter()
+                self.assertEqual(store.prune_ended(), 1)
+                self.assertLess(time.perf_counter() - started, 1.0)
+                self.assertEqual(deleted, [])
+                self.assertEqual(len(store), 0)
+                release.set()
+                store._photo_cleanup.join()
+            self.assertEqual(deleted, ["old"])
+
+    def test_relisted_lot_keeps_photos(self):
+        deleted = []
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self._store(tmp)
+            lot = self._lot("back", "2020-01-01T00:00:00+00:00")
+            store._by_id["back"] = lot
+            with patch("app.services.lot_photos.delete_lot_photos", side_effect=deleted.append), patch(
+                "app.services.lot_photos.sweep_orphan_photos", return_value=0
+            ):
+                store._queue_photo_cleanup(["back"])
+                store._photo_cleanup.join()
+            self.assertEqual(deleted, [])

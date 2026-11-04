@@ -154,7 +154,7 @@ API поднимает локальный переходник `127.0.0.1:9280`,
 `chrome_cdp.py`, и `scripts/chrome-cdp-watchdog.ps1`. После изменения `.env` нужно
 перезапустить и API, и Chrome. Статус: `GET /api/v1/scraper/status` → `proxy`.
 
-Дата аукциона = `now + time_left`, поэтому `prune_ended` убирает лоты после торгов сам.
+Дата аукциона = `now + time_left`. Важно: `is_auction_ended` для `bidcars` всегда `False`, поэтому `prune_ended` закончившиеся лоты Bid.cars не удаляет.
 Если Cloudflare снова показывает проверку — агент отдаёт `last_blocked: cloudflare`,
 вкладка остаётся открытой: кликните проверку в Chrome на Windows и подождите цикл.
 `SCRAPER_BIDCARS_API=false` возвращает старый обход DOM (карточки + страницы лотов).

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import queue
 import re
 import threading
 from datetime import datetime, timezone
@@ -9,6 +11,8 @@ from pathlib import Path
 from app.config import get_settings
 from app.models.lots import AuctionLot
 from app.services.auction_date import is_auction_ended
+
+logger = logging.getLogger("mg.store")
 
 
 _IAAI_LISTING_BLOB = re.compile(r"stock\s*#:|view all images|pre-?bid or buy now", re.I)
@@ -183,6 +187,9 @@ class LotStore:
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._persist_lock = threading.Lock()
+        self._photo_cleanup: queue.Queue[list[str]] = queue.Queue()
+        self._photo_cleanup_guard = threading.Lock()
+        self._photo_cleanup_thread: threading.Thread | None = None
         self._by_id: dict[str, AuctionLot] = {}
         self._by_slug: dict[str, AuctionLot] = {}
         self.revision = 0
@@ -475,16 +482,45 @@ class LotStore:
                 if lot:
                     self._by_slug.pop(lot.slug, None)
                     removed += 1
-            live_ids = set(self._by_id)
             if to_drop:
                 self.revision += 1
         if to_drop:
-            from app.services.lot_photos import delete_lot_photos, sweep_orphan_photos
-
-            for lot_id in to_drop:
-                delete_lot_photos(lot_id)
-            sweep_orphan_photos(live_ids)
+            self._queue_photo_cleanup(to_drop)
         return removed
+
+    def _queue_photo_cleanup(self, lot_ids: list[str]) -> None:
+        """Delete galleries on a background thread.
+
+        Each lot is a network round trip to R2. Thousands of ended lots done
+        inline froze the API and the scrapers, which share its event loop.
+        """
+        self._photo_cleanup.put(list(lot_ids))
+        with self._photo_cleanup_guard:
+            if self._photo_cleanup_thread is None or not self._photo_cleanup_thread.is_alive():
+                self._photo_cleanup_thread = threading.Thread(
+                    target=self._photo_cleanup_worker,
+                    name="mg-photo-cleanup",
+                    daemon=True,
+                )
+                self._photo_cleanup_thread.start()
+
+    def _photo_cleanup_worker(self) -> None:
+        from app.services.lot_photos import delete_lot_photos, sweep_orphan_photos
+
+        while True:
+            lot_ids = self._photo_cleanup.get()
+            try:
+                for lot_id in lot_ids:
+                    # Re-listed while waiting in the queue: keep its photos.
+                    if lot_id not in self._by_id:
+                        delete_lot_photos(lot_id)
+                with self._lock:
+                    live_ids = set(self._by_id)
+                sweep_orphan_photos(live_ids)
+            except Exception as exc:
+                logger.warning("photo cleanup failed: %s", exc)
+            finally:
+                self._photo_cleanup.task_done()
 
     def persist(self, path: str | Path | None = None) -> int:
         out = Path(path or get_settings().lots_json_path)
