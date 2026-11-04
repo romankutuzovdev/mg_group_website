@@ -306,6 +306,8 @@ class PhotoEnrichmentAgent:
         self._task: asyncio.Task | None = None
         self._page: Page | None = None
         self._processed_ids: set[str] = set()
+        # Lots whose cover was already tried today (success or not).
+        self._cover_tried: set[str] = set()
         self._day: date | None = None
 
     def _roll_day(self) -> None:
@@ -313,9 +315,43 @@ class PhotoEnrichmentAgent:
         if self._day != today:
             self._day = today
             self._processed_ids.clear()
+            self._cover_tried.clear()
             self.status.day = today.isoformat()
             self.status.processed_today = 0
             logger.info("photo enricher: new UTC day %s — queue reset", today)
+
+    def _wants_cover(self, lot: AuctionLot) -> bool:
+        """Bid.cars lot still shown from the source CDN: copy its cover first.
+
+        Full galleries take ~30 s per lot, so every lot gets its one catalog
+        photo on our CDN before any gallery is downloaded.
+        """
+        from app.services.lot_photos import is_our_photo
+
+        return (
+            (lot.source or "") == "bidcars"
+            and lot.id not in self._cover_tried
+            and bool(lot.imageUrl)
+            and not is_our_photo(lot.imageUrl)
+        )
+
+    async def _archive_cover(self, page: Page, lot: AuctionLot) -> int:
+        """Download one cover, upload it, put it first. Returns photos saved."""
+        from app.services.lot_photos import archive_gallery, merge_gallery_urls
+        from app.services.r2_photos import promote_gallery_urls
+
+        self._cover_tried.add(lot.id)
+        cover = lot.imageUrl
+        saved = await archive_gallery(lot.id, [cover], referer_hint="bidcars", page=page)
+        if not saved:
+            return 0
+        merged = merge_gallery_urls(saved, [cover], list(lot.imageUrls or []))
+        # boto3 is blocking: keep it off the loop the API shares with the scrapers.
+        merged = await asyncio.to_thread(
+            promote_gallery_urls, lot.id, merged, region=lot.region, source=lot.source
+        )
+        updated = lot_store.update_photos(lot.id, merged, enriched_at=lot.photosEnrichedAt)
+        return len(saved) if updated else 0
 
     def _queue(self) -> list[AuctionLot]:
         self._roll_day()
@@ -344,7 +380,7 @@ class PhotoEnrichmentAgent:
                 region_rank = 3
             imgs = [u for u in (l.imageUrls or []) if u and not _is_useless_photo(u)]
             locals_n = sum(1 for u in imgs if u.startswith("/api/lot-photos/"))
-            return (locals_n, region_rank, -(l.currentBid or 0))
+            return (not self._wants_cover(l), locals_n, region_rank, -(l.currentBid or 0))
 
         lots.sort(key=_prio)
         self.status.queue_remaining = len(lots)
@@ -475,6 +511,22 @@ class PhotoEnrichmentAgent:
             if self._stop.is_set():
                 break
             self.status.last_lot_id = lot.id
+            if self._wants_cover(lot):
+                try:
+                    got = await self._archive_cover(page, lot)
+                    if got:
+                        enriched += 1
+                        photos += got
+                        self.status.total_enriched += 1
+                        self.status.total_photos += got
+                    else:
+                        errors += 1
+                        self.status.last_error = f"cover_empty:{lot.id}"
+                except Exception as exc:
+                    errors += 1
+                    self.status.last_error = str(exc)
+                    logger.warning("cover archive failed %s: %s", lot.id, exc)
+                continue
             try:
                 now = datetime.now(timezone.utc).isoformat()
                 hint = "uk" if (
@@ -517,7 +569,8 @@ class PhotoEnrichmentAgent:
                 try:
                     from app.services.r2_photos import promote_gallery_urls
 
-                    merged = promote_gallery_urls(
+                    merged = await asyncio.to_thread(
+                        promote_gallery_urls,
                         lot.id,
                         merged,
                         region=lot.region,
@@ -570,7 +623,7 @@ class PhotoEnrichmentAgent:
                 continue
 
         if settings.scraper_persist and enriched:
-            lot_store.persist()
+            await asyncio.to_thread(lot_store.persist)
 
         self.status.cycles += 1
         self.status.queue_remaining = len(self._queue())
