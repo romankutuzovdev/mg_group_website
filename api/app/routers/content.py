@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.data import static_content as sc
 from app.data.store import leads_inbox, lot_store
+from app.models.lots import AuctionLot
 from app.models.leads import LeadCreate, LeadResponse
 from app.services.pricing import quote_copart_uk, quote_iaai_usa
 from app.config import get_settings
@@ -82,8 +83,8 @@ _CASE_MAKES = (
     "volkswagen", "subaru", "skoda", "renault", "peugeot", "mitsubishi", "jeep",
     "dodge", "vauxhall", "seat",
 )
-_CASE_BID_USD = (1500.0, 12000.0)
-_CASE_MIN_YEAR = 2014
+_CASE_PRICE_USD = (3000.0, 15000.0)
+_CASE_YEARS = (2014, 2024)
 _GBP_USD = 1.29
 
 
@@ -96,6 +97,18 @@ def _clean_model(lot: AuctionLot) -> str:
     return model
 
 
+def _case_price(lot: AuctionLot) -> float:
+    """Expected sale price in the lot's currency.
+
+    Early bids are far below it: a 2026 Camry at a $2000 opening bid is not a
+    price anyone pays, so prefer the middle of the estimated range.
+    """
+    low, high = lot.estimatedCostMin, lot.estimatedCostMax
+    if low and high:
+        return (low + high) / 2
+    return float(low or high or lot.currentBid or 0)
+
+
 def pick_case_lots(lots: list[AuctionLot], limit: int) -> list[AuctionLot]:
     """Mass-market USA / UK lots with a sane bid, one per make, then a second round."""
     fits: dict[str, list[AuctionLot]] = {}
@@ -103,15 +116,15 @@ def pick_case_lots(lots: list[AuctionLot], limit: int) -> list[AuctionLot]:
         if lot.region not in {"usa", "uk"} or lot.sold or not lot.imageUrl:
             continue
         make = (lot.make or "").lower()
-        bid = lot.currentBid * (_GBP_USD if lot.currency == "GBP" else 1.0)
+        price = _case_price(lot) * (_GBP_USD if lot.currency == "GBP" else 1.0)
         if (
             make in _CASE_MAKES
-            and _CASE_BID_USD[0] <= bid <= _CASE_BID_USD[1]
-            and lot.year >= _CASE_MIN_YEAR
+            and _CASE_PRICE_USD[0] <= price <= _CASE_PRICE_USD[1]
+            and _CASE_YEARS[0] <= lot.year <= _CASE_YEARS[1]
         ):
             fits.setdefault(make, []).append(lot)
     for group in fits.values():
-        group.sort(key=lambda l: (-l.year, l.currentBid, l.id))
+        group.sort(key=lambda l: (-l.year, _case_price(l), l.id))
     picked: list[AuctionLot] = []
     order = [m for m in _CASE_MAKES if m in fits]
     for round_idx in range(3):
@@ -129,7 +142,8 @@ def cases(limit: int = Query(12, ge=1, le=50)) -> dict:
     for lot in pick_case_lots(lot_store.all(), limit * 2):
         title = f"{lot.year} {lot.make} {_clean_model(lot)}"
         if lot.region == "uk":
-            bid = lot.currentBid if lot.currency == "GBP" else lot.currentBid * 0.79
+            price = _case_price(lot)
+            bid = price if lot.currency == "GBP" else price * 0.79
             q = quote_copart_uk(
                 bid=bid,
                 location=lot.location,
@@ -144,7 +158,7 @@ def cases(limit: int = Query(12, ge=1, le=50)) -> dict:
             currency = "USD"
         else:
             q = quote_iaai_usa(
-                bid=lot.currentBid,
+                bid=_case_price(lot),
                 title=title,
                 body_style=lot.bodyStyle or lot.model,
                 location=lot.location,
@@ -172,7 +186,6 @@ def cases(limit: int = Query(12, ge=1, le=50)) -> dict:
                 "href": f"/auctions/{lot.slug}/",
             }
         )
-        seen_makes.add(lot.make)
         if len(items) >= limit:
             break
     return {"items": items, "count": len(items)}
