@@ -163,6 +163,15 @@ class HelpersTests(unittest.TestCase):
         self.assertEqual(plan[-1]["status"], "Live")
         self.assertEqual(plan[-1]["auction_type"], "All")
 
+    def test_sweep_plan_accepts_single_years_and_live_first(self):
+        plan = bidcars._sweep_plan(SimpleNamespace(
+            scraper_bidcars_statuses="Live,Active",
+            scraper_bidcars_auction_types="Copart",
+            scraper_bidcars_year_ranges="2010-2012,2020",
+        ))
+        self.assertEqual(plan[0]["status"], "Live")
+        self.assertEqual((plan[2]["year_from"], plan[2]["year_to"]), (2020, 2020))
+
     def test_sweep_plan_defaults_when_empty(self):
         plan = bidcars._sweep_plan(SimpleNamespace(scraper_bidcars_statuses="", scraper_bidcars_auction_types="", scraper_bidcars_year_ranges=""))
         self.assertEqual(plan, [{"status": "Active", "auction_type": "All", "year_from": 1900, "year_to": 2027}])

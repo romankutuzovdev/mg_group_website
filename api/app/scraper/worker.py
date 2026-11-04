@@ -288,7 +288,11 @@ class SourceAgent:
                 kwargs["page_size"] = min(48, settings.scraper_page_size)
 
             # Bid.cars: seed-first cycles finish in minutes; keep a hard cap anyway.
-            cycle_cap = 18 * 60 if self.name == "bidcars" else 12 * 60
+            cycle_cap = (
+                max(18, settings.scraper_bidcars_cycle_minutes) * 60
+                if self.name == "bidcars"
+                else 12 * 60
+            )
             try:
                 raw = await asyncio.wait_for(self.scrape(**kwargs), timeout=cycle_cap)
             except asyncio.TimeoutError:

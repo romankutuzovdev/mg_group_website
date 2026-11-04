@@ -83,11 +83,16 @@ class Settings(BaseSettings):
     # One search is capped at 50 pages (2 500 lots), so the catalog is swept in
     # partitions: auction-type × year range (status Active), plus Live.
     scraper_bidcars_api: bool = True
-    scraper_bidcars_statuses: str = "Active,Live"
+    # Live first: short list, and a long cycle must not starve it.
+    scraper_bidcars_statuses: str = "Live,Active"
     scraper_bidcars_auction_types: str = "Copart,IAAI"
+    # Results come soonest-first, so a capped search only sees the next ~day.
+    # Narrow ranges reach auctions further ahead.
     scraper_bidcars_year_ranges: str = (
-        "1900-2012,2013-2016,2017-2019,2020-2021,2022-2023,2024-2027"
+        "1900-2009,2010-2012,2013-2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025-2027"
     )
+    # Full sweep: hundreds of requests at ~4 s each.
+    scraper_bidcars_cycle_minutes: int = 180
     # Pause between JSON requests (parallel bursts get empty responses).
     scraper_bidcars_request_delay_ms: int = 600
     # Search pages per Bid.cars sweep (site max 50; 0 → 50).

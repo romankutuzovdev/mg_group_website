@@ -109,6 +109,9 @@ if (Test-Path $envFile) {
   # Bid.cars: search JSON from the Cloudflare-cleared tab, 50 lots/request,
   # swept by auction-type x year range (50 pages max per sweep).
   Set-EnvValue $envFile "SCRAPER_BIDCARS_API" "true"
+  Set-EnvValue $envFile "SCRAPER_BIDCARS_STATUSES" "Live,Active"
+  Set-EnvValue $envFile "SCRAPER_BIDCARS_YEAR_RANGES" "1900-2009,2010-2012,2013-2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025-2027"
+  Set-EnvValue $envFile "SCRAPER_BIDCARS_CYCLE_MINUTES" "180"
   Set-EnvValue $envFile "SCRAPER_MAX_PAGES_BIDCARS" "50"
   Set-EnvValue $envFile "SCRAPER_BIDCARS_DETAIL_PER_CYCLE" "40"
   Set-EnvValue $envFile "SCRAPER_MAX_PAGES_COPART_UK" "20"

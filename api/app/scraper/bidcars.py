@@ -1172,9 +1172,10 @@ def _sweep_plan(settings: Any) -> list[dict[str, Any]]:
     ] or ["All"]
     ranges: list[tuple[int, int]] = []
     for chunk in str(settings.scraper_bidcars_year_ranges or "").split(","):
-        m = re.fullmatch(r"\s*(\d{4})\s*-\s*(\d{4})\s*", chunk)
+        # "2013-2016" or a single year "2020"
+        m = re.fullmatch(r"\s*(\d{4})\s*(?:-\s*(\d{4})\s*)?", chunk)
         if m:
-            lo, hi = int(m.group(1)), int(m.group(2))
+            lo, hi = int(m.group(1)), int(m.group(2) or m.group(1))
             ranges.append((min(lo, hi), max(lo, hi)))
     if not ranges:
         ranges = [(1900, 2027)]
