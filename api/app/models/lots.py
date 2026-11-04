@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 AuctionRegion = Literal["usa", "uk", "korea", "china"]
@@ -88,6 +88,12 @@ class AuctionLot(BaseModel):
     keyInfo: str = ""
     saleDocument: str = ""
     videoUrl: str = ""
+
+    @field_validator("year")
+    @classmethod
+    def _year_without_month(cls, value: int) -> int:
+        # Stored Encar lots may hold YYYYMM, which sorts above every real year.
+        return value // 100 if value > 100000 else value
 
 
 class LotListResponse(BaseModel):

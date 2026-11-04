@@ -9,6 +9,7 @@ from unittest.mock import patch
 import httpx
 
 from app.models.lots import AuctionLot
+from app.scraper.mapper import _encar_year
 from app.services import ai_chat
 
 
@@ -37,6 +38,23 @@ class SearchTests(unittest.TestCase):
         pool = [_lot(f"t{i}") for i in range(10)] + [_lot("h", make="Honda")]
         self.assertEqual(len(ai_chat.search_lots(pool, {"make": "Toyota"})), ai_chat.RESULT_LIMIT)
         self.assertEqual([l.slug for l in ai_chat.search_lots(pool, {"make": "honda"})], ["h"])
+
+    def test_month_in_year_does_not_outrank_new_cars(self):
+        old = _lot("old", year=199912)
+        new = _lot("new", year=2024)
+        self.assertEqual(old.year, 1999)
+        self.assertEqual([l.slug for l in ai_chat.search_lots([old, new], {})], ["new", "old"])
+
+    def test_encar_year_month_is_cut_to_year(self):
+        self.assertEqual(_encar_year({"Year": 199912}), 1999)
+        self.assertEqual(_encar_year({"Year": "199605.0"}), 1996)
+        self.assertEqual(_encar_year({"Year": 202005}), 2020)
+        self.assertEqual(_encar_year({"Year": 1998}), 1998)
+
+    def test_brief_has_words_not_booleans(self):
+        brief = ai_chat.lot_brief(_lot("a"))
+        self.assertEqual(brief["runs"], "не подтверждено")
+        self.assertEqual(brief["keys"], "не подтверждено")
 
     def test_placeholder_mileage_is_unknown(self):
         self.assertIsNone(ai_chat.lot_brief(_lot("x", odo=999999))["mileage_km"])

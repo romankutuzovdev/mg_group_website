@@ -1202,10 +1202,10 @@ def _encar_year(row: dict[str, Any]) -> int:
         return int(m.group(1))
     try:
         n = int(float(text))
-        if n > 1900:
-            return n
         if n > 100000:  # YYYYMM
             return n // 100
+        if n > 1900:
+            return n
     except (TypeError, ValueError):
         pass
     return 2018
