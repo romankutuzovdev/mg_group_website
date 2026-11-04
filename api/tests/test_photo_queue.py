@@ -96,3 +96,47 @@ class CoverUkTests(unittest.IsolatedAsyncioTestCase):
         with patch("app.services.lot_photos.archive_gallery", side_effect=fake_archive):
             await PhotoEnrichmentAgent()._archive_cover(object(), self._uk())
         self.assertEqual(hints, ["uk"])
+
+
+class PendingQueueTests(unittest.IsolatedAsyncioTestCase):
+    async def test_queue_is_built_once_for_many_batches(self):
+        lots = [_lot(f"l{i}", bid=100 - i) for i in range(5)]
+        by_id = {lot.id: lot for lot in lots}
+        agent = PhotoEnrichmentAgent()
+
+        class Page:
+            def is_closed(self):
+                return False
+
+        agent._page = Page()
+        done: list[str] = []
+
+        async def cover(page, lot):
+            agent._cover_tried.add(lot.id)
+            done.append(lot.id)
+            return 1
+
+        with patch.object(agent, "_queue", return_value=list(lots)) as build, patch.object(
+            agent, "_archive_cover", side_effect=cover
+        ), patch.object(photo_enricher.lot_store, "get_by_id", side_effect=by_id.get), patch.object(
+            photo_enricher.lot_store, "persist", return_value=0
+        ):
+            first = await agent.run_batch(None, limit=2)
+            await agent.run_batch(None, limit=2)
+        self.assertEqual(build.call_count, 1)
+        self.assertEqual(done, ["l0", "l1", "l2", "l3"])
+        self.assertEqual(first["queue_remaining"], 3)
+
+    async def test_pruned_lot_in_pending_is_skipped(self):
+        agent = PhotoEnrichmentAgent()
+
+        class Page:
+            def is_closed(self):
+                return False
+
+        agent._page = Page()
+        with patch.object(agent, "_queue", return_value=[_lot("gone", bid=1)]), patch.object(
+            agent, "_archive_cover"
+        ) as cover, patch.object(photo_enricher.lot_store, "get_by_id", return_value=None):
+            await agent.run_batch(None, limit=2)
+        cover.assert_not_called()

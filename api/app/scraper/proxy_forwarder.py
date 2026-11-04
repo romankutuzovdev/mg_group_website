@@ -171,12 +171,12 @@ async def _pipe(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> N
             pass
 
 
-async def _close(writer: asyncio.StreamWriter | None) -> None:
+def _close(writer: asyncio.StreamWriter | None) -> None:
+    # No await here: it runs in a finally that may be unwinding a cancelled task.
     if writer is None:
         return
     try:
         writer.close()
-        await writer.wait_closed()
     except Exception:
         pass
 
@@ -191,6 +191,7 @@ class ProxyForwarder:
         self._server: asyncio.AbstractServer | None = None
         self.connections = 0
         self.errors = 0
+        self._tasks: set[asyncio.Task] = set()
 
     @property
     def running(self) -> bool:
@@ -221,6 +222,11 @@ class ProxyForwarder:
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         self.connections += 1
+        # asyncio keeps only weak refs to tasks: without this, GC can collect a
+        # live tunnel and cut Chrome's connection.
+        task = asyncio.current_task()
+        if task is not None:
+            self._tasks.add(task)
         up_reader: asyncio.StreamReader | None = None
         up_writer: asyncio.StreamWriter | None = None
         try:
@@ -293,8 +299,10 @@ class ProxyForwarder:
             self.errors += 1
             logger.warning("proxy forwarder error: %s", exc)
         finally:
-            await _close(up_writer)
-            await _close(writer)
+            _close(up_writer)
+            _close(writer)
+            if task is not None:
+                self._tasks.discard(task)
 
 
 _forwarder: ProxyForwarder | None = None

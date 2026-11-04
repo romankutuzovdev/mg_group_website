@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import time
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import Any
@@ -297,6 +298,9 @@ class PhotoAgentStatus:
     processed_today: int = 0
 
 
+_QUEUE_REFRESH_SECONDS = 600
+
+
 def _is_uk_lot(lot: AuctionLot) -> bool:
     return (lot.source or "") == "copart_uk" or (lot.region or "") == "uk"
 
@@ -312,6 +316,10 @@ class PhotoEnrichmentAgent:
         self._processed_ids: set[str] = set()
         # Lots whose cover was already tried today (success or not).
         self._cover_tried: set[str] = set()
+        # Sorted work list. Rebuilding it scans every lot and photo URL, so it
+        # runs off the event loop and only when empty or stale.
+        self._pending: list[AuctionLot] = []
+        self._pending_at = 0.0
         self._day: date | None = None
 
     def _roll_day(self) -> None:
@@ -507,14 +515,21 @@ class PhotoEnrichmentAgent:
         if page is None or page.is_closed():
             page = await self.attach_tab(browser)
 
-        queue = self._queue()[:batch]
+        if not self._pending or time.monotonic() - self._pending_at > _QUEUE_REFRESH_SECONDS:
+            self._pending = await asyncio.to_thread(self._queue)
+            self._pending_at = time.monotonic()
+        queue = self._pending[:batch]
+        del self._pending[:batch]
         enriched = 0
         photos = 0
         errors = 0
 
-        for lot in queue:
+        for queued in queue:
             if self._stop.is_set():
                 break
+            lot = lot_store.get_by_id(queued.id)
+            if lot is None or getattr(lot, "sold", False):
+                continue
             self.status.last_lot_id = lot.id
             if self._wants_cover(lot):
                 try:
@@ -631,7 +646,7 @@ class PhotoEnrichmentAgent:
             await asyncio.to_thread(lot_store.persist)
 
         self.status.cycles += 1
-        self.status.queue_remaining = len(self._queue())
+        self.status.queue_remaining = len(self._pending)
         finished = datetime.now(timezone.utc).isoformat()
         self.status.last_finished_at = finished
         return {
