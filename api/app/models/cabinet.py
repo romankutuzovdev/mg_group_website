@@ -243,6 +243,12 @@ class DealSpecs(BaseModel):
     drive: str = ""
     exterior_color: str = ""
     primary_damage: str = ""
+    secondary_damage: str = ""
+    loss_type: str = ""
+    start_code: str = ""
+    key_info: str = ""
+    sale_document: str = ""
+    seller: str = ""
 
 
 class DealOut(BaseModel):

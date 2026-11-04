@@ -1,7 +1,8 @@
 """Fetch lot details for the calculator.
 
 Opens the auction URL in Chrome (permanent ``lot_lookup`` tab via the scraper
-session). Never fills the calculator from the production catalog / DB.
+session). The catalog never overrides what Chrome saw: ``fill_from_catalog`` only
+fills fields Chrome left empty, so a hung Windows host still gives VIN and specs.
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ COPART_LOT_RE = re.compile(
     re.I,
 )
 BIDCars_LOT_RE = re.compile(
-    r"bid\.cars/(?:[a-z]{2}/)?lot/(?:0-)?(\d+)",
+    r"bid\.cars/(?:[a-z]{2}/)?lot/(?:\d+-)?(\d+)",
     re.I,
 )
 IAAI_LOT_RE = re.compile(
@@ -765,6 +766,17 @@ async def enrich_usa_inland_async(
     return out
 
 
+def _known(value: str | None) -> str | None:
+    text = (value or "").strip()
+    return text if text and text != "—" else None
+
+
+def _cylinders_from_engine(engine: str | None) -> str | None:
+    """``2.0L, I4`` / ``3.5L V6`` → cylinder count."""
+    match = re.search(r"\b[IVLWH](\d{1,2})\b", engine or "", re.I)
+    return match.group(1) if match else None
+
+
 def lot_to_calculator_payload(
     lot: AuctionLot, *, url: str, via: str = "catalog"
 ) -> dict[str, Any]:
@@ -781,7 +793,7 @@ def lot_to_calculator_payload(
         "lotNumber": lot.lotNumber,
         "bid": (
             float(lot.currentBid)
-            if lot.currentBid is not None and float(lot.currentBid) >= 0
+            if lot.currentBid is not None and float(lot.currentBid) > 0
             else None
         ),
         "year": lot.year or None,
@@ -790,7 +802,8 @@ def lot_to_calculator_payload(
         "title": _title_label(lot),
         "location": clean_auction_location(lot.location),
         "odometer": lot.odometer if lot.odometer else None,
-        "images": images[:12],
+        "odometerUnit": lot.odometerUnit,
+        "images": images,
         "category": lot.category,
         "bodyStyle": lot.bodyStyle,
         "vin": (lot.vin or None) if lot.vin and set(lot.vin) - {"*"} else None,
@@ -807,7 +820,14 @@ def lot_to_calculator_payload(
             if (lot.exteriorColor or "").strip() not in ("", "—")
             else None
         ),
-        "primaryDamage": lot.primaryDamage or None,
+        "cylinders": _cylinders_from_engine(lot.engine),
+        "primaryDamage": _known(lot.primaryDamage),
+        "secondaryDamage": _known(lot.secondaryDamage),
+        "lossType": _known(lot.lossType),
+        "startCode": _known(lot.startCode),
+        "keyInfo": _known(lot.keyInfo),
+        "saleDocument": _known(lot.saleDocument) or _known(lot.titleLabel),
+        "seller": _known(lot.seller),
         "inlandMiles": lot.inlandMiles,
         "currency": lot.currency,
         "via": via,
@@ -832,8 +852,14 @@ def lot_to_calculator_payload(
     return payload
 
 
+def _bidcars_catalog_lot_number(url: str) -> str | None:
+    """Bid.cars lots are stored with the auction prefix: ``0-46241898``."""
+    match = re.search(r"/lot/(\d+-\d+)", url or "")
+    return match.group(1) if match else None
+
+
 def lookup_in_production_catalog(url: str) -> dict[str, Any] | None:
-    """Prefer live Windows catalog (scraped lots) over opening Chrome."""
+    """Find the lot from a URL in the scraped catalog."""
     canonical = normalize_lot_url(url)
     try:
         platform = detect_platform(canonical)
@@ -843,6 +869,11 @@ def lookup_in_production_catalog(url: str) -> dict[str, Any] | None:
     if not lot_number:
         return None
     is_uk = "copart.co.uk" in canonical.lower()
+    if platform == "bidcars":
+        prefixed = _bidcars_catalog_lot_number(canonical)
+        lot = lot_store.find_by_lot_number(prefixed) if prefixed else None
+        if lot is not None:
+            return lot_to_calculator_payload(lot, url=canonical, via="catalog")
     if is_uk:
         sources: set[str] | None = {"copart_uk"}
     else:
@@ -866,6 +897,73 @@ def lookup_in_production_catalog(url: str) -> dict[str, Any] | None:
     if is_uk:
         payload = apply_uk_url_yard(payload, canonical)
     return payload
+
+
+_CATALOG_FILL_KEYS = (
+    "bid",
+    "year",
+    "make",
+    "model",
+    "title",
+    "vin",
+    "location",
+    "odometer",
+    "odometerUnit",
+    "bodyStyle",
+    "category",
+    "engine",
+    "cylinders",
+    "fuel",
+    "transmission",
+    "drive",
+    "exteriorColor",
+    "primaryDamage",
+    "secondaryDamage",
+    "lossType",
+    "startCode",
+    "keyInfo",
+    "saleDocument",
+    "seller",
+    "images",
+)
+
+
+def _is_blank(value: Any) -> bool:
+    return value is None or value == "" or value == []
+
+
+def fill_from_catalog(
+    payload: dict[str, Any],
+    url: str,
+    catalog: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Fill what Chrome left empty. Live values always win."""
+    out = dict(payload)
+    try:
+        canonical = normalize_lot_url(url)
+        number = extract_lot_number(canonical, detect_platform(canonical))
+    except ValueError:
+        return out
+    if number:
+        out["lotNumber"] = number  # older Windows builds return "1" for 1-69128766
+    if not catalog:
+        return out
+    filled = [
+        key
+        for key in _CATALOG_FILL_KEYS
+        if _is_blank(out.get(key)) and not _is_blank(catalog.get(key))
+    ]
+    for key in filled:
+        out[key] = catalog[key]
+    if not filled:
+        return out
+    if "bid" in filled:
+        out["bidLive"] = False
+    if out.get("via") == "scraper_proxy_failed" or not out.get("ok"):
+        out["chrome_error"] = out.pop("error", None) or "chrome_failed"
+        out["via"] = "catalog"
+    out["ok"] = True
+    return out
 
 
 async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:

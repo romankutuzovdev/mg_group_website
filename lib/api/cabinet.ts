@@ -73,6 +73,12 @@ export type DealSpecs = {
   drive?: string;
   exterior_color?: string;
   primary_damage?: string;
+  secondary_damage?: string;
+  loss_type?: string;
+  start_code?: string;
+  key_info?: string;
+  sale_document?: string;
+  seller?: string;
 };
 
 export type Deal = {

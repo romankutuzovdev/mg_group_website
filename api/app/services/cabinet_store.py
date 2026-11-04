@@ -650,6 +650,12 @@ class CabinetStore:
                 drive=str(raw.get("drive") or ""),
                 exterior_color=str(raw.get("exterior_color") or ""),
                 primary_damage=str(raw.get("primary_damage") or ""),
+                secondary_damage=str(raw.get("secondary_damage") or ""),
+                loss_type=str(raw.get("loss_type") or ""),
+                start_code=str(raw.get("start_code") or ""),
+                key_info=str(raw.get("key_info") or ""),
+                sale_document=str(raw.get("sale_document") or ""),
+                seller=str(raw.get("seller") or ""),
             )
         except (json.JSONDecodeError, TypeError, ValueError):
             return DealSpecs()

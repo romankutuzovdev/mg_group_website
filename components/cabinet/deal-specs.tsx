@@ -14,6 +14,12 @@ const SPEC_LABELS: { key: keyof DealSpecs; label: string }[] = [
   { key: "drive", label: "Привод" },
   { key: "exterior_color", label: "Цвет" },
   { key: "primary_damage", label: "Повреждение" },
+  { key: "secondary_damage", label: "Вторичное повреждение" },
+  { key: "loss_type", label: "Тип потери" },
+  { key: "start_code", label: "Состояние запуска" },
+  { key: "key_info", label: "Ключи" },
+  { key: "sale_document", label: "Документ" },
+  { key: "seller", label: "Продавец" },
 ];
 
 export function dealSpecsRows(specs?: DealSpecs | null): { label: string; value: string }[] {

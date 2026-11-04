@@ -24,6 +24,7 @@ import {
   regionLabel,
 } from "@/lib/api/cabinet";
 import { fetchLotFromUrl } from "@/lib/api/client";
+import { formatOdometerKm } from "@/lib/auctions/odometer";
 import { apiUrl, isApiEnabled } from "@/lib/api/config";
 import { lotHost } from "@/lib/pricing/lot-url";
 import {
@@ -59,7 +60,20 @@ const SPEC_FIELDS: { key: keyof DealSpecs; label: string; placeholder: string }[
   { key: "drive", label: "Привод", placeholder: "FWD" },
   { key: "exterior_color", label: "Цвет", placeholder: "White" },
   { key: "primary_damage", label: "Повреждение", placeholder: "Front" },
+  { key: "secondary_damage", label: "Вторичное повреждение", placeholder: "Rear" },
+  { key: "loss_type", label: "Тип потери", placeholder: "Collision" },
+  { key: "start_code", label: "Состояние запуска", placeholder: "Run / Drive" },
+  { key: "key_info", label: "Ключи", placeholder: "Present" },
+  { key: "sale_document", label: "Документ", placeholder: "Salvage (Texas)" },
+  { key: "seller", label: "Продавец", placeholder: "Insurance" },
 ];
+
+function lotOdometerText(value: unknown, unit?: string | null): string {
+  const text = value == null ? "" : String(value).trim();
+  if (!text || text === "0") return "";
+  if (!/^\d+$/.test(text)) return text;
+  return formatOdometerKm(Number(text), unit === "km" ? "km" : "mi");
+}
 
 function specsSummary(specs?: DealSpecs | null): string {
   if (!specs) return "";
@@ -203,6 +217,7 @@ export function AdminDealsPanel({
   const [dismantlePhotosUrl, setDismantlePhotosUrl] = useState("");
   const [lotLoading, setLotLoading] = useState(false);
   const [lotMeta, setLotMeta] = useState<string | null>(null);
+  const [lotWarning, setLotWarning] = useState<string | null>(null);
   const [lotImages, setLotImages] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [vin, setVin] = useState("");
@@ -281,6 +296,7 @@ export function AdminDealsPanel({
     setError(null);
     setOk(null);
     setLotMeta(null);
+    setLotWarning(null);
     try {
       const lot = await fetchLotFromUrl(url);
       if (!lot.ok && !lot.make && !lot.lotNumber && !lot.year) {
@@ -305,10 +321,7 @@ export function AdminDealsPanel({
       }
       setSpecs({
         location: lot.location ? String(lot.location) : "",
-        odometer:
-          lot.odometer != null && String(lot.odometer).trim()
-            ? String(lot.odometer)
-            : "",
+        odometer: lotOdometerText(lot.odometer, lot.odometerUnit),
         category: lot.category ? String(lot.category) : "",
         body_style: lot.bodyStyle ? String(lot.bodyStyle) : "",
         engine: lot.engine ? String(lot.engine) : "",
@@ -321,8 +334,21 @@ export function AdminDealsPanel({
         drive: lot.drive ? String(lot.drive) : "",
         exterior_color: lot.exteriorColor ? String(lot.exteriorColor) : "",
         primary_damage: lot.primaryDamage ? String(lot.primaryDamage) : "",
+        secondary_damage: lot.secondaryDamage ? String(lot.secondaryDamage) : "",
+        loss_type: lot.lossType ? String(lot.lossType) : "",
+        start_code: lot.startCode ? String(lot.startCode) : "",
+        key_info: lot.keyInfo ? String(lot.keyInfo) : "",
+        sale_document: lot.saleDocument ? String(lot.saleDocument) : "",
+        seller: lot.seller ? String(lot.seller) : "",
       });
       setLotImages(Array.isArray(lot.images) ? lot.images.filter(Boolean) : []);
+      if (lot.via === "scraper_proxy_failed") {
+        setLotWarning(
+          "Сервер аукциона не ответил, характеристик нет. Попробуйте ещё раз или заполните вручную.",
+        );
+      } else if (lot.via === "catalog") {
+        setLotWarning("Данные из нашего каталога, а не с живой страницы: проверьте цену.");
+      }
       setLotMeta(
         [
           nextTitle || "Лот",
@@ -399,6 +425,7 @@ export function AdminDealsPanel({
       setTrackingUrl("");
       setDismantlePhotosUrl("");
       setLotMeta(null);
+      setLotWarning(null);
       setLotImages([]);
       setTitle("");
       setVin("");
@@ -1164,6 +1191,7 @@ export function AdminDealsPanel({
               </div>
             </label>
             <LotLoadStatus active={lotLoading} />
+            {lotWarning ? <p className="text-[11px] text-amber-700">{lotWarning}</p> : null}
             {lotMeta ? (
               <p className="text-[11px] text-emerald-800">Подтянуто с сервера: {lotMeta}</p>
             ) : (

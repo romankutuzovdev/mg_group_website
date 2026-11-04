@@ -328,6 +328,13 @@ export type LotFromUrlResponse = {
   exteriorColor?: string | null;
   cylinders?: string | number | null;
   primaryDamage?: string | null;
+  secondaryDamage?: string | null;
+  lossType?: string | null;
+  startCode?: string | null;
+  keyInfo?: string | null;
+  saleDocument?: string | null;
+  seller?: string | null;
+  odometerUnit?: string | null;
   inlandMiles?: number | null;
   inlandUsd?: number | null;
   milesToNewJersey?: number | null;

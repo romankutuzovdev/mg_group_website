@@ -103,23 +103,37 @@ def calc_weight(body: WeightPriceRequest) -> dict:
     }
 
 
+PROXY_TIMEOUT_WITH_CATALOG = 30.0
+PROXY_TIMEOUT_NO_CATALOG = 42.0
+
+
 @router.post("/lot-from-url")
 async def lot_from_url(body: LotFromUrlRequest) -> dict:
-    """Open auction URL in Chrome and scrape live fields (never from catalog DB).
+    """Open auction URL in Chrome and scrape live fields.
 
-    Public VPS has no Chrome: forward to the Windows API (SCRAPER_API_URL) and
-    return its answer as-is so the site shows what Chrome actually saw.
+    Public VPS has no Chrome: forward to the Windows API (SCRAPER_API_URL). What
+    Chrome left empty (or everything, if Windows hangs) comes from the catalog.
     """
-    from app.services.lot_lookup import soft_lot_payload
+    from app.services.lot_lookup import (
+        fill_from_catalog,
+        lookup_in_production_catalog,
+        soft_lot_payload,
+    )
     from app.services.scraper_proxy import proxy_lot_from_url, should_proxy_lot_lookup
 
     if should_proxy_lot_lookup():
         try:
-            return await proxy_lot_from_url(body.url)
+            catalog = lookup_in_production_catalog(body.url)
+        except ValueError:
+            catalog = None
+        # The browser gives up at 45s, so an answer must be back before that.
+        timeout = PROXY_TIMEOUT_WITH_CATALOG if catalog else PROXY_TIMEOUT_NO_CATALOG
+        try:
+            payload = await proxy_lot_from_url(body.url, timeout_seconds=timeout)
         except RuntimeError as exc:
-            soft = soft_lot_payload(body.url, f"scraper_proxy_failed:{exc}"[:300])
-            soft["via"] = "scraper_proxy_failed"
-            return soft
+            payload = soft_lot_payload(body.url, f"scraper_proxy_failed:{exc}"[:300])
+            payload["via"] = "scraper_proxy_failed"
+        return fill_from_catalog(payload, body.url, catalog)
 
     try:
         return await fetch_lot_from_url(body.url)

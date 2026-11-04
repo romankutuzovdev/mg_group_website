@@ -59,6 +59,7 @@ async def proxy_lot_from_url(
     url: str,
     *,
     transport: httpx.AsyncBaseTransport | None = None,
+    timeout_seconds: float | None = None,
 ) -> dict[str, Any]:
     """POST the lot URL to Windows and return its JSON payload.
 
@@ -69,7 +70,9 @@ async def proxy_lot_from_url(
     if not base:
         raise RuntimeError("SCRAPER_API_URL not set")
     settings = get_settings()
-    timeout_total = max(20.0, float(settings.scraper_api_timeout_seconds or 75.0))
+    timeout_total = timeout_seconds or max(
+        20.0, float(settings.scraper_api_timeout_seconds or 75.0)
+    )
     headers = {"Accept": "application/json"}
     key = scraper_api_key()
     if key:
