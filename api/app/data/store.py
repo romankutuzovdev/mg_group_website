@@ -201,12 +201,20 @@ class LotStore:
         if path.is_file():
             try:
                 # utf-8-sig: tolerate PowerShell Set-Content -Encoding UTF8 (BOM)
-                raw = json.loads(path.read_text(encoding="utf-8-sig"))
+                text = path.read_text(encoding="utf-8-sig")
+                raw = json.loads(text)
+                del text
             except json.JSONDecodeError:
                 # Broken / empty file — start with empty catalog rather than crash API
                 raw = {"lots": []}
             items = raw.get("lots", raw) if isinstance(raw, dict) else raw
-            for item in items or []:
+            del raw
+            if not isinstance(items, list):
+                items = []
+            # Pop as we go: raw dicts and models must not both sit in RAM at full size.
+            items.reverse()
+            while items:
+                item = items.pop()
                 try:
                     lots.append(AuctionLot.model_validate(item))
                 except Exception:

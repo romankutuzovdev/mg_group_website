@@ -48,6 +48,7 @@ export type LotQuery = {
   q?: string;
   make?: string;
   model?: string;
+  ownPhoto?: boolean;
   yearFrom?: number;
   yearTo?: number;
   auction?: string[];
@@ -100,6 +101,7 @@ function toSearchParams(query: LotQuery): string {
   set("order", query.order);
   if (query.run) sp.set("run", "true");
   if (query.buynow) sp.set("buynow", "true");
+  if (query.ownPhoto) sp.set("ownPhoto", "true");
   for (const a of query.auction ?? []) sp.append("auction", a);
   const s = sp.toString();
   return s ? `?${s}` : "";

@@ -62,6 +62,27 @@ class FillFromCatalogTests(unittest.TestCase):
         self.assertEqual(out["engine"], "3.5L, V6")
         self.assertEqual(out["via"], "lot_lookup_tab")
 
+    def test_catalog_corrects_page_parsing_errors(self):
+        live = {
+            "ok": True,
+            "proxied": True,
+            "via": "lot_lookup_tab",
+            "bid": 0.0,
+            "bidLive": True,
+            "odometer": 49,
+            "drive": "Key",
+        }
+        catalog = {"bid": 4300.0, "odometer": 49549, "odometerUnit": "mi", "drive": "AWD"}
+        out = fill_from_catalog(live, URL, catalog)
+        self.assertEqual(out["odometer"], 49549)
+        self.assertEqual(out["drive"], "AWD")
+        self.assertEqual(out["bid"], 4300.0)
+        self.assertFalse(out["bidLive"])
+
+    def test_garbage_drive_dropped_without_catalog(self):
+        live = {"ok": True, "proxied": True, "via": "lot_lookup_tab", "drive": "45E"}
+        self.assertIsNone(fill_from_catalog(live, URL, None)["drive"])
+
     def test_no_catalog_keeps_failure_visible(self):
         soft = soft_lot_payload(URL, "x")
         soft["via"] = "scraper_proxy_failed"
@@ -121,6 +142,16 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(found["startCode"], "Run / Drive")
         self.assertEqual(found["saleDocument"], "Salvage (Texas)")
         self.assertEqual(found["seller"], "Hanover Insurance")
+
+    def test_direct_copart_link_finds_bidcars_lot(self):
+        found_lot = self._lot()
+
+        def find(number, **_):
+            return found_lot if number == "1-69128766" else None
+
+        with patch.object(lot_store, "find_by_lot_number", side_effect=find):
+            found = lookup_in_production_catalog("https://www.copart.com/lot/69128766")
+        self.assertEqual(found["vin"], "1FTBR3UG0RKA85625")
 
     def test_zero_catalog_bid_is_not_a_price(self):
         lot = self._lot()

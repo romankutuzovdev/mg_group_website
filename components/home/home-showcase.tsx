@@ -36,7 +36,7 @@ export function HomeShowcase({ initialLots, counts }: Props) {
     let cancelled = false;
     setLoading(true);
     setError(false);
-    fetchLotsPage({ region, page: 1, pageSize: 12, sort: "date", order: "desc" })
+    fetchLotsPage({ region, page: 1, pageSize: 12, sort: "date", order: "desc", ownPhoto: true })
       .then((result) => {
         if (cancelled) return;
         const items = pickShowcaseLots(result.items.filter((lot) => lot.region === region), 6);

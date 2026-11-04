@@ -15,7 +15,6 @@ import { HomeShowcase } from "@/components/home/home-showcase";
 import { Process } from "@/components/home/process";
 import { ReviewsSection } from "@/components/home/reviews-section";
 import { CasesFeed } from "@/components/pages/cases-feed";
-import { AiCarChat } from "@/components/ai/ai-car-chat";
 
 type HomeProps = {
   dictionary: Dictionary;
@@ -31,9 +30,6 @@ export default function Home({ dictionary, regionalLots, counts }: HomeProps) {
       <StatsBar />
       <HomeDirections />
       <HomeShowcase initialLots={regionalLots} counts={counts} />
-      <section className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-        <AiCarChat />
-      </section>
       <Process />
       <Benefits dictionary={dictionary} />
       <CasesFeed limit={3} hideWhenEmpty />
@@ -47,7 +43,7 @@ export const getStaticProps: GetStaticProps<HomeProps> = async () => {
   const regions: AuctionRegion[] = ["usa", "china", "korea", "uk"];
   const [meta, ...pages] = await Promise.all([
     fetchLotMeta().catch(() => null),
-    ...regions.map((region) => loadLotsPageLite({ region, pageSize: 12 })),
+    ...regions.map((region) => loadLotsPageLite({ region, pageSize: 12, ownPhoto: true })),
   ]);
   const metaCounts = meta ? normalizeRegionCounts(meta) : {};
   const regionalLots = {} as HomeProps["regionalLots"];

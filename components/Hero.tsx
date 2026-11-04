@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowRight } from "lucide-react";
 import type { Dictionary } from "@/lib/dictionary";
+import { AiCarChat } from "@/components/ai/ai-car-chat";
 import { HeroCarReveal } from "@/components/hero-car-reveal";
 import { LinkButton } from "@/components/site/button";
 
@@ -9,7 +10,7 @@ export default function Hero({ dictionary }: { dictionary: Dictionary }) {
       <HeroCarReveal />
       <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-black/90 via-black/55 to-transparent" />
       <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-black/80 via-transparent to-black/20" />
-      <div className="pointer-events-none relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="pointer-events-none relative z-10 mx-auto grid w-full max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:gap-12 lg:px-8">
         <div className="max-w-[42rem]">
           <p className="text-xs font-medium uppercase tracking-[0.25em] text-white/75">MG<span className="text-primary">.</span>GROUP <span className="mx-3 text-white/35">/</span> Доставка в Беларусь</p>
           <h1 className="mt-7 max-w-[13ch] text-[clamp(2.5rem,5.4vw,5rem)] font-medium leading-[1.04] tracking-[-0.045em] text-white">Ваш автомобиль.<br /><span className="text-white/65">Без границ.</span></h1>
@@ -19,6 +20,9 @@ export default function Hero({ dictionary }: { dictionary: Dictionary }) {
             <LinkButton href="#catalog-showcase" variant="outline" size="lg">Смотреть автомобили</LinkButton>
           </div>
           <p className="mt-5 text-xs text-white/60">{dictionary.hero.subtitle}</p>
+        </div>
+        <div className="pointer-events-auto min-w-0">
+          <AiCarChat variant="hero" />
         </div>
       </div>
       <a href="#directions" className="absolute bottom-8 left-4 z-20 hidden items-center gap-3 text-xs text-white/70 transition hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary sm:left-6 md:inline-flex lg:left-[max(2rem,calc((100vw-76rem)/2))]">

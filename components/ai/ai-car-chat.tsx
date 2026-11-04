@@ -37,6 +37,8 @@ type Props = {
   lotSlug?: string;
   title?: string;
   intro?: string;
+  /** Панель в первом экране: фиксированная высота, чтобы Hero не прыгал от ответов. */
+  variant?: "default" | "hero";
 };
 
 // Search works by make, model, budget, year, region and fuel, not by body type,
@@ -269,8 +271,10 @@ export function AiCarChat({
   lotSlug,
   title = "Подбор авто с ИИ",
   intro = "Опишите бюджет и какая машина нужна. Проверю все каталоги сразу, а не только США.",
+  variant = "default",
 }: Props) {
-  const [enabled, setEnabled] = useState(false);
+  // Hero renders at once and hides only if the API says AI is off: no pop-in on first screen.
+  const [enabled, setEnabled] = useState(variant === "hero");
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -286,7 +290,9 @@ export function AiCarChat({
       .then((data) => {
         if (!cancelled) setEnabled(Boolean(data.enabled));
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setEnabled(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -294,8 +300,15 @@ export function AiCarChat({
 
   useEffect(() => {
     const el = logRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, busy]);
+    if (!el) return;
+    const last = el.lastElementChild;
+    if (variant === "hero" && !busy && last) {
+      // Short panel: open the answer from its first line, not from the last card.
+      el.scrollTop += last.getBoundingClientRect().top - el.getBoundingClientRect().top - 12;
+      return;
+    }
+    el.scrollTop = el.scrollHeight;
+  }, [messages, busy, variant]);
 
   useEffect(() => {
     const el = inputRef.current;
@@ -360,12 +373,19 @@ export function AiCarChat({
 
   const started = messages.length > 0;
   const group = TEMPLATE_GROUPS.find((g) => g.id === groupId) ?? TEMPLATE_GROUPS[0];
-  const templates: readonly string[] = lotSlug ? LOT_TEMPLATES : group.items;
+  const isHero = variant === "hero";
+  const allTemplates: readonly string[] = lotSlug ? LOT_TEMPLATES : group.items;
+  const templates = isHero ? allTemplates.slice(0, 4) : allTemplates;
   const lastIsAnswer = messages[messages.length - 1]?.role === "assistant";
 
   return (
     <section
-      className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-bg-dark text-white shadow-[0_24px_60px_-24px_rgba(12,10,9,0.55)]"
+      className={cn(
+        "relative isolate overflow-hidden rounded-2xl border text-white",
+        isHero
+          ? "flex h-[35rem] flex-col border-white/15 bg-zinc-950/80 shadow-[0_32px_80px_-24px_rgba(0,0,0,0.8)] backdrop-blur-xl lg:h-[32rem]"
+          : "border-white/10 bg-bg-dark shadow-[0_24px_60px_-24px_rgba(12,10,9,0.55)]",
+      )}
       aria-label={title}
     >
       <div
@@ -379,7 +399,9 @@ export function AiCarChat({
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-lg font-semibold tracking-tight">{title}</h2>
-          <p className="mt-0.5 text-sm text-text-on-dark-muted">{intro}</p>
+          {isHero && started ? null : (
+            <p className="mt-0.5 text-sm text-text-on-dark-muted">{intro}</p>
+          )}
         </div>
         {started ? (
           <button
@@ -395,7 +417,7 @@ export function AiCarChat({
         ) : null}
       </header>
 
-      {lotSlug ? null : (
+      {lotSlug || isHero ? null : (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/10 px-5 py-2.5 text-xs text-text-on-dark-muted sm:px-6">
           <span className="font-medium text-white/80">Ищу по всем каталогам:</span>
           {CATALOGS.map((name) => (
@@ -410,7 +432,10 @@ export function AiCarChat({
       {started ? (
         <div
           ref={logRef}
-          className="max-h-[min(560px,65vh)] space-y-5 overflow-y-auto p-5 sm:px-6"
+          className={cn(
+            "space-y-5 overflow-y-auto p-5 sm:px-6",
+            isHero ? "min-h-0 flex-1" : "max-h-[min(560px,65vh)]",
+          )}
           aria-live="polite"
         >
           {messages.map((m, i) =>
@@ -440,7 +465,7 @@ export function AiCarChat({
           {busy ? <Thinking /> : null}
         </div>
       ) : (
-        <div className="p-5 sm:px-6">
+        <div className={cn("p-5 sm:px-6", isHero && "min-h-0 flex-1 overflow-y-auto")}>
           {lotSlug ? null : (
             <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-3">
               {TEMPLATE_GROUPS.map((g) => {
@@ -464,7 +489,7 @@ export function AiCarChat({
               })}
             </div>
           )}
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <ul className={cn("grid grid-cols-1 gap-2", !isHero && "sm:grid-cols-2")}>
             {templates.map((text) => (
               <li key={text}>
                 <button
@@ -527,7 +552,7 @@ export function AiCarChat({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
             maxLength={600}
-            placeholder="Например: Toyota RAV4 до $20 000"
+            placeholder="Toyota RAV4 до $20 000"
             aria-label="Ваш вопрос"
             className="max-h-32 min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2 text-base text-white outline-none placeholder:text-white/40 sm:text-sm"
           />

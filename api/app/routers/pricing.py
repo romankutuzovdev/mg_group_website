@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -129,9 +130,13 @@ async def lot_from_url(body: LotFromUrlRequest) -> dict:
         # The browser gives up at 45s, so an answer must be back before that.
         timeout = PROXY_TIMEOUT_WITH_CATALOG if catalog else PROXY_TIMEOUT_NO_CATALOG
         try:
-            payload = await proxy_lot_from_url(body.url, timeout_seconds=timeout)
-        except RuntimeError as exc:
-            payload = soft_lot_payload(body.url, f"scraper_proxy_failed:{exc}"[:300])
+            payload = await asyncio.wait_for(
+                proxy_lot_from_url(body.url, timeout_seconds=timeout),
+                timeout=timeout,
+            )
+        except (RuntimeError, asyncio.TimeoutError) as exc:
+            reason = str(exc) or "scraper_timeout"
+            payload = soft_lot_payload(body.url, f"scraper_proxy_failed:{reason}"[:300])
             payload["via"] = "scraper_proxy_failed"
         return fill_from_catalog(payload, body.url, catalog)
 

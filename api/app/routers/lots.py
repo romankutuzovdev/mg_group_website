@@ -188,6 +188,7 @@ def list_lots(
     eng_max: float | None = Query(None, alias="engMax"),
     run: bool = False,
     buynow: bool = False,
+    own_photo: bool = Query(False, alias="ownPhoto"),
     tab: str = "all",
     region: str | None = None,
     page: int = Query(1, ge=1),
@@ -251,6 +252,10 @@ def list_lots(
             items.sort(key=lambda x: x.year, reverse=reverse)
         else:
             items.sort(key=lambda x: x.auctionDate or "", reverse=reverse)
+
+    if own_photo:
+        # Bid.cars CDN answers 403 to site visitors until a photo reaches our storage.
+        items = [x for x in items if x.imageUrl and "bid.car" not in x.imageUrl]
 
     total = len(items)
     pages = max(1, math.ceil(total / page_size)) if total else 1

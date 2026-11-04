@@ -51,7 +51,8 @@ def _role(settings) -> str:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    n = lot_store.reload()
+    # LotStore() already loaded the catalog; a second load here ran the VPS out of RAM.
+    n = len(lot_store.all())
     print(f"[mg-api] loaded {n} lots from disk")
     settings = get_settings()
     role = _role(settings)

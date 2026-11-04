@@ -249,8 +249,8 @@ BIDCars_JS = """
       if (Number.isFinite(n) && n > 0) bid = n;
     }
   }
-  const odo = money(/Одометр[^0-9]*([0-9][0-9\\s,]*)/i)
-    || money(/Odometer[^0-9]*([0-9][0-9,]*)/i);
+  const odo = money(/Одометр[^0-9]*([0-9][0-9 \\u00a0,]*)/i)
+    || money(/Odometer[^0-9]*([0-9][0-9 \\u00a0,]*)/i);
   const bodyStyle = pick(/Тип кузова\\s*:?\\s*([^\\n]{3,40})/i)
     || pick(/Body\\s*(?:style|type)\\s*:?\\s*([^\\n]{3,40})/i)
     || pick(/Vehicle\\s*type\\s*:?\\s*([^\\n]{3,40})/i);
@@ -272,12 +272,13 @@ BIDCars_JS = """
     else if (/cvt/i.test(transmission)) transmission = 'CVT';
   }
   let drive = pick(/Привод\\s*:?\\s*([^\\n]{2,40})/i)
-    || pick(/Drive(?:\\s*type|\\s*line|train)?\\s*:?\\s*([^\\n]{2,40})/i);
+    || pick(/(?:^|\\n)\\s*Drive(?:\\s*type|\\s*line|train)?\\s*:?\\s*([^\\n]{2,40})/i);
   if (drive) {
     if (/awd|all\\s*wheel|полный/i.test(drive)) drive = 'AWD';
     else if (/4x4|4wd/i.test(drive)) drive = '4x4';
     else if (/fwd|front|передн/i.test(drive)) drive = 'FWD';
     else if (/rwd|rear|задн/i.test(drive)) drive = 'RWD';
+    else drive = null;
   }
   const exteriorColor = pick(/Цвет\\s*:?\\s*([^\\n]{2,40})/i)
     || pick(/Exterior\\s*colou?r\\s*:?\\s*([^\\n]{2,40})/i)
@@ -874,6 +875,12 @@ def lookup_in_production_catalog(url: str) -> dict[str, Any] | None:
         lot = lot_store.find_by_lot_number(prefixed) if prefixed else None
         if lot is not None:
             return lot_to_calculator_payload(lot, url=canonical, via="catalog")
+    elif not is_uk:
+        # Direct Copart / IAAI links: the catalog keeps these lots under Bid.cars ids.
+        for prefix in ("0", "1"):
+            lot = lot_store.find_by_lot_number(f"{prefix}-{lot_number}")
+            if lot is not None:
+                return lot_to_calculator_payload(lot, url=canonical, via="catalog")
     if is_uk:
         sources: set[str] | None = {"copart_uk"}
     else:
@@ -928,8 +935,13 @@ _CATALOG_FILL_KEYS = (
 )
 
 
+# Scraped from the Bid.cars JSON, while the page text gives "49" for 49 549 mi.
+_CATALOG_PREFERRED_KEYS = ("odometer", "odometerUnit", "drive")
+_DRIVE_RE = re.compile(r"awd|4x|4wd|fwd|rwd|front|rear|all|передн|задн|полн", re.I)
+
+
 def _is_blank(value: Any) -> bool:
-    return value is None or value == "" or value == []
+    return value is None or value == "" or value == [] or value == 0
 
 
 def fill_from_catalog(
@@ -946,6 +958,8 @@ def fill_from_catalog(
         return out
     if number:
         out["lotNumber"] = number  # older Windows builds return "1" for 1-69128766
+    if out.get("drive") and not _DRIVE_RE.search(str(out["drive"])):
+        out["drive"] = None
     if not catalog:
         return out
     filled = [
@@ -955,6 +969,9 @@ def fill_from_catalog(
     ]
     for key in filled:
         out[key] = catalog[key]
+    for key in _CATALOG_PREFERRED_KEYS:
+        if not _is_blank(catalog.get(key)):
+            out[key] = catalog[key]
     if not filled:
         return out
     if "bid" in filled:

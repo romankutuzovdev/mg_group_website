@@ -38,6 +38,7 @@ export async function loadLotsPageLite(opts?: {
   model?: string;
   pageSize?: number;
   auctions?: string[];
+  ownPhoto?: boolean;
 }): Promise<{ lots: AuctionLot[]; total: number }> {
   try {
     const res = await fetchLotsPage({
@@ -45,6 +46,7 @@ export async function loadLotsPageLite(opts?: {
       make: opts?.make,
       model: opts?.model,
       auction: opts?.auctions,
+      ownPhoto: opts?.ownPhoto,
       page: 1,
       pageSize: opts?.pageSize ?? 12,
       sort: "date",
