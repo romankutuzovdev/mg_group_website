@@ -12,6 +12,7 @@ export type AuctionSource =
 
 /** Машинокомплекты: только США и Англия. Корея и Китай — авто под восстановление. */
 export const KIT_AUCTION_SOURCES: AuctionSource[] = [
+  "bidcars",
   "copart",
   "iaai",
   "copart_uk",
