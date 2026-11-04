@@ -14,7 +14,11 @@ import time
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
+from typing import Any
+
 import httpx
+
+from app.config import get_settings
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 
@@ -196,6 +200,16 @@ async def _fetch_bidcars_via_chrome(url: str) -> tuple[bytes, str] | None:
         return None
 
 
+def _client_args(host: str) -> dict[str, Any]:
+    """Copart refuses the VPS address (403), so its images go through the proxy."""
+    args: dict[str, Any] = {"follow_redirects": True, "timeout": 18.0}
+    settings = get_settings()
+    proxy = (settings.lot_image_proxy_url or settings.ai_proxy_url or "").strip()
+    if proxy and "copart" in host.lower():
+        args["proxy"] = proxy
+    return args
+
+
 def _prefer_copart_thumb(url: str) -> str:
     if re.search(r"(?:c-static|cs)\.copart\.(?:com|co\.uk)", url, re.I):
         return re.sub(r"_(?:ful|hrs)\.", "_thb.", url, flags=re.I)
@@ -252,7 +266,7 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
     used_url = target
     last_status = 502
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=18.0) as client:
+        async with httpx.AsyncClient(**_client_args(host)) as client:
             for url, referer in attempts:
                 hit = _read_cache(url)
                 if hit:

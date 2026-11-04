@@ -179,6 +179,8 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-5.4-mini"
     # OpenAI refuses BY addresses: set http://user:pass@host:port on the VPS.
     ai_proxy_url: str = ""
+    # Copart CDN refuses the VPS. Empty = reuse ai_proxy_url.
+    lot_image_proxy_url: str = ""
     ai_chat_max_tokens: int = 700
     ai_chat_ip_hourly_limit: int = 20
     ai_chat_daily_limit: int = 500
