@@ -12,7 +12,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import parse_qsl, urlparse
 
@@ -21,6 +21,7 @@ from playwright.async_api import Browser, Page
 from app.config import get_settings
 from app.data.store import lot_store
 from app.models.lots import AuctionLot
+from app.services.auction_date import parse_auction_date
 from app.scraper.browser import close_agent_tab, get_shared_context, open_agent_tab
 from app.scraper.mapper import copart_image
 
@@ -333,15 +334,19 @@ class PhotoEnrichmentAgent:
             logger.info("photo enricher: new UTC day %s — queue reset", today)
 
     def _wants_cover(self, lot: AuctionLot) -> bool:
-        """Bid.cars / Copart UK lot still on the source CDN: copy its cover first.
+        """Lot still on the source CDN: copy its cover to ours.
 
-        Full galleries take ~30 s per lot, so every lot gets its one catalog
-        photo on our CDN before any gallery is downloaded.
+        Covers-only mode does this for every source. Otherwise Bid.cars and
+        Copart UK get a cover before any gallery (~30 s per lot) is downloaded.
         """
         from app.services.lot_photos import is_our_photo
 
         return (
-            ((lot.source or "") == "bidcars" or _is_uk_lot(lot))
+            (
+                get_settings().scraper_photos_covers_only
+                or (lot.source or "") == "bidcars"
+                or _is_uk_lot(lot)
+            )
             and lot.id not in self._cover_tried
             and bool(lot.imageUrl)
             and not is_our_photo(lot.imageUrl)
@@ -354,7 +359,7 @@ class PhotoEnrichmentAgent:
 
         self._cover_tried.add(lot.id)
         cover = lot.imageUrl
-        hint = "uk" if _is_uk_lot(lot) else "bidcars"
+        hint = "uk" if _is_uk_lot(lot) else (lot.source or lot.region or "")
         saved = await archive_gallery(lot.id, [cover], referer_hint=hint, page=page)
         if not saved:
             return 0
@@ -369,6 +374,24 @@ class PhotoEnrichmentAgent:
     def _queue(self) -> list[AuctionLot]:
         self._roll_day()
         assert self._day is not None
+        if get_settings().scraper_photos_covers_only:
+            covers = [
+                lot
+                for lot in lot_store.all()
+                if not getattr(lot, "sold", False) and self._wants_cover(lot)
+            ]
+            soon = datetime.now(timezone.utc) + timedelta(hours=2)
+
+            # Lots about to end last: their cover would be deleted within hours.
+            def _cover_rank(l: AuctionLot) -> tuple:
+                ends = parse_auction_date(l.auctionDate)
+                src = (l.source or "").lower()
+                rank = 0 if src == "bidcars" else 1 if _is_uk_lot(l) else 2
+                return (ends is not None and ends < soon, rank, -(l.currentBid or 0))
+
+            covers.sort(key=_cover_rank)
+            self.status.queue_remaining = len(covers)
+            return covers
         lots = [
             lot
             for lot in lot_store.all()
@@ -546,6 +569,8 @@ class PhotoEnrichmentAgent:
                     errors += 1
                     self.status.last_error = str(exc)
                     logger.warning("cover archive failed %s: %s", lot.id, exc)
+                continue
+            if settings.scraper_photos_covers_only:
                 continue
             try:
                 now = datetime.now(timezone.utc).isoformat()

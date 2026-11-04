@@ -263,6 +263,17 @@ class SourceAgent:
             elif self.name == "copart_uk":
                 kwargs["max_pages"] = settings.scraper_max_pages_copart_uk
                 kwargs["page_size"] = settings.scraper_page_size
+
+                def _uk_chunk(rows: list[dict[str, Any]]) -> None:
+                    # Into the catalog now: the cycle limit may cut the rest off.
+                    lots = [lot for lot in (self.mapper(r) for r in rows) if lot]
+                    upserted, new = lot_store.upsert_many(lots)
+                    self.status.last_mapped += upserted
+                    self.status.last_new += new
+
+                self.status.last_mapped = 0
+                self.status.last_new = 0
+                kwargs["on_chunk"] = _uk_chunk
             elif self.name == "manheim":
                 kwargs["max_pages"] = settings.scraper_max_pages_manheim
                 kwargs["page_size"] = min(50, settings.scraper_page_size)
@@ -404,6 +415,8 @@ class SourceAgent:
 
     def _schedule_archive(self, mapped: list[AuctionLot]) -> None:
         """Fire-and-forget photo archive; skip if previous batch still running."""
+        if get_settings().scraper_photos_covers_only:
+            return  # the photo agent copies one cover per lot
         if self._archive_task and not self._archive_task.done():
             return
         ids = [lot.id for lot in mapped if lot.id]

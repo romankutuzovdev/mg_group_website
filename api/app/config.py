@@ -126,6 +126,9 @@ class Settings(BaseSettings):
 
     # Photo enricher — visits every lot card, collects full galleries, nonstop daily
     scraper_photos_enabled: bool = True
+    # Only the catalog cover goes to R2. Galleries stay on the auction CDN: lots
+    # live about a day, so uploading all of them mostly burns paid write ops.
+    scraper_photos_covers_only: bool = True
     scraper_photo_batch_size: int = 50  # lots per cycle before status tick
     scraper_photo_delay_seconds: float = 0.4  # pause between lot pages (always open)
     scraper_photo_idle_seconds: int = 90  # when queue empty, wait then re-check

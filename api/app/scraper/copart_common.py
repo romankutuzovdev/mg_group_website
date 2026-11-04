@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from playwright.async_api import Page
 
@@ -165,6 +165,9 @@ def search_body(page: int, size: int) -> dict[str, Any]:
 
 def _lot_number(row: dict[str, Any]) -> str:
     return str(row.get("ln") or row.get("lotNumberStr") or row.get("id") or "").strip()
+
+
+_CHUNK_LOTS = 100
 
 
 async def _accept_cookies(tab: Page) -> None:
@@ -408,6 +411,7 @@ async def scrape_copart_inventory(
     max_pages: int,
     page_size: int,
     timeout_ms: int,
+    on_chunk: Callable[[list[dict[str, Any]]], None] | None = None,
 ) -> list[dict[str, Any]]:
     """Search Copart, then open each lot page. USA and UK never navigate at the same time."""
     async with _WALK_LOCK:
@@ -418,6 +422,7 @@ async def scrape_copart_inventory(
             max_pages=max_pages,
             page_size=page_size,
             timeout_ms=timeout_ms,
+            on_chunk=on_chunk,
         )
 
 
@@ -429,6 +434,7 @@ async def _scrape_copart_inventory(
     max_pages: int,
     page_size: int,
     timeout_ms: int,
+    on_chunk: Callable[[list[dict[str, Any]]], None] | None = None,
 ) -> list[dict[str, Any]]:
     """Return upcoming automobile rows with full image lists."""
     lots: list[dict[str, Any]] = []
@@ -519,11 +525,16 @@ async def _scrape_copart_inventory(
     if not lots:
         return [{"_blocked": True, "reason": "empty" if state != "incapsula" else "incapsula"}]
 
-    # Yard + body from Solr before galleries (calculator needs these).
-    await _attach_lot_details(tab, lots, origin=origin)
-
-    # Full lotImages gallery for EVERY lot (not only 25 page opens).
-    await _attach_galleries(tab, lots, origin=origin)
+    # Chunks, so a cycle cut off by its time limit keeps what it already finished
+    # (2000 lots do not fit in one cycle; waiting for all of them saved nothing).
+    for start in range(0, len(lots), _CHUNK_LOTS):
+        chunk = lots[start : start + _CHUNK_LOTS]
+        # Yard + body from Solr before galleries (calculator needs these).
+        await _attach_lot_details(tab, chunk, origin=origin)
+        # Full lotImages gallery for EVERY lot (not only 25 page opens).
+        await _attach_galleries(tab, chunk, origin=origin)
+        if on_chunk is not None:
+            on_chunk(chunk)
     with_gallery = sum(1 for r in lots if len(r.get("images") or []) >= 2)
     logger.info(
         "copart %s galleries: %s/%s lots with 2+ photos",

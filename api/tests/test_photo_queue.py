@@ -140,3 +140,24 @@ class PendingQueueTests(unittest.IsolatedAsyncioTestCase):
         ) as cover, patch.object(photo_enricher.lot_store, "get_by_id", return_value=None):
             await agent.run_batch(None, limit=2)
         cover.assert_not_called()
+
+
+class CoversOnlyTests(unittest.TestCase):
+    def _lot(self, lot_id, source, region, bid=100, when=""):
+        lot = _lot(lot_id, bid=bid)
+        lot.source, lot.region, lot.auctionDate = source, region, when
+        return lot
+
+    def test_every_source_gets_a_cover_and_soon_ending_go_last(self):
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)
+        soon = self._lot("soon", "bidcars", "usa", 9000, (now + timedelta(minutes=30)).isoformat())
+        later = self._lot("later", "bidcars", "usa", 100, (now + timedelta(days=2)).isoformat())
+        uk = self._lot("uk", "copart_uk", "uk")
+        kr = self._lot("kr", "encar", "korea")
+        done = self._lot("done", "bidcars", "usa")
+        done.imageUrl = "/api/lot-photos/done/01-a.jpg"
+        with patch.object(photo_enricher.lot_store, "all", return_value=[soon, kr, uk, later, done]):
+            queue = PhotoEnrichmentAgent()._queue()
+        self.assertEqual([l.id for l in queue], ["later", "uk", "kr", "soon"])

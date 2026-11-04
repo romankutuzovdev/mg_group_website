@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from playwright.async_api import Browser, Page
 
@@ -23,6 +23,7 @@ async def scrape_copart_uk(
     timeout_ms: int = 60000,
     browser: Browser | None = None,
     page: Page | None = None,
+    on_chunk: Callable[[list[dict[str, Any]]], None] | None = None,
 ) -> list[dict[str, Any]]:
     session = TabSession()
     tab = await session.start(page=page, browser=browser, headless=headless)
@@ -34,6 +35,7 @@ async def scrape_copart_uk(
             max_pages=max_pages,
             page_size=page_size,
             timeout_ms=timeout_ms,
+            on_chunk=on_chunk,
         )
         logger.info("copart_uk done: %s lots", len(lots))
         return lots
