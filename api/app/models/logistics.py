@@ -40,6 +40,8 @@ CONTAINER_STAGE_LABELS: dict[ContainerStage, str] = {
 
 
 def container_stage_label(stage: str) -> str:
+    if stage == "dismantle_map":
+        return "Карта заполнена"
     return CONTAINER_STAGE_LABELS.get(stage, stage)  # type: ignore[arg-type]
 
 

@@ -23,7 +23,7 @@ from app.models.logistics import (
 )
 from app.services.auth_deps import require_admin_or_key
 from app.services.logistics_store import logistics_store
-from app.services.sms_by import SmsSendResult, check_sms, send_sms_queue
+from app.services.sms_by import SmsSendResult, check_sms, human_error, send_sms_queue
 
 router = APIRouter(prefix="/admin/logistics", tags=["logistics"])
 
@@ -216,21 +216,13 @@ async def move_container_stage(
     )
 
 
-_SMS_ERROR_LABELS = {
-    "disabled": "SMS.BY выключен (SMS_BY_ENABLED=false)",
-    "not_configured": "SMS.BY не настроен (нет токена / альфа-имени)",
-    "empty_message": "Пустой текст SMS",
-}
-
-
 def _record_sms_result(log_id: int, result: SmsSendResult) -> None:
-    err = result.error or ""
     logistics_store.mark_sms_result(
         log_id,
         ok=result.ok,
         skipped=result.skipped,
         sms_id=result.sms_id,
-        error=_SMS_ERROR_LABELS.get(err, err),
+        error=human_error(result.error or ""),
     )
 
 

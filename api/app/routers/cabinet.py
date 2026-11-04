@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 import mimetypes
 from typing import Annotated, Literal
 from urllib.parse import quote
@@ -38,6 +40,8 @@ from app.services.auth_deps import (
 from app.services.cabinet_store import cabinet_store
 from app.services.dismantle_xlsx import build_dismantle_xlsx
 from app.data.store import lot_store
+
+logger = logging.getLogger("mg.cabinet")
 
 router = APIRouter(tags=["cabinet"])
 
@@ -166,7 +170,67 @@ async def patch_my_dismantle_meta(
             client_telegram_id=deal.client_telegram_id or user.telegram_id,
             client_username=deal.client_username or user.username,
         )
+        # …and by SMS when the assigned manager has a phone (Telegram alone otherwise).
+        await _sms_manager_map_completed(
+            deal=deal,
+            car=out.vehicle_label or deal.title,
+            client=deal.client_name or user.first_name,
+        )
     return out
+
+
+async def _sms_manager_map_completed(*, deal: DealOut, car: str, client: str) -> None:
+    """SMS the deal's manager that the client filled the dismantle map.
+
+    Never raises — a failed SMS must not break the client's save. Every attempt
+    (sent / skipped / failed) lands in the logistics SMS journal.
+    """
+    from app.services.logistics_store import logistics_store
+    from app.services.sms_by import (
+        format_map_completed_message,
+        human_error,
+        notify_manager_map_completed,
+    )
+
+    try:
+        manager = (
+            cabinet_store.get_user_by_id(int(deal.manager_user_id))
+            if deal.manager_user_id
+            else None
+        )
+        phone = (manager.phone if manager else "") or ""
+        manager_name = (
+            " ".join(p for p in [manager.first_name, manager.last_name] if p).strip()
+            if manager
+            else ""
+        )
+        message = format_map_completed_message(car=car, client=client, deal_id=deal.id)
+        log_id = logistics_store.log_sms(
+            container_id=None,
+            container_code="Карта разбора",
+            stage="dismantle_map",
+            deal_ids=[deal.id],
+            cars=car,
+            client_name=manager_name or "Менеджер не назначен",
+            phone=phone,
+            message=message if phone else "",
+            status="queued" if phone else "skipped",
+            error="" if phone else "У менеджера нет телефона, уведомление только в Telegram",
+        )
+        if not phone:
+            return
+        result = await notify_manager_map_completed(
+            phone=phone, car=car, client=client, deal_id=deal.id
+        )
+        logistics_store.mark_sms_result(
+            log_id,
+            ok=result.ok,
+            skipped=result.skipped,
+            sms_id=result.sms_id,
+            error=human_error(result.error or ""),
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("map completed SMS to manager failed deal=%s: %s", deal.id, exc)
 
 
 @router.patch(

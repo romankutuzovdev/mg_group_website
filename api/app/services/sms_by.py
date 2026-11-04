@@ -281,6 +281,41 @@ def format_deal_added_fill_map_message(*, car: str) -> str:
     )
 
 
+_ERROR_LABELS = {
+    "disabled": "SMS.BY выключен (SMS_BY_ENABLED=false)",
+    "not_configured": "SMS.BY не настроен (нет токена / альфа-имени)",
+    "empty_message": "Пустой текст SMS",
+    "no_phone": "Нет телефона",
+}
+
+
+def human_error(error: str) -> str:
+    """Journal-friendly reason for a skipped / failed SMS."""
+    err = (error or "").strip()
+    return _ERROR_LABELS.get(err, err)
+
+
+def format_map_completed_message(*, car: str, client: str, deal_id: int) -> str:
+    """SMS to the manager when a client marks the dismantle map as filled."""
+    who = (client or "").strip() or "Клиент"
+    what = _car_line(car) or f"сделка #{deal_id}"
+    return (
+        f"MG.GROUP: {who} заполнил карту разбора ({what}, сделка #{deal_id}). "
+        f"Проверьте в кабинете: {CABINET_URL}"
+    )
+
+
+async def notify_manager_map_completed(
+    *, phone: str, car: str, client: str, deal_id: int
+) -> SmsSendResult:
+    """Manager has a phone → SMS (with retries). Telegram is sent separately."""
+    if not (phone or "").strip():
+        return SmsSendResult(ok=False, skipped=True, error="no_phone")
+    return await send_sms_with_retries(
+        phone, format_map_completed_message(car=car, client=client, deal_id=deal_id)
+    )
+
+
 async def notify_client_credentials(*, phone: str, password: str) -> SmsSendResult:
     """Send login/password SMS to a new or updated client account."""
     return await send_sms(phone, format_credentials_message(phone=phone, password=password))

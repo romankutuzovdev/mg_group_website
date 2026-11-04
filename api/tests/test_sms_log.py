@@ -141,3 +141,27 @@ class CheckSmsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ManagerMapCompletedSmsTests(unittest.TestCase):
+    def test_message_text(self):
+        text = sms_by.format_map_completed_message(car="2021 Toyota Camry", client="Иван", deal_id=8)
+        self.assertIn("Иван заполнил карту разбора", text)
+        self.assertIn("сделка #8", text)
+        self.assertIn("mg-group.by/cabinet", text)
+
+    def test_no_phone_is_skipped_without_sending(self):
+        with patch.object(sms_by, "send_sms_with_retries") as send:
+            res = asyncio.run(sms_by.notify_manager_map_completed(phone="", car="x", client="y", deal_id=1))
+        self.assertTrue(res.skipped)
+        self.assertEqual(res.error, "no_phone")
+        send.assert_not_called()
+
+    def test_with_phone_sends(self):
+        async def fake(phone, message):
+            return SmsSendResult(ok=True, sms_id=42)
+
+        with patch.object(sms_by, "send_sms_with_retries", side_effect=fake):
+            res = asyncio.run(sms_by.notify_manager_map_completed(phone="+375291112233", car="x", client="y", deal_id=1))
+        self.assertTrue(res.ok)
+        self.assertEqual(res.sms_id, 42)
