@@ -9,6 +9,7 @@ Prefer archived `/api/lot-photos/...` when the lot already has them.
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import time
 from pathlib import Path
@@ -23,6 +24,9 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 
 from app.services.lot_photos import photos_root, resolve_photo_file
+from app.services.scraper_proxy import scraper_api_base, should_proxy_lot_lookup
+
+logger = logging.getLogger("mg.lot_image")
 
 router = APIRouter(tags=["lot-image"])
 
@@ -112,6 +116,9 @@ def _read_cache(url: str) -> tuple[bytes, str] | None:
 def _write_cache(url: str, data: bytes, ctype: str) -> None:
     if len(data) < 600:
         return
+    # Copart images live on the Windows disk; the VPS only passes them through.
+    if _windows_serves("copart" if "copart" in url.lower() else ""):
+        return
     bin_path, meta_path = _cache_paths(url)
     try:
         bin_path.write_bytes(data)
@@ -200,11 +207,31 @@ async def _fetch_bidcars_via_chrome(url: str) -> tuple[bytes, str] | None:
         return None
 
 
+def _windows_serves(host: str) -> bool:
+    return "copart" in host.lower() and should_proxy_lot_lookup()
+
+
+async def _fetch_from_windows(url: str) -> tuple[bytes, str] | None:
+    """Public node: ask the Windows API, which caches images on its own disk."""
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(25.0, connect=5.0)) as client:
+            res = await client.get(f"{scraper_api_base()}/api/lot-image", params={"u": url})
+    except httpx.HTTPError as exc:
+        logger.info("lot image via windows failed: %s", type(exc).__name__)
+        return None
+    ctype = res.headers.get("content-type") or "image/jpeg"
+    if res.status_code >= 400 or not _looks_like_image(res.content, ctype):
+        return None
+    return res.content, ctype
+
+
 def _client_args(host: str) -> dict[str, Any]:
-    """Copart refuses the VPS address (403), so its images go through the proxy."""
+    """Copart refuses our addresses (403), so its images go through the proxy."""
     args: dict[str, Any] = {"follow_redirects": True, "timeout": 18.0}
     settings = get_settings()
-    proxy = (settings.lot_image_proxy_url or settings.ai_proxy_url or "").strip()
+    proxy = (
+        settings.lot_image_proxy_url or settings.ai_proxy_url or settings.scraper_proxy_url or ""
+    ).strip()
     if proxy and "copart" in host.lower():
         args["proxy"] = proxy
     return args
@@ -248,6 +275,21 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
                 "X-Lot-Image-Cache": "HIT",
             },
         )
+
+    if _windows_serves(host):
+        forwarded = await _fetch_from_windows(original)
+        if forwarded:
+            body, ctype = forwarded
+            return Response(
+                content=body,
+                status_code=200,
+                media_type=ctype,
+                headers={
+                    "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+                    "Access-Control-Allow-Origin": "*",
+                    "X-Lot-Image-Cache": "WINDOWS",
+                },
+            )
 
     attempts: list[tuple[str, str]] = [(target, _referer_for(host, target))]
     if "copart" in host.lower():
