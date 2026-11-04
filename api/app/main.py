@@ -21,6 +21,7 @@ from app import __version__
 from app.config import get_settings
 from app.data.store import lot_store
 from app.routers import (
+    ai,
     auction_pages,
     auth,
     cabinet,
@@ -233,6 +234,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(lots.router, prefix=prefix)
     app.include_router(pricing.router, prefix=prefix)
+    app.include_router(ai.router, prefix=prefix)
     app.include_router(content.router, prefix=prefix)
     app.include_router(scraper.router, prefix=prefix)
     app.include_router(internal.router, prefix=prefix)

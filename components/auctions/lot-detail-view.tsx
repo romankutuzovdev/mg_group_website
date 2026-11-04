@@ -21,6 +21,7 @@ import {
 } from "@/lib/auctions/types";
 import { isAuctionEnded } from "@/lib/auctions/filter-lots";
 import { formatOdometerKm, isOdometerKnown } from "@/lib/auctions/odometer";
+import { AiCarChat } from "@/components/ai/ai-car-chat";
 import {
   formatDriveRu,
   formatFuelRu,
@@ -416,8 +417,28 @@ export function LotDetailView({
                   <SpecRow label="Ключи" value={lot.hasKeys} />
                   <SpecRow label="Run & Drive" value={lot.runsDrives} />
                   <SpecRow label="Локация" value={lot.location} />
+                  {lot.lossType ? <SpecRow label="Причина" value={lot.lossType} /> : null}
+                  {lot.startCode ? <SpecRow label="Запуск" value={lot.startCode} /> : null}
+                  {lot.keyInfo ? <SpecRow label="Инфо о ключах" value={lot.keyInfo} /> : null}
+                  {lot.seller ? <SpecRow label="Продавец" value={lot.seller} /> : null}
                 </div>
+                {lot.videoUrl ? (
+                  <a
+                    href={lot.videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="mt-4 inline-flex text-sm font-semibold text-primary underline underline-offset-2"
+                  >
+                    Смотреть видео с площадки
+                  </a>
+                ) : null}
               </div>
+
+              <AiCarChat
+                lotSlug={lot.slug}
+                title="Спросить ИИ про этот лот"
+                intro="Спросите про риски, повреждения или попросите похожие варианты."
+              />
 
               {lot.similarSold && lot.similarSold.length > 0 ? (
                 <SimilarSold items={lot.similarSold} />

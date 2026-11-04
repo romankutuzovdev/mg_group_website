@@ -1,5 +1,6 @@
 import { GetStaticProps } from "next";
 import { AuctionsCatalog } from "@/components/auctions/auctions-catalog";
+import { AiCarChat } from "@/components/ai/ai-car-chat";
 import { CatalogHero, CatalogSection } from "@/components/catalog/catalog-hero";
 import { MakeCard } from "@/components/catalog/cards";
 import { RegionMosaic } from "@/components/catalog/region-mosaic";
@@ -114,6 +115,8 @@ export default function AvtoHubPage({
           >
             <RegionMosaic lotCounts={regionLotCounts} />
           </CatalogSection>
+
+          <AiCarChat />
 
           <CatalogSection
             id="lots"

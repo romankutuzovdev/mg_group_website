@@ -1100,6 +1100,7 @@ def row_from_api_item(
 
     # "2023 Nissan Rogue, SV" → title "2023 Nissan Rogue" (trim after the comma
     # would otherwise leak into the model name).
+    video = str(item.get("video_url") or "").strip()
     name = str(item.get("name_long") or item.get("name") or "").strip()
     name = re.sub(r"\.{3,}$", "", name).split(",")[0].strip()
 
@@ -1133,6 +1134,7 @@ def row_from_api_item(
         "runsDrives": bool(re.search(r"run|drive|start", start_code, re.I)),
         "startCode": start_code,
         "keyInfo": key_info,
+        "videoUrl": video if video.startswith("https://") else "",
         "auctionDate": auction_date,
         "images": images,
         "image": images[0],

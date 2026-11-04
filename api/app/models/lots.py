@@ -81,6 +81,13 @@ class AuctionLot(BaseModel):
     # Bid.cars archived sale. Kept for "похожие проданные", hidden from the live catalog.
     sold: bool = False
     similarSold: list[SoldPeer] | None = None
+    # Auction sheet details
+    seller: str = ""
+    lossType: str = ""
+    startCode: str = ""
+    keyInfo: str = ""
+    saleDocument: str = ""
+    videoUrl: str = ""
 
 
 class LotListResponse(BaseModel):

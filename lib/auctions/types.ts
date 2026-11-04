@@ -91,6 +91,12 @@ export type AuctionLot = {
   /** Bid.cars archived sale */
   sold?: boolean;
   similarSold?: SoldPeer[];
+  seller?: string;
+  lossType?: string;
+  startCode?: string;
+  keyInfo?: string;
+  saleDocument?: string;
+  videoUrl?: string;
   /** Seeded / placeholder inventory — keep noindex until real feed */
   _demo?: boolean;
 };

@@ -590,6 +590,12 @@ def map_bidcars_row(row: dict[str, Any]) -> AuctionLot | None:
         photosEnrichedAt=enriched_at,
         photoCount=len(gallery),
         sold=sold,
+        seller=str(row.get("seller") or "").strip(),
+        lossType=str(row.get("lossType") or "").strip(),
+        startCode=str(row.get("startCode") or "").strip(),
+        keyInfo=str(row.get("keyInfo") or "").strip(),
+        saleDocument=sale_doc,
+        videoUrl=str(row.get("videoUrl") or "").strip(),
     )
 
 

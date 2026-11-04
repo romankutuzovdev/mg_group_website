@@ -1,5 +1,6 @@
 import { GetStaticPaths, GetStaticProps } from "next";
 import { AuctionsCatalog } from "@/components/auctions/auctions-catalog";
+import { AiCarChat } from "@/components/ai/ai-car-chat";
 import { CatalogHero, CatalogSection } from "@/components/catalog/catalog-hero";
 import { MakeCard } from "@/components/catalog/cards";
 import { RegionMosaic } from "@/components/catalog/region-mosaic";
@@ -138,6 +139,8 @@ export default function AvtoRegionPage({
 
         <div className="mx-auto max-w-7xl space-y-16 px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <RegionMosaic lotCounts={regionLotCounts} active={region.slug} variant="strip" />
+
+          <AiCarChat />
 
           <CatalogSection
             id="lots"

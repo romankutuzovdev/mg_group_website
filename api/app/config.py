@@ -165,6 +165,15 @@ class Settings(BaseSettings):
     sms_by_token: str = ""
     sms_by_alphaname_id: str = ""
 
+    # AI car picker. Empty key = chat hidden on the site.
+    openai_api_key: str = ""
+    openai_model: str = "gpt-5.4-mini"
+    # OpenAI refuses BY addresses: set http://user:pass@host:port on the VPS.
+    ai_proxy_url: str = ""
+    ai_chat_max_tokens: int = 700
+    ai_chat_ip_hourly_limit: int = 20
+    ai_chat_daily_limit: int = 500
+
     # Cloudflare R2 — CDN for USA/UK lot photos (free tier). Empty = off.
     # Create bucket + API token + enable public URL (r2.dev or custom domain).
     r2_enabled: bool = False

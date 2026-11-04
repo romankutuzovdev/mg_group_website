@@ -15,6 +15,7 @@ import { HomeShowcase } from "@/components/home/home-showcase";
 import { Process } from "@/components/home/process";
 import { ReviewsSection } from "@/components/home/reviews-section";
 import { CasesFeed } from "@/components/pages/cases-feed";
+import { AiCarChat } from "@/components/ai/ai-car-chat";
 
 type HomeProps = {
   dictionary: Dictionary;
@@ -30,6 +31,9 @@ export default function Home({ dictionary, regionalLots, counts }: HomeProps) {
       <StatsBar />
       <HomeDirections />
       <HomeShowcase initialLots={regionalLots} counts={counts} />
+      <section className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+        <AiCarChat />
+      </section>
       <Process />
       <Benefits dictionary={dictionary} />
       <CasesFeed limit={3} hideWhenEmpty />
