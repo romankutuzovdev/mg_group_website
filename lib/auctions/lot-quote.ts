@@ -97,10 +97,21 @@ export function quoteUsaRestoration(
   });
 }
 
+/**
+ * Ожидаемая цена покупки. Ставка в начале торгов сильно ниже итоговой, поэтому
+ * берём середину оценки аукциона, если она выше текущей ставки.
+ */
+function expectedBid(lot: AuctionLot): number {
+  const low = lot.estimatedCostMin ?? 0;
+  const high = lot.estimatedCostMax ?? 0;
+  const estimate = low && high ? (low + high) / 2 : low || high;
+  return Math.max(lot.currentBid, estimate);
+}
+
 function quoteUsaKit(lot: AuctionLot) {
   const { title, bodyStyle } = lotMeta(lot);
   return quoteIaaiUsa({
-    bid: lot.currentBid,
+    bid: expectedBid(lot),
     title,
     bodyStyle,
     location: lot.location,

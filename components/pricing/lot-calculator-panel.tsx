@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AuctionLot } from "@/lib/auctions/types";
 import { formatOdometerKm } from "@/lib/auctions/odometer";
+import { estimateLotBreakdown } from "@/lib/auctions/lot-quote";
 import {
   estimateIaaiAuctionFeesUsd,
   quoteUsaRestoration,
@@ -426,9 +427,38 @@ function ChinaListingPanel({ lot }: { lot: AuctionLot }) {
   );
 }
 
-export function LotCalculatorPanel({ lot }: Props) {
+function UsaKitPanel({ lot }: Props) {
+  const quote = estimateLotBreakdown(lot, "kit");
+  return (
+    <div className="card-premium rounded-xl p-5 sm:p-6">
+      <h2 className="font-display text-lg font-semibold">Машинокомплект</h2>
+      <div className="mt-4 rounded-xl bg-[#22c55e]/10 px-4 py-3 ring-1 ring-inset ring-[#22c55e]/30">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">
+          Цена с разборкой
+        </p>
+        <p className="mt-1 font-display text-2xl font-bold tabular-nums text-[#0D3F10]">
+          {quote ? usd(quote.amount) : "—"}
+        </p>
+      </div>
+      {quote ? (
+        <div className="mt-4 space-y-1.5 text-sm text-text-secondary">
+          <Line label="Лот и аукционные сборы" value={usd(quote.auctionTotal)} />
+          <Line label="Доставка" value={usd(quote.delivery)} />
+          <Line label="Разбор" value={usd(quote.dismantle)} />
+          <Line label="Прочие сборы" value={usd(quote.otherFees)} />
+          <Line label="Итого" value={usd(quote.amount)} total />
+        </div>
+      ) : null}
+      <p className="mt-3 text-xs text-text-muted">
+        Ориентир по средней цене лота. Итог зависит от ставки на торгах.
+      </p>
+    </div>
+  );
+}
+
+export function LotCalculatorPanel({ lot, kit = false }: Props & { kit?: boolean }) {
   if (lot.region === "usa") {
-    return <UsaRestorationPanel lot={lot} />;
+    return kit ? <UsaKitPanel lot={lot} /> : <UsaRestorationPanel lot={lot} />;
   }
   if (lot.region === "korea") {
     return <KoreaListingPanel lot={lot} />;

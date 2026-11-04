@@ -392,7 +392,7 @@ export function LotDetailView({
                 </AnchorButton>
               </div>
 
-              <LotCalculatorPanel lot={lot} />
+              <LotCalculatorPanel lot={lot} kit={router.query.mode === "kit"} />
             </aside>
 
             <div className="space-y-6 lg:col-start-1">

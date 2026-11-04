@@ -107,7 +107,7 @@ export function LotCard({
 
   return (
     <Link
-      href={`/auctions/${encodeURIComponent(lot.slug)}/`}
+      href={`/auctions/${encodeURIComponent(lot.slug)}/${pricingMode === "kit" ? "?mode=kit" : ""}`}
       className="group block h-full min-w-0"
       data-lot-slug={lot.slug}
       onClick={() => onNavigate?.(lot.slug)}
@@ -212,7 +212,7 @@ export function LotCard({
           ) : null}
 
           <div className="mt-auto pt-3">
-            {lot.estimatedCostMin || lot.estimatedCostMax ? (
+            {pricingMode !== "kit" && (lot.estimatedCostMin || lot.estimatedCostMax) ? (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 px-3 py-2.5 ring-1 ring-inset ring-[#22c55e]/30">
                 <div className="min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">
@@ -240,7 +240,7 @@ export function LotCard({
                   <p className="mt-0.5 text-[10px] text-zinc-500">
                     {mode === "restoration"
                       ? "ставка + сборы + доставка"
-                      : "ставка + аукцион + доставка + разбор"}
+                      : "лот + аукцион + доставка + разбор"}
                   </p>
                 </div>
                 <p className="shrink-0 font-display text-lg font-bold tabular-nums tracking-tight text-[#0D3F10] sm:text-xl">
