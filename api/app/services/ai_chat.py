@@ -13,13 +13,14 @@ import logging
 import threading
 import time
 from collections import defaultdict, deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
 
 from app.config import get_settings
 from app.models.lots import AuctionLot
+from app.services.auction_date import parse_auction_date
 from app.services.filter_lots import LotFilters, filter_lots
 
 logger = logging.getLogger("mg.ai_chat")
@@ -29,6 +30,7 @@ MAX_TOOL_ROUNDS = 3
 MAX_HISTORY = 12
 MAX_MESSAGE_CHARS = 600
 RESULT_LIMIT = 6
+ENDING_SOON_HOURS = 2
 _TO_USD = {"USD": 1.0, "GBP": 1.29, "KRW": 1 / 1400}
 
 SYSTEM_PROMPT = """Ты консультант MG.GROUP: помогаешь подобрать автомобиль из каталога аукционов США, Англии, Кореи и Китая с доставкой в Беларусь.
@@ -160,7 +162,9 @@ def lot_card(lot: AuctionLot) -> dict[str, Any]:
     }
 
 
-def search_lots(pool: list[AuctionLot], args: dict[str, Any]) -> list[AuctionLot]:
+def search_lots(
+    pool: list[AuctionLot], args: dict[str, Any], *, now: datetime | None = None
+) -> list[AuctionLot]:
     km = args.get("max_mileage_km")
     filters = LotFilters(
         make=args.get("make") or None,
@@ -174,11 +178,21 @@ def search_lots(pool: list[AuctionLot], args: dict[str, Any]) -> list[AuctionLot
         mileage_max=round(km / 1.60934) if km else None,
         run=bool(args.get("runs_only")),
     )
-    found = filter_lots(pool, filters)
+    moment = now or datetime.now(timezone.utc)
+    soon = moment + timedelta(hours=ENDING_SOON_HOURS)
+    matched = filter_lots(pool, filters)
+    ends = {lot.id: parse_auction_date(lot.auctionDate) for lot in matched}
+    # The catalog keeps ended lots for a grace period: never offer those.
+    found = [lot for lot in matched if ends[lot.id] is None or ends[lot.id] > moment]
     limit = args.get("max_price_usd")
     if limit:
         found = [lot for lot in found if 0 < lot_price_usd(lot) <= float(limit)]
-    found.sort(key=lambda lot: (-lot.year, lot_price_usd(lot), lot.id))
+
+    def rank(lot: AuctionLot) -> tuple:
+        end = ends[lot.id]
+        return (end is not None and end < soon, -lot.year, lot_price_usd(lot), lot.id)
+
+    found.sort(key=rank)
     return found[:RESULT_LIMIT]
 
 

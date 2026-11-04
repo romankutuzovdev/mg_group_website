@@ -42,6 +42,22 @@ class SearchTests(unittest.TestCase):
         self.assertIsNone(ai_chat.lot_brief(_lot("x", odo=999999))["mileage_km"])
 
 
+class FreshnessTests(unittest.TestCase):
+    def test_ended_lots_are_dropped_and_ending_soon_go_last(self):
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime(2026, 11, 10, 12, 0, tzinfo=timezone.utc)
+        ended = _lot("ended", year=2024)
+        ended.auctionDate = (now - timedelta(minutes=30)).isoformat()
+        soon = _lot("soon", year=2024)
+        soon.auctionDate = (now + timedelta(minutes=30)).isoformat()
+        later = _lot("later", year=2016)
+        later.auctionDate = (now + timedelta(days=2)).isoformat()
+        undated = _lot("undated", year=2015)
+        got = ai_chat.search_lots([ended, soon, later, undated], {}, now=now)
+        self.assertEqual([l.slug for l in got], ["later", "undated", "soon"])
+
+
 class HistoryTests(unittest.TestCase):
     def test_client_cannot_send_system_role(self):
         out = ai_chat.clean_history(
