@@ -216,10 +216,7 @@ export function LotCard({
               <div className="flex items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 px-3 py-2.5 ring-1 ring-inset ring-[#22c55e]/30">
                 <div className="min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">
-                    Примерная стоимость
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-zinc-500">
-                    ориентир Bid.cars
+                    Средняя цена
                   </p>
                 </div>
                 <p className="shrink-0 text-right font-display text-lg font-bold tabular-nums tracking-tight text-[#0D3F10] sm:text-xl">

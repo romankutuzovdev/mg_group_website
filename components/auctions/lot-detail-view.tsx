@@ -20,7 +20,7 @@ import {
   REGION_LABELS,
 } from "@/lib/auctions/types";
 import { isAuctionEnded } from "@/lib/auctions/filter-lots";
-import { formatOdometerKm } from "@/lib/auctions/odometer";
+import { formatOdometerKm, isOdometerKnown } from "@/lib/auctions/odometer";
 import {
   formatDriveRu,
   formatFuelRu,
@@ -81,11 +81,13 @@ function lotVehicleJsonLd(lot: AuctionLot, path: string) {
     vehicleModelDate: String(lot.year),
     color: lot.exteriorColor || undefined,
     vehicleIdentificationNumber: lot.vin || undefined,
-    mileageFromOdometer: {
-      "@type": "QuantitativeValue",
-      value: lot.odometer,
-      unitCode: lot.odometerUnit === "km" ? "KMT" : "SMI",
-    },
+    mileageFromOdometer: isOdometerKnown(lot.odometer)
+      ? {
+          "@type": "QuantitativeValue",
+          value: lot.odometer,
+          unitCode: lot.odometerUnit === "km" ? "KMT" : "SMI",
+        }
+      : undefined,
     image: imageAbs,
     url,
     offers: {
@@ -332,7 +334,7 @@ export function LotDetailView({
                 {lot.estimatedCostMin || lot.estimatedCostMax ? (
                   <div className="mt-3 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 p-3 ring-1 ring-inset ring-[#22c55e]/30">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">
-                      Примерная стоимость · Bid.cars
+                      Средняя цена
                     </p>
                     <p className="mt-0.5 font-display text-2xl font-bold tabular-nums text-[#0D3F10]">
                       {lot.estimatedCostMin

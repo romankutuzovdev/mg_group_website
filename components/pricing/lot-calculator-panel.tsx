@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { AuctionLot } from "@/lib/auctions/types";
+import { formatOdometerKm } from "@/lib/auctions/odometer";
 import {
   estimateIaaiAuctionFeesUsd,
   quoteUsaRestoration,
@@ -366,8 +367,7 @@ function KoreaListingPanel({ lot }: { lot: AuctionLot }) {
       <ul className="mt-4 space-y-1.5 text-sm text-text-secondary">
         <li>Локация: {lot.location || "—"}</li>
         <li>
-          Год / пробег: {lot.year} · {lot.odometer.toLocaleString("ru-RU")}{" "}
-          {lot.odometerUnit}
+          Год / пробег: {lot.year} · {formatOdometerKm(lot.odometer, lot.odometerUnit)}
         </li>
       </ul>
 
@@ -404,8 +404,7 @@ function ChinaListingPanel({ lot }: { lot: AuctionLot }) {
         <li>Регион: Китай</li>
         <li>Локация: {lot.location || "—"}</li>
         <li>
-          Год / пробег: {lot.year} · {lot.odometer.toLocaleString("ru-RU")}{" "}
-          {lot.odometerUnit}
+          Год / пробег: {lot.year} · {formatOdometerKm(lot.odometer, lot.odometerUnit)}
         </li>
       </ul>
 
