@@ -25,6 +25,9 @@ def parse_auction_date(value: str | None) -> datetime | None:
         return None
 
 
+BIDCARS_RELIABLE_DATES_FROM = datetime(2026, 11, 4, tzinfo=timezone.utc)
+
+
 def is_auction_ended(
     lot: AuctionLot,
     *,
@@ -37,12 +40,13 @@ def is_auction_ended(
     """
     if getattr(lot, "sold", False):
         return False
-    # Bid.cars rarely sends a sale time. Unsold lots used to get the scrape
-    # clock as auctionDate, so the 3-hour grace hid the whole USA catalog.
-    if (getattr(lot, "source", "") or "") == "bidcars":
-        return False
     dt = parse_auction_date(lot.auctionDate)
     if dt is None:
+        return False
+    # Old Bid.cars lots carry the scrape clock as auctionDate, and trusting it
+    # once hid the whole USA catalog. The JSON scraper computes the real close
+    # time, and every date it writes is on or after this cutoff.
+    if (getattr(lot, "source", "") or "") == "bidcars" and dt < BIDCARS_RELIABLE_DATES_FROM:
         return False
     cutoff = (now or datetime.now(timezone.utc)) - timedelta(hours=max(0.0, grace_hours))
     return dt < cutoff
