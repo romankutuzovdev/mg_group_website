@@ -69,3 +69,30 @@ class CoverFirstTests(unittest.IsolatedAsyncioTestCase):
         with patch("app.services.lot_photos.archive_gallery", side_effect=nothing):
             self.assertEqual(await agent._archive_cover(object(), lot), 0)
         self.assertFalse(agent._wants_cover(lot))
+
+
+class CoverUkTests(unittest.IsolatedAsyncioTestCase):
+    def _uk(self):
+        lot = _lot("uk-copart-1", bid=100)
+        lot.source = "copart_uk"
+        lot.region = "uk"
+        lot.imageUrl = "https://cs.copart.com/v1/a.jpg"
+        return lot
+
+    def test_uk_cover_goes_before_bidcars_galleries(self):
+        gallery = _lot("gallery", bid=90000)
+        gallery.imageUrl = "/api/lot-photos/gallery/01-a.jpg"
+        with patch.object(photo_enricher.lot_store, "all", return_value=[gallery, self._uk()]):
+            queue = PhotoEnrichmentAgent()._queue()
+        self.assertEqual(queue[0].id, "uk-copart-1")
+
+    async def test_uk_cover_uses_uk_referer(self):
+        hints = []
+
+        async def fake_archive(lot_id, urls, *, referer_hint, page):
+            hints.append(referer_hint)
+            return []
+
+        with patch("app.services.lot_photos.archive_gallery", side_effect=fake_archive):
+            await PhotoEnrichmentAgent()._archive_cover(object(), self._uk())
+        self.assertEqual(hints, ["uk"])

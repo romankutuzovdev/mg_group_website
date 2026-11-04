@@ -297,6 +297,10 @@ class PhotoAgentStatus:
     processed_today: int = 0
 
 
+def _is_uk_lot(lot: AuctionLot) -> bool:
+    return (lot.source or "") == "copart_uk" or (lot.region or "") == "uk"
+
+
 class PhotoEnrichmentAgent:
     """One Chrome tab that walks every lot card and pulls all photos, nonstop."""
 
@@ -321,7 +325,7 @@ class PhotoEnrichmentAgent:
             logger.info("photo enricher: new UTC day %s — queue reset", today)
 
     def _wants_cover(self, lot: AuctionLot) -> bool:
-        """Bid.cars lot still shown from the source CDN: copy its cover first.
+        """Bid.cars / Copart UK lot still on the source CDN: copy its cover first.
 
         Full galleries take ~30 s per lot, so every lot gets its one catalog
         photo on our CDN before any gallery is downloaded.
@@ -329,7 +333,7 @@ class PhotoEnrichmentAgent:
         from app.services.lot_photos import is_our_photo
 
         return (
-            (lot.source or "") == "bidcars"
+            ((lot.source or "") == "bidcars" or _is_uk_lot(lot))
             and lot.id not in self._cover_tried
             and bool(lot.imageUrl)
             and not is_our_photo(lot.imageUrl)
@@ -342,7 +346,8 @@ class PhotoEnrichmentAgent:
 
         self._cover_tried.add(lot.id)
         cover = lot.imageUrl
-        saved = await archive_gallery(lot.id, [cover], referer_hint="bidcars", page=page)
+        hint = "uk" if _is_uk_lot(lot) else "bidcars"
+        saved = await archive_gallery(lot.id, [cover], referer_hint=hint, page=page)
         if not saved:
             return 0
         merged = merge_gallery_urls(saved, [cover], list(lot.imageUrls or []))
