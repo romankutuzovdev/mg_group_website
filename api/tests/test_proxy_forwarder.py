@@ -144,3 +144,47 @@ class ForwarderTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ForwarderThreadTests(unittest.TestCase):
+    def test_forwarder_keeps_serving_while_caller_loop_is_blocked(self):
+        import socket
+        import threading
+        import time
+
+        def upstream_server(sock):
+            conn, _ = sock.accept()
+            conn.recv(4096)
+            conn.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
+            conn.close()
+
+        sock = socket.socket()
+        sock.bind(("127.0.0.1", 0))
+        sock.listen(1)
+        threading.Thread(target=upstream_server, args=(sock,), daemon=True).start()
+
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            local_port = probe.getsockname()[1]
+        up = pf.parse_proxy_url(f"127.0.0.1:{sock.getsockname()[1]}")
+
+        async def run():
+            with patch.object(pf, "_settings_tuple", return_value=(up, [], local_port)):
+                await pf.start_forwarder_from_settings()
+                result = {}
+
+                def client():
+                    with socket.create_connection(("127.0.0.1", local_port), timeout=3) as c:
+                        c.sendall(b"CONNECT x:443 HTTP/1.1\r\n\r\n")
+                        result["resp"] = c.recv(100)
+
+                t = threading.Thread(target=client)
+                t.start()
+                time.sleep(0.5)  # blocks this event loop on purpose
+                self.assertIn("resp", result)
+                t.join()
+                await pf.stop_forwarder()
+                return result["resp"]
+
+        self.assertTrue(asyncio.run(run()).startswith(b"HTTP/1.1 200"))
+        sock.close()

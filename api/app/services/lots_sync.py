@@ -66,11 +66,13 @@ def _rewrite_local_to_cdn(lot: dict[str, Any]) -> dict[str, Any]:
 
 def build_export_payload() -> dict[str, Any]:
     """Catalog snapshot for VPS pull (same shape as lots.json persist)."""
+    # Hold the store lock only for the snapshot: dumping ~60k lots under it
+    # would stall every scraper upsert.
     with lot_store._lock:
-        lots = [
-            _rewrite_local_to_cdn(lot.model_dump(exclude_none=True))
-            for lot in lot_store._by_id.values()
-        ]
+        snapshot = list(lot_store._by_id.values())
+    lots = [
+        _rewrite_local_to_cdn(lot.model_dump(exclude_none=True)) for lot in snapshot
+    ]
     lots.sort(key=lambda x: float(x.get("currentBid") or 0), reverse=True)
     return {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
@@ -162,13 +164,15 @@ async def push_catalog_once() -> dict[str, Any]:
     if key:
         headers["X-API-Key"] = key
 
-    payload = build_export_payload()
-    raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    logger.info(
-        "lots push start: %s lots, %s bytes",
-        int(payload.get("counts", {}).get("total") or len(payload.get("lots") or [])),
-        len(raw),
-    )
+    # CPU-heavy (whole catalog, ~200 MB JSON): keep it off the event loop or
+    # /health and every API request hang for the duration.
+    def _serialize() -> tuple[int, bytes]:
+        payload = build_export_payload()
+        total = int(payload.get("counts", {}).get("total") or len(payload.get("lots") or []))
+        return total, json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+    count, raw = await asyncio.to_thread(_serialize)
+    logger.info("lots push start: %s lots, %s bytes", count, len(raw))
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(1800.0, connect=60.0)) as client:
         res = await client.post(url, content=raw, headers=headers)
@@ -177,7 +181,6 @@ async def push_catalog_once() -> dict[str, Any]:
             f"lots push HTTP {res.status_code}: {(res.headers.get('location') or res.text or '')[:200]}"
         )
 
-    count = int(payload.get("counts", {}).get("total") or len(payload.get("lots") or []))
     _status["mode"] = "push"
     _status["target_url"] = url[:120]
     _status["last_ok_at"] = datetime.now(timezone.utc).isoformat()

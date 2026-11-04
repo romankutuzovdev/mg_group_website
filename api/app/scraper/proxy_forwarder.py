@@ -17,6 +17,7 @@ import asyncio
 import base64
 import logging
 import re
+import threading
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import unquote, urlparse
@@ -297,11 +298,43 @@ class ProxyForwarder:
 
 
 _forwarder: ProxyForwarder | None = None
+_forwarder_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _start_in_thread(fwd: ProxyForwarder) -> asyncio.AbstractEventLoop:
+    """Run the forwarder on its own thread + event loop.
+
+    All of Chrome's traffic goes through it, so it must keep working while the
+    API's main loop is busy. Raises OSError when the port cannot be bound.
+    """
+    started = threading.Event()
+    box: dict[str, Any] = {}
+
+    def _run() -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        box["loop"] = loop
+        try:
+            loop.run_until_complete(fwd.start())
+        except OSError as exc:
+            box["error"] = exc
+            started.set()
+            loop.close()
+            return
+        started.set()
+        loop.run_forever()
+        loop.close()
+
+    threading.Thread(target=_run, name="mg-proxy-forwarder", daemon=True).start()
+    started.wait(timeout=10)
+    if "error" in box:
+        raise box["error"]
+    return box["loop"]
 
 
 async def start_forwarder_from_settings() -> ProxyForwarder | None:
     """Called from the API lifespan (scraper roles). No proxy configured → None."""
-    global _forwarder
+    global _forwarder, _forwarder_loop
     upstream, _, local_port = _settings_tuple()
     if upstream is None:
         return None
@@ -309,7 +342,7 @@ async def start_forwarder_from_settings() -> ProxyForwarder | None:
         return _forwarder
     fwd = ProxyForwarder(upstream, local_port=local_port)
     try:
-        await fwd.start()
+        _forwarder_loop = await asyncio.to_thread(_start_in_thread, fwd)
     except OSError as exc:
         logger.error("proxy forwarder cannot bind 127.0.0.1:%s: %s", local_port, exc)
         return None
@@ -318,10 +351,14 @@ async def start_forwarder_from_settings() -> ProxyForwarder | None:
 
 
 async def stop_forwarder() -> None:
-    global _forwarder
-    if _forwarder is not None:
-        await _forwarder.stop()
-        _forwarder = None
+    global _forwarder, _forwarder_loop
+    fwd, loop = _forwarder, _forwarder_loop
+    _forwarder = None
+    _forwarder_loop = None
+    if fwd is None or loop is None:
+        return
+    await asyncio.wrap_future(asyncio.run_coroutine_threadsafe(fwd.stop(), loop))
+    loop.call_soon_threadsafe(loop.stop)
 
 
 def forwarder_status() -> dict[str, Any]:
