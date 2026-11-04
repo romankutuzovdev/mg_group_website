@@ -323,7 +323,10 @@ class PhotoEnrichmentAgent:
         lots = [
             lot
             for lot in lot_store.all()
-            if needs_photo_enrichment(lot, today=self._day)
+            # Sold lots are hidden from the catalog and their galleries get
+            # released anyway. Their high final bids used to top this queue.
+            if not getattr(lot, "sold", False)
+            and needs_photo_enrichment(lot, today=self._day)
             and lot.id not in self._processed_ids
         ]
         # Prefer thin galleries first. England before USA — Copart UK CDN
