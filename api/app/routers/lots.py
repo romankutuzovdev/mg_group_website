@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import math
+import threading
 import time
 from datetime import datetime, timezone
 from typing import Annotated
@@ -17,6 +19,8 @@ from app.models.lots import (
 )
 from app.services.auction_date import active_lots
 from app.services.filter_lots import LotFilters, filter_lots, unique_sorted
+
+logger = logging.getLogger("mg.lots")
 
 router = APIRouter(prefix="/lots", tags=["lots"])
 
@@ -73,20 +77,19 @@ def _require_ingest_key(
 
 # Opening Korea walks ~70k lots. Rebuild the live snapshot at most every 20s
 # and keep each region pre-sorted by auction date so page 1 is a slice.
+# A rebuild takes 10-20s, so only the very first one is waited for: after that
+# visitors get the previous snapshot while a single background thread refreshes it.
 _SNAPSHOT_TTL = 20.0
 _snap_at = 0.0
 _snap_ready = False
 _snap_all: list[AuctionLot] = []
 _snap_region: dict[str, list[AuctionLot]] = {}
 _meta_cache: dict[tuple[str, str], LotMetaResponse] = {}
+_snap_lock = threading.Lock()
 
 
-def _refresh_snapshot() -> None:
+def _build_snapshot() -> None:
     global _snap_at, _snap_ready, _snap_all, _snap_region
-    now = time.monotonic()
-    if _snap_ready and now - _snap_at < _SNAPSHOT_TTL:
-        return
-    _meta_cache.clear()
     settings = get_settings()
     grace = settings.scraper_auction_grace_hours if settings.scraper_prune_ended else 1e9
     live = [
@@ -111,6 +114,26 @@ def _refresh_snapshot() -> None:
     _snap_region = buckets
     _snap_ready = True
     _snap_at = time.monotonic()
+    _meta_cache.clear()
+
+
+def _build_snapshot_in_background() -> None:
+    try:
+        _build_snapshot()
+    except Exception:
+        logger.exception("lots snapshot rebuild failed")
+    finally:
+        _snap_lock.release()
+
+
+def _refresh_snapshot() -> None:
+    if _snap_ready:
+        if time.monotonic() - _snap_at >= _SNAPSHOT_TTL and _snap_lock.acquire(blocking=False):
+            threading.Thread(target=_build_snapshot_in_background, daemon=True).start()
+        return
+    with _snap_lock:
+        if not _snap_ready:
+            _build_snapshot()
 
 
 def _catalog_lots() -> list[AuctionLot]:
