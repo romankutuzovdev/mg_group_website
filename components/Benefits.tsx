@@ -22,7 +22,7 @@ const Benefits = ({ dictionary }: BenefitsProps) => {
       <div className="relative mx-auto max-w-[1400px] px-4 py-16 sm:px-6 sm:py-20 lg:px-10 lg:py-28">
         <div className="grid gap-12 border-b border-stone-900/10 pb-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-end lg:gap-20 lg:pb-16">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-stone-500">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-stone-700">
               Почему MG.GROUP
             </p>
             <h2
@@ -32,7 +32,7 @@ const Benefits = ({ dictionary }: BenefitsProps) => {
               {dictionary.benefits.title}
             </h2>
           </div>
-          <p className="max-w-md text-[15px] leading-relaxed text-stone-600 sm:text-base lg:justify-self-end lg:pb-3 lg:text-right">
+          <p className="hidden max-w-md text-base leading-relaxed text-stone-800 sm:block lg:justify-self-end lg:pb-3 lg:text-right">
             Три принципа сделки: отбор лота, маршрут без сюрпризов и прозрачные условия до выдачи.
           </p>
         </div>
@@ -44,7 +44,7 @@ const Benefits = ({ dictionary }: BenefitsProps) => {
               className="group relative grid gap-6 py-10 sm:gap-8 sm:py-12 lg:grid-cols-[7rem_1fr_minmax(0,22rem)] lg:items-start lg:gap-12 lg:py-14"
             >
               <div className="flex items-baseline gap-3 lg:block">
-                <span className="font-mono text-[11px] tracking-[0.28em] text-stone-400 transition group-hover:text-primary">
+                <span className="font-mono text-[11px] tracking-[0.28em] text-stone-600 transition group-hover:text-primary">
                   {item.number}
                 </span>
                 <span
@@ -65,7 +65,7 @@ const Benefits = ({ dictionary }: BenefitsProps) => {
                 <div className="mt-5 h-px w-12 origin-left bg-stone-900/20 transition duration-500 group-hover:w-20 group-hover:bg-primary" />
               </div>
 
-              <p className="max-w-md text-[15px] leading-relaxed text-stone-600 sm:text-base lg:pt-2">
+              <p className="max-w-md text-base leading-relaxed text-stone-800 lg:pt-2">
                 {item.description}
               </p>
             </li>

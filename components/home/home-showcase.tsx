@@ -84,7 +84,7 @@ export function HomeShowcase({ initialLots, counts }: Props) {
         <div role="tabpanel" id={`home-panel-${region}`} aria-labelledby={`home-tab-${region}`} tabIndex={0} className="pt-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary sm:text-sm">
             <p>{SOURCES[region]}</p>
-            <p>Ставка и ориентир под ключ — отдельно</p>
+            <p className="hidden sm:block">Ставка и ориентир под ключ — отдельно</p>
           </div>
           <div aria-live="polite" role="status" className="mt-3 text-sm text-text-secondary">
             {loading ? "Обновляем предложения…" : error ? "Не удалось обновить предложения." : ""}
@@ -95,9 +95,9 @@ export function HomeShowcase({ initialLots, counts }: Props) {
               {visible.map((lot) => <LotCard key={lot.id} lot={lot} pricingMode="restoration" />)}
             </div>
           ) : (
-            <div className="mt-4 rounded-2xl border border-border bg-white px-6 py-14 text-center">
+            <div className="mt-4 rounded-2xl border border-white/10 bg-stone-950 px-6 py-14 text-center text-white">
               <h3 className="text-xl font-semibold">{loading ? "Загружаем автомобили" : error ? "Предложения временно недоступны" : "Подберём автомобиль под ваш запрос"}</h3>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-text-secondary">{loading ? "Скоро здесь появятся фотографии и стоимость лотов." : "Оставьте пожелания к модели и бюджету — поможем найти подходящий вариант."}</p>
+              <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-white/85">{loading ? "Скоро здесь появятся фотографии и стоимость лотов." : "Оставьте пожелания к модели и бюджету — поможем найти подходящий вариант."}</p>
               <LinkButton href="#car-finder" variant="secondary" className="mt-6">Заказать подбор</LinkButton>
             </div>
           )}

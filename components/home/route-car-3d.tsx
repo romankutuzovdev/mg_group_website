@@ -132,12 +132,12 @@ export function ProcessRouteJourney() {
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary">Путь</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#22c55e]">Путь</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
               От аукциона до ключей
             </h2>
           </div>
-          <p className="max-w-sm text-base text-white/60">
+          <p className="max-w-sm text-base text-white/85">
             Средний срок — 2–3 месяца. Выберите этап или дождитесь, пока машина проедет путь.
           </p>
         </div>
@@ -187,12 +187,12 @@ export function ProcessRouteJourney() {
                         "flex h-11 w-11 items-center justify-center rounded-full text-xs font-bold transition duration-300",
                         on
                           ? "bg-primary text-stone-950 shadow-[0_0_24px_rgba(34,197,94,0.55)] ring-2 ring-primary/40"
-                          : "bg-stone-800 text-white/50 ring-1 ring-white/15 hover:text-white",
+                          : "bg-stone-800 text-white/85 ring-1 ring-white/15 hover:text-white",
                       ].join(" ")}
                     >
                       {s.step}
                     </span>
-                    <span className="mt-3 max-w-[7.5rem] text-[10px] font-semibold uppercase leading-snug tracking-[0.12em] text-white/55 lg:max-w-none lg:whitespace-nowrap lg:text-[11px]">
+                    <span className="mt-3 max-w-[7.5rem] text-[11px] font-semibold uppercase leading-snug tracking-[0.12em] text-white/85 lg:max-w-none lg:whitespace-nowrap lg:text-[11px]">
                       {s.place}
                     </span>
                   </button>
@@ -233,15 +233,15 @@ export function ProcessRouteJourney() {
                   <span
                     className={[
                       "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                      on ? "bg-primary text-stone-950" : "bg-stone-800 text-white/60",
+                      on ? "bg-primary text-stone-950" : "bg-stone-800 text-white/85",
                     ].join(" ")}
                   >
                     {s.step}
                   </span>
                   <span>
                     <span className="block text-lg font-semibold text-white">{s.title}</span>
-                    {s.desc ? (
-                      <span className="mt-1 block text-sm text-white/60">{s.desc}</span>
+                    {on && s.desc ? (
+                      <span className="mt-1 block text-[15px] leading-snug text-white/90">{s.desc}</span>
                     ) : null}
                   </span>
                 </button>
@@ -273,19 +273,19 @@ export function ProcessRouteJourney() {
                       : "border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.06]",
                   ].join(" ")}
                 >
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/90">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#22c55e]">
                     {s.step}
                   </p>
                   <h3 className="mt-2 text-lg font-semibold text-white">{s.title}</h3>
                   {s.desc ? (
-                    <p className="mt-2 text-sm leading-relaxed text-white/60">{s.desc}</p>
+                    <p className="mt-2 text-[15px] leading-relaxed text-white/85">{s.desc}</p>
                   ) : null}
                 </button>
               );
             })}
           </div>
 
-          <div className="relative mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-sm text-white/50">
+          <div className="relative mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-sm text-white/80">
             <p>
               Сейчас:{" "}
               <span className="font-semibold text-white">{STEPS[active].title}</span>

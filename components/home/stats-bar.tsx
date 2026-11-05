@@ -9,7 +9,7 @@ const stats = [
 
 export function StatsBar() {
   return (
-    <section className="relative overflow-hidden border-y border-stone-200/80 bg-stone-950 py-10 text-white md:py-14">
+    <section className="relative overflow-hidden border-y border-white/10 bg-stone-950 py-10 text-white md:py-14">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(700px_280px_at_20%_0%,rgba(34,197,94,0.18),transparent)]" />
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <p className="mb-6 text-sm font-semibold uppercase tracking-[0.22em] text-primary/90">

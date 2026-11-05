@@ -82,8 +82,8 @@ function GroupMenu({ group, pathname }: { group: NavGroup; pathname: string }) {
         className={cn(
           "inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2.5 py-2 text-[13px] font-semibold outline-none transition xl:px-3 xl:text-[14px]",
           open
-            ? "bg-primary/10 text-emerald-900"
-            : "text-stone-800 hover:bg-stone-100/80",
+            ? "bg-white/10 text-[#22c55e]"
+            : "text-white hover:bg-white/10",
         )}
       >
         {group.label}
@@ -120,7 +120,7 @@ const Header = ({ dictionary }: HeaderProps) => {
 
   return (
     <header
-      className="fixed inset-x-0 top-0 z-[100] border-b border-white/40 bg-white/70 shadow-[0_1px_0_rgba(28,25,23,0.04)] backdrop-blur-xl"
+      className="fixed inset-x-0 top-0 z-[100] border-b border-white/10 bg-black"
       role="banner"
       style={{
         paddingTop: "env(safe-area-inset-top)",
@@ -130,17 +130,17 @@ const Header = ({ dictionary }: HeaderProps) => {
         <div className="flex h-16 items-center justify-between gap-3 sm:h-[4.25rem]">
           <Link
             href={isHome ? "/#hero" : "/"}
-            className="flex shrink-0 items-center gap-2.5 text-stone-900 sm:gap-3"
+            className="flex shrink-0 items-center gap-2.5 text-white sm:gap-3"
             aria-label="На главную"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo_new.svg"
               alt={dictionary.footer.company.name}
-              className="h-9 w-9 object-contain sm:h-10 sm:w-10"
+              className="h-9 w-9 object-contain brightness-0 invert sm:h-10 sm:w-10"
             />
             <span className="hidden text-[15px] font-semibold tracking-tight sm:inline">
-              MG<span className="text-primary">.</span>GROUP
+              MG<span className="text-[#22c55e]">.</span>GROUP
             </span>
           </Link>
 
@@ -153,15 +153,15 @@ const Header = ({ dictionary }: HeaderProps) => {
               <GroupMenu key={group.id} group={group} pathname={pathname} />
             ))}
 
-            <span className="mx-1.5 hidden h-4 w-px bg-zinc-200 xl:block" aria-hidden />
+            <span className="mx-1.5 hidden h-4 w-px bg-white/20 xl:block" aria-hidden />
 
             {SECONDARY.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "cursor-pointer whitespace-nowrap rounded-md px-2 py-2 text-[13px] font-medium hover:bg-stone-100/80 xl:px-2.5 xl:text-[14px]",
-                  pathActive(pathname, item.href) ? "text-emerald-900" : "text-stone-800",
+                  "cursor-pointer whitespace-nowrap rounded-md px-2 py-2 text-[13px] font-medium hover:bg-white/10 xl:px-2.5 xl:text-[14px]",
+                  pathActive(pathname, item.href) ? "text-[#22c55e]" : "text-white",
                 )}
               >
                 {item.label}
@@ -172,7 +172,7 @@ const Header = ({ dictionary }: HeaderProps) => {
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
             <a
               href={`tel:${dictionary.contact.phone}`}
-              className="hidden items-center gap-1.5 text-[14px] font-semibold text-stone-900 lg:inline-flex"
+              className="hidden items-center gap-1.5 text-[14px] font-semibold text-white lg:inline-flex"
               aria-label={`Позвонить по номеру ${dictionary.contact.phone}`}
             >
               <Phone className="h-4 w-4" aria-hidden />
@@ -182,8 +182,8 @@ const Header = ({ dictionary }: HeaderProps) => {
             <Link
               href="/cabinet/"
               className={cn(
-                "hidden cursor-pointer items-center justify-center gap-2 rounded-full bg-stone-900 px-4 py-2 text-[14px] font-semibold text-white transition hover:bg-primary hover:text-stone-950 lg:inline-flex",
-                pathActive(pathname, "/cabinet/") && "ring-2 ring-primary ring-offset-2",
+                "hidden cursor-pointer items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-[14px] font-semibold text-stone-950 transition hover:bg-primary hover:text-stone-950 lg:inline-flex",
+                pathActive(pathname, "/cabinet/") && "ring-2 ring-primary ring-offset-2 ring-offset-black",
               )}
               aria-label="Личный кабинет"
             >
@@ -193,7 +193,7 @@ const Header = ({ dictionary }: HeaderProps) => {
 
             <a
               href={`tel:${dictionary.contact.phone}`}
-              className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-stone-900 hover:bg-stone-100 lg:hidden"
+              className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white hover:bg-white/10 lg:hidden"
               aria-label={`Позвонить по номеру ${dictionary.contact.phone}`}
             >
               <Phone className="h-5 w-5" aria-hidden="true" />
@@ -203,7 +203,7 @@ const Header = ({ dictionary }: HeaderProps) => {
               <SheetTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-stone-300/80 bg-white/80 text-stone-900 hover:bg-stone-100 lg:hidden"
+                  className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/25 bg-transparent text-white hover:bg-white/10 lg:hidden"
                   aria-label={isOpen ? "Закрыть меню" : "Открыть меню"}
                 >
                   <Menu className="h-5 w-5" aria-hidden="true" />
@@ -212,7 +212,7 @@ const Header = ({ dictionary }: HeaderProps) => {
               <SheetContent side="right" className="w-[300px] overflow-y-auto bg-stone-50 sm:w-[360px]">
                 <SheetHeader>
                   <SheetTitle className="text-left text-base font-semibold text-stone-900">
-                    MG<span className="text-primary">.</span>GROUP
+                    MG<span className="text-[#22c55e]">.</span>GROUP
                   </SheetTitle>
                 </SheetHeader>
                 <div className="mt-8 flex flex-col gap-6">
