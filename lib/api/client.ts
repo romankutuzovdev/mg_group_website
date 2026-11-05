@@ -35,6 +35,31 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+const REQUEST_TIMEOUT_MS = 20_000;
+const RETRY_DELAYS_MS = [800, 2000, 4000];
+
+function isRetryable(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return true; // network, timeout, HTML instead of JSON
+  return error.status >= 500 || error.status === 408 || error.status === 429;
+}
+
+/** Catalog reads: the Windows API blips, so the browser retries. SSG fails fast. */
+async function apiGetWithRetry<T>(path: string): Promise<T> {
+  if (typeof window === "undefined") return apiFetch<T>(path);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const signal =
+        typeof AbortSignal.timeout === "function"
+          ? AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+          : undefined;
+      return await apiFetch<T>(path, { signal });
+    } catch (error) {
+      if (attempt >= RETRY_DELAYS_MS.length || !isRetryable(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
+    }
+  }
+}
+
 export type LotListApiResponse = {
   items: AuctionLot[];
   total: number;
@@ -127,7 +152,7 @@ function cachedGet<T>(path: string, loader: () => Promise<T>): Promise<T> {
 
 export async function fetchLotsPage(query: LotQuery = {}): Promise<LotListApiResponse> {
   const path = `/api/v1/lots${toSearchParams(query)}`;
-  return cachedGet(path, () => apiFetch<LotListApiResponse>(path));
+  return cachedGet(path, () => apiGetWithRetry<LotListApiResponse>(path));
 }
 
 /** Load a slice of the catalog. Never walk every page — that is ~100k lots. */
@@ -183,7 +208,7 @@ export async function fetchLotMeta(opts?: {
   if (opts?.region) sp.set("region", opts.region);
   const q = sp.toString();
   const path = `/api/v1/lots/meta${q ? `?${q}` : ""}`;
-  return cachedGet(path, () => apiFetch(path));
+  return cachedGet(path, () => apiGetWithRetry(path));
 }
 
 export async function fetchLotSlugs(): Promise<string[]> {

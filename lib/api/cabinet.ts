@@ -87,11 +87,12 @@ export type Deal = {
   vin: string;
   lot_number: string;
   lot_url?: string;
-  /** Внешний трекер для авто под постановку — клиент видит только ссылку */
+  /** Внешний трекер для авто под постановку на учёт — клиент видит только ссылку */
   tracking_url?: string;
   /** Dropbox (или др.) с фото разбора — машинокомплект, этап разбора */
   dismantle_photos_url?: string;
   status: "active" | "completed" | "cancelled";
+  car_status?: CarStatus;
   note: string;
   price?: number;
   currency?: "USD" | "GBP";
@@ -116,6 +117,7 @@ export type Deal = {
   updated_at: string;
   stages: DealStage[];
   media: DealMedia[];
+  claims?: DealClaim[];
 };
 
 export const MAP_STAGE_KEYS: StageKey[] = ["origin", "ocean", "belarus", "delivery"];
@@ -143,8 +145,46 @@ export const ORIGIN_REGION_LABELS: Record<OriginRegion, string> = {
   korea: "Корея",
 };
 
+export type CarStatus =
+  | ""
+  | "purchased"
+  | "at_yard"
+  | "in_transit"
+  | "at_port"
+  | "customs"
+  | "arrived"
+  | "delivered";
+
+export const CAR_STATUS_LABELS: Record<Exclude<CarStatus, "">, string> = {
+  purchased: "Выкуплена",
+  at_yard: "На площадке",
+  in_transit: "В пути",
+  at_port: "В порту",
+  customs: "На таможне",
+  arrived: "Прибыла в РБ",
+  delivered: "Выдана клиенту",
+};
+
+export type DealClaim = {
+  id: number;
+  deal_id: number;
+  text: string;
+  status: "open" | "resolved";
+  created_at: string;
+  photos: DealMedia[];
+};
+
+/** Same rule as deal_has_arrived on the API. */
+export function dealHasArrived(deal: Deal): boolean {
+  if (deal.status === "completed") return true;
+  if (deal.car_status === "arrived" || deal.car_status === "delivered") return true;
+  const keys = stageKeysForDeal(deal);
+  const last = keys[keys.length - 1];
+  return (deal.stages || []).some((s) => s.key === last && s.status === "done");
+}
+
 export const DEAL_KIND_LABELS: Record<DealKind, string> = {
-  car: "Авто под постановку",
+  car: "Авто под постановку на учёт",
   kit: "Машинокомплект",
 };
 
@@ -770,6 +810,7 @@ export async function adminCreateDeal(body: {
 export async function adminUpdateDeal(
   dealId: number,
   body: Partial<{
+    car_status: CarStatus;
     title: string;
     vin: string;
     lot_number: string;
@@ -830,6 +871,24 @@ export async function adminUploadDealMedia(
   return cabinetFetch(`/api/v1/admin/deals/${dealId}/media`, {
     method: "POST",
     body: form,
+  });
+}
+
+export async function createDealClaim(dealId: number, text: string, files: File[]): Promise<Deal> {
+  const form = new FormData();
+  form.append("text", text);
+  for (const file of files) form.append("files", file);
+  return cabinetFetch(`/api/v1/me/deals/${dealId}/claims`, { method: "POST", body: form });
+}
+
+export async function adminSetClaimStatus(
+  dealId: number,
+  claimId: number,
+  status: DealClaim["status"],
+): Promise<Deal> {
+  return cabinetFetch(`/api/v1/admin/deals/${dealId}/claims/${claimId}`, {
+    method: "POST",
+    body: JSON.stringify({ status }),
   });
 }
 

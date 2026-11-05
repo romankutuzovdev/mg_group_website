@@ -244,7 +244,7 @@ export function estimateLotBreakdown(
         return {
           amount: q.totalUsd,
           currency: "USD",
-          label: "Под ключ (Корея)",
+          label: "Под ключ в РБ",
           auctionTotal: q.carUsd,
           delivery: q.deliveryUsd,
           dismantle: 0,
@@ -257,7 +257,7 @@ export function estimateLotBreakdown(
       return {
         amount: Math.round(lot.currentBid),
         currency: "USD",
-        label: "Под ключ (Корея)",
+        label: "Под ключ в РБ",
         auctionTotal: Math.round(lot.currentBid),
         delivery: 0,
         dismantle: 0,

@@ -6,11 +6,15 @@ import mimetypes
 from typing import Annotated, Literal
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from html import escape
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 
 from app.config import Settings, get_settings
 from app.models.cabinet import (
+    DealClaimStatusUpdate,
+    deal_has_arrived,
     STAGE_KEYS,
     ClientAccountCreatedOut,
     CreateClientAccountPayload,
@@ -76,6 +80,57 @@ def my_deal(
     user: Annotated[UserOut, Depends(get_current_user)],
 ) -> DealOut:
     return _require_deal_access(deal_id, user)
+
+
+CLAIM_TEXT_MAX = 2000
+CLAIM_PHOTOS_MAX = 10
+CLAIM_PHOTO_MAX_BYTES = 15 * 1024 * 1024
+
+
+@router.post("/me/deals/{deal_id}/claims", response_model=DealOut)
+async def create_my_deal_claim(
+    deal_id: int,
+    background_tasks: BackgroundTasks,
+    user: Annotated[UserOut, Depends(get_current_user)],
+    text: str = Form(...),
+    files: list[UploadFile] = File(default=[]),
+) -> DealOut:
+    """После получения машины клиент сообщает, что не доехало или потерялось."""
+    deal = _require_deal_access(deal_id, user)
+    if not deal_has_arrived(deal):
+        raise HTTPException(status_code=409, detail="Заметку можно оставить после получения машины")
+    note = text.strip()
+    if not note:
+        raise HTTPException(status_code=422, detail="Опишите, что не доехало или потерялось")
+    if len(note) > CLAIM_TEXT_MAX:
+        raise HTTPException(status_code=422, detail=f"Не больше {CLAIM_TEXT_MAX} символов")
+    if len(files) > CLAIM_PHOTOS_MAX:
+        raise HTTPException(status_code=422, detail=f"Не больше {CLAIM_PHOTOS_MAX} фото")
+    photos: list[tuple[bytes, str, str]] = []
+    for file in files:
+        content_type = (file.content_type or "").lower()
+        if not content_type.startswith("image/"):
+            raise HTTPException(status_code=422, detail="Можно прикрепить только фото")
+        content = await file.read()
+        if not content:
+            continue
+        if len(content) > CLAIM_PHOTO_MAX_BYTES:
+            raise HTTPException(status_code=413, detail="Фото больше 15 МБ")
+        photos.append((content, file.filename or "photo.jpg", content_type))
+    updated = cabinet_store.create_claim(
+        deal_id=deal_id, user_id=user.id, text=note, photos=photos
+    )
+    manager_chat = cabinet_store.get_deal_manager_telegram_id(deal_id)
+    if manager_chat:
+        from app.services.telegram_notify import send_telegram_message
+
+        background_tasks.add_task(
+            send_telegram_message,
+            manager_chat,
+            f"Заметка клиента по сделке #{deal_id} «{escape(deal.title)}» "
+            f"({len(photos)} фото):\n{escape(note)}",
+        )
+    return updated
 
 
 @router.get("/me/deals/{deal_id}/dismantle-map", response_model=DismantleMapOut)
@@ -470,6 +525,7 @@ def admin_list_deals(
 @router.post("/admin/deals", response_model=DealOut)
 async def admin_create_deal(
     body: DealCreate,
+    background_tasks: BackgroundTasks,
     admin: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> DealOut:
     if not body.title.strip():
@@ -486,12 +542,13 @@ async def admin_create_deal(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # Сервисное SMS: машина добавлена + просьба заполнить карту разбора
+    # Сервисное SMS: машина добавлена + просьба заполнить карту разбора.
+    # В фоне: шлюз SMS не должен держать ответ менеджеру.
     client = cabinet_store.get_user_by_telegram_id(body.telegram_id)
     if client and client.consent_service and (client.phone or "").strip():
         from app.services.sms_by import notify_deal_added_fill_map
 
-        await notify_deal_added_fill_map(phone=client.phone, car=deal.title)
+        background_tasks.add_task(notify_deal_added_fill_map, phone=client.phone, car=deal.title)
     return deal
 
 
@@ -507,6 +564,19 @@ def admin_update_deal(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
+    return deal
+
+
+@router.post("/admin/deals/{deal_id}/claims/{claim_id}", response_model=DealOut)
+def admin_set_claim_status(
+    deal_id: int,
+    claim_id: int,
+    body: DealClaimStatusUpdate,
+    _: Annotated[UserOut, Depends(require_admin_or_key)],
+) -> DealOut:
+    deal = cabinet_store.set_claim_status(deal_id, claim_id, body.status)
+    if not deal:
+        raise HTTPException(status_code=404, detail="Claim not found")
     return deal
 
 

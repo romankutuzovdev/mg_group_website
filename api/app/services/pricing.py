@@ -6,7 +6,7 @@ import math
 import re
 from typing import Any
 
-TRANSFER_FEE_RATE = 0.03
+TRANSFER_FEE_RATE = 0.035
 
 UK_DISMANTLE = {"sedan": 2250, "suv": 2550, "sprinter": 2350, "pickup": 2850}
 USA_DISMANTLE = {"sedan": 4100, "suv": 4450, "frame_suv": 4850}

@@ -83,43 +83,51 @@ function specsSummary(specs?: DealSpecs | null): string {
     .join(" · ");
 }
 
-/** Все фото лота (Bid.cars / Copart UK) → медиа сделки, этап «Аукцион». */
-async function uploadCoverFromLotImages(dealId: number, images: string[]) {
-  const candidates = (images || [])
-    .map((u) => (u || "").trim())
-    .filter(Boolean);
-  if (!candidates.length) return;
+const LOT_PHOTO_UPLOAD_CONCURRENCY = 4;
 
-  let uploaded = 0;
-  for (let i = 0; i < candidates.length; i++) {
-    const src = candidates[i];
-    try {
-      const proxied = /^https?:\/\//i.test(src)
-        ? apiUrl(`/api/lot-image?u=${encodeURIComponent(src)}`)
-        : src.startsWith("/")
-          ? apiUrl(src)
-          : src;
-      const res = await fetch(proxied, { cache: "no-store" });
-      if (!res.ok) continue;
-      const blob = await res.blob();
-      if (!blob.size) continue;
-      const rawType = (blob.type || "").toLowerCase();
-      // CDN иногда отдаёт octet-stream / пустой Content-Type
-      const okType =
-        !rawType ||
-        rawType.startsWith("image/") ||
-        rawType === "application/octet-stream";
-      if (!okType) continue;
-      const file = new File([blob], `auction-${i + 1}.jpg`, {
-        type: rawType.startsWith("image/") ? rawType : "image/jpeg",
-      });
-      await adminUploadDealMedia(dealId, file, "auction", "С аукциона");
-      uploaded += 1;
-    } catch {
-      // skip broken image, continue gallery
-    }
+async function uploadLotPhoto(dealId: number, src: string, index: number) {
+  try {
+    const proxied = /^https?:\/\//i.test(src)
+      ? apiUrl(`/api/lot-image?u=${encodeURIComponent(src)}`)
+      : src.startsWith("/")
+        ? apiUrl(src)
+        : src;
+    const res = await fetch(proxied, { cache: "no-store" });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    if (!blob.size) return;
+    const rawType = (blob.type || "").toLowerCase();
+    // CDN иногда отдаёт octet-stream / пустой Content-Type
+    const okType =
+      !rawType ||
+      rawType.startsWith("image/") ||
+      rawType === "application/octet-stream";
+    if (!okType) return;
+    const file = new File([blob], `auction-${index + 1}.jpg`, {
+      type: rawType.startsWith("image/") ? rawType : "image/jpeg",
+    });
+    await adminUploadDealMedia(dealId, file, "auction", "С аукциона");
+  } catch {
+    // skip broken image, continue gallery
   }
-  return uploaded;
+}
+
+/** Все фото лота (Bid.cars / Copart UK) → медиа сделки, этап «Аукцион». */
+async function uploadLotPhotos(dealId: number, images: string[], onProgress: () => void) {
+  if (!images.length) return;
+  // Первое фото отдельно: оно остаётся обложкой, остальные идут параллельно.
+  await uploadLotPhoto(dealId, images[0], 0);
+  onProgress();
+  let next = 1;
+  const worker = async () => {
+    while (next < images.length) {
+      const index = next++;
+      await uploadLotPhoto(dealId, images[index], index);
+      onProgress();
+    }
+  };
+  const workers = Math.min(LOT_PHOTO_UPLOAD_CONCURRENCY, images.length - 1);
+  await Promise.all(Array.from({ length: workers }, worker));
 }
 
 type Props = {
@@ -251,6 +259,8 @@ export function AdminDealsPanel({
     password: string;
   } | null>(null);
 
+  const [photoUpload, setPhotoUpload] = useState<{ done: number; total: number } | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -276,6 +286,19 @@ export function AdminDealsPanel({
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** Фото докачиваются в фоне: сделка уже создана, менеджер не ждёт. */
+  const startLotPhotoUpload = (dealId: number, rawImages: string[]) => {
+    const images = rawImages.map((u) => (u || "").trim()).filter(Boolean);
+    if (!images.length) return;
+    setPhotoUpload((p) => ({ done: p?.done ?? 0, total: (p?.total ?? 0) + images.length }));
+    void uploadLotPhotos(dealId, images, () =>
+      setPhotoUpload((p) => (p ? { ...p, done: p.done + 1 } : p)),
+    ).finally(() => {
+      setPhotoUpload((p) => (p && p.done >= p.total ? null : p));
+      void load();
+    });
+  };
 
   const loadFromAuctionUrl = async () => {
     const url = lotUrl.trim();
@@ -415,9 +438,7 @@ export function AdminDealsPanel({
         payment_stage1_due: due1,
         payment_stage2_due: due2,
       });
-      if (lotImages.length) {
-        await uploadCoverFromLotImages(deal.id, lotImages);
-      }
+      startLotPhotoUpload(deal.id, lotImages);
       setOk(
         `${DEAL_KIND_LABELS[dealKind(deal)]} #${deal.id} · ${regionLabel(deal.origin_region)}`,
       );
@@ -436,7 +457,7 @@ export function AdminDealsPanel({
       setDue1("");
       setDue2("");
       onCreated?.(deal);
-      await load();
+      void load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка создания сделки");
     } finally {
@@ -954,6 +975,11 @@ export function AdminDealsPanel({
           {ok}
         </div>
       ) : null}
+      {photoUpload ? (
+        <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-[13px] text-zinc-700">
+          Загружаем фото лота: {photoUpload.done} из {photoUpload.total}. Не закрывайте страницу.
+        </div>
+      ) : null}
 
       {canAssignRoles ? (
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white shadow-sm px-4 py-3">
@@ -1136,7 +1162,7 @@ export function AdminDealsPanel({
             <p className="mt-1 text-[11px] text-zinc-400">
               {kind === "kit"
                 ? "Машинокомплект — карта разбора США или Англии по стране лота"
-                : "Авто под постановку — клиенту только ссылка на внешний трекер"}
+                : "Авто под постановку на учёт — клиенту только ссылка на внешний трекер"}
             </p>
           </div>
 

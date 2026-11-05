@@ -2,7 +2,6 @@ import { GetStaticProps } from "next";
 import Link from "next/link";
 import SEO from "@/components/SEO";
 import { PageShell } from "@/components/layout/page-shell";
-import { SiteCalculator } from "@/components/pricing/site-calculator";
 import { CalculatorGate } from "@/components/pricing/calculator-gate";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
@@ -31,22 +30,20 @@ export default function KitCalculatorPage({ dictionary }: Props) {
         title="Калькулятор машинокомплекта"
         description="IAAI, Bid.cars, Copart.com и Copart UK. Ссылка переключает расчёт на США или Англию."
       >
-        <CalculatorGate>
-          <SiteCalculator mode="kit-usa" showSwitcher={false} kitDefaultTab="usa" />
-          <p className="mt-8 text-sm text-text-muted">
-            Нужен расчёт целого авто?{" "}
-            <Link
-              href="/calculator/vosstanovlenie/"
-              className="font-medium text-accent-dark underline underline-offset-2"
-            >
-              Калькулятор под восстановление
-            </Link>
-            {" · "}
-            <Link href="/mashinokomplekt/" className="font-medium text-accent-dark underline underline-offset-2">
-              Каталог комплектов
-            </Link>
-          </p>
-        </CalculatorGate>
+        <CalculatorGate calc="kit-usa" />
+        <p className="mt-8 text-sm text-text-muted">
+          Нужен расчёт целого авто?{" "}
+          <Link
+            href="/calculator/vosstanovlenie/"
+            className="font-medium text-accent-dark underline underline-offset-2"
+          >
+            Калькулятор под восстановление
+          </Link>
+          {" · "}
+          <Link href="/mashinokomplekt/" className="font-medium text-accent-dark underline underline-offset-2">
+            Каталог комплектов
+          </Link>
+        </p>
       </PageShell>
     </>
   );

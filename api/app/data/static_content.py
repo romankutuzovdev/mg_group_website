@@ -5,12 +5,12 @@ from __future__ import annotations
 COMPANY = {
     "name": "MG.GROUP",
     "description": "Подбор и доставка авто под заказ из США, Китая и Кореи. Машинокомплекты из США и Англии",
-    "address": "г. Гродно, ул. Гаспадарчая 19, каб. 340/1, БЦ Марро",
+    "address": "г. Гродно, ул. Медовая 1",
     "hours_weekdays": "Будни — 9:00–19:00",
     "hours_weekend": "Суббота, воскресенье — выходной",
     "partners": "Copart, IAAI, Manheim, Mobile.de, Autoplius.lt",
     "consultation_tg": "https://t.me/Yury_MG_Global",
-    "office": {"lat": 53.6639, "lng": 23.8208, "zoom": 17, "name": "БЦ Марро"},
+    "office": {"lat": 53.68574, "lng": 23.82836, "zoom": 17, "name": "ул. Медовая 1"},
 }
 
 PHONES = [
@@ -58,7 +58,6 @@ TEAM = [
     },
     {"id": "sales-1", "name": "Борис", "role": "Менеджер по продажам", "photo": "/team/sales-1.png"},
     {"id": "sales-2", "name": "Яна", "role": "Менеджер по продажам", "photo": "/team/sales-2.png"},
-    {"id": "sales-3", "name": "Роман", "role": "Менеджер по продажам", "photo": "/team/roman.jpg"},
     {"id": "accountant", "name": "Елена", "role": "Бухгалтер", "photo": "/team/accountant.jpg"},
     {"id": "logistics", "name": "Вячеслав", "role": "Логист", "photo": "/team/logistics.png"},
 ]
@@ -144,7 +143,7 @@ CITIES = [
         "name": "Гродно",
         "name_short": "Гродно",
         "in_locative": "в Гродно",
-        "delivery_note": "Главный офис — ул. Гаспадарчая 19, БЦ Марро.",
+        "delivery_note": "Главный офис — ул. Медовая 1.",
     },
     {
         "slug": "brest",
@@ -220,7 +219,7 @@ USA_INLAND_DELIVERY = [
 PRICING_FORMULA = [
     "Стоимость лота + аукционный сбор",
     "Доставка по стране происхождения",
-    "Комиссия за перевод 3% от (лот + аукцион + доставка по стране)",
+    "Комиссия за перевод 3,5% от (лот + аукцион + доставка по стране)",
     "Тариф разбора с доставкой и растаможкой до Минска",
 ]
 

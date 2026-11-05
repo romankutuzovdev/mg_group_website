@@ -85,6 +85,9 @@ export function LotCard({
     turnkey = null;
   }
 
+  const isKorea = lot.region === "korea";
+  const priceKrw = isKorea ? Number(lot.estimatedRetail) || 0 : 0;
+
   // Relative time only after mount — Date.now() differs between SSR and hydrate.
   const [relative, setRelative] = useState<string | null>(null);
   useEffect(() => {
@@ -169,7 +172,9 @@ export function LotCard({
                     : "Оценка от"}
               </p>
               <p className="font-display text-xl font-bold tabular-nums tracking-tight text-white sm:text-2xl">
-                {formatMoney(lot.currentBid || lot.estimatedCostMin || 0, lot.currency)}
+                {priceKrw > 0
+                  ? `${priceKrw.toLocaleString("ru-RU")} ₩`
+                  : formatMoney(lot.currentBid || lot.estimatedCostMin || 0, lot.currency)}
               </p>
             </div>
             {relative ? (
@@ -217,7 +222,7 @@ export function LotCard({
           ) : null}
 
           <div className="mt-auto pt-3">
-            {pricingMode !== "kit" && (lot.estimatedCostMin || lot.estimatedCostMax) ? (
+            {!isKorea && pricingMode !== "kit" && (lot.estimatedCostMin || lot.estimatedCostMax) ? (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 px-3 py-2.5 ring-1 ring-inset ring-[#22c55e]/30">
                 <div className="min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">
@@ -243,9 +248,11 @@ export function LotCard({
                     {turnkey.label}
                   </p>
                   <p className="mt-0.5 text-[10px] text-zinc-500">
-                    {mode === "restoration"
-                      ? "ставка + сборы + доставка"
-                      : "лот + аукцион + доставка + разбор"}
+                    {isKorea
+                      ? "авто + сбор Encar + доставка"
+                      : mode === "restoration"
+                        ? "ставка + сборы + доставка"
+                        : "лот + аукцион + доставка + разбор"}
                   </p>
                 </div>
                 <p className="shrink-0 font-display text-lg font-bold tabular-nums tracking-tight text-[#0D3F10] sm:text-xl">

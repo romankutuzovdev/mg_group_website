@@ -76,7 +76,7 @@ export function CopartQuoteDisplay({ quote }: { quote: CopartQuote }) {
         hint={`${quote.delivery.regionKey}, ${quote.delivery.label}`}
         value={gbp(quote.delivery.amount, 2)}
       />
-      <Row label="Комиссия 3%" value={gbp(quote.transferFee, 2)} />
+      <Row label="Комиссия 3,5%" value={gbp(quote.transferFee, 2)} />
       <Row label="Итого UK" value={gbp(quote.totalUk, 2)} total />
       {quote.fxRate ? (
         <Row label="Расходы Англии" value={usd(quote.englandUsd, 2)} />
@@ -139,7 +139,7 @@ export function IaaiQuoteDisplay({
         />
       ) : null}
       <Row label="Диспетчинг" value={usd(quote.dispatchingUsd)} />
-      <Row label="Комиссия 3%" value={usd(quote.transferFee, 2)} />
+      <Row label="Комиссия 3,5%" value={usd(quote.transferFee, 2)} />
       <Row label="Расходы США" value={usd(quote.usaWithFees, 2)} total />
       <Row
         label={

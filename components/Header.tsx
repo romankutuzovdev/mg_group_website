@@ -60,7 +60,7 @@ const PRODUCT_GROUPS: NavGroup[] = [
 ];
 
 const SECONDARY: NavLink[] = [
-  { href: "/calculator/", label: "Калькулятор" },
+  { href: "/cabinet/?tab=calculators", label: "Калькулятор" },
   { href: "/otzyvy/", label: "Отзывы" },
   { href: "/about/", label: "О нас" },
   { href: "/faq/", label: "FAQ" },

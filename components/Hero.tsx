@@ -17,7 +17,7 @@ export default function Hero({ dictionary }: { dictionary: Dictionary }) {
           <p className="mt-6 max-w-md text-base leading-relaxed text-white/80 sm:text-lg">Подбор и доставка авто из США, Китая и Кореи. От первой ставки до ключей в ваших руках.</p>
           <div className="pointer-events-auto mt-8 flex flex-col gap-3 sm:flex-row">
             <LinkButton href="#car-finder" size="lg">Подобрать автомобиль <ArrowRight className="h-4 w-4" aria-hidden /></LinkButton>
-            <LinkButton href="#catalog-showcase" variant="outline" size="lg">Смотреть автомобили</LinkButton>
+            <LinkButton href="/avto/" variant="outline" size="lg">Смотреть автомобили</LinkButton>
           </div>
           <p className="mt-5 text-xs text-white/60">{dictionary.hero.subtitle}</p>
         </div>

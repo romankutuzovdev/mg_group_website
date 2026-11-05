@@ -227,7 +227,9 @@ export function AuctionsCatalog({
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [apiLoading, setApiLoading] = useState(false);
+  // Starts true: the first fetch runs in an effect, so an empty seed must not flash «не найдены».
+  const [apiLoading, setApiLoading] = useState(apiOn);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [meta, setMeta] = useState<LotMetaResponse | null>(null);
   const [restored, setRestored] = useState(false);
@@ -235,7 +237,10 @@ export function AuctionsCatalog({
   const skipNextFilterFetch = useRef(false);
   const focusSlugRef = useRef<string | undefined>(undefined);
   const loadingMoreRef = useRef(false);
-  const apiLoadingRef = useRef(false);
+  const apiLoadingRef = useRef(apiOn);
+  /** Bumped by every list replace; a response from an older one is dropped. */
+  const listRequestRef = useRef(0);
+  const restoreStartedRef = useRef(false);
   const pageRef = useRef(1);
   const pagesRef = useRef(1);
   const queryFiltersRef = useRef<FilterState>(f);
@@ -420,12 +425,17 @@ export function AuctionsCatalog({
         loadingMoreRef.current = true;
         setLoadingMore(true);
       } else {
+        listRequestRef.current += 1;
         apiLoadingRef.current = true;
         setApiLoading(true);
       }
+      const request = listRequestRef.current;
+      const isCurrent = () => request === listRequestRef.current;
       const query = filtersToQuery(filters, region, targetPage, auctions);
       try {
         const res = await fetchLotsPage(query);
+        if (!isCurrent()) return;
+        setLoadFailed(false);
         setTotal(res.total);
         setPages(res.pages);
         pagesRef.current = res.pages;
@@ -438,12 +448,16 @@ export function AuctionsCatalog({
           return extra.length ? [...prev, ...extra] : prev;
         });
       } catch {
-        /* keep current snapshot */
+        // Keep the current list. A failed "more" still has its button to retry.
+        if (mode === "replace" && isCurrent()) setLoadFailed(true);
       } finally {
-        apiLoadingRef.current = false;
-        loadingMoreRef.current = false;
-        setApiLoading(false);
-        setLoadingMore(false);
+        if (mode === "append") {
+          loadingMoreRef.current = false;
+          setLoadingMore(false);
+        } else if (isCurrent()) {
+          apiLoadingRef.current = false;
+          setApiLoading(false);
+        }
       }
     },
     [apiOn, region, auctions],
@@ -451,7 +465,8 @@ export function AuctionsCatalog({
 
   // Restore scroll / filters once on mount
   useEffect(() => {
-    if (restored || typeof window === "undefined") return;
+    if (restoreStartedRef.current || typeof window === "undefined") return;
+    restoreStartedRef.current = true;
     const snap = consumeCatalogRestore(window.location.pathname);
     if (!snap) {
       setRestored(true);
@@ -459,6 +474,7 @@ export function AuctionsCatalog({
     }
     const nextFilters = filterStateFromRecord(snap.filters);
     setF(nextFilters);
+    setDebouncedQ(nextFilters.q);
     focusSlugRef.current = snap.focusSlug;
     skipNextFilterFetch.current = true;
     setRestored(true);
@@ -471,29 +487,44 @@ export function AuctionsCatalog({
       return;
     }
 
-    let cancelled = false;
+    listRequestRef.current += 1;
+    const request = listRequestRef.current;
+    apiLoadingRef.current = true;
+    setApiLoading(true);
     (async () => {
       const targetPages = Math.max(1, snap.page);
       const merged: AuctionLot[] = [];
       let lastTotal = 0;
       let lastPages = 1;
+      let loadedPage = 0;
       for (let p = 1; p <= targetPages; p++) {
         try {
           const res = await fetchLotsPage(filtersToQuery(nextFilters, region, p, auctions));
-          if (cancelled) return;
+          if (request !== listRequestRef.current) return;
           merged.push(...res.items);
           lastTotal = res.total;
           lastPages = res.pages;
+          loadedPage = p;
           if (p >= res.pages) break;
         } catch {
           break;
         }
       }
-      if (cancelled) return;
+      if (request !== listRequestRef.current) return;
+      apiLoadingRef.current = false;
+      setApiLoading(false);
+      if (loadedPage === 0) {
+        // Nothing came back: never wipe the list, go through the normal failure path.
+        setLoadFailed(true);
+        return;
+      }
+      setLoadFailed(false);
       setLots(merged);
       setTotal(lastTotal);
       setPages(lastPages);
-      setPage(Math.min(targetPages, lastPages));
+      pagesRef.current = lastPages;
+      setPage(loadedPage);
+      pageRef.current = loadedPage;
       requestAnimationFrame(() => {
         window.scrollTo({ top: snap.scrollY, behavior: "auto" });
         if (focusSlugRef.current) {
@@ -504,11 +535,25 @@ export function AuctionsCatalog({
         }
       });
     })();
+  }, [apiOn, region, auctions]);
 
+  const retryLoad = useCallback(() => {
+    if (apiLoadingRef.current) return;
+    void loadPage(1, "replace", queryFiltersRef.current);
+  }, [loadPage]);
+
+  // While the list is broken keep trying on our own, so nobody has to reload the page.
+  useEffect(() => {
+    if (!loadFailed) return;
+    const id = window.setInterval(() => {
+      if (!document.hidden) retryLoad();
+    }, 15_000);
+    window.addEventListener("online", retryLoad);
     return () => {
-      cancelled = true;
+      window.clearInterval(id);
+      window.removeEventListener("online", retryLoad);
     };
-  }, [restored, apiOn, region, auctions]);
+  }, [loadFailed, retryLoad]);
 
   // One meta request: filter facets and the unfiltered region total.
   useEffect(() => {
@@ -529,7 +574,7 @@ export function AuctionsCatalog({
     return () => {
       cancelled = true;
     };
-  }, [apiOn, region, f.make, initialLots.length]);
+  }, [apiOn, region, f.make, initialLots.length, loadFailed]);
 
   // Fetch page 1 when filters change (API mode)
   useEffect(() => {
@@ -624,6 +669,13 @@ export function AuctionsCatalog({
 
   const renderFilterFields = () => (
     <div className="w-full min-w-0 max-w-full space-y-3.5 sm:space-y-4">
+      <button
+        type="button"
+        onClick={reset}
+        className="min-h-11 w-full cursor-pointer rounded-xl border border-stone-300 bg-white py-3 text-sm font-medium text-stone-600 transition hover:border-accent-dark hover:text-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      >
+        Сбросить фильтры
+      </button>
       {tabOptions.length > 1 ? (
         <div className="flex flex-wrap gap-1.5">
           {tabOptions.map((tab) => {
@@ -897,14 +949,6 @@ export function AuctionsCatalog({
           </select>
         </Field>
       ) : null}
-
-      <button
-        type="button"
-        onClick={reset}
-        className="min-h-11 w-full cursor-pointer rounded-xl border border-stone-300 bg-white py-3 text-sm font-medium text-stone-600 transition hover:border-accent-dark hover:text-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-      >
-        Сбросить фильтры
-      </button>
     </div>
   );
 
@@ -982,7 +1026,41 @@ export function AuctionsCatalog({
           </div>
         </div>
 
-        {foundCount === 0 && !apiLoading ? (
+        {loadFailed && visibleLots.length > 0 ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span>Не получилось обновить список. Показываем прошлые результаты.</span>
+            <button
+              type="button"
+              onClick={retryLoad}
+              disabled={apiLoading}
+              className="min-h-9 cursor-pointer rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium transition hover:border-amber-500 disabled:cursor-wait disabled:opacity-60"
+            >
+              {apiLoading ? "Загружаем…" : "Повторить"}
+            </button>
+          </div>
+        ) : null}
+
+        {loadFailed && visibleLots.length === 0 ? (
+          <div className="rounded-2xl border border-stone-200 bg-white p-12 text-center">
+            <p className="font-display text-xl font-semibold">Не удалось загрузить каталог</p>
+            <p className="mt-2 text-text-secondary">
+              Связь с сервером прервалась. Пробуем снова автоматически.
+            </p>
+            <button
+              type="button"
+              onClick={retryLoad}
+              disabled={apiLoading}
+              className="mt-5 min-h-11 cursor-pointer rounded-xl border border-stone-300 bg-white px-6 py-2.5 text-sm font-semibold text-stone-950 transition hover:border-accent hover:text-accent-dark disabled:cursor-wait disabled:opacity-60"
+            >
+              {apiLoading ? "Загружаем…" : "Повторить"}
+            </button>
+          </div>
+        ) : apiLoading && visibleLots.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-stone-200 bg-white p-12 text-center">
+            <span className="h-8 w-8 animate-pulse rounded-full border-2 border-accent/40 border-t-accent" />
+            <p className="text-text-secondary">Загружаем лоты…</p>
+          </div>
+        ) : foundCount === 0 && !apiLoading ? (
           <div className="rounded-2xl border border-stone-200 bg-white p-12 text-center">
             <p className="font-display text-xl font-semibold">Лоты не найдены</p>
             <p className="mt-2 text-text-secondary">
