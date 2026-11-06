@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Deal, DismantleCell, DismantleMap } from "@/lib/api/cabinet";
 import {
+  DISMANTLE_YARD_LABELS,
   downloadDismantleMapXlsx,
   fetchDismantleMap,
   patchDismantleCell,
@@ -260,14 +261,19 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
   const lockedForClient = completed && !isManager;
   const readOnly = lockedForClient ? true : false;
   const contact = useMemo(() => managerContact(deal), [deal]);
-  const isUsa = (map?.variant || deal.origin_region) === "usa";
+  const variant = map?.variant || deal.origin_region;
+  const isUsa = variant.startsWith("usa");
   const colQty = map?.columns?.qty || (isUsa ? "Снять" : "Кол");
   const colPack = map?.columns?.packing;
   const colNote = map?.columns?.note || "Примечание";
   const showPacking = !isUsa && colPack != null && colPack !== "";
-  const showNameEn = Boolean(map?.columns?.name_en || isUsa);
-  const qtyMin = isUsa ? 1 : 0;
+  const showNameEn = Boolean(map?.columns?.name_en);
+  // В бланке New Jersey 0 значит «не снимать».
+  const qtyMin = variant === "usa" ? 1 : 0;
   const qtyMax = isUsa ? 15 : 20;
+  // Бланк Texas: в колонке «Снять» не число, а да / нет / все.
+  const qtyWords = variant === "usa_tx" ? map?.qty_choices || [] : null;
+  const qtyRange = qtyWords ? "да / нет / все" : `${qtyMin}–${qtyMax}`;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -284,7 +290,7 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
 
   useEffect(() => {
     void load();
-  }, [load, deal.origin_region]);
+  }, [load, deal.origin_region, deal.dismantle_yard]);
 
   useEffect(() => {
     return () => {
@@ -396,8 +402,13 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
     return null;
   }
 
+  const yard = deal.dismantle_yard ? DISMANTLE_YARD_LABELS[deal.dismantle_yard] : "";
   const regionBadge =
-    (map?.origin_region || deal.origin_region) === "uk" ? "Англия" : "США";
+    (map?.origin_region || deal.origin_region) === "uk"
+      ? "Англия"
+      : yard
+        ? `США · ${yard}`
+        : "США";
 
   // Одни и те же кнопки сверху и снизу карты — после длинной таблицы не нужно
   // прокручивать наверх, чтобы отметить карту заполненной.
@@ -478,7 +489,9 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
                 : completed
                   ? "Карта отмечена как заполненная. Менеджер получил уведомление в Telegram."
                   : isUsa
-                    ? "Карта США: для каждой позиции укажите количество 1–15 (как будильник на iPhone). Отметить можно один раз."
+                    ? qtyWords
+                      ? "Карта Texas: для каждой позиции укажите «да», «все» или «нет». Пропущенные позиции сниматься не будут. Отметить можно один раз."
+                      : `Карта США: для каждой позиции укажите количество ${qtyRange} (как будильник на iPhone). Отметить можно один раз.`
                     : "Карта Англии: количество и доп. упаковка (да / —). Отметить можно один раз."}
           </p>
         </div>
@@ -528,7 +541,7 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
             </p>
             <p className="mt-1 text-[11px] text-text-muted">
               Берётся из сделки. Меняет только менеджер в названии сделки.
-              Чтобы сменить бланк карты — смените регион (США / Англия) в маршруте.
+              Чтобы сменить бланк карты — смените регион или разборку в маршруте.
             </p>
           </div>
 
@@ -564,6 +577,8 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
                 colNote={colNote}
                 qtyMin={qtyMin}
                 qtyMax={qtyMax}
+                qtyWords={qtyWords}
+                qtyRange={qtyRange}
               />
             ))}
           </div>
@@ -603,6 +618,7 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
                     showNameEn={showNameEn}
                     qtyMin={qtyMin}
                     qtyMax={qtyMax}
+                    qtyWords={qtyWords}
                     colSpan={3 + (showPacking ? 1 : 0) + 1}
                   />
                 ))}
@@ -638,6 +654,8 @@ function MobileSection({
   colNote,
   qtyMin,
   qtyMax,
+  qtyWords,
+  qtyRange,
 }: {
   section: string;
   cells: DismantleCell[];
@@ -651,6 +669,8 @@ function MobileSection({
   colNote: string;
   qtyMin: number;
   qtyMax: number;
+  qtyWords: string[] | null;
+  qtyRange: string;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border">
@@ -690,16 +710,25 @@ function MobileSection({
                 <label className="block">
                   <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-text-muted">
                     {colQty}
-                    {isUsa ? " (1–15)" : ""}
+                    {isUsa ? ` (${qtyRange})` : ""}
                   </span>
-                  <IosWheelPicker
-                    value={cell.qty}
-                    onCommit={(v) => onSave(cell.key, "qty", v)}
-                    min={qtyMin}
-                    max={qtyMax}
-                    readOnly={readOnly}
-                    ariaLabel={colQty}
-                  />
+                  {qtyWords ? (
+                    <SaveSelect
+                      value={cell.qty}
+                      choices={qtyWords}
+                      onCommit={(v) => onSave(cell.key, "qty", v)}
+                      readOnly={readOnly}
+                    />
+                  ) : (
+                    <IosWheelPicker
+                      value={cell.qty}
+                      onCommit={(v) => onSave(cell.key, "qty", v)}
+                      min={qtyMin}
+                      max={qtyMax}
+                      readOnly={readOnly}
+                      ariaLabel={colQty}
+                    />
+                  )}
                 </label>
                 {showPacking ? (
                   <label className="block">
@@ -747,6 +776,7 @@ function DesktopSectionRows({
   showNameEn,
   qtyMin,
   qtyMax,
+  qtyWords,
   colSpan,
 }: {
   section: string;
@@ -758,6 +788,7 @@ function DesktopSectionRows({
   showNameEn: boolean;
   qtyMin: number;
   qtyMax: number;
+  qtyWords: string[] | null;
   colSpan: number;
 }) {
   return (
@@ -784,6 +815,13 @@ function DesktopSectionRows({
           <td className="border-b border-border px-1.5 py-1">
             {cell.is_note_only ? (
               <span className="text-xs text-text-muted">—</span>
+            ) : qtyWords ? (
+              <SaveSelect
+                value={cell.qty}
+                choices={qtyWords}
+                onCommit={(v) => onSave(cell.key, "qty", v)}
+                readOnly={readOnly}
+              />
             ) : (
               <IosWheelPicker
                 value={cell.qty}

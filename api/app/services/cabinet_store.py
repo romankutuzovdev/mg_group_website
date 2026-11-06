@@ -44,8 +44,8 @@ from app.models.cabinet import (
 )
 from app.services.cabinet_admin import is_admin_telegram
 from app.services.dismantle_map_template import (
-    load_dismantle_template_for_region,
-    map_variant_for_region,
+    load_dismantle_template_for_deal,
+    map_variant_for_deal,
 )
 from app.services.passwords import (
     hash_password,
@@ -171,6 +171,10 @@ class CabinetStore:
         if "origin_point" not in cols:
             conn.execute(
                 "ALTER TABLE deals ADD COLUMN origin_point TEXT NOT NULL DEFAULT 'dismantle'"
+            )
+        if "dismantle_yard" not in cols:
+            conn.execute(
+                "ALTER TABLE deals ADD COLUMN dismantle_yard TEXT NOT NULL DEFAULT ''"
             )
         if "price" not in cols:
             conn.execute("ALTER TABLE deals ADD COLUMN price REAL NOT NULL DEFAULT 0")
@@ -880,6 +884,7 @@ class CabinetStore:
             kind=kind,
             origin_region=region,
             origin_point=point,
+            dismantle_yard=row["dismantle_yard"] if "dismantle_yard" in row.keys() else "",
             specs=specs,
             client_telegram_id=client_tg,
             client_name=client_name,
@@ -1060,6 +1065,7 @@ class CabinetStore:
                 region: OriginRegion = data.origin_region
                 if kind == "kit" and region not in ("usa", "uk"):
                     region = "usa"
+                yard = data.dismantle_yard if kind == "kit" and region == "usa" else ""
                 # Приоритет: явно переданный → закреплённый за клиентом → кто создаёт сделку
                 client_owner = 0
                 try:
@@ -1091,11 +1097,11 @@ class CabinetStore:
                     INSERT INTO deals (
                       user_id, title, vin, lot_number, lot_url, tracking_url,
                       dismantle_photos_url, status, note,
-                      price, currency, kind, origin_region, origin_point, specs_json,
-                      created_by_user_id, payment_stage1_due, payment_stage2_due,
+                      price, currency, kind, origin_region, origin_point, dismantle_yard,
+                      specs_json, created_by_user_id, payment_stage1_due, payment_stage2_due,
                       created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         user_id,
@@ -1112,6 +1118,7 @@ class CabinetStore:
                         kind,
                         region,
                         origin_point,
+                        yard,
                         specs_json,
                         manager_id,
                         due1,
@@ -1185,6 +1192,13 @@ class CabinetStore:
                     fields["car_status"] = data.car_status
                 if data.origin_region is not None:
                     fields["origin_region"] = data.origin_region
+                if data.dismantle_yard is not None and data.dismantle_yard != row["dismantle_yard"]:
+                    # Другая разборка — другой бланк: отмеченная клиентом карта не должна исчезнуть.
+                    if self.was_dismantle_completed(deal_id):
+                        raise ValueError(
+                            "Карта разбора уже заполнена. Снимите отметку, потом меняйте разборку"
+                        )
+                    fields["dismantle_yard"] = data.dismantle_yard
                 if data.kind is not None:
                     kind: DealKind = data.kind if data.kind in ("car", "kit") else "kit"
                     fields["kind"] = kind
@@ -1542,8 +1556,8 @@ class CabinetStore:
         if not deal:
             return None
         origin_region = (deal.origin_region or "usa").strip().lower()
-        variant = map_variant_for_region(origin_region)
-        template = load_dismantle_template_for_region(origin_region)
+        variant = map_variant_for_deal(origin_region, deal.dismantle_yard)
+        template = load_dismantle_template_for_deal(origin_region, deal.dismantle_yard)
         with self._lock:
             with self._conn() as conn:
                 meta = conn.execute(
@@ -1591,7 +1605,7 @@ class CabinetStore:
 
         cols_raw = template.get("columns") or {}
         columns = DismantleMapColumns(
-            qty=str(cols_raw.get("qty") or ("Снять" if variant == "usa" else "Кол")),
+            qty=str(cols_raw.get("qty") or ("Кол" if variant == "uk" else "Снять")),
             qty_hint=cols_raw.get("qtyHint"),
             packing=cols_raw.get("packing"),
             note=str(cols_raw.get("note") or "Примечание"),
@@ -1624,6 +1638,10 @@ class CabinetStore:
             title=str(template.get("title") or "Карта разбора"),
             variant=variant,
             origin_region=origin_region if origin_region in ("usa", "uk") else "usa",
+            dismantle_yard=deal.dismantle_yard if origin_region != "uk" else "",
+            lot_number=deal.lot_number or "",
+            vin=deal.vin or "",
+            deal_title=deal.title or "",
             vehicle_label=vehicle_label,
             vehicle_header_hint=str(template.get("vehicleHeaderHint") or ""),
             general_note=general_note,
@@ -1746,7 +1764,7 @@ class CabinetStore:
         if not key:
             raise ValueError("item_key required")
 
-        template = load_dismantle_template_for_region(deal.origin_region)
+        template = load_dismantle_template_for_deal(deal.origin_region, deal.dismantle_yard)
         item = next((i for i in (template.get("items") or []) if str(i.get("key")) == key), None)
         if item is None:
             raise KeyError("item not found")

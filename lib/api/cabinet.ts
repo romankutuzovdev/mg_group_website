@@ -41,6 +41,8 @@ export type StageKey =
 export type OriginRegion = "usa" | "uk" | "china" | "korea";
 export type OriginPoint = "dismantle" | "port";
 export type DealKind = "car" | "kit";
+/** Разборка машинокомплекта США. Пусто: старая сделка на общем бланке США. */
+export type DismantleYard = "" | "new_jersey" | "texas";
 
 export type DealStage = {
   key: StageKey;
@@ -99,6 +101,7 @@ export type Deal = {
   kind?: DealKind;
   origin_region: OriginRegion;
   origin_point: OriginPoint;
+  dismantle_yard?: DismantleYard;
   specs?: DealSpecs;
   client_telegram_id?: number;
   client_name?: string;
@@ -143,6 +146,11 @@ export const ORIGIN_REGION_LABELS: Record<OriginRegion, string> = {
   uk: "Англия",
   china: "Китай",
   korea: "Корея",
+};
+
+export const DISMANTLE_YARD_LABELS: Record<Exclude<DismantleYard, "">, string> = {
+  new_jersey: "New Jersey",
+  texas: "Texas",
 };
 
 export type CarStatus =
@@ -796,6 +804,7 @@ export async function adminCreateDeal(body: {
   kind?: DealKind;
   origin_region?: OriginRegion;
   origin_point?: OriginPoint;
+  dismantle_yard?: DismantleYard;
   specs?: DealSpecs;
   manager_user_id?: number | null;
   payment_stage1_due?: string;
@@ -824,6 +833,7 @@ export async function adminUpdateDeal(
     kind: DealKind;
     origin_region: OriginRegion;
     origin_point: OriginPoint;
+    dismantle_yard: DismantleYard;
     specs: DealSpecs;
     manager_user_id: number | null;
     payment_stage1_due: string;
@@ -1054,8 +1064,9 @@ export type DismantleMapColumns = {
 export type DismantleMap = {
   deal_id: number;
   title: string;
-  variant?: "uk" | "usa" | string;
+  variant?: "uk" | "usa" | "usa_nj" | "usa_tx" | string;
   origin_region?: string;
+  dismantle_yard?: DismantleYard;
   vehicle_label: string;
   vehicle_header_hint: string;
   general_note?: string;

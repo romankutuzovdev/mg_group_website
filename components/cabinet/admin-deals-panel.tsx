@@ -5,11 +5,13 @@ import type {
   CabinetUser,
   Deal,
   DealKind,
+  DismantleYard,
   DealSpecs,
   OriginRegion,
 } from "@/lib/api/cabinet";
 import {
   DEAL_KIND_LABELS,
+  DISMANTLE_YARD_LABELS,
   ORIGIN_REGION_LABELS,
   adminCreateClientAccount,
   adminCreateDeal,
@@ -220,6 +222,7 @@ export function AdminDealsPanel({
 
   const [telegramId, setTelegramId] = useState("");
   const [kind, setKind] = useState<DealKind>("kit");
+  const [dismantleYard, setDismantleYard] = useState<DismantleYard>("");
   const [lotUrl, setLotUrl] = useState("");
   const [trackingUrl, setTrackingUrl] = useState("");
   const [dismantlePhotosUrl, setDismantlePhotosUrl] = useState("");
@@ -404,6 +407,11 @@ export function AdminDealsPanel({
       setError("Укажите название или загрузите лот по ссылке Bid.cars");
       return;
     }
+    const needsYard = kind === "kit" && originRegion !== "uk";
+    if (needsYard && !dismantleYard) {
+      setError("Выберите разборку: New Jersey или Texas");
+      return;
+    }
     setBusy(true);
     setError(null);
     setOk(null);
@@ -432,6 +440,7 @@ export function AdminDealsPanel({
               ? "uk"
               : "usa"
             : originRegion,
+        dismantle_yard: needsYard ? dismantleYard : "",
         status: "active",
         specs,
         manager_user_id: autoManagerId > 0 ? autoManagerId : undefined,
@@ -443,6 +452,7 @@ export function AdminDealsPanel({
         `${DEAL_KIND_LABELS[dealKind(deal)]} #${deal.id} · ${regionLabel(deal.origin_region)}`,
       );
       setLotUrl("");
+      setDismantleYard("");
       setTrackingUrl("");
       setDismantlePhotosUrl("");
       setLotMeta(null);
@@ -1319,14 +1329,24 @@ export function AdminDealsPanel({
                 </option>
               ))}
             </select>
-            {kind === "kit" ? (
-              <p className="mt-1 text-[11px] text-zinc-400">
-                {originRegion === "uk"
-                  ? "Будет карта разбора Англии"
-                  : "Будет карта разбора США"}
-              </p>
+            {kind === "kit" && originRegion === "uk" ? (
+              <p className="mt-1 text-[11px] text-zinc-400">Будет карта разбора Англии</p>
             ) : null}
           </label>
+          {kind === "kit" && originRegion !== "uk" ? (
+            <label className="block text-xs">
+              <span className={labelMuted}>Разборка (бланк карты)</span>
+              <select
+                className={field}
+                value={dismantleYard}
+                onChange={(e) => setDismantleYard(e.target.value as DismantleYard)}
+              >
+                <option value="">Выберите разборку</option>
+                <option value="new_jersey">New Jersey</option>
+                <option value="texas">Texas</option>
+              </select>
+            </label>
+          ) : null}
         </div>
         {telegramId ? (
           <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500">
@@ -1393,6 +1413,7 @@ export function AdminDealsPanel({
             placeholder="Комментарий для клиента (не характеристики)…"
           />
         </label>
+        {error ? <p className="text-[13px] text-rose-700">{error}</p> : null}
         <button
           type="submit"
           disabled={busy || !clientUsers.length}
@@ -1728,6 +1749,7 @@ export function AdminDealsPanel({
                                 {[
                                   DEAL_KIND_LABELS[k],
                                   regionLabel(deal.origin_region),
+                                  deal.dismantle_yard && DISMANTLE_YARD_LABELS[deal.dismantle_yard],
                                   paymentProgressLabel(deal),
                                   deal.lot_number && `#${deal.lot_number}`,
                                   photoCount ? `${photoCount} фото` : null,

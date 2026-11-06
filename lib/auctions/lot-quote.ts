@@ -11,6 +11,7 @@ import {
 import { fetchKrwUsdtRate } from "@/lib/pricing/krw-usdt-rate";
 import {
   quoteRestoration,
+  type PotiVehicle,
   type RestorationQuote,
 } from "@/lib/pricing/restoration-quote";
 
@@ -74,6 +75,7 @@ export function quoteUsaRestoration(
     bid?: number;
     auctionFeesUsd?: number;
     oceanDestination?: "klaipeda" | "poti";
+    potiVehicle?: PotiVehicle;
     vehicleSize?: string;
     titleCode?: string;
     isSublot?: boolean;
@@ -92,6 +94,7 @@ export function quoteUsaRestoration(
     auctionPlatform: platform,
     vehicleSize: options.vehicleSize ?? "regular",
     oceanDestination: options.oceanDestination ?? "klaipeda",
+    potiVehicle: options.potiVehicle,
     titleCode: options.titleCode ?? lot.titleLabel,
     isSublot: options.isSublot ?? false,
     includeDelivery: true,
@@ -142,7 +145,7 @@ function breakdownFromRestoration(quote: RestorationQuote): LotTurnkeyBreakdown 
   if (!quote.delivery) return null;
   const auctionTotal = Math.round(quote.auctionTotal);
   const delivery = Math.round(
-    (quote.delivery?.inlandUsd ?? 0) + (quote.delivery?.oceanUsd ?? 0),
+    (quote.delivery?.inlandUsd ?? 0) + (quote.delivery?.oceanUsd ?? 0) + quote.minskDeliveryUsd,
   );
   const otherFees = Math.round(
     quote.dispatchingUsd + quote.transferFee + quote.titleDocUsd + quote.sublotUsd,

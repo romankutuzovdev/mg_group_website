@@ -6,6 +6,7 @@ import type {
   DealMedia,
   OriginPoint,
   OriginRegion,
+  DismantleYard,
   StageKey,
 } from "@/lib/api/cabinet";
 import {
@@ -132,6 +133,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
   const setRoute = (patch: {
     origin_region?: OriginRegion;
     origin_point?: OriginPoint;
+    dismantle_yard?: DismantleYard;
   }) =>
     void run(async () => {
       const updated = await adminUpdateDeal(deal.id, patch);
@@ -237,6 +239,23 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
                 <option value="uk">Англия</option>
               </select>
             </label>
+            {kit && deal.origin_region !== "uk" ? (
+              <label className="block text-xs">
+                <span className="text-zinc-500">Разборка (бланк карты)</span>
+                <select
+                  className="mt-1 h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-[13px] shadow-sm"
+                  value={deal.dismantle_yard || ""}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setRoute({ dismantle_yard: e.target.value as DismantleYard })
+                  }
+                >
+                  <option value="">Не выбрана (старый бланк)</option>
+                  <option value="new_jersey">New Jersey</option>
+                  <option value="texas">Texas</option>
+                </select>
+              </label>
+            ) : null}
             {kit ? null : (
             <label className="block text-xs">
               <span className="text-zinc-500">Старт</span>

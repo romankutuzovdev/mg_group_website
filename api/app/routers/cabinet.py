@@ -532,6 +532,8 @@ async def admin_create_deal(
         raise HTTPException(status_code=422, detail="title required")
     if body.origin_region not in ("usa", "uk", "china", "korea"):
         raise HTTPException(status_code=422, detail="invalid origin_region")
+    if body.kind == "kit" and body.origin_region != "uk" and not body.dismantle_yard:
+        raise HTTPException(status_code=422, detail="Выберите разборку: New Jersey или Texas")
     try:
         deal = cabinet_store.create_deal(
             body,

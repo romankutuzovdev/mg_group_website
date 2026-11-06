@@ -15,6 +15,8 @@ StageKey = Literal[
 OriginRegion = Literal["usa", "uk", "china", "korea"]
 OriginPoint = Literal["dismantle", "port"]
 DealKind = Literal["car", "kit"]  # авто | машинокомплект
+# Разборка машинокомплекта США. Пусто: старая сделка на общем бланке США.
+DismantleYard = Literal["", "new_jersey", "texas"]
 StageStatus = Literal["pending", "active", "done"]
 DealStatus = Literal["active", "completed", "cancelled"]
 MediaKind = Literal["photo", "document"]
@@ -287,6 +289,7 @@ class DealOut(BaseModel):
     kind: DealKind = "kit"
     origin_region: OriginRegion = "usa"
     origin_point: OriginPoint = "dismantle"
+    dismantle_yard: DismantleYard = ""
     specs: DealSpecs = Field(default_factory=DealSpecs)
     client_telegram_id: int = 0
     client_name: str = ""
@@ -324,6 +327,7 @@ class DealCreate(BaseModel):
     origin_region: OriginRegion = "usa"
     # Ignored if kind is set — derived from kind on create.
     origin_point: OriginPoint | None = None
+    dismantle_yard: DismantleYard = ""
     specs: DealSpecs | None = None
     manager_user_id: int | None = None
     payment_stage1_due: str = ""
@@ -345,6 +349,7 @@ class DealUpdate(BaseModel):
     kind: DealKind | None = None
     origin_region: OriginRegion | None = None
     origin_point: OriginPoint | None = None
+    dismantle_yard: DismantleYard | None = None
     specs: DealSpecs | None = None
     manager_user_id: int | None = None
     payment_stage1_due: str | None = None
@@ -408,6 +413,10 @@ class DismantleMapOut(BaseModel):
     title: str = "Карта разбора"
     variant: str = "uk"
     origin_region: str = "usa"
+    dismantle_yard: str = ""
+    lot_number: str = ""
+    vin: str = ""
+    deal_title: str = ""
     vehicle_label: str = ""
     vehicle_header_hint: str = ""
     general_note: str = ""

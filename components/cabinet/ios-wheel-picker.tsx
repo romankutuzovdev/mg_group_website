@@ -32,6 +32,9 @@ export function IosWheelPicker({
   const [draft, setDraft] = useState(selected ?? min);
   const [mounted, setMounted] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
+  // Куда едет барабан после клика по числу. Пока едет, onScroll не трогает выбор:
+  // иначе первые кадры анимации возвращают его на старое значение.
+  const pinned = useRef<number | null>(null);
   const itemH = 44;
   const options = Array.from({ length: max - min + 1 }, (_, i) => min + i);
 
@@ -43,10 +46,11 @@ export function IosWheelPicker({
 
   useEffect(() => {
     if (!open || !listRef.current) return;
-    const el = listRef.current;
-    const y = (draft - min) * itemH;
-    el.scrollTop = y;
-  }, [open, draft, min]);
+    pinned.current = null;
+    listRef.current.scrollTo({ top: (draft - min) * itemH, behavior: "instant" });
+    // Только при открытии: дальше барабан двигают прокрутка и клики.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const close = (commit: boolean) => {
     if (commit && !readOnly) onCommit(String(draft));
@@ -58,12 +62,16 @@ export function IosWheelPicker({
     if (!el) return;
     const idx = Math.round(el.scrollTop / itemH);
     const next = Math.min(max, Math.max(min, min + idx));
+    if (pinned.current != null) {
+      if (next === pinned.current) pinned.current = null;
+      return;
+    }
     if (next !== draft) setDraft(next);
   };
 
   const snap = () => {
     const el = listRef.current;
-    if (!el) return;
+    if (!el || pinned.current != null) return;
     const idx = Math.round(el.scrollTop / itemH);
     const next = Math.min(max, Math.max(min, min + idx));
     el.scrollTo({ top: (next - min) * itemH, behavior: "smooth" });
@@ -135,6 +143,12 @@ export function IosWheelPicker({
                   <div
                     ref={listRef}
                     onScroll={onScroll}
+                    onWheel={() => {
+                      pinned.current = null;
+                    }}
+                    onTouchStart={() => {
+                      pinned.current = null;
+                    }}
                     onTouchEnd={snap}
                     onMouseUp={snap}
                     className="relative z-0 h-[220px] overflow-y-auto overscroll-contain scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -155,6 +169,7 @@ export function IosWheelPicker({
                         ].join(" ")}
                         style={{ scrollSnapAlign: "center", height: itemH }}
                         onClick={() => {
+                          pinned.current = n;
                           setDraft(n);
                           listRef.current?.scrollTo({
                             top: (n - min) * itemH,
