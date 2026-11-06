@@ -1,6 +1,7 @@
 import { GetStaticProps } from "next";
 import SEO from "@/components/SEO";
 import { PageShell } from "@/components/layout/page-shell";
+import { OfficeGallery } from "@/components/pages/office-gallery";
 import { Team } from "@/components/pages/team";
 import { AnchorButton, LinkButton } from "@/components/site/button";
 import { getDictionary } from "@/lib/dictionary";
@@ -73,6 +74,8 @@ export default function AboutPage({ dictionary }: Props) {
             ))}
           </div>
         </div>
+
+        <OfficeGallery />
 
         <Team embedded />
 

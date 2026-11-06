@@ -122,6 +122,12 @@ export type TeamMember = {
   photoClass?: string;
 };
 
+// Временные картинки: чтобы поставить настоящие фото, замените файлы в public/office/.
+export const OFFICE_PHOTOS = [1, 2, 3, 4, 5].map((n) => ({
+  src: `/office/office-${n}.jpg`,
+  alt: `Офис MG.GROUP, фото ${n}`,
+}));
+
 export const TEAM: TeamMember[] = [
   { id: "director", name: "Алексей", role: "Директор", photo: "/team/director.png" },
   { id: "cfo", name: "Юрий", role: "Финансовый директор", photo: "/team/cfo.png" },
