@@ -12,6 +12,21 @@ git fetch origin
 git checkout "$BRANCH"
 git pull --ff-only origin "$BRANCH"
 
+# Python deps
+cd "$API_DIR"
+if [[ ! -d .venv ]]; then
+  python3 -m venv .venv
+fi
+.venv/bin/pip install -U pip
+.venv/bin/pip install -r requirements.txt
+
+# Ensure uploads dir
+mkdir -p "$API_DIR/data/uploads"
+chown -R mg:mg "$APP_DIR" 2>/dev/null || true
+
+# API first: a fresh process frees RAM for the build and answers its requests
+systemctl restart mg-api
+
 # Frontend (static export into out/ — served by FastAPI WEB_ROOT)
 if [[ -f "$APP_DIR/package.json" ]]; then
   cd "$APP_DIR"
@@ -26,18 +41,9 @@ if [[ -f "$APP_DIR/package.json" ]]; then
   npm run build
 fi
 
-# Python deps
-cd "$API_DIR"
-if [[ ! -d .venv ]]; then
-  python3 -m venv .venv
-fi
-.venv/bin/pip install -U pip
-.venv/bin/pip install -r requirements.txt
-
-# Ensure uploads dir
-mkdir -p "$API_DIR/data/uploads"
 chown -R mg:mg "$APP_DIR" 2>/dev/null || true
 
+# Pick up the fresh out/ (fast: the catalog is already in lots.db)
 systemctl restart mg-api
 systemctl --no-pager --full status mg-api | head -n 20
 

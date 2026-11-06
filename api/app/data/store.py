@@ -244,6 +244,7 @@ _COUNT_TTL = 20.0
 _COUNT_CACHE_MAX = 512
 _BIDCARS_TTL = 30.0
 _READ_CHUNK = 2000
+_JSON_READ_SIZE = 1 << 20
 
 
 def _pack(lot: AuctionLot) -> bytes:
@@ -346,6 +347,42 @@ def _filter_sql(f: LotFilters) -> tuple[list[str], list]:
         if value:
             add(f"({column} <> '' AND instr({column}, ?) > 0)", value.strip().lower())
     return where, params
+
+
+def _iter_json_lots(path: Path) -> Iterator[dict]:
+    """Yield lots from lots.json one by one: the file is bigger than a small VPS can parse at once."""
+    decoder = json.JSONDecoder()
+    # utf-8-sig: tolerate PowerShell Set-Content -Encoding UTF8 (BOM)
+    with path.open(encoding="utf-8-sig") as fh:
+        buf = fh.read(_JSON_READ_SIZE)
+        head = buf.lstrip()
+        if head.startswith("["):
+            pos = buf.index("[") + 1
+        else:
+            match = re.search(r'"lots"\s*:\s*\[', buf)
+            if not head.startswith("{") or match is None:
+                raise ValueError("no lots array")
+            pos = match.end()
+        eof = False
+        while True:
+            while pos < len(buf) and buf[pos] in " \t\r\n,":
+                pos += 1
+            if pos < len(buf) and buf[pos] == "]":
+                return
+            try:
+                if pos >= len(buf):
+                    raise json.JSONDecodeError("need more data", buf, pos)
+                item, pos = decoder.raw_decode(buf, pos)
+            except json.JSONDecodeError:
+                if eof:
+                    raise ValueError("truncated lots.json") from None
+                chunk = fh.read(_JSON_READ_SIZE)
+                eof = not chunk
+                buf = buf[pos:] + chunk
+                pos = 0
+                continue
+            if isinstance(item, dict):
+                yield item
 
 
 class LotStore:
@@ -459,29 +496,28 @@ class LotStore:
         path = Path(get_settings().lots_json_path)
         if self._count or self._memory or self.get_meta("json_imported") or not path.is_file():
             return self._count
-        try:
-            # utf-8-sig: tolerate PowerShell Set-Content -Encoding UTF8 (BOM)
-            raw = json.loads(path.read_text(encoding="utf-8-sig"))
-        except json.JSONDecodeError:
-            # Broken / empty file: start with an empty catalog rather than crash the API.
-            logger.warning("lots.json is not valid JSON, starting with an empty catalog")
-            return 0
-        items = raw.get("lots", raw) if isinstance(raw, dict) else raw
-        del raw
-        if not isinstance(items, list):
-            return 0
-        # Pop as we go: raw dicts and models must not both sit in RAM at full size.
-        items.reverse()
-        while items:
-            batch: list[AuctionLot] = []
-            while items and len(batch) < _READ_CHUNK:
-                try:
-                    batch.append(AuctionLot.model_validate(items.pop()))
-                except Exception:
-                    continue
+        batch: list[AuctionLot] = []
+
+        def flush() -> None:
             with self._tx():
                 for lot in _repair_iaai_blobs(batch):
                     self._write(lot)
+            batch.clear()
+
+        try:
+            for item in _iter_json_lots(path):
+                try:
+                    batch.append(AuctionLot.model_validate(item))
+                except Exception:
+                    continue
+                if len(batch) >= _READ_CHUNK:
+                    flush()
+        except ValueError:
+            # Broken / empty file: keep what was read rather than crash the API.
+            logger.warning("lots.json is not valid JSON, import stopped at %s lots", self._count)
+            flush()
+            return self._count
+        flush()
         self.set_meta("json_imported", datetime.now(timezone.utc).isoformat())
         self.revision += 1
         logger.info("imported %s lots from %s", self._count, path)
