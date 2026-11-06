@@ -133,7 +133,7 @@ export default function MashinokomplektPage({ dictionary, lots }: Props) {
           <div className="max-w-3xl">
             <p className="lux-kicker">Аукционы для комплектов</p>
             <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
-              Лоты Copart / Bid.cars — США · Copart UK — Англия
+              Лоты Copart / IAAI — США · Salvage Market / IAAI UK / Copart UK — Англия
             </h2>
             <p className="mt-4 text-sm text-text-secondary sm:text-base">
               Это не «готовые авто под ключ», а доноры под машинокомплект: смотрите ставку, повреждения и
