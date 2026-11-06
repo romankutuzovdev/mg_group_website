@@ -1,4 +1,5 @@
 import type { AuctionLot } from "@/lib/auctions/types";
+import { quoteChina } from "@/lib/pricing/china-quote";
 import { DEFAULT_FX, fetchFxRateGbpUsd } from "@/lib/pricing/fx-rate";
 import { quoteCopartUk, type CopartQuote } from "@/lib/pricing/copart-uk";
 import { estimateIaaiWholesale, quoteIaaiUsa, type IaaiQuote } from "@/lib/pricing/iaai-usa";
@@ -221,16 +222,17 @@ export function estimateLotBreakdown(
 ): LotTurnkeyBreakdown | null {
   try {
     if (lot.region === "china") {
-      if (!lot.currentBid) return null;
+      const quote = quoteChina(lot.currentBid);
+      if (!quote) return null;
       return {
-        amount: Math.round(lot.currentBid),
+        amount: quote.totalUsd,
         currency: "USD",
-        label: "Цена с рынка (≈ USD)",
-        auctionTotal: Math.round(lot.currentBid),
-        delivery: 0,
+        label: "Под ключ",
+        auctionTotal: quote.carUsd,
+        delivery: quote.deliveryUsd,
         dismantle: 0,
-        otherFees: 0,
-        deliveryAndFees: 0,
+        otherFees: quote.commissionUsd,
+        deliveryAndFees: quote.deliveryUsd + quote.commissionUsd,
       };
     }
     if (lot.region === "korea") {

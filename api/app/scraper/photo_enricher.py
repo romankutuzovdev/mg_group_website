@@ -8,6 +8,7 @@ for the current UTC day, then waits for new lots / next day and continues.
 from __future__ import annotations
 
 import asyncio
+import heapq
 import logging
 import re
 import time
@@ -243,9 +244,10 @@ def normalize_gallery(urls: list[str], source: str) -> list[str]:
     return _dedupe(urls, source)[:40]
 
 
-# China is the whole of che168 (~240k cars): at ~30 s per gallery it would hold
-# the queue for months, and its photos open straight from the source CDN.
+# Full galleries only. China is the whole of che168 (~240k cars): at ~30 s per
+# gallery it would hold the queue for months. Its covers still go to our CDN.
 _PHOTO_POOL_SQL = "sold = 0 AND source <> 'china_market'"
+_COVER_QUEUE_LIMIT = 5000
 
 
 def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> bool:
@@ -380,11 +382,6 @@ class PhotoEnrichmentAgent:
         self._roll_day()
         assert self._day is not None
         if get_settings().scraper_photos_covers_only:
-            covers = [
-                lot
-                for lot in lot_store.iter_where(_PHOTO_POOL_SQL)
-                if self._wants_cover(lot)
-            ]
             soon = datetime.now(timezone.utc) + timedelta(hours=2)
 
             # Lots about to end last: their cover would be deleted within hours.
@@ -394,7 +391,13 @@ class PhotoEnrichmentAgent:
                 rank = 0 if src == "bidcars" else 1 if _is_uk_lot(l) else 2
                 return (ends is not None and ends < soon, rank, -(l.currentBid or 0))
 
-            covers.sort(key=_cover_rank)
+            # Every source gets its cover on our CDN, China included. Streamed and
+            # capped: the catalog is too big to hold as a list on each refill.
+            covers = heapq.nsmallest(
+                _COVER_QUEUE_LIMIT,
+                (lot for lot in lot_store.iter_where("sold = 0") if self._wants_cover(lot)),
+                key=_cover_rank,
+            )
             self.status.queue_remaining = len(covers)
             return covers
         lots = [

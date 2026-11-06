@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import unittest
 from unittest.mock import patch
 
@@ -168,3 +170,21 @@ class CoversOnlyTests(unittest.TestCase):
         with patch.object(photo_enricher, "lot_store", _store([soon, kr, uk, later, done])):
             queue = PhotoEnrichmentAgent()._queue()
         self.assertEqual([l.id for l in queue], ["later", "uk", "kr", "soon"])
+
+
+class ChinaCoverTests(unittest.TestCase):
+    def test_china_gets_a_cover_but_no_gallery_crawl(self):
+        lot = _lot("cn", bid=1000)
+        lot.region, lot.source = "china", "china_market"
+        lot.imageUrl = "https://erscglobal2.autoimg.cn/a.jpg"
+        settings = SimpleNamespace(scraper_photos_covers_only=True)
+        with patch.object(photo_enricher, "lot_store", _store([lot])), patch.object(
+            photo_enricher, "get_settings", return_value=settings
+        ):
+            self.assertEqual([l.id for l in PhotoEnrichmentAgent()._queue()], ["cn"])
+        settings.scraper_photos_covers_only = False
+        with patch.object(photo_enricher, "lot_store", _store([lot])), patch.object(
+            photo_enricher, "get_settings", return_value=settings
+        ):
+            self.assertEqual(PhotoEnrichmentAgent()._queue(), [])
+
