@@ -81,8 +81,9 @@ import {
   registerSendCode,
   setCabinetToken,
   dealKind,
-  stageKeysForDeal,
+  dealProgress,
 } from "@/lib/api/cabinet";
+import { ManagerClientsPanel } from "@/components/cabinet/manager-clients-panel";
 import { hydrateFavorites, resetFavoritesCache, subscribeFavorites } from "@/lib/favorites-cache";
 import {
   acceptCabinetPolicyConsent,
@@ -108,21 +109,9 @@ function formatMoney(amount: number, currency: string) {
   }).format(amount || 0);
 }
 
-function dealProgress(deal: Deal) {
-  const allowed = new Set(stageKeysForDeal(deal));
-  const stages = (deal.stages || []).filter((s) => allowed.has(s.key));
-  const done = stages.filter((s) => s.status === "done").length;
-  const active = stages.find((s) => s.status === "active");
-  return {
-    done,
-    total: Math.max(stages.length, 1),
-    current: active?.label || (deal.status === "completed" ? "Готово" : "Ожидание"),
-  };
-}
+type Tab = "deals" | "favorites" | "calculators" | "quotes" | "manager" | "logistics" | "clients";
 
-type Tab = "deals" | "favorites" | "calculators" | "quotes" | "manager" | "logistics";
-
-const TAB_IDS: Tab[] = ["deals", "favorites", "calculators", "quotes", "manager", "logistics"];
+const TAB_IDS: Tab[] = ["deals", "favorites", "calculators", "quotes", "manager", "logistics", "clients"];
 
 function tabFromQuery(raw: string | null): Tab | null {
   if (!raw) return null;
@@ -143,7 +132,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   const [favorites, setFavorites] = useState<FavoriteLot[]>([]);
   const [selected, setSelected] = useState<Deal | null>(null);
   const [view, setView] = useState<View>("list");
-  const [tab, setTab] = useState<Tab>("deals");
+  const [storedTab, setTab] = useState<Tab>("deals");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [devAuthEnabled, setDevAuthEnabled] = useState(false);
@@ -381,13 +370,19 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   };
 
   const isStaff = Boolean(user?.is_admin || user?.is_manager);
+  // Менеджер видит только своих клиентов: общие разделы ему закрыты.
+  const isLimitedManager = Boolean(user?.is_manager && !user?.is_admin);
+  const tab: Tab =
+    isLimitedManager && !["favorites", "calculators"].includes(storedTab) ? "clients" : storedTab;
   const activeDeals = deals.filter((d) => d.status === "active").length;
 
   const navItems: NavItem[] = [
-    { id: "deals", label: "Сделки", icon: BriefcaseBusiness, badge: deals.length || null },
+    isLimitedManager
+      ? { id: "clients", label: "Мои клиенты", icon: Users }
+      : { id: "deals", label: "Сделки", icon: BriefcaseBusiness, badge: deals.length || null },
     { id: "favorites", label: "Избранное", icon: Heart, badge: favorites.length || null },
     { id: "calculators", label: "Калькуляторы", icon: Calculator },
-    ...(isStaff
+    ...(isStaff && !isLimitedManager
       ? [
           { id: "manager", label: "CRM · клиенты", icon: Users, section: "Команда" },
           { id: "logistics", label: "Логистика", icon: Ship, section: "Команда" },
@@ -819,7 +814,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
             onClick={backToList}
             className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 transition hover:text-zinc-900"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Все сделки
+            <ArrowLeft className="h-3.5 w-3.5" /> {isLimitedManager ? "Мои клиенты" : "Все сделки"}
           </button>
           <PageHeader
             breadcrumb={`Сделка #${selected.id}`}
@@ -847,7 +842,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
               <DealPaymentStatus
                 deal={selected}
-                isAdmin={isStaff}
+                isAdmin={isStaff && !isLimitedManager}
                 onUpdated={(next) => {
                   setSelected(next);
                   setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
@@ -886,6 +881,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                 <DealRouteSections
                   deal={selected}
                   isAdmin={isStaff}
+                  canEditRoute={!isLimitedManager}
                   onUpdated={(next) => {
                     setSelected(next);
                     setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
@@ -1254,6 +1250,10 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
           />
           <QuoteHistoryPanel scope="all" />
         </div>
+      ) : null}
+
+      {view === "list" && tab === "clients" && isLimitedManager ? (
+        <ManagerClientsPanel manager={user} onOpenDeal={(id) => void openDeal(id)} />
       ) : null}
 
       {view === "list" && tab === "manager" && isStaff ? (

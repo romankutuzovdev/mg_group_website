@@ -983,6 +983,42 @@ class CabinetStore:
                 ).fetchall()
                 return [self._deal_from_row(conn, r, with_details=True) for r in rows]
 
+    def list_deals_for_manager(self, manager_id: int) -> list[DealOut]:
+        """Deals assigned to the manager or belonging to the manager's clients."""
+        with self._lock:
+            with self._conn() as conn:
+                rows = conn.execute(
+                    """
+                    SELECT d.* FROM deals d
+                    LEFT JOIN users u ON u.id = d.user_id
+                    WHERE d.created_by_user_id = ? OR u.manager_user_id = ?
+                    ORDER BY d.updated_at DESC
+                    """,
+                    (manager_id, manager_id),
+                ).fetchall()
+                return [self._deal_from_row(conn, r, with_details=True) for r in rows]
+
+    def manager_owns_deal(self, *, manager_id: int, deal_id: int) -> bool:
+        with self._lock:
+            with self._conn() as conn:
+                row = conn.execute(
+                    """
+                    SELECT 1 FROM deals d
+                    LEFT JOIN users u ON u.id = d.user_id
+                    WHERE d.id = ? AND (d.created_by_user_id = ? OR u.manager_user_id = ?)
+                    """,
+                    (deal_id, manager_id, manager_id),
+                ).fetchone()
+                return row is not None
+
+    def media_deal_id(self, media_id: int) -> int | None:
+        with self._lock:
+            with self._conn() as conn:
+                row = conn.execute(
+                    "SELECT deal_id FROM deal_media WHERE id = ?", (media_id,)
+                ).fetchone()
+                return int(row["deal_id"]) if row else None
+
     def list_users(self) -> list[UserOut]:
         with self._lock:
             with self._conn() as conn:

@@ -38,7 +38,9 @@ from app.models.cabinet import (
 from app.services.auth_deps import (
     get_current_user,
     get_optional_user,
+    is_limited_manager,
     require_admin_or_key,
+    require_full_admin_or_key,
     require_owner_admin_or_key,
 )
 from app.services.cabinet_store import cabinet_store
@@ -55,9 +57,24 @@ def _require_deal_access(deal_id: int, user: UserOut) -> DealOut:
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
     owner = cabinet_store.get_deal_owner_id(deal_id)
-    if owner != user.id and not (user.is_admin or user.is_manager):
-        raise HTTPException(status_code=403, detail="Not your deal")
+    if owner != user.id and not user.is_admin:
+        if not user.is_manager or not cabinet_store.manager_owns_deal(
+            manager_id=user.id, deal_id=deal_id
+        ):
+            raise HTTPException(status_code=403, detail="Not your deal")
     return deal
+
+
+def _require_managed_deal(deal_id: int, actor: UserOut) -> None:
+    """Admins and the API key reach any deal, a manager only own ones."""
+    if is_limited_manager(actor) and not cabinet_store.manager_owns_deal(
+        manager_id=actor.id, deal_id=deal_id
+    ):
+        raise HTTPException(status_code=403, detail="Not your deal")
+
+
+# Всё остальное в сделке меняет только администратор.
+_MANAGER_DEAL_FIELDS = {"car_status", "tracking_url", "dismantle_photos_url", "dismantle_yard"}
 
 
 def _is_staff(user: UserOut) -> bool:
@@ -402,9 +419,12 @@ def remove_favorite(
 
 @router.get("/admin/users", response_model=list[UserOut])
 def admin_list_users(
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> list[UserOut]:
-    return cabinet_store.list_users()
+    users = cabinet_store.list_users()
+    if is_limited_manager(actor):
+        return [u for u in users if u.id == actor.id or u.manager_user_id == actor.id]
+    return users
 
 
 @router.post("/admin/clients", response_model=ClientAccountCreatedOut)
@@ -517,8 +537,10 @@ def admin_set_user_role(
 
 @router.get("/admin/deals", response_model=list[DealOut])
 def admin_list_deals(
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> list[DealOut]:
+    if is_limited_manager(actor):
+        return cabinet_store.list_deals_for_manager(actor.id)
     return cabinet_store.list_all_deals()
 
 
@@ -526,7 +548,7 @@ def admin_list_deals(
 async def admin_create_deal(
     body: DealCreate,
     background_tasks: BackgroundTasks,
-    admin: Annotated[UserOut, Depends(require_admin_or_key)],
+    admin: Annotated[UserOut, Depends(require_full_admin_or_key)],
 ) -> DealOut:
     if not body.title.strip():
         raise HTTPException(status_code=422, detail="title required")
@@ -558,8 +580,11 @@ async def admin_create_deal(
 def admin_update_deal(
     deal_id: int,
     body: DealUpdate,
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> DealOut:
+    _require_managed_deal(deal_id, actor)
+    if is_limited_manager(actor) and not body.model_fields_set <= _MANAGER_DEAL_FIELDS:
+        raise HTTPException(status_code=403, detail="Эти данные сделки меняет администратор")
     try:
         deal = cabinet_store.update_deal(deal_id, body)
     except ValueError as exc:
@@ -574,8 +599,9 @@ def admin_set_claim_status(
     deal_id: int,
     claim_id: int,
     body: DealClaimStatusUpdate,
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> DealOut:
+    _require_managed_deal(deal_id, actor)
     deal = cabinet_store.set_claim_status(deal_id, claim_id, body.status)
     if not deal:
         raise HTTPException(status_code=404, detail="Claim not found")
@@ -586,7 +612,7 @@ def admin_set_claim_status(
 def admin_update_payment(
     deal_id: int,
     body: PaymentStageUpdate,
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
 ) -> DealOut:
     try:
         deal = cabinet_store.update_payment_stage(
@@ -606,8 +632,9 @@ def admin_update_stage(
     deal_id: int,
     stage_key: StageKey,
     body: StageUpdate,
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> DealOut:
+    _require_managed_deal(deal_id, actor)
     if stage_key not in STAGE_KEYS:
         raise HTTPException(status_code=422, detail="Invalid stage")
     deal = cabinet_store.update_stage(deal_id, stage_key, body)
@@ -619,7 +646,7 @@ def admin_update_stage(
 @router.post("/admin/deals/{deal_id}/media", response_model=DealMediaOut)
 async def admin_upload_media(
     deal_id: int,
-    _: Annotated[UserOut, Depends(require_admin_or_key)],
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
     file: UploadFile = File(...),
     kind: Literal["photo", "document"] = Form("photo"),
     stage_key: StageKey | None = Form(None),
@@ -627,6 +654,7 @@ async def admin_upload_media(
 ) -> DealMediaOut:
     if cabinet_store.get_deal(deal_id) is None:
         raise HTTPException(status_code=404, detail="Deal not found")
+    _require_managed_deal(deal_id, actor)
     content = await file.read()
     if not content:
         raise HTTPException(status_code=422, detail="Empty file")
@@ -666,8 +694,14 @@ def get_media(
     info = cabinet_store.get_media_file(media_id)
     if not info:
         raise HTTPException(status_code=404, detail="Media not found")
-    if not (viewer.is_admin or viewer.is_manager) and not cabinet_store.media_belongs_to_user(media_id, viewer.id):
-        raise HTTPException(status_code=403, detail="Forbidden")
+    if not viewer.is_admin and not cabinet_store.media_belongs_to_user(media_id, viewer.id):
+        deal_id = cabinet_store.media_deal_id(media_id)
+        if (
+            not viewer.is_manager
+            or deal_id is None
+            or not cabinet_store.manager_owns_deal(manager_id=viewer.id, deal_id=deal_id)
+        ):
+            raise HTTPException(status_code=403, detail="Forbidden")
     path, filename, kind = info
     media_type = mimetypes.guess_type(filename)[0] or (
         "image/jpeg" if kind == "photo" else "application/octet-stream"

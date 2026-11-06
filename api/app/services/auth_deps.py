@@ -121,6 +121,25 @@ def require_admin_or_key(
     return user
 
 
+def is_limited_manager(user: UserOut) -> bool:
+    """Manager without admin rights: works only with own clients and deals."""
+    return bool(user.is_manager and not user.is_admin)
+
+
+def require_full_admin(user: Annotated[UserOut, Depends(require_admin)]) -> UserOut:
+    if is_limited_manager(user):
+        raise HTTPException(status_code=403, detail="Admin only")
+    return user
+
+
+def require_full_admin_or_key(
+    user: Annotated[UserOut, Depends(require_admin_or_key)],
+) -> UserOut:
+    if is_limited_manager(user):
+        raise HTTPException(status_code=403, detail="Admin only")
+    return user
+
+
 def require_owner_admin_or_key(
     settings: Annotated[Settings, Depends(get_settings)],
     creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)] = None,

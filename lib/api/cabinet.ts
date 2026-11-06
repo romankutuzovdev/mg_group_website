@@ -141,6 +141,18 @@ export function stageKeysForDeal(deal: Deal): StageKey[] {
   return dealKind(deal) === "kit" ? KIT_STAGE_KEYS : CAR_STAGE_KEYS;
 }
 
+export function dealProgress(deal: Deal) {
+  const allowed = new Set(stageKeysForDeal(deal));
+  const stages = (deal.stages || []).filter((s) => allowed.has(s.key));
+  const done = stages.filter((s) => s.status === "done").length;
+  const active = stages.find((s) => s.status === "active");
+  return {
+    done,
+    total: Math.max(stages.length, 1),
+    current: active?.label || (deal.status === "completed" ? "Готово" : "Ожидание"),
+  };
+}
+
 export const ORIGIN_REGION_LABELS: Record<OriginRegion, string> = {
   usa: "США",
   uk: "Англия",

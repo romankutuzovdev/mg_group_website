@@ -11,7 +11,7 @@ from app.data import static_content as sc
 from app.data.store import lot_store
 from app.models.leads import QuoteRequest, WeightPriceRequest
 from app.models.lots import AuctionLot
-from app.services.auth_deps import get_current_user, require_admin
+from app.services.auth_deps import get_current_user, require_full_admin
 from app.services.customs_by import calculate_customs_by
 from app.services.lot_lookup import fetch_lot_from_url
 from app.services.pricing import price_by_weight, quote_copart_uk, quote_iaai_usa
@@ -355,5 +355,5 @@ def my_quote_history(user=Depends(get_current_user)) -> list[dict[str, Any]]:
 
 
 @router.get("/history/all")
-def all_quote_history(_admin=Depends(require_admin)) -> list[dict[str, Any]]:
+def all_quote_history(_admin=Depends(require_full_admin)) -> list[dict[str, Any]]:
     return quote_history.list_all()

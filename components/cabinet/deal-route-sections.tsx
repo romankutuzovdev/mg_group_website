@@ -76,10 +76,12 @@ function buildSections(deal: Deal): Section[] {
 type Props = {
   deal: Deal;
   isAdmin?: boolean;
+  /** Менять страну и старт маршрута. Менеджеру закрыто, разборка и этапы остаются. */
+  canEditRoute?: boolean;
   onUpdated?: (deal: Deal) => void;
 };
 
-export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
+export function DealRouteSections({ deal, isAdmin = false, canEditRoute = true, onUpdated }: Props) {
   const [openKeys, setOpenKeys] = useState<Set<StageKey>>(() => new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -225,6 +227,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
 
         {isAdmin ? (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {canEditRoute ? (
             <label className="block text-xs">
               <span className="text-zinc-500">Откуда</span>
               <select
@@ -239,6 +242,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
                 <option value="uk">Англия</option>
               </select>
             </label>
+            ) : null}
             {kit && deal.origin_region !== "uk" ? (
               <label className="block text-xs">
                 <span className="text-zinc-500">Разборка (бланк карты)</span>
@@ -256,7 +260,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
                 </select>
               </label>
             ) : null}
-            {kit ? null : (
+            {kit || !canEditRoute ? null : (
             <label className="block text-xs">
               <span className="text-zinc-500">Старт</span>
               <select
