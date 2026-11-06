@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
@@ -13,7 +15,20 @@ from app.config import Settings, get_settings
 from app.models.cabinet import UserOut
 from app.services.cabinet_store import cabinet_store
 
+logger = logging.getLogger("mg.auth")
+
 _bearer = HTTPBearer(auto_error=False)
+
+_DEFAULT_JWT_SECRET = "dev-change-me"
+_fallback_jwt_key = secrets.token_urlsafe(48)
+
+
+def _jwt_key(settings: Settings) -> str:
+    """The default secret is public, so a token signed with it must never be accepted."""
+    if settings.jwt_secret != _DEFAULT_JWT_SECRET or settings.cabinet_dev_auth:
+        return settings.jwt_secret
+    logger.warning("JWT_SECRET is not set: logins will not survive an API restart")
+    return _fallback_jwt_key
 
 
 def create_access_token(
@@ -30,13 +45,13 @@ def create_access_token(
         "iat": now,
         "exp": now + timedelta(days=max(1, s.jwt_ttl_days)),
     }
-    return jwt.encode(payload, s.jwt_secret, algorithm="HS256")
+    return jwt.encode(payload, _jwt_key(s), algorithm="HS256")
 
 
 def decode_access_token(token: str, settings: Settings | None = None) -> dict[str, Any]:
     s = settings or get_settings()
     try:
-        return jwt.decode(token, s.jwt_secret, algorithms=["HS256"])
+        return jwt.decode(token, _jwt_key(s), algorithms=["HS256"])
     except jwt.PyJWTError as exc:
         raise HTTPException(status_code=401, detail="Invalid or expired token") from exc
 

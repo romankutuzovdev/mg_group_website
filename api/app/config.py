@@ -163,7 +163,8 @@ class Settings(BaseSettings):
     cabinet_dev_client_telegram_id: int = 900002
     # /admin/ и кабинет: логин/пароль с сервера (.env)
     cabinet_admin_login: str = "admin"
-    cabinet_admin_password: str = "MGGROUP"
+    # Пусто: вход по логину admin выключен. Значение задаётся только в .env.
+    cabinet_admin_password: str = ""
     # Служебный id учётки пароля (не Telegram). Всегда is_admin.
     cabinet_password_telegram_id: int = 900000000001
 
