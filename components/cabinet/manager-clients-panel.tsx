@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BriefcaseBusiness, ChevronRight, Route, Search, Users } from "lucide-react";
+import { AdminDealsPanel } from "@/components/cabinet/admin-deals-panel";
 import {
   Avatar,
   Badge,
+  Button,
   Card,
   EmptyState,
   Notice,
@@ -75,6 +77,7 @@ export function ManagerClientsPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [compose, setCompose] = useState<"deal" | "client" | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,7 +114,31 @@ export function ManagerClientsPanel({
       <PageHeader
         title="Мои клиенты"
         description="Ваши клиенты и их сделки. Откройте сделку, чтобы отметить этапы."
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setCompose((v) => (v === "client" ? null : "client"))}
+            >
+              {compose === "client" ? "Скрыть форму" : "+ Клиент"}
+            </Button>
+            <Button onClick={() => setCompose((v) => (v === "deal" ? null : "deal"))}>
+              {compose === "deal" ? "Скрыть форму" : "+ Сделка"}
+            </Button>
+          </>
+        }
       />
+
+      {compose ? (
+        <AdminDealsPanel
+          key={compose}
+          formOnly={compose}
+          currentUser={manager}
+          onCreated={() => void load()}
+          onClientCreated={() => void load()}
+          onOpenDeal={onOpenDeal}
+        />
+      ) : null}
 
       <StatRow className="md:grid-cols-3">
         <StatTile label="Клиенты" value={groups.length} icon={<Users className="h-4 w-4" />} />

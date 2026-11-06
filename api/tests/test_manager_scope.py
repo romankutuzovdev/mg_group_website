@@ -80,12 +80,15 @@ class ManagerScopeTest(unittest.TestCase):
         deals = self.client.get("/api/v1/admin/deals", headers=self.auth(1)).json()
         self.assertEqual(len(deals), 2)
 
-    def test_manager_cannot_create_deals(self):
+    def test_manager_adds_deals_only_for_own_clients(self):
         body = {"telegram_id": 104, "title": "новая", "dismantle_yard": "texas"}
-        res = self.client.post("/api/v1/admin/deals", json=body, headers=self.auth(2))
-        self.assertEqual(res.status_code, 403)
-        res = self.client.post("/api/v1/admin/deals", json=body, headers=self.auth(1))
+        h = self.auth(2)
+        res = self.client.post("/api/v1/admin/deals", json={**body, "manager_user_id": 3}, headers=h)
         self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["manager_user_id"], 2)
+        foreign = {**body, "telegram_id": 105}
+        self.assertEqual(self.client.post("/api/v1/admin/deals", json=foreign, headers=h).status_code, 403)
+        self.assertEqual(self.client.post("/api/v1/admin/deals", json=foreign, headers=self.auth(1)).status_code, 200)
 
     def test_manager_changes_stage_only_on_own_deal(self):
         h = self.auth(2)

@@ -548,8 +548,13 @@ def admin_list_deals(
 async def admin_create_deal(
     body: DealCreate,
     background_tasks: BackgroundTasks,
-    admin: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    admin: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> DealOut:
+    if is_limited_manager(admin):
+        client = cabinet_store.get_user_by_telegram_id(body.telegram_id)
+        if client is None or client.manager_user_id != admin.id:
+            raise HTTPException(status_code=403, detail="Добавлять сделки можно только своим клиентам")
+        body = body.model_copy(update={"manager_user_id": admin.id})
     if not body.title.strip():
         raise HTTPException(status_code=422, detail="title required")
     if body.origin_region not in ("usa", "uk", "china", "korea"):

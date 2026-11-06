@@ -139,6 +139,9 @@ type Props = {
   canAssignRoles?: boolean;
   /** Текущий менеджер/админ — для закрепления клиентов и фокуса своего списка. */
   currentUser?: CabinetUser | null;
+  /** Только форма, без CRM: вкладка менеджера «Мои клиенты». */
+  formOnly?: "deal" | "client";
+  onClientCreated?: () => void;
 };
 
 type ClientBranch = {
@@ -191,6 +194,8 @@ export function AdminDealsPanel({
   onOpenDeal,
   canAssignRoles = false,
   currentUser = null,
+  formOnly,
+  onClientCreated,
 }: Props) {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [users, setUsers] = useState<CabinetUser[]>([]);
@@ -199,7 +204,7 @@ export function AdminDealsPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-  const [compose, setCompose] = useState<"none" | "client" | "deal">("none");
+  const [compose, setCompose] = useState<"none" | "client" | "deal">(formOnly ?? "none");
   const [query, setQuery] = useState("");
   const [selectedClientKey, setSelectedClientKey] = useState<string | null>(null);
   /** Mobile: список клиентов или карточка клиента с авто */
@@ -276,7 +281,8 @@ export function AdminDealsPanel({
       setUsers(nextUsers);
       setTelegramId((prev) => {
         if (prev) return prev;
-        return nextUsers[0] ? String(nextUsers[0].telegram_id) : "";
+        const first = formOnly ? nextUsers.find((u) => !u.is_admin && !u.is_manager) : nextUsers[0];
+        return first ? String(first.telegram_id) : "";
       });
       setLoadedOnce(true);
     } catch (err) {
@@ -284,7 +290,7 @@ export function AdminDealsPanel({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [formOnly]);
 
   useEffect(() => {
     void load();
@@ -539,7 +545,7 @@ export function AdminDealsPanel({
       setTelegramId(String(created.user.telegram_id));
       setSelectedClientKey(`tg:${created.user.telegram_id}`);
       setMobilePane("workspace");
-      setCompose("none");
+      if (!formOnly) setCompose("none");
       const smsBit = created.sms_sent
         ? "SMS отправлено (логин, пароль, ссылка)."
         : created.sms_skipped
@@ -555,6 +561,7 @@ export function AdminDealsPanel({
       setClientLastName("");
       setClientPassword(generateClientPassword());
       await load();
+      onClientCreated?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось создать аккаунт");
     } finally {
@@ -912,6 +919,8 @@ export function AdminDealsPanel({
 
   return (
     <div className="space-y-5">
+      {formOnly ? null : (
+      <>
       {/* Page header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
@@ -967,6 +976,9 @@ export function AdminDealsPanel({
           </div>
         ))}
       </div>
+
+      </>
+      )}
 
       {error ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-800">
@@ -1425,6 +1437,7 @@ export function AdminDealsPanel({
       ) : null}
 
       {/* CRM board: clients | cars */}
+      {formOnly ? null : (
       <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
         {/* Mobile tabs */}
         <div className="flex border-b border-zinc-100 lg:hidden">
@@ -1862,6 +1875,7 @@ export function AdminDealsPanel({
           </section>
         </div>
       </div>
+      )}
 
     </div>
   );
