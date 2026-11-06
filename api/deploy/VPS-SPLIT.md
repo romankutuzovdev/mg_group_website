@@ -11,11 +11,11 @@
 Картинки в лотах → `https://pub-….r2.dev/...` (или свой CDN-домен).
 
 ```
-[Chrome/VPN Windows] --scrapes--> lots.json + R2 photos
+[Chrome/VPN Windows] --scrapes--> lots.db + R2 photos
          |
-         |  POST /api/v1/internal/lots-ingest  (push every ~3 min)
+         |  POST /api/v1/internal/lots-delta  (только изменения, каждые ~3 мин)
          v
-[VPS 178.172.138.96]  site + cabinet.db + lots.json
+[VPS 178.172.138.96]  site + cabinet.db + lots.db
          ^
    mg-group.by / IP (Caddy → API :8080)
 ```
@@ -23,9 +23,16 @@
 ## Почему на сайте `lots:0`, а на Windows десятки тысяч
 
 Публичный узел (`APP_ROLE=public` на VPS) **не парсит** — только принимает каталог.
-Если `LOTS_PUSH_URL` на Windows пустой и `LOTS_SOURCE_URL` на VPS пустой, сайт остаётся с пустым `lots.json`.
+Если `LOTS_PUSH_URL` на Windows пустой и `LOTS_SOURCE_URL` на VPS пустой, сайт остаётся с пустым каталогом.
 
-Полный `GET /internal/lots-catalog` ~200 MB — pull с VPS часто обрывается по таймауту.
+Каталог живёт в SQLite: `lots.db` рядом с `LOTS_JSON_PATH` (на VPS `/opt/mg-group/api/data/lots.db`).
+Старый `lots.json` читается один раз, при первом запуске с пустой базой, и больше не обновляется.
+
+Windows шлёт только изменения, пачками по 2000 лотов (gzip). VPS помнит, до какой позиции дошёл,
+поэтому оборванная синхронизация продолжается с того же места. Позиция видна в
+`GET /api/v1/internal/lots-sync-state`. Первая синхронизация передаёт весь каталог; старые лоты
+остаются на сайте, пока не придёт последняя пачка.
+
 Нужен **push с Windows** (каждые ~3 мин):
 
 ```powershell
@@ -33,6 +40,14 @@ powershell -ExecutionPolicy Bypass -File C:\mg-api\api\deploy\enable-lots-push.p
 ```
 
 Проверка: `https://www.mg-group.by/health` → `lots` > 0.
+
+## Порядок обновления на SQLite
+
+Сначала **VPS**, потом **Windows**: новый Windows шлёт на `/internal/lots-delta`, которого нет на старом VPS
+(лоты при этом не теряются, в логе будет ошибка push). Старый Windows на новом VPS продолжает работать
+через `/internal/lots-ingest`.
+
+Откат: вернуть код. `lots.json` не удаляется, но в нём каталог на момент переезда.
 
 ## 1. Windows (фабрика)
 

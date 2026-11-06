@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from app.data.store import LotStore
 from app.models.lots import AuctionLot
 from unittest.mock import patch
 
@@ -45,7 +46,9 @@ class PickCaseLotsTests(unittest.TestCase):
 
     def test_route_returns_cases(self):
         lots = [_lot("a", "Toyota"), _lot("b", "Honda", model="Honda Civic")]
-        with patch.object(content.lot_store, "all", return_value=lots):
+        store = LotStore(":memory:")
+        store.upsert_many(lots)
+        with patch.object(content, "lot_store", store):
             out = content.cases(limit=2)
         self.assertEqual(out["count"], 2)
         self.assertEqual(out["items"][1]["title"], "Honda Civic 2019")

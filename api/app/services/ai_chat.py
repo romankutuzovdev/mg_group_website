@@ -14,6 +14,7 @@ import threading
 import time
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -22,6 +23,9 @@ from app.config import get_settings
 from app.models.lots import AuctionLot
 from app.services.auction_date import parse_auction_date
 from app.services.filter_lots import LotFilters, filter_lots
+
+# Either the lots themselves, or a query: (filters, cheapest_first) -> lots.
+LotPool = list[AuctionLot] | Callable[[LotFilters, bool], list[AuctionLot]]
 
 logger = logging.getLogger("mg.ai_chat")
 
@@ -165,7 +169,7 @@ def lot_card(lot: AuctionLot) -> dict[str, Any]:
 
 
 def search_lots(
-    pool: list[AuctionLot], args: dict[str, Any], *, now: datetime | None = None
+    pool: LotPool, args: dict[str, Any], *, now: datetime | None = None
 ) -> list[AuctionLot]:
     km = args.get("max_mileage_km")
     filters = LotFilters(
@@ -182,11 +186,12 @@ def search_lots(
     )
     moment = now or datetime.now(timezone.utc)
     soon = moment + timedelta(hours=ENDING_SOON_HOURS)
-    matched = filter_lots(pool, filters)
+    limit = args.get("max_price_usd")
+    # The site passes a catalog query; a plain list is filtered here.
+    matched = pool(filters, bool(limit)) if callable(pool) else filter_lots(pool, filters)
     ends = {lot.id: parse_auction_date(lot.auctionDate) for lot in matched}
     # The catalog keeps ended lots for a grace period: never offer those.
     found = [lot for lot in matched if ends[lot.id] is None or ends[lot.id] > moment]
-    limit = args.get("max_price_usd")
     if limit:
         found = [lot for lot in found if 0 < lot_price_usd(lot) <= float(limit)]
 
@@ -238,7 +243,7 @@ async def _complete(client: httpx.AsyncClient, messages: list[dict[str, Any]]) -
 
 async def chat(
     history: list[dict[str, Any]],
-    pool: list[AuctionLot],
+    pool: LotPool,
     *,
     current_lot: AuctionLot | None = None,
     transport: httpx.AsyncBaseTransport | None = None,

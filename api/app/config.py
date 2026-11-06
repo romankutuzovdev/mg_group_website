@@ -107,7 +107,9 @@ class Settings(BaseSettings):
     scraper_max_pages_manheim: int = 5
     scraper_max_pages_salvage_market: int = 10
     scraper_max_pages_encar: int = 5
-    scraper_max_pages_china_market: int = 8
+    # 0 = every page. A full pass walks all brands, so it runs a few times a day.
+    scraper_max_pages_china_market: int = 0
+    scraper_interval_seconds_china_market: int = 21600
     scraper_page_size: int = 100
     scraper_timeout_ms: int = 60000
     scraper_headless: bool = False

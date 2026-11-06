@@ -415,7 +415,7 @@ def backfill_local_lots_to_r2(*, limit: int = 200) -> dict[str, Any]:
     errors = 0
     samples: list[str] = []
 
-    for lot in lot_store.all():
+    for lot in lot_store.iter_all():
         if promoted >= limit:
             break
         imgs = list(lot.imageUrls or []) + ([lot.imageUrl] if lot.imageUrl else [])

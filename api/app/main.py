@@ -1,6 +1,7 @@
 import asyncio
 import sys
 from contextlib import asynccontextmanager
+from itertools import islice
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -52,7 +53,7 @@ def _role(settings) -> str:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # LotStore() already loaded the catalog; a second load here ran the VPS out of RAM.
-    n = len(lot_store.all())
+    n = len(lot_store)
     print(f"[mg-api] loaded {n} lots from disk")
     settings = get_settings()
     role = _role(settings)
@@ -87,11 +88,7 @@ async def lifespan(_app: FastAPI):
                     )
                     if released and settings.scraper_persist:
                         await asyncio.to_thread(lot_store.persist)
-                    live_photo_ids = {
-                        lot.id
-                        for lot in lot_store.all()
-                        if not getattr(lot, "sold", False)
-                    }
+                    live_photo_ids = await asyncio.to_thread(lot_store.ids, "sold = 0")
                     stats = await asyncio.to_thread(
                         reconcile_photo_archives, live_photo_ids
                     )
@@ -143,16 +140,18 @@ async def lifespan(_app: FastAPI):
         try:
             from app.services.ko_ru import has_hangul, localize_korea_store
 
-            sample = [
-                l
-                for l in lot_store.all()
-                if (l.region or "") == "korea"
-                and (
-                    has_hangul(l.model or "")
-                    or has_hangul(l.location or "")
-                    or has_hangul(l.make or "")
+            sample = list(
+                islice(
+                    (
+                        l
+                        for l in lot_store.iter_where("region = 'korea'")
+                        if has_hangul(l.model or "")
+                        or has_hangul(l.location or "")
+                        or has_hangul(l.make or "")
+                    ),
+                    3,
                 )
-            ][:3]
+            )
             if not sample:
                 print("[mg-api] korea RU: nothing to translate")
                 return

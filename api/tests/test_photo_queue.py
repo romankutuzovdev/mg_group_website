@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+from app.data.store import LotStore
 from app.models.lots import AuctionLot
 from app.scraper import photo_enricher
 from app.scraper.photo_enricher import PhotoEnrichmentAgent
@@ -18,10 +19,16 @@ def _lot(lot_id: str, *, bid: float, sold: bool = False) -> AuctionLot:
     )
 
 
+def _store(lots):
+    store = LotStore(":memory:")
+    store.upsert_many(lots)
+    return store
+
+
 class PhotoQueueTests(unittest.TestCase):
     def test_sold_lots_are_not_queued_even_with_highest_bid(self):
         lots = [_lot("sold", bid=90000, sold=True), _lot("live", bid=500)]
-        with patch.object(photo_enricher.lot_store, "all", return_value=lots):
+        with patch.object(photo_enricher, "lot_store", _store(lots)):
             queue = PhotoEnrichmentAgent()._queue()
         self.assertEqual([lot.id for lot in queue], ["live"])
 
@@ -35,7 +42,7 @@ class CoverFirstTests(unittest.IsolatedAsyncioTestCase):
         done = _lot("done", bid=90000)
         done.imageUrl = "/api/lot-photos/done/01-a.jpg"
         fresh = _lot("fresh", bid=100)
-        with patch.object(photo_enricher.lot_store, "all", return_value=[done, fresh]):
+        with patch.object(photo_enricher, "lot_store", _store([done, fresh])):
             queue = PhotoEnrichmentAgent()._queue()
         self.assertEqual(queue[0].id, "fresh")
 
@@ -82,7 +89,7 @@ class CoverUkTests(unittest.IsolatedAsyncioTestCase):
     def test_uk_cover_goes_before_bidcars_galleries(self):
         gallery = _lot("gallery", bid=90000)
         gallery.imageUrl = "/api/lot-photos/gallery/01-a.jpg"
-        with patch.object(photo_enricher.lot_store, "all", return_value=[gallery, self._uk()]):
+        with patch.object(photo_enricher, "lot_store", _store([gallery, self._uk()])):
             queue = PhotoEnrichmentAgent()._queue()
         self.assertEqual(queue[0].id, "uk-copart-1")
 
@@ -158,6 +165,6 @@ class CoversOnlyTests(unittest.TestCase):
         kr = self._lot("kr", "encar", "korea")
         done = self._lot("done", "bidcars", "usa")
         done.imageUrl = "/api/lot-photos/done/01-a.jpg"
-        with patch.object(photo_enricher.lot_store, "all", return_value=[soon, kr, uk, later, done]):
+        with patch.object(photo_enricher, "lot_store", _store([soon, kr, uk, later, done])):
             queue = PhotoEnrichmentAgent()._queue()
         self.assertEqual([l.id for l in queue], ["later", "uk", "kr", "soon"])

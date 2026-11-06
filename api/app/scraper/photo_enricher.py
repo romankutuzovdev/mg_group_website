@@ -243,6 +243,11 @@ def normalize_gallery(urls: list[str], source: str) -> list[str]:
     return _dedupe(urls, source)[:40]
 
 
+# China is the whole of che168 (~240k cars): at ~30 s per gallery it would hold
+# the queue for months, and its photos open straight from the source CDN.
+_PHOTO_POOL_SQL = "sold = 0 AND source <> 'china_market'"
+
+
 def needs_photo_enrichment(lot: AuctionLot, *, today: date | None = None) -> bool:
     """True if lot still needs a full local gallery on our server."""
     if not lot.lotUrl:
@@ -377,8 +382,8 @@ class PhotoEnrichmentAgent:
         if get_settings().scraper_photos_covers_only:
             covers = [
                 lot
-                for lot in lot_store.all()
-                if not getattr(lot, "sold", False) and self._wants_cover(lot)
+                for lot in lot_store.iter_where(_PHOTO_POOL_SQL)
+                if self._wants_cover(lot)
             ]
             soon = datetime.now(timezone.utc) + timedelta(hours=2)
 
@@ -394,11 +399,10 @@ class PhotoEnrichmentAgent:
             return covers
         lots = [
             lot
-            for lot in lot_store.all()
             # Sold lots are hidden from the catalog and their galleries get
             # released anyway. Their high final bids used to top this queue.
-            if not getattr(lot, "sold", False)
-            and needs_photo_enrichment(lot, today=self._day)
+            for lot in lot_store.iter_where(_PHOTO_POOL_SQL)
+            if needs_photo_enrichment(lot, today=self._day)
             and lot.id not in self._processed_ids
         ]
         # Prefer thin galleries first. England before USA — Copart UK CDN
