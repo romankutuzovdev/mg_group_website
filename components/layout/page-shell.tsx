@@ -25,14 +25,14 @@ export function PageShell({
       className={cn(
         full
           ? "flex min-h-[100dvh] w-full flex-1 flex-col bg-[#f2f2f2]"
-          : "pt-[calc(4.25rem+env(safe-area-inset-top,0px))]",
+          : "pt-[calc(4rem+env(safe-area-inset-top,0px))] sm:pt-[calc(4.25rem+env(safe-area-inset-top,0px))]",
       )}
     >
       {!bare && title ? (
         <div className="relative overflow-hidden border-b border-stone-200/80 bg-stone-950 text-white">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(700px_240px_at_10%_0%,rgba(34,197,94,0.22),transparent_55%)]" />
           <div className="relative mx-auto max-w-7xl px-3 pb-4 pt-3 sm:px-4 sm:pb-5 sm:pt-4 lg:px-6">
-            <p className="inline-flex rounded-full border border-primary/40 bg-primary/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            <p className="inline-flex rounded-full border border-[#22c55e]/40 bg-[#22c55e]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#22c55e]">
               MG.GROUP
             </p>
             <h1 className="mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">

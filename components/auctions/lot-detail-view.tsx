@@ -1,5 +1,6 @@
 "use client";
 
+import { formatCny } from "@/lib/pricing/china-quote";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -328,9 +329,13 @@ export function LotDetailView({
 
             <aside className="space-y-4 lg:col-start-2 lg:row-span-2 lg:self-start lg:sticky lg:top-24">
               <div className="card-premium rounded-xl p-5 sm:p-6">
-                <p className="text-sm text-text-muted">Ставка на аукционе</p>
+                <p className="text-sm text-text-muted">
+                  {lot.region === "china" ? "Цена в Китае" : "Ставка на аукционе"}
+                </p>
                 <p className="font-display text-3xl font-bold text-accent-dark">
-                  {formatMoney(lot.currentBid, lot.currency)}
+                  {lot.region === "china"
+                    ? formatCny(lot.currentBid)
+                    : formatMoney(lot.currentBid, lot.currency)}
                 </p>
                 {lot.estimatedCostMin || lot.estimatedCostMax ? (
                   <div className="mt-3 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 p-3 ring-1 ring-inset ring-[#22c55e]/30">
@@ -353,7 +358,7 @@ export function LotDetailView({
                     </p>
                   </div>
                 ) : null}
-                {lot.buyNowPrice ? (
+                {lot.buyNowPrice && lot.region !== "china" ? (
                   <p className="mt-2 text-sm text-text-secondary">
                     Buy Now:{" "}
                     <span className="font-semibold text-text-primary">

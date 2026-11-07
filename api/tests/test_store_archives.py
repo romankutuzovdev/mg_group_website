@@ -12,11 +12,7 @@ from app.models.lots import AuctionLot
 
 class SoldArchiveTests(unittest.TestCase):
     def test_sold_lot_keeps_remote_cover_and_releases_r2_gallery(self):
-        with tempfile.TemporaryDirectory() as tmp, patch(
-            "app.data.store.get_settings",
-            return_value=SimpleNamespace(lots_json_path=str(Path(tmp) / "missing.json")),
-        ):
-            store = LotStore()
+        store = LotStore(":memory:")
 
         lot = AuctionLot(
             id="sold-1",
@@ -70,7 +66,6 @@ class PersistLockTests(unittest.TestCase):
                 t.join(timeout=1)
             self.assertEqual(result.get("n"), 0)
             self.assertEqual(store.persist(), 0)
-            self.assertTrue((Path(tmp) / "lots.json").is_file())
 
 
 class PruneBackgroundCleanupTests(unittest.TestCase):
@@ -122,7 +117,7 @@ class PruneBackgroundCleanupTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store = self._store(tmp)
             lot = self._lot("back", "2020-01-01T00:00:00+00:00")
-            store._by_id["back"] = lot
+            store.upsert(lot)
             with patch("app.services.lot_photos.delete_lot_photos", side_effect=deleted.append), patch(
                 "app.services.lot_photos.sweep_orphan_photos", return_value=0
             ):

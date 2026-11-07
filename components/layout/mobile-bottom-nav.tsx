@@ -59,7 +59,7 @@ const TABS: Tab[] = [
 
 const MORE_LINKS = [
   { href: "/avto/", label: "Каталог авто" },
-  { href: "/calculator/", label: "Калькулятор" },
+  { href: "/cabinet/?tab=calculators", label: "Калькулятор" },
   { href: "/otzyvy/", label: "Отзывы" },
   { href: "/mashinokomplekt/chto-takoe/", label: "Что такое машинокомплект" },
   { href: "/mashinokomplekt/usa/", label: "Комплекты из США" },

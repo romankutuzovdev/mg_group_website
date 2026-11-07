@@ -1,0 +1,966 @@
+{
+  "variant": "usa_nj",
+  "title": "Карта разбора (New Jersey)",
+  "vehicleHeaderHint": "MAKE, MODEL, LOT#, VIN",
+  "columns": {
+    "qty": "Снять",
+    "qtyHint": "0–15",
+    "packing": null,
+    "note": "Примечание",
+    "nameEn": false
+  },
+  "qtyChoices": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15"
+  ],
+  "sections": [
+    "Оптика",
+    "Кузовные элементы съемные",
+    "Двигатель и подкапотное пространство",
+    "Подвеска,глушитель",
+    "Колеса",
+    "Багажник",
+    "Салонные детали",
+    "Безопасность",
+    "Система отопления (печка)",
+    "Бензобак",
+    "Отрезные элементы кузова",
+    "Дополнительные поля / Extra"
+  ],
+  "items": [
+    {
+      "key": "nj_1",
+      "num": 1,
+      "section": "Оптика",
+      "name": "Фара",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_2",
+      "num": 2,
+      "section": "Оптика",
+      "name": "Задний фонарь",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_3",
+      "num": 3,
+      "section": "Кузовные элементы съемные",
+      "name": "Бампер",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_4",
+      "num": 4,
+      "section": "Кузовные элементы съемные",
+      "name": "Усилитель бампера",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_5",
+      "num": 5,
+      "section": "Кузовные элементы съемные",
+      "name": "Дверь передняя",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_6",
+      "num": 6,
+      "section": "Кузовные элементы съемные",
+      "name": "Дверь задняя",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_7",
+      "num": 7,
+      "section": "Кузовные элементы съемные",
+      "name": "Крышка багажника/5 дверь",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_8",
+      "num": 8,
+      "section": "Кузовные элементы съемные",
+      "name": "Зеркало наружное",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_9",
+      "num": 9,
+      "section": "Кузовные элементы съемные",
+      "name": "Капот",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_10",
+      "num": 10,
+      "section": "Кузовные элементы съемные",
+      "name": "Петля капота/Дверей",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_11",
+      "num": 11,
+      "section": "Кузовные элементы съемные",
+      "name": "Газовый упор капота/багажника",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_12",
+      "num": 12,
+      "section": "Кузовные элементы съемные",
+      "name": "Решётка радиатора",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_13",
+      "num": 13,
+      "section": "Кузовные элементы съемные",
+      "name": "Крыло переднее съёмное",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_14",
+      "num": 14,
+      "section": "Кузовные элементы съемные",
+      "name": "Лючок",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_15",
+      "num": 15,
+      "section": "Кузовные элементы съемные",
+      "name": "Накладка на порог пластик (внешняя)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_16",
+      "num": 16,
+      "section": "Кузовные элементы съемные",
+      "name": "Антена",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_17",
+      "num": 17,
+      "section": "Кузовные элементы съемные",
+      "name": "Люк",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_18",
+      "num": 18,
+      "section": "Кузовные элементы съемные",
+      "name": "Стекло заднее",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_19",
+      "num": 19,
+      "section": "Кузовные элементы съемные",
+      "name": "Стекло из задней четверти",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_20",
+      "num": 20,
+      "section": "Кузовные элементы съемные",
+      "name": "Стекло лобовое",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_21",
+      "num": 21,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Телевизор в кассетой радиаторов + патрубки",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_22",
+      "num": 22,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Двигатель с КПП в сборе + патрубки",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_23",
+      "num": 23,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Подушки двигателя и КПП",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_24",
+      "num": 24,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Блок управления двигателем",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_25",
+      "num": 25,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Корпус воздушного фильтра",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_26",
+      "num": 26,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Бачок расширительный",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_27",
+      "num": 27,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Бачок омывателя",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_28",
+      "num": 28,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Кассета радиаторов в сборе",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_29",
+      "num": 29,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Ваккумный усилитель с гтц",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_30",
+      "num": 30,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "АБС блок с фишками",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_31",
+      "num": 31,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Трубки кондиционера",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_32",
+      "num": 32,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Подкрылок",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_33",
+      "num": 33,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Защита двигателя и КПП",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_34",
+      "num": 34,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Дворники + трапеция",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_35",
+      "num": 35,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Жабо (дождевик)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_36",
+      "num": 36,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Блок предохранителей авто",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_37",
+      "num": 37,
+      "section": "Двигатель и подкапотное пространство",
+      "name": "Площадка АКБ",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_38",
+      "num": 38,
+      "section": "Подвеска,глушитель",
+      "name": "Рулевая рейка с карданчиком",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_39",
+      "num": 39,
+      "section": "Подвеска,глушитель",
+      "name": "Балка подвески передняя с рычагами",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_40",
+      "num": 40,
+      "section": "Подвеска,глушитель",
+      "name": "Стойка амортизатор со ступицей (перед)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_41",
+      "num": 41,
+      "section": "Подвеска,глушитель",
+      "name": "Балка подвески задняя",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_42",
+      "num": 42,
+      "section": "Подвеска,глушитель",
+      "name": "Амортизатор задний",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_43",
+      "num": 43,
+      "section": "Подвеска,глушитель",
+      "name": "Пружина задняя",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_44",
+      "num": 44,
+      "section": "Подвеска,глушитель",
+      "name": "Привод колеса (полуось)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_45",
+      "num": 45,
+      "section": "Подвеска,глушитель",
+      "name": "Редуктор ведущего моста",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_46",
+      "num": 46,
+      "section": "Подвеска,глушитель",
+      "name": "Глушитель + катализатор",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_47",
+      "num": 47,
+      "section": "Подвеска,глушитель",
+      "name": "Кардан",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_48",
+      "num": 48,
+      "section": "Колеса",
+      "name": "Колесо ходовое",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_49",
+      "num": 49,
+      "section": "Колеса",
+      "name": "Запаска",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_50",
+      "num": 50,
+      "section": "Багажник",
+      "name": "Полка багаж (х/б, универ)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_51",
+      "num": 51,
+      "section": "Багажник",
+      "name": "Пластиковое корыто (органайзер)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_52",
+      "num": 52,
+      "section": "Багажник",
+      "name": "Уплотнитель багажника (целый)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_53",
+      "num": 53,
+      "section": "Багажник",
+      "name": "Набор инструмента",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_54",
+      "num": 54,
+      "section": "Багажник",
+      "name": "Электро блоки в багажнике",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_55",
+      "num": 55,
+      "section": "Салонные детали",
+      "name": "Полное снятие проводки",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_56",
+      "num": 56,
+      "section": "Салонные детали",
+      "name": "Сиденья",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_57",
+      "num": 57,
+      "section": "Салонные детали",
+      "name": "Обшивка сиденей (шкурки)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_58",
+      "num": 58,
+      "section": "Салонные детали",
+      "name": "Бардачок",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_59",
+      "num": 59,
+      "section": "Салонные детали",
+      "name": "Торпедо в сборе",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_60",
+      "num": 60,
+      "section": "Салонные детали",
+      "name": "Рулевая колонка сборе",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_61",
+      "num": 61,
+      "section": "Салонные детали",
+      "name": "Кулиса кпп",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_62",
+      "num": 62,
+      "section": "Салонные детали",
+      "name": "Подлокотник с консолью",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_63",
+      "num": 63,
+      "section": "Салонные детали",
+      "name": "Панель управления печкой",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_64",
+      "num": 64,
+      "section": "Салонные детали",
+      "name": "Щиток приборов",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_65",
+      "num": 65,
+      "section": "Салонные детали",
+      "name": "Мультимедиа",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_66",
+      "num": 66,
+      "section": "Салонные детали",
+      "name": "Зеркало заднего вида",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_67",
+      "num": 67,
+      "section": "Салонные детали",
+      "name": "Обшивка потолка",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_68",
+      "num": 68,
+      "section": "Салонные детали",
+      "name": "Козырёк солнцезащитный",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_69",
+      "num": 69,
+      "section": "Салонные детали",
+      "name": "обшивки салона (стойки)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_70",
+      "num": 70,
+      "section": "Салонные детали",
+      "name": "Полка из под заднего стекла с динамиками",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_71",
+      "num": 71,
+      "section": "Салонные детали",
+      "name": "Динамики+усилитель звука",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_72",
+      "num": 72,
+      "section": "Салонные детали",
+      "name": "Уплотнитель двери (целый)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_73",
+      "num": 73,
+      "section": "Салонные детали",
+      "name": "Накладка на порог салонная",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_74",
+      "num": 74,
+      "section": "Салонные детали",
+      "name": "Ручка ручника с тросом",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_75",
+      "num": 75,
+      "section": "Салонные детали",
+      "name": "Блок предохранителей",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_76",
+      "num": 76,
+      "section": "Салонные детали",
+      "name": "Электронные блоки по салону",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_77",
+      "num": 77,
+      "section": "Салонные детали",
+      "name": "Педальный узел",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_78",
+      "num": 78,
+      "section": "Безопасность",
+      "name": "Ремень безопасности+пиропатрон",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_79",
+      "num": 79,
+      "section": "Безопасность",
+      "name": "Ответные части ремня",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_80",
+      "num": 80,
+      "section": "Безопасность",
+      "name": "Подушки безопасности",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_81",
+      "num": 81,
+      "section": "Система отопления (печка)",
+      "name": "Отопитель салона в сборе (печка)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_82",
+      "num": 82,
+      "section": "Бензобак",
+      "name": "Топливный бак в сборе",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_83",
+      "num": 83,
+      "section": "Бензобак",
+      "name": "Указатель уровня топлива с насосом",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_84",
+      "num": 84,
+      "section": "Отрезные элементы кузова",
+      "name": "Лонжерон передний (в примечаниях размер)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_85",
+      "num": 85,
+      "section": "Отрезные элементы кузова",
+      "name": "Четверть передняя",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_86",
+      "num": 86,
+      "section": "Отрезные элементы кузова",
+      "name": "Четверть задняя",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_87",
+      "num": 87,
+      "section": "Отрезные элементы кузова",
+      "name": "Порог отрезной",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_88",
+      "num": 88,
+      "section": "Отрезные элементы кузова",
+      "name": "Бочина отрезная",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_89",
+      "num": 89,
+      "section": "Отрезные элементы кузова",
+      "name": "Крыша",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_90",
+      "num": 90,
+      "section": "Отрезные элементы кузова",
+      "name": "Задняя/передняя часть (отрез)",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_91",
+      "num": 91,
+      "section": "Дополнительные поля / Extra",
+      "name": "Доп. позиция 91",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    },
+    {
+      "key": "nj_92",
+      "num": 92,
+      "section": "Дополнительные поля / Extra",
+      "name": "Доп. позиция 92",
+      "defaultQty": "",
+      "defaultPack": "",
+      "defaultNote": "",
+      "isNoteOnly": false
+    }
+  ]
+}

@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.data.store import lot_store
-from app.routers.lots import _region_pool
 from app.services import ai_chat
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -53,7 +52,7 @@ async def ai_chat_endpoint(body: ChatRequest, request: Request) -> dict:
     try:
         return await ai_chat.chat(
             [m.model_dump() for m in body.messages],
-            _region_pool(None),
+            lambda filters, cheapest: lot_store.search_live(filters, cheapest_first=cheapest),
             current_lot=lot,
         )
     except ai_chat.AiChatError as exc:

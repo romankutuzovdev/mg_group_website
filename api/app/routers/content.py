@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query
@@ -109,7 +110,7 @@ def _case_price(lot: AuctionLot) -> float:
     return float(low or high or lot.currentBid or 0)
 
 
-def pick_case_lots(lots: list[AuctionLot], limit: int) -> list[AuctionLot]:
+def pick_case_lots(lots: Iterable[AuctionLot], limit: int) -> list[AuctionLot]:
     """Mass-market USA / UK lots with a sane bid, one per make, then a second round."""
     fits: dict[str, list[AuctionLot]] = {}
     for lot in lots:
@@ -139,7 +140,13 @@ def cases(limit: int = Query(12, ge=1, le=50)) -> dict:
     """Example client cases derived from catalog lots + turnkey quote."""
     settings = get_settings()
     items = []
-    for lot in pick_case_lots(lot_store.all(), limit * 2):
+    # Only the makes and years pick_case_lots can use: never decode the whole catalog.
+    marks = ", ".join("?" for _ in _CASE_MAKES)
+    pool = lot_store.iter_where(
+        f"region IN ('usa', 'uk') AND sold = 0 AND make_lc IN ({marks}) AND year BETWEEN ? AND ?",
+        (*_CASE_MAKES, *_CASE_YEARS),
+    )
+    for lot in pick_case_lots(pool, limit * 2):
         title = f"{lot.year} {lot.make} {_clean_model(lot)}"
         if lot.region == "uk":
             price = _case_price(lot)
@@ -196,7 +203,7 @@ def purchased(limit: int = Query(12, ge=1, le=50)) -> dict:
     """Purchased kits feed — same idea as site: lots with turnkey breakdown."""
     settings = get_settings()
     cars = []
-    for lot in lot_store.all():
+    for lot in lot_store.iter_all():
         title = f"{lot.year} {lot.make} {lot.model}"
         if lot.region == "uk":
             bid = lot.currentBid if lot.currency == "GBP" else lot.currentBid * 0.79

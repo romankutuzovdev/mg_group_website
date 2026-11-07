@@ -4,18 +4,18 @@ export const COMPANY = {
   name: "MG.GROUP",
   description:
     "Подбор и доставка авто под заказ из США, Китая и Кореи. Машинокомплекты из США и Англии",
-  address: "г. Гродно, ул. Гаспадарчая 19, каб. 340/1, БЦ Марро",
+  address: "г. Гродно, ул. Медовая 1",
   hoursWeekdays: "Будни — 9:00–19:00",
   hoursWeekend: "Суббота, воскресенье — выходной",
   partners: "Copart, IAAI, Manheim, Mobile.de, Autoplius.lt, Encar, Che168, Guazi",
 } as const;
 
-/** Координаты БЦ «Марро», ул. Гаспадарчая 19, Гродно */
+/** Координаты офиса, ул. Медовая 1, Гродно */
 export const OFFICE_LOCATION = {
-  lat: 53.6639,
-  lng: 23.8208,
+  lat: 53.68574,
+  lng: 23.82836,
   zoom: 17,
-  name: "БЦ Марро",
+  name: "ул. Медовая 1",
 } as const;
 
 export function officeMapEmbedUrl() {
@@ -122,13 +122,18 @@ export type TeamMember = {
   photoClass?: string;
 };
 
+// Временные картинки: чтобы поставить настоящие фото, замените файлы в public/office/.
+export const OFFICE_PHOTOS = [1, 2, 3, 4, 5].map((n) => ({
+  src: `/office/office-${n}.jpg`,
+  alt: `Офис MG.GROUP, фото ${n}`,
+}));
+
 export const TEAM: TeamMember[] = [
   { id: "director", name: "Алексей", role: "Директор", photo: "/team/director.png" },
   { id: "cfo", name: "Юрий", role: "Финансовый директор", photo: "/team/cfo.png" },
   { id: "sales-head", name: "Екатерина", role: "Руководитель отдела продаж", photo: "/team/sales-head.png" },
   { id: "sales-1", name: "Борис", role: "Менеджер по продажам", photo: "/team/sales-1.png" },
   { id: "sales-2", name: "Яна", role: "Менеджер по продажам", photo: "/team/sales-2.png" },
-  { id: "sales-3", name: "Роман", role: "Менеджер по продажам", photo: "/team/roman.jpg", photoClass: "object-[center_25%]" },
   { id: "accountant", name: "Елена", role: "Бухгалтер", photo: "/team/accountant.jpg", photoClass: "object-[center_20%]" },
   { id: "logistics", name: "Вячеслав", role: "Логист", photo: "/team/logistics.png", photoClass: "object-[center_28%]" },
 ];

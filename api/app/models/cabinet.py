@@ -15,9 +15,17 @@ StageKey = Literal[
 OriginRegion = Literal["usa", "uk", "china", "korea"]
 OriginPoint = Literal["dismantle", "port"]
 DealKind = Literal["car", "kit"]  # авто | машинокомплект
+# Разборка машинокомплекта США. Пусто: старая сделка на общем бланке США.
+DismantleYard = Literal["", "new_jersey", "texas"]
 StageStatus = Literal["pending", "active", "done"]
 DealStatus = Literal["active", "completed", "cancelled"]
 MediaKind = Literal["photo", "document"]
+# Где сейчас машина. Менеджер ставит вручную, "" = ещё не выставлен.
+CarStatus = Literal[
+    "", "purchased", "at_yard", "in_transit", "at_port", "customs", "arrived", "delivered"
+]
+CAR_ARRIVED_STATUSES: tuple[str, ...] = ("arrived", "delivered")
+ClaimStatus = Literal["open", "resolved"]
 
 ORIGIN_REGION_LABELS: dict[OriginRegion, str] = {
     "usa": "США",
@@ -221,6 +229,19 @@ class DealMediaOut(BaseModel):
     created_at: str
 
 
+class DealClaimOut(BaseModel):
+    id: int
+    deal_id: int
+    text: str
+    status: ClaimStatus = "open"
+    created_at: str
+    photos: list[DealMediaOut] = Field(default_factory=list)
+
+
+class DealClaimStatusUpdate(BaseModel):
+    status: ClaimStatus
+
+
 class DealStageOut(BaseModel):
     key: StageKey
     label: str
@@ -261,12 +282,14 @@ class DealOut(BaseModel):
     # Dropbox (or other) gallery of dismantle / разбор photos — kits.
     dismantle_photos_url: str = ""
     status: DealStatus
+    car_status: CarStatus = ""
     note: str = ""
     price: float = 0
     currency: Literal["USD", "GBP"] = "USD"
     kind: DealKind = "kit"
     origin_region: OriginRegion = "usa"
     origin_point: OriginPoint = "dismantle"
+    dismantle_yard: DismantleYard = ""
     specs: DealSpecs = Field(default_factory=DealSpecs)
     client_telegram_id: int = 0
     client_name: str = ""
@@ -285,6 +308,7 @@ class DealOut(BaseModel):
     updated_at: str
     stages: list[DealStageOut] = Field(default_factory=list)
     media: list[DealMediaOut] = Field(default_factory=list)
+    claims: list[DealClaimOut] = Field(default_factory=list)
 
 
 class DealCreate(BaseModel):
@@ -303,6 +327,7 @@ class DealCreate(BaseModel):
     origin_region: OriginRegion = "usa"
     # Ignored if kind is set — derived from kind on create.
     origin_point: OriginPoint | None = None
+    dismantle_yard: DismantleYard = ""
     specs: DealSpecs | None = None
     manager_user_id: int | None = None
     payment_stage1_due: str = ""
@@ -320,9 +345,11 @@ class DealUpdate(BaseModel):
     price: float | None = None
     currency: Literal["USD", "GBP"] | None = None
     status: DealStatus | None = None
+    car_status: CarStatus | None = None
     kind: DealKind | None = None
     origin_region: OriginRegion | None = None
     origin_point: OriginPoint | None = None
+    dismantle_yard: DismantleYard | None = None
     specs: DealSpecs | None = None
     manager_user_id: int | None = None
     payment_stage1_due: str | None = None
@@ -386,6 +413,10 @@ class DismantleMapOut(BaseModel):
     title: str = "Карта разбора"
     variant: str = "uk"
     origin_region: str = "usa"
+    dismantle_yard: str = ""
+    lot_number: str = ""
+    vin: str = ""
+    deal_title: str = ""
     vehicle_label: str = ""
     vehicle_header_hint: str = ""
     general_note: str = ""
@@ -408,3 +439,11 @@ class DismantleMetaPatch(BaseModel):
     vehicle_label: str | None = None
     general_note: str | None = None
     completed: bool | None = None
+
+
+def deal_has_arrived(deal: DealOut) -> bool:
+    """Машина у клиента: только тогда он может оставить заметку о недостаче."""
+    if deal.status == "completed" or deal.car_status in CAR_ARRIVED_STATUSES:
+        return True
+    last_key = stage_keys_for_kind(deal.kind)[-1]
+    return any(s.key == last_key and s.status == "done" for s in deal.stages)

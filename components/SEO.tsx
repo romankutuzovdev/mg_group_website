@@ -37,7 +37,7 @@ const SEO = ({ dictionary, lang, title, description, path, image, noindex, jsonL
       <meta name="keywords" content={metadata.keywords} />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <meta charSet="utf-8" />
-      <meta name="theme-color" content={metadata.themeColor} />
+      <meta name="theme-color" content="#000000" />
       {noindex ? <meta name="robots" content="noindex, follow" /> : null}
 
       {/* Open Graph — absolute image URL required for Telegram / messengers */}

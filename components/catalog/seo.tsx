@@ -90,7 +90,7 @@ export function serviceJsonLd(opts: {
       address: {
         "@type": "PostalAddress",
         addressLocality: "Гродно",
-        streetAddress: "ул. Гаспадарчая 19",
+        streetAddress: "ул. Медовая 1",
         addressCountry: "BY",
       },
     },
@@ -133,14 +133,14 @@ export function organizationJsonLd() {
     sameAs: ["https://t.me/Yury_MG_Global"],
     address: {
       "@type": "PostalAddress",
-      streetAddress: "ул. Гаспадарчая 19, каб. 340/1, БЦ Марро",
+      streetAddress: "ул. Медовая 1",
       addressLocality: "Гродно",
       addressCountry: "BY",
     },
     geo: {
       "@type": "GeoCoordinates",
-      latitude: 53.6639,
-      longitude: 23.8208,
+      latitude: 53.68574,
+      longitude: 23.82836,
     },
     openingHoursSpecification: [
       {

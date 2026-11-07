@@ -6,6 +6,7 @@ import type {
   DealMedia,
   OriginPoint,
   OriginRegion,
+  DismantleYard,
   StageKey,
 } from "@/lib/api/cabinet";
 import {
@@ -75,10 +76,12 @@ function buildSections(deal: Deal): Section[] {
 type Props = {
   deal: Deal;
   isAdmin?: boolean;
+  /** Менять страну и старт маршрута. Менеджеру закрыто, разборка и этапы остаются. */
+  canEditRoute?: boolean;
   onUpdated?: (deal: Deal) => void;
 };
 
-export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
+export function DealRouteSections({ deal, isAdmin = false, canEditRoute = true, onUpdated }: Props) {
   const [openKeys, setOpenKeys] = useState<Set<StageKey>>(() => new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +135,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
   const setRoute = (patch: {
     origin_region?: OriginRegion;
     origin_point?: OriginPoint;
+    dismantle_yard?: DismantleYard;
   }) =>
     void run(async () => {
       const updated = await adminUpdateDeal(deal.id, patch);
@@ -223,6 +227,7 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
 
         {isAdmin ? (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {canEditRoute ? (
             <label className="block text-xs">
               <span className="text-zinc-500">Откуда</span>
               <select
@@ -237,7 +242,25 @@ export function DealRouteSections({ deal, isAdmin = false, onUpdated }: Props) {
                 <option value="uk">Англия</option>
               </select>
             </label>
-            {kit ? null : (
+            ) : null}
+            {kit && deal.origin_region !== "uk" ? (
+              <label className="block text-xs">
+                <span className="text-zinc-500">Разборка (бланк карты)</span>
+                <select
+                  className="mt-1 h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-[13px] shadow-sm"
+                  value={deal.dismantle_yard || ""}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setRoute({ dismantle_yard: e.target.value as DismantleYard })
+                  }
+                >
+                  <option value="">Не выбрана (старый бланк)</option>
+                  <option value="new_jersey">New Jersey</option>
+                  <option value="texas">Texas</option>
+                </select>
+              </label>
+            ) : null}
+            {kit || !canEditRoute ? null : (
             <label className="block text-xs">
               <span className="text-zinc-500">Старт</span>
               <select

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Head from "next/head";
 import Link from "next/link";
 import {
@@ -17,6 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import SEO from "@/components/SEO";
+import { PasswordInput } from "@/components/site/password-input";
 import { CabinetFrame, CabinetShell, type NavItem } from "@/components/cabinet/app-shell";
 import {
   Badge,
@@ -52,6 +54,9 @@ import { DealSpecsGrid } from "@/components/cabinet/deal-specs";
 import { AdminDealsPanel } from "@/components/cabinet/admin-deals-panel";
 import { LogisticsPanel } from "@/components/cabinet/logistics-panel";
 import { QuoteHistoryPanel } from "@/components/cabinet/quote-history-panel";
+import type { CalculatorMode } from "@/components/pricing/site-calculator";
+import { DealCarStatus, DealCarStatusBadge } from "@/components/cabinet/deal-car-status";
+import { DealClaims } from "@/components/cabinet/deal-claims";
 import { FavoriteButton } from "@/components/auctions/favorite-button";
 import { ConsentCheck } from "@/components/site/consent-check";
 import { getDictionary } from "@/lib/dictionary";
@@ -76,8 +81,9 @@ import {
   registerSendCode,
   setCabinetToken,
   dealKind,
-  stageKeysForDeal,
+  dealProgress,
 } from "@/lib/api/cabinet";
+import { ManagerClientsPanel } from "@/components/cabinet/manager-clients-panel";
 import { hydrateFavorites, resetFavoritesCache, subscribeFavorites } from "@/lib/favorites-cache";
 import {
   acceptCabinetPolicyConsent,
@@ -86,6 +92,13 @@ import {
 } from "@/lib/cabinet-consent";
 
 type View = "list" | "detail";
+
+const SiteCalculator = dynamic(
+  () => import("@/components/pricing/site-calculator").then((m) => m.SiteCalculator),
+  { ssr: false, loading: () => <p className="text-sm text-zinc-500">Загружаем калькулятор…</p> },
+);
+
+const CALCULATOR_MODES: CalculatorMode[] = ["kit-uk", "kit-usa", "car", "customs"];
 
 function formatMoney(amount: number, currency: string) {
   const cur = currency === "GBP" ? "GBP" : "USD";
@@ -96,26 +109,15 @@ function formatMoney(amount: number, currency: string) {
   }).format(amount || 0);
 }
 
-function dealProgress(deal: Deal) {
-  const allowed = new Set(stageKeysForDeal(deal));
-  const stages = (deal.stages || []).filter((s) => allowed.has(s.key));
-  const done = stages.filter((s) => s.status === "done").length;
-  const active = stages.find((s) => s.status === "active");
-  return {
-    done,
-    total: Math.max(stages.length, 1),
-    current: active?.label || (deal.status === "completed" ? "Готово" : "Ожидание"),
-  };
-}
+type Tab = "deals" | "favorites" | "calculators" | "quotes" | "manager" | "logistics" | "clients";
 
-type Tab = "deals" | "favorites" | "quotes" | "manager" | "logistics";
-
-const TAB_IDS: Tab[] = ["deals", "favorites", "quotes", "manager", "logistics"];
+const TAB_IDS: Tab[] = ["deals", "favorites", "calculators", "quotes", "manager", "logistics", "clients"];
 
 function tabFromQuery(raw: string | null): Tab | null {
   if (!raw) return null;
   const v = raw.trim().toLowerCase();
   if (v === "favorites" || v === "fav" || v === "избранное") return "favorites";
+  if (v === "calculator" || v === "calc" || v === "калькулятор") return "calculators";
   if (v === "quotes" || v === "просчеты" || v === "просчёты" || v === "history") return "quotes";
   if (v === "manager" || v === "admin" || v === "менеджер") return "manager";
   if (v === "logistics" || v === "логистика" || v === "containers" || v === "контейнеры")
@@ -130,11 +132,12 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   const [favorites, setFavorites] = useState<FavoriteLot[]>([]);
   const [selected, setSelected] = useState<Deal | null>(null);
   const [view, setView] = useState<View>("list");
-  const [tab, setTab] = useState<Tab>("deals");
+  const [storedTab, setTab] = useState<Tab>("deals");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [devAuthEnabled, setDevAuthEnabled] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [calcMode, setCalcMode] = useState<CalculatorMode>("kit-uk");
   const [phoneLogin, setPhoneLogin] = useState("");
   const [phonePassword, setPhonePassword] = useState("");
   const [regPhone, setRegPhone] = useState("");
@@ -159,6 +162,9 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     const params = new URLSearchParams(window.location.search);
     const fromQuery = tabFromQuery(params.get("tab") || params.get("view"));
     if (fromQuery) setTab(fromQuery);
+    if (params.get("auth") === "register") setAuthMode("register");
+    const calc = params.get("calc") as CalculatorMode | null;
+    if (calc && CALCULATOR_MODES.includes(calc)) setCalcMode(calc);
   }, []);
 
   const selectTab = useCallback((next: Tab) => {
@@ -364,12 +370,19 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   };
 
   const isStaff = Boolean(user?.is_admin || user?.is_manager);
+  // Менеджер видит только своих клиентов: общие разделы ему закрыты.
+  const isLimitedManager = Boolean(user?.is_manager && !user?.is_admin);
+  const tab: Tab =
+    isLimitedManager && !["favorites", "calculators"].includes(storedTab) ? "clients" : storedTab;
   const activeDeals = deals.filter((d) => d.status === "active").length;
 
   const navItems: NavItem[] = [
-    { id: "deals", label: "Сделки", icon: BriefcaseBusiness, badge: deals.length || null },
+    isLimitedManager
+      ? { id: "clients", label: "Мои клиенты", icon: Users }
+      : { id: "deals", label: "Сделки", icon: BriefcaseBusiness, badge: deals.length || null },
     { id: "favorites", label: "Избранное", icon: Heart, badge: favorites.length || null },
-    ...(isStaff
+    { id: "calculators", label: "Калькуляторы", icon: Calculator },
+    ...(isStaff && !isLimitedManager
       ? [
           { id: "manager", label: "CRM · клиенты", icon: Users, section: "Команда" },
           { id: "logistics", label: "Логистика", icon: Ship, section: "Команда" },
@@ -521,9 +534,9 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                     </label>
                     <label className={labelClass}>
                       Пароль
-                      <input
-                        type="password"
-                        className={`${inputClass} mt-1.5`}
+                      <PasswordInput
+                        wrapperClassName="mt-1.5"
+                        className={inputClass}
                         value={phonePassword}
                         onChange={(e) => setPhonePassword(e.target.value)}
                         autoComplete="current-password"
@@ -622,9 +635,9 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                     <div className="grid grid-cols-2 gap-3">
                       <label className={labelClass}>
                         Пароль
-                        <input
-                          type="password"
-                          className={`${inputClass} mt-1.5`}
+                        <PasswordInput
+                          wrapperClassName="mt-1.5"
+                          className={inputClass}
                           value={regPassword}
                           onChange={(e) => setRegPassword(e.target.value)}
                           autoComplete="new-password"
@@ -634,9 +647,9 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                       </label>
                       <label className={labelClass}>
                         Повтор пароля
-                        <input
-                          type="password"
-                          className={`${inputClass} mt-1.5`}
+                        <PasswordInput
+                          wrapperClassName="mt-1.5"
+                          className={inputClass}
                           value={regPassword2}
                           onChange={(e) => setRegPassword2(e.target.value)}
                           autoComplete="new-password"
@@ -801,7 +814,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
             onClick={backToList}
             className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 transition hover:text-zinc-900"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Все сделки
+            <ArrowLeft className="h-3.5 w-3.5" /> {isLimitedManager ? "Мои клиенты" : "Все сделки"}
           </button>
           <PageHeader
             breadcrumb={`Сделка #${selected.id}`}
@@ -829,7 +842,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
               <DealPaymentStatus
                 deal={selected}
-                isAdmin={isStaff}
+                isAdmin={isStaff && !isLimitedManager}
                 onUpdated={(next) => {
                   setSelected(next);
                   setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
@@ -854,11 +867,21 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                 }}
               />
 
-              {/* Авто под постановку: клиенту только трекер; этапы/карта — менеджеру или для комплектов */}
+              <DealClaims
+                deal={selected}
+                isManager={isStaff}
+                onUpdated={(next) => {
+                  setSelected(next);
+                  setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
+                }}
+              />
+
+              {/* Авто под постановку на учёт: клиенту только трекер; этапы/карта — менеджеру или для комплектов */}
               {dealKind(selected) === "kit" || isStaff ? (
                 <DealRouteSections
                   deal={selected}
                   isAdmin={isStaff}
+                  canEditRoute={!isLimitedManager}
                   onUpdated={(next) => {
                     setSelected(next);
                     setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
@@ -883,6 +906,19 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                           <Badge tone={dealStatusTone(selected.status)} dot>
                             {dealStatusLabel(selected.status)}
                           </Badge>
+                        ),
+                      },
+                      {
+                        label: "Где машина",
+                        value: (
+                          <DealCarStatus
+                            deal={selected}
+                            isManager={isStaff}
+                            onUpdated={(next) => {
+                              setSelected(next);
+                              setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
+                            }}
+                          />
                         ),
                       },
                       { label: "Тип", value: DEAL_KIND_LABELS[dealKind(selected)] },
@@ -1044,6 +1080,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                             <Badge tone={dealStatusTone(deal.status)} dot>
                               {dealStatusLabel(deal.status)}
                             </Badge>
+                            <DealCarStatusBadge deal={deal} />
                           </Td>
                           <Td className="text-zinc-300">
                             <ChevronRight className="h-4 w-4" />
@@ -1083,6 +1120,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                             <Badge tone={dealStatusTone(deal.status)} dot>
                               {dealStatusLabel(deal.status)}
                             </Badge>
+                            <DealCarStatusBadge deal={deal} />
                           </div>
                           <p className="mt-0.5 truncate text-xs text-zinc-500">
                             {[
@@ -1193,6 +1231,17 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
         </div>
       ) : null}
 
+      {view === "list" && tab === "calculators" ? (
+        <div className="space-y-6">
+          <PageHeader
+            title="Калькуляторы"
+            description="Машинокомплект из Англии и США, авто под восстановление и растаможка."
+          />
+          <SiteCalculator key={calcMode} mode={calcMode} />
+          <QuoteHistoryPanel scope="mine" />
+        </div>
+      ) : null}
+
       {view === "list" && tab === "quotes" && isStaff ? (
         <div className="space-y-5">
           <PageHeader
@@ -1201,6 +1250,10 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
           />
           <QuoteHistoryPanel scope="all" />
         </div>
+      ) : null}
+
+      {view === "list" && tab === "clients" && isLimitedManager ? (
+        <ManagerClientsPanel manager={user} onOpenDeal={(id) => void openDeal(id)} />
       ) : null}
 
       {view === "list" && tab === "manager" && isStaff ? (

@@ -387,8 +387,7 @@ def localize_korea_store(*, limit: int = 0, allow_network: bool = True) -> dict[
     from app.data.store import lot_store
     from app.models.lots import AuctionLot
 
-    with lot_store._lock:
-        lots = [l for l in lot_store._by_id.values() if (l.region or "") == "korea"]
+    lots = list(lot_store.iter_where("region = 'korea'"))
 
     uniq: set[str] = set()
     # Warm cache on unique Hangul strings first (one network call per phrase).

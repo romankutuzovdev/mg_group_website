@@ -46,15 +46,15 @@ export function HomeDirections() {
       <div className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 sm:pt-20 lg:px-8 lg:pt-24">
         <div className="grid gap-10 border-b border-white/10 pb-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-end lg:gap-16 lg:pb-14">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-white/40">
+            <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-white/70">
               Направления
             </p>
             <h2 className="mt-4 max-w-[11ch] font-display text-[clamp(2.75rem,7vw,5.5rem)] font-semibold leading-[0.92] tracking-[-0.04em] text-white">
               Что привезём
-              <span className="mt-1 block text-white/35">под ключ</span>
+              <span className="mt-1 block text-[#22c55e]">под ключ</span>
             </h2>
           </div>
-          <p className="max-w-md text-[15px] leading-relaxed text-white/55 sm:text-base lg:justify-self-end lg:pb-2 lg:text-right">
+          <p className="hidden max-w-md text-base leading-relaxed text-white/85 sm:block lg:justify-self-end lg:pb-2 lg:text-right">
             Три линии. Один контур сделки: подбор, проверка, логистика, растаможка.
           </p>
         </div>
@@ -103,7 +103,7 @@ function DirectionPanel({
 
       <div className="relative z-10 flex h-full flex-col justify-between p-6 sm:p-8 lg:p-9">
         <div className="flex items-start justify-between gap-4">
-          <span className="font-mono text-[11px] tracking-[0.28em] text-white/35">
+          <span className="font-mono text-[11px] tracking-[0.28em] text-white/70">
             {item.n}
           </span>
           <span className="h-px w-10 origin-right scale-x-100 bg-white/25 transition duration-500 group-hover:w-16 group-hover:bg-primary" />
@@ -120,7 +120,7 @@ function DirectionPanel({
             {item.title}
           </h3>
           <p
-            className={`mt-3 leading-relaxed text-white/65 ${
+            className={`mt-3 leading-relaxed text-white/90 ${
               item.featured ? "max-w-sm text-[15px] sm:text-base" : "text-sm sm:text-[15px]"
             }`}
           >

@@ -41,6 +41,8 @@ export type StageKey =
 export type OriginRegion = "usa" | "uk" | "china" | "korea";
 export type OriginPoint = "dismantle" | "port";
 export type DealKind = "car" | "kit";
+/** Разборка машинокомплекта США. Пусто: старая сделка на общем бланке США. */
+export type DismantleYard = "" | "new_jersey" | "texas";
 
 export type DealStage = {
   key: StageKey;
@@ -87,17 +89,19 @@ export type Deal = {
   vin: string;
   lot_number: string;
   lot_url?: string;
-  /** Внешний трекер для авто под постановку — клиент видит только ссылку */
+  /** Внешний трекер для авто под постановку на учёт — клиент видит только ссылку */
   tracking_url?: string;
   /** Dropbox (или др.) с фото разбора — машинокомплект, этап разбора */
   dismantle_photos_url?: string;
   status: "active" | "completed" | "cancelled";
+  car_status?: CarStatus;
   note: string;
   price?: number;
   currency?: "USD" | "GBP";
   kind?: DealKind;
   origin_region: OriginRegion;
   origin_point: OriginPoint;
+  dismantle_yard?: DismantleYard;
   specs?: DealSpecs;
   client_telegram_id?: number;
   client_name?: string;
@@ -116,6 +120,7 @@ export type Deal = {
   updated_at: string;
   stages: DealStage[];
   media: DealMedia[];
+  claims?: DealClaim[];
 };
 
 export const MAP_STAGE_KEYS: StageKey[] = ["origin", "ocean", "belarus", "delivery"];
@@ -136,6 +141,18 @@ export function stageKeysForDeal(deal: Deal): StageKey[] {
   return dealKind(deal) === "kit" ? KIT_STAGE_KEYS : CAR_STAGE_KEYS;
 }
 
+export function dealProgress(deal: Deal) {
+  const allowed = new Set(stageKeysForDeal(deal));
+  const stages = (deal.stages || []).filter((s) => allowed.has(s.key));
+  const done = stages.filter((s) => s.status === "done").length;
+  const active = stages.find((s) => s.status === "active");
+  return {
+    done,
+    total: Math.max(stages.length, 1),
+    current: active?.label || (deal.status === "completed" ? "Готово" : "Ожидание"),
+  };
+}
+
 export const ORIGIN_REGION_LABELS: Record<OriginRegion, string> = {
   usa: "США",
   uk: "Англия",
@@ -143,8 +160,51 @@ export const ORIGIN_REGION_LABELS: Record<OriginRegion, string> = {
   korea: "Корея",
 };
 
+export const DISMANTLE_YARD_LABELS: Record<Exclude<DismantleYard, "">, string> = {
+  new_jersey: "New Jersey",
+  texas: "Texas",
+};
+
+export type CarStatus =
+  | ""
+  | "purchased"
+  | "at_yard"
+  | "in_transit"
+  | "at_port"
+  | "customs"
+  | "arrived"
+  | "delivered";
+
+export const CAR_STATUS_LABELS: Record<Exclude<CarStatus, "">, string> = {
+  purchased: "Выкуплена",
+  at_yard: "На площадке",
+  in_transit: "В пути",
+  at_port: "В порту",
+  customs: "На таможне",
+  arrived: "Прибыла в РБ",
+  delivered: "Выдана клиенту",
+};
+
+export type DealClaim = {
+  id: number;
+  deal_id: number;
+  text: string;
+  status: "open" | "resolved";
+  created_at: string;
+  photos: DealMedia[];
+};
+
+/** Same rule as deal_has_arrived on the API. */
+export function dealHasArrived(deal: Deal): boolean {
+  if (deal.status === "completed") return true;
+  if (deal.car_status === "arrived" || deal.car_status === "delivered") return true;
+  const keys = stageKeysForDeal(deal);
+  const last = keys[keys.length - 1];
+  return (deal.stages || []).some((s) => s.key === last && s.status === "done");
+}
+
 export const DEAL_KIND_LABELS: Record<DealKind, string> = {
-  car: "Авто под постановку",
+  car: "Авто под постановку на учёт",
   kit: "Машинокомплект",
 };
 
@@ -756,6 +816,7 @@ export async function adminCreateDeal(body: {
   kind?: DealKind;
   origin_region?: OriginRegion;
   origin_point?: OriginPoint;
+  dismantle_yard?: DismantleYard;
   specs?: DealSpecs;
   manager_user_id?: number | null;
   payment_stage1_due?: string;
@@ -770,6 +831,7 @@ export async function adminCreateDeal(body: {
 export async function adminUpdateDeal(
   dealId: number,
   body: Partial<{
+    car_status: CarStatus;
     title: string;
     vin: string;
     lot_number: string;
@@ -783,6 +845,7 @@ export async function adminUpdateDeal(
     kind: DealKind;
     origin_region: OriginRegion;
     origin_point: OriginPoint;
+    dismantle_yard: DismantleYard;
     specs: DealSpecs;
     manager_user_id: number | null;
     payment_stage1_due: string;
@@ -830,6 +893,24 @@ export async function adminUploadDealMedia(
   return cabinetFetch(`/api/v1/admin/deals/${dealId}/media`, {
     method: "POST",
     body: form,
+  });
+}
+
+export async function createDealClaim(dealId: number, text: string, files: File[]): Promise<Deal> {
+  const form = new FormData();
+  form.append("text", text);
+  for (const file of files) form.append("files", file);
+  return cabinetFetch(`/api/v1/me/deals/${dealId}/claims`, { method: "POST", body: form });
+}
+
+export async function adminSetClaimStatus(
+  dealId: number,
+  claimId: number,
+  status: DealClaim["status"],
+): Promise<Deal> {
+  return cabinetFetch(`/api/v1/admin/deals/${dealId}/claims/${claimId}`, {
+    method: "POST",
+    body: JSON.stringify({ status }),
   });
 }
 
@@ -995,8 +1076,9 @@ export type DismantleMapColumns = {
 export type DismantleMap = {
   deal_id: number;
   title: string;
-  variant?: "uk" | "usa" | string;
+  variant?: "uk" | "usa" | "usa_nj" | "usa_tx" | string;
   origin_region?: string;
+  dismantle_yard?: DismantleYard;
   vehicle_label: string;
   vehicle_header_hint: string;
   general_note?: string;

@@ -107,7 +107,9 @@ class Settings(BaseSettings):
     scraper_max_pages_manheim: int = 5
     scraper_max_pages_salvage_market: int = 10
     scraper_max_pages_encar: int = 5
-    scraper_max_pages_china_market: int = 8
+    # 0 = every page. A full pass walks all brands, so it runs a few times a day.
+    scraper_max_pages_china_market: int = 0
+    scraper_interval_seconds_china_market: int = 21600
     scraper_page_size: int = 100
     scraper_timeout_ms: int = 60000
     scraper_headless: bool = False
@@ -161,7 +163,8 @@ class Settings(BaseSettings):
     cabinet_dev_client_telegram_id: int = 900002
     # /admin/ и кабинет: логин/пароль с сервера (.env)
     cabinet_admin_login: str = "admin"
-    cabinet_admin_password: str = "MGGROUP"
+    # Пусто: вход по логину admin выключен. Значение задаётся только в .env.
+    cabinet_admin_password: str = ""
     # Служебный id учётки пароля (не Telegram). Всегда is_admin.
     cabinet_password_telegram_id: int = 900000000001
 

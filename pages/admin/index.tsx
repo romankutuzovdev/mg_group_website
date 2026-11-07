@@ -9,6 +9,7 @@ import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
 import { loginWithPassword } from "@/lib/api/cabinet";
 import { ConsentCheck } from "@/components/site/consent-check";
+import { PasswordInput } from "@/components/site/password-input";
 import { CABINET_POLICY_PATH, acceptCabinetPolicyConsent } from "@/lib/cabinet-consent";
 import Link from "next/link";
 
@@ -96,9 +97,9 @@ export default function AdminLoginPage({ dictionary }: Props) {
             </label>
             <label className={labelClass}>
               Пароль
-              <input
-                type="password"
-                className={`${inputClass} mt-1.5`}
+              <PasswordInput
+                wrapperClassName="mt-1.5"
+                className={inputClass}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"

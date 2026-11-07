@@ -239,7 +239,8 @@ def _client_args(host: str) -> dict[str, Any]:
 
 def _prefer_copart_thumb(url: str) -> str:
     if re.search(r"(?:c-static|cs)\.copart\.(?:com|co\.uk)", url, re.I):
-        return re.sub(r"_(?:ful|hrs)\.", "_thb.", url, flags=re.I)
+        # _hrs is what lot pages ask for on purpose: only the full size is downgraded.
+        return re.sub(r"_ful\.", "_thb.", url, flags=re.I)
     return url
 
 
@@ -303,6 +304,9 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
         hrs = re.sub(r"_(?:ful|thb)\.", "_hrs.", original, flags=re.I)
         if hrs not in {target, original}:
             attempts.append((hrs, "https://www.copart.co.uk/"))
+        thb = re.sub(r"_(?:ful|hrs)\.", "_thb.", original, flags=re.I)
+        if thb not in {target, original, hrs}:
+            attempts.append((thb, "https://www.copart.co.uk/"))
 
     upstream = None
     used_url = target
