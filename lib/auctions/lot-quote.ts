@@ -1,4 +1,5 @@
 import type { AuctionLot } from "@/lib/auctions/types";
+import { quoteChina } from "@/lib/pricing/china-quote";
 import { DEFAULT_FX, fetchFxRateGbpUsd } from "@/lib/pricing/fx-rate";
 import { quoteCopartUk, type CopartQuote } from "@/lib/pricing/copart-uk";
 import { estimateIaaiWholesale, quoteIaaiUsa, type IaaiQuote } from "@/lib/pricing/iaai-usa";
@@ -10,6 +11,7 @@ import {
 import { fetchKrwUsdtRate } from "@/lib/pricing/krw-usdt-rate";
 import {
   quoteRestoration,
+  type PotiVehicle,
   type RestorationQuote,
 } from "@/lib/pricing/restoration-quote";
 
@@ -73,6 +75,7 @@ export function quoteUsaRestoration(
     bid?: number;
     auctionFeesUsd?: number;
     oceanDestination?: "klaipeda" | "poti";
+    potiVehicle?: PotiVehicle;
     vehicleSize?: string;
     titleCode?: string;
     isSublot?: boolean;
@@ -91,6 +94,7 @@ export function quoteUsaRestoration(
     auctionPlatform: platform,
     vehicleSize: options.vehicleSize ?? "regular",
     oceanDestination: options.oceanDestination ?? "klaipeda",
+    potiVehicle: options.potiVehicle,
     titleCode: options.titleCode ?? lot.titleLabel,
     isSublot: options.isSublot ?? false,
     includeDelivery: true,
@@ -141,7 +145,7 @@ function breakdownFromRestoration(quote: RestorationQuote): LotTurnkeyBreakdown 
   if (!quote.delivery) return null;
   const auctionTotal = Math.round(quote.auctionTotal);
   const delivery = Math.round(
-    (quote.delivery?.inlandUsd ?? 0) + (quote.delivery?.oceanUsd ?? 0),
+    (quote.delivery?.inlandUsd ?? 0) + (quote.delivery?.oceanUsd ?? 0) + quote.minskDeliveryUsd,
   );
   const otherFees = Math.round(
     quote.dispatchingUsd + quote.transferFee + quote.titleDocUsd + quote.sublotUsd,
@@ -221,16 +225,17 @@ export function estimateLotBreakdown(
 ): LotTurnkeyBreakdown | null {
   try {
     if (lot.region === "china") {
-      if (!lot.currentBid) return null;
+      const quote = quoteChina(lot.currentBid);
+      if (!quote) return null;
       return {
-        amount: Math.round(lot.currentBid),
+        amount: quote.totalUsd,
         currency: "USD",
-        label: "Цена с рынка (≈ USD)",
-        auctionTotal: Math.round(lot.currentBid),
-        delivery: 0,
+        label: "Под ключ",
+        auctionTotal: quote.carUsd,
+        delivery: quote.deliveryUsd,
         dismantle: 0,
-        otherFees: 0,
-        deliveryAndFees: 0,
+        otherFees: quote.commissionUsd,
+        deliveryAndFees: quote.deliveryUsd + quote.commissionUsd,
       };
     }
     if (lot.region === "korea") {
@@ -244,7 +249,7 @@ export function estimateLotBreakdown(
         return {
           amount: q.totalUsd,
           currency: "USD",
-          label: "Под ключ (Корея)",
+          label: "Под ключ в РБ",
           auctionTotal: q.carUsd,
           delivery: q.deliveryUsd,
           dismantle: 0,
@@ -257,7 +262,7 @@ export function estimateLotBreakdown(
       return {
         amount: Math.round(lot.currentBid),
         currency: "USD",
-        label: "Под ключ (Корея)",
+        label: "Под ключ в РБ",
         auctionTotal: Math.round(lot.currentBid),
         delivery: 0,
         dismantle: 0,

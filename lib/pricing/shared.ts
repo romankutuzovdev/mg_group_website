@@ -1,4 +1,4 @@
-export const TRANSFER_FEE_RATE = 0.03;
+export const TRANSFER_FEE_RATE = 0.035;
 
 export function round2(value: unknown): number {
   return Math.round(Number(value || 0) * 100) / 100;

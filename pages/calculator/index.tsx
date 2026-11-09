@@ -6,7 +6,6 @@ import SEO from "@/components/SEO";
 import { PageShell } from "@/components/layout/page-shell";
 import { CatalogHero } from "@/components/catalog/catalog-hero";
 import { CalculatorGate } from "@/components/pricing/calculator-gate";
-import { QuoteHistoryPanel } from "@/components/cabinet/quote-history-panel";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
 
@@ -151,11 +150,7 @@ export default function CalculatorHubPage({ dictionary }: Props) {
           </div>
 
           <section className="py-14 sm:py-20" aria-label="Доступ к калькуляторам">
-            <CalculatorGate showOverview>
-              <div className="mt-2">
-                <QuoteHistoryPanel scope="mine" />
-              </div>
-            </CalculatorGate>
+            <CalculatorGate />
           </section>
         </div>
       </PageShell>

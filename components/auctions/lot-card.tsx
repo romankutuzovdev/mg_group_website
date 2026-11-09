@@ -1,5 +1,6 @@
 "use client";
 
+import { formatCny } from "@/lib/pricing/china-quote";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LotImage } from "@/components/auctions/lot-image";
@@ -85,6 +86,9 @@ export function LotCard({
     turnkey = null;
   }
 
+  const isKorea = lot.region === "korea";
+  const priceKrw = isKorea ? Number(lot.estimatedRetail) || 0 : 0;
+
   // Relative time only after mount — Date.now() differs between SSR and hydrate.
   const [relative, setRelative] = useState<string | null>(null);
   useEffect(() => {
@@ -162,14 +166,20 @@ export function LotCard({
           <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5 sm:gap-3 sm:p-3">
             <div className="min-w-0 rounded-xl bg-[#0D3F10]/92 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/10 backdrop-blur-md sm:px-3.5 sm:py-2.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200/90">
-                {lot.region === "china" || lot.region === "korea"
-                  ? "Цена на площадке"
-                  : lot.currentBid > 0 || !lot.estimatedCostMin
-                    ? "Текущая ставка"
-                    : "Оценка от"}
+                {lot.region === "china"
+                  ? "Цена в Китае"
+                  : lot.region === "korea"
+                    ? "Цена на площадке"
+                    : lot.currentBid > 0 || !lot.estimatedCostMin
+                      ? "Текущая ставка"
+                      : "Оценка от"}
               </p>
               <p className="font-display text-xl font-bold tabular-nums tracking-tight text-white sm:text-2xl">
-                {formatMoney(lot.currentBid || lot.estimatedCostMin || 0, lot.currency)}
+                {priceKrw > 0
+                  ? `${priceKrw.toLocaleString("ru-RU")} ₩`
+                  : lot.region === "china"
+                    ? formatCny(lot.currentBid)
+                    : formatMoney(lot.currentBid || lot.estimatedCostMin || 0, lot.currency)}
               </p>
             </div>
             {relative ? (
@@ -217,7 +227,7 @@ export function LotCard({
           ) : null}
 
           <div className="mt-auto pt-3">
-            {pricingMode !== "kit" && (lot.estimatedCostMin || lot.estimatedCostMax) ? (
+            {!isKorea && pricingMode !== "kit" && (lot.estimatedCostMin || lot.estimatedCostMax) ? (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 px-3 py-2.5 ring-1 ring-inset ring-[#22c55e]/30">
                 <div className="min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">
@@ -243,9 +253,13 @@ export function LotCard({
                     {turnkey.label}
                   </p>
                   <p className="mt-0.5 text-[10px] text-zinc-500">
-                    {mode === "restoration"
-                      ? "ставка + сборы + доставка"
-                      : "лот + аукцион + доставка + разбор"}
+                    {isKorea
+                      ? "авто + сбор Encar + доставка"
+                      : lot.region === "china"
+                        ? "авто + доставка + комиссия"
+                        : mode === "restoration"
+                        ? "ставка + сборы + доставка"
+                        : "лот + аукцион + доставка + разбор"}
                   </p>
                 </div>
                 <p className="shrink-0 font-display text-lg font-bold tabular-nums tracking-tight text-[#0D3F10] sm:text-xl">

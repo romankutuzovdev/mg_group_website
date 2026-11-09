@@ -66,8 +66,8 @@ const config: Config = {
         "bg-dark-elevated": "#1c1917",
         "border-strong": "#d6d3d1",
         "text-primary": "#0c0a09",
-        "text-secondary": "#57534e",
-        "text-muted": "#78716c",
+        "text-secondary": "#44403c",
+        "text-muted": "#57534e",
         "text-on-dark": "#ffffff",
         "text-on-dark-muted": "rgba(255, 255, 255, 0.72)",
         chart: {

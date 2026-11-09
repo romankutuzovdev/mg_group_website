@@ -8,7 +8,11 @@ import {
   estimateIaaiAuctionFeesUsd,
 } from "@/lib/auctions/lot-quote";
 import {
+  KLAIPEDA_MINSK_NOTE,
+  POTI_MINSK_RATES,
+  defaultPotiVehicle,
   quoteRestoration,
+  type PotiVehicle,
   type RestorationQuote,
 } from "@/lib/pricing/restoration-quote";
 import { listTitleTariffs } from "@/lib/pricing/usa-title";
@@ -47,6 +51,7 @@ export function RestorationCalculator() {
   const [yardFilter, setYardFilter] = useState("");
   const [size, setSize] = useState<VehicleSize>("regular");
   const [oceanDest, setOceanDest] = useState<"klaipeda" | "poti">("klaipeda");
+  const [potiVehicle, setPotiVehicle] = useState<PotiVehicle | null>(null);
   const [titleCode, setTitleCode] = useState("Salvage Title / Certif / of distrctn");
   const [isSublot, setIsSublot] = useState(false);
   const [yearText, setYearText] = useState("2018");
@@ -163,13 +168,14 @@ export function RestorationCalculator() {
         auctionPlatform: platform,
         vehicleSize: size,
         oceanDestination: oceanDest,
+        potiVehicle,
         titleCode,
         isSublot,
         inlandUsd: inlandOverride !== "" ? Number(inlandOverride) : null,
         oceanUsd: oceanOverride !== "" ? Number(oceanOverride) : null,
         includeDelivery: true,
       }),
-    [bid, fees, location, platform, size, oceanDest, titleCode, isSublot, inlandOverride, oceanOverride],
+    [bid, fees, location, platform, size, oceanDest, potiVehicle, titleCode, isSublot, inlandOverride, oceanOverride],
   );
 
   const pricedQuote = quote?.delivery ? quote : null;
@@ -345,6 +351,23 @@ export function RestorationCalculator() {
             </label>
           </div>
 
+          {oceanDest === "poti" ? (
+            <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Тип для доставки Поти → Минск
+              <select
+                value={potiVehicle ?? defaultPotiVehicle(size)}
+                onChange={(e) => setPotiVehicle(e.target.value as PotiVehicle)}
+                className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal text-text-primary"
+              >
+                {POTI_MINSK_RATES.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label} (${r.usd.toLocaleString("en-US")})
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
             Title / Sale Doc
             <select
@@ -406,7 +429,11 @@ export function RestorationCalculator() {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
                   Просчёт авто
                 </p>
-                <p className="mt-1 text-xs text-text-muted">Расходы до Беларуси (без таможни)</p>
+                <p className="mt-1 text-xs text-text-muted">
+                  {quote.minskDeliveryUsd > 0
+                    ? "Расходы до Минска (без таможни)"
+                    : "Расходы до Беларуси (без таможни)"}
+                </p>
                 {quote.delivery ? (
                   <p className="mt-2 font-display text-3xl font-semibold text-accent-dark">
                     {usd(Math.round(quote.grandUsd))}
@@ -454,9 +481,22 @@ export function RestorationCalculator() {
                         value={usd(quote.transferFee, 2)}
                       />
                       <Line label="Итого США" value={usd(Math.round(quote.usaWithFees))} total />
+                      {quote.minskDeliveryUsd > 0 ? (
+                        <>
+                          <Line
+                            label={quote.minskDeliveryLabel}
+                            value={usd(quote.minskDeliveryUsd)}
+                            hint={quote.minskDeliveryHint || undefined}
+                          />
+                          <Line label="Итого до Минска" value={usd(Math.round(quote.grandUsd))} total />
+                        </>
+                      ) : null}
                     </>
                   ) : null}
                 </dl>
+                {quote.delivery?.oceanDestination === "klaipeda" ? (
+                  <p className="mt-3 text-xs text-text-muted">{KLAIPEDA_MINSK_NOTE}</p>
+                ) : null}
                 {quote.titleFeeInfo?.unmatched ? (
                   <p className="mt-3 text-xs text-amber-700">
                     Title не сопоставлен с прайсом — доплата 0. Выберите тип из списка.
@@ -470,7 +510,7 @@ export function RestorationCalculator() {
 
           <div className="card-premium rounded-xl p-5 sm:p-6">
             <CustomsByPanel
-              priceUsd={pricedQuote?.grandUsd ?? null}
+              priceUsd={pricedQuote?.usaWithFees ?? null}
               year={year}
               onResult={onCustoms}
             />
@@ -487,7 +527,8 @@ export function RestorationCalculator() {
               </p>
               {customs?.ok ? (
                 <p className="mt-2 text-sm text-text-secondary">
-                  США {usd(Math.round(quote!.grandUsd))} + таможня ≈{" "}
+                  {quote!.minskDeliveryUsd > 0 ? "До Минска" : "США"}{" "}
+                  {usd(Math.round(quote!.grandUsd))} + таможня ≈{" "}
                   {usd(Math.round(customs.totalUsd || 0))} ({byn(Math.round(customs.totalByn))})
                 </p>
               ) : null}

@@ -9,6 +9,30 @@ import { lookupTitleFee, type TitleFeeInfo } from "./usa-title";
 export const USA_TRANSFER_FEE_RATE = 0.035;
 export const USA_DISPATCHING_USD = 250;
 export const SUBLOT_FEE_USD = 100;
+/** Клайпеда → Минск, стандартное отправление. Комиссия 3,5% на эту сумму не идёт: она только на перевод в США. */
+export const KLAIPEDA_MINSK_USD = 960;
+export const KLAIPEDA_MINSK_NOTE =
+  "Отдельно оплачивается переоформление авто 2 литра и мотоциклов, которые не оформляются в стандарте. Также возможны небольшие простои.";
+
+/** Поти → Минск по типу машины, прайс «Грузия». Комиссия 3,5% на эту сумму тоже не идёт. Лодки считаются по факту. */
+export const POTI_MINSK_RATES = [
+  { id: "sedan", label: "Седан", usd: 2200 },
+  { id: "suv", label: "Внедорожник", usd: 2300 },
+  { id: "big_suv", label: "Big SUV (X7)", usd: 2400 },
+  { id: "truck", label: "Фура", usd: 2900 },
+  { id: "pickup_truck", label: "Пикап в фуре", usd: 2900 },
+  { id: "moto_carrier", label: "Мотоцикл, автовоз", usd: 900 },
+  { id: "moto_truck", label: "Мотоцикл, фура", usd: 1000 },
+  { id: "atv", label: "Квадроцикл", usd: 1500 },
+  { id: "jet_ski", label: "Гидроцикл", usd: 2000 },
+] as const;
+
+export type PotiVehicle = (typeof POTI_MINSK_RATES)[number]["id"];
+
+export function defaultPotiVehicle(size: VehicleSize): PotiVehicle {
+  if (size === "moto") return "moto_carrier";
+  return size === "oversize" ? "big_suv" : "sedan";
+}
 
 export const RESTORATION_SIZE_LABELS: Record<VehicleSize, string> = {
   regular: "Regular / Large",
@@ -24,6 +48,8 @@ export type RestorationQuoteInput = {
   auctionPlatform?: "iaai" | "copart" | string | null;
   vehicleSize?: VehicleSize | string | null;
   oceanDestination?: "klaipeda" | "poti" | string | null;
+  /** Тип для тарифа Поти → Минск. Не задан: берётся по размеру машины. */
+  potiVehicle?: PotiVehicle | null;
   /** Ручной inland / ocean, если площадки нет в прайсе. Нужны оба значения. */
   inlandUsd?: number | null;
   oceanUsd?: number | null;
@@ -59,8 +85,14 @@ export type RestorationQuote = {
   dispatchingUsd: number;
   transferFee: number;
   transferFeeRate: number;
+  /** Итого расходы США, база для таможни РБ */
   usaWithFees: number;
-  /** Итого США (без таможни РБ) */
+  /** Порт → Минск. 0, если доставка не посчитана. */
+  minskDeliveryUsd: number;
+  minskDeliveryLabel: string;
+  /** Тип машины в тарифе Поти → Минск */
+  minskDeliveryHint: string | null;
+  /** Итого с доставкой до Минска (без таможни РБ) */
   grandUsd: number;
 };
 
@@ -142,6 +174,11 @@ export function quoteRestoration(input: RestorationQuoteInput): RestorationQuote
   const dispatchingUsd = USA_DISPATCHING_USD;
   const transferFee = round2(americaSubtotal * USA_TRANSFER_FEE_RATE);
   const usaWithFees = round2(americaSubtotal + dispatchingUsd + transferFee);
+  const potiRate =
+    delivery?.oceanDestination === "poti"
+      ? POTI_MINSK_RATES.find((r) => r.id === (input.potiVehicle ?? defaultPotiVehicle(size)))
+      : undefined;
+  const minskDeliveryUsd = potiRate?.usd ?? (delivery ? KLAIPEDA_MINSK_USD : 0);
 
   return {
     purpose: "restoration",
@@ -161,6 +198,9 @@ export function quoteRestoration(input: RestorationQuoteInput): RestorationQuote
     transferFee,
     transferFeeRate: USA_TRANSFER_FEE_RATE,
     usaWithFees,
-    grandUsd: usaWithFees,
+    minskDeliveryUsd,
+    minskDeliveryLabel: potiRate ? "Поти → Минск" : "Клайпеда → Минск",
+    minskDeliveryHint: potiRate?.label ?? null,
+    grandUsd: round2(usaWithFees + minskDeliveryUsd),
   };
 }

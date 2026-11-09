@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import logging
 import math
+import threading
 import time
-from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -15,49 +16,14 @@ from app.models.lots import (
     LotListResponse,
     LotMetaResponse,
 )
-from app.services.auction_date import active_lots
-from app.services.filter_lots import LotFilters, filter_lots, unique_sorted
+from app.services.filter_lots import LotFilters, unique_sorted
+
+logger = logging.getLogger("mg.lots")
 
 router = APIRouter(prefix="/lots", tags=["lots"])
 
 # Fixed keys — old Windows builds omitted korea/china and the UI showed «Под заказ».
 _REGION_KEYS = ("usa", "uk", "korea", "china")
-
-
-def _counts_by_region(lots: list[AuctionLot]) -> dict[str, int]:
-    out = {k: 0 for k in _REGION_KEYS}
-    for lot in lots:
-        if lot.region in out:
-            out[lot.region] += 1
-    return out
-
-
-def _top_makes(lots: list[AuctionLot], *, region: str = "usa", limit: int = 8) -> list[dict]:
-    """Most common makes in a region, with the lowest current bid."""
-    buckets: dict[str, dict] = {}
-    for lot in lots:
-        if (lot.region or "").lower() != region:
-            continue
-        name = (lot.make or "").strip()
-        if not name:
-            continue
-        key = name.lower()
-        bid = float(lot.currentBid or 0)
-        row = buckets.get(key)
-        if row is None:
-            buckets[key] = {
-                "make": name,
-                "count": 1,
-                "min_bid": bid,
-                "currency": lot.currency or "USD",
-            }
-            continue
-        row["count"] += 1
-        if bid > 0 and (row["min_bid"] <= 0 or bid < row["min_bid"]):
-            row["min_bid"] = bid
-            row["currency"] = lot.currency or row["currency"]
-    ranked = sorted(buckets.values(), key=lambda row: int(row["count"]), reverse=True)
-    return ranked[:limit]
 
 
 def _require_ingest_key(
@@ -71,60 +37,58 @@ def _require_ingest_key(
         raise HTTPException(status_code=401, detail="Invalid or missing X-API-Key")
 
 
-# Opening Korea walks ~70k lots. Rebuild the live snapshot at most every 20s
-# and keep each region pre-sorted by auction date so page 1 is a slice.
-_SNAPSHOT_TTL = 20.0
-_snap_at = 0.0
-_snap_ready = False
-_snap_all: list[AuctionLot] = []
-_snap_region: dict[str, list[AuctionLot]] = {}
-_meta_cache: dict[tuple[str, str], LotMetaResponse] = {}
+# /lots/meta scans the region. Visitors get the last result while one background
+# thread refreshes it; only the very first request for a region waits.
+_FACETS_TTL = 120.0
+_facets: dict[str, tuple[float, list[tuple]]] = {}
+_meta_cache: dict[tuple[str, str, float], LotMetaResponse] = {}
+_facets_lock = threading.Lock()
+_facets_refreshing: set[str] = set()
 
 
-def _refresh_snapshot() -> None:
-    global _snap_at, _snap_ready, _snap_all, _snap_region
-    now = time.monotonic()
-    if _snap_ready and now - _snap_at < _SNAPSHOT_TTL:
-        return
-    _meta_cache.clear()
-    settings = get_settings()
-    grace = settings.scraper_auction_grace_hours if settings.scraper_prune_ended else 1e9
-    live = [
-        lot
-        for lot in active_lots(lot_store.all(), grace_hours=grace)
-        if not getattr(lot, "sold", False)
-    ]
-    has_bidcars = any(lot.source == "bidcars" and lot.region == "usa" for lot in live)
-    if has_bidcars:
-        live = [
-            lot
-            for lot in live
-            if not (lot.region == "usa" and lot.source in {"copart", "iaai"})
-        ]
-    buckets: dict[str, list[AuctionLot]] = {}
-    for lot in live:
-        buckets.setdefault((lot.region or "").lower(), []).append(lot)
-    for rows in buckets.values():
-        rows.sort(key=lambda lot: lot.auctionDate or "", reverse=True)
-    live.sort(key=lambda lot: lot.auctionDate or "", reverse=True)
-    _snap_all = live
-    _snap_region = buckets
-    _snap_ready = True
-    _snap_at = time.monotonic()
+def _refresh_facets(key: str) -> None:
+    try:
+        _facets[key] = (time.monotonic(), lot_store.facets(key or None))
+    except Exception:
+        logger.exception("lots facets rebuild failed")
+    finally:
+        with _facets_lock:
+            _facets_refreshing.discard(key)
 
 
-def _catalog_lots() -> list[AuctionLot]:
-    """Live catalog. Sold Bid.cars stay in the store for similar sales only."""
-    _refresh_snapshot()
-    return _snap_all
-
-
-def _region_pool(region: str | None) -> list[AuctionLot]:
-    _refresh_snapshot()
+def _region_facets(region: str | None) -> tuple[float, list[tuple]]:
     key = (region or "").strip().lower()
-    if not key:
-        return _snap_all
-    return _snap_region.get(key, [])
+    hit = _facets.get(key)
+    if hit is None:
+        hit = _facets[key] = (time.monotonic(), lot_store.facets(key or None))
+    elif time.monotonic() - hit[0] >= _FACETS_TTL:
+        with _facets_lock:
+            start = key not in _facets_refreshing
+            _facets_refreshing.add(key)
+        if start:
+            threading.Thread(target=_refresh_facets, args=(key,), daemon=True).start()
+    return hit
+
+
+def _top_makes(rows: list[tuple], *, region: str = "usa", limit: int = 8) -> list[dict]:
+    """Most common makes in a region, with the lowest current bid."""
+    buckets: dict[str, dict] = {}
+    for make, _, _, row_region, *_rest, currency, count, min_bid in rows:
+        if (row_region or "").lower() != region:
+            continue
+        name = (make or "").strip()
+        if not name:
+            continue
+        row = buckets.setdefault(
+            name.lower(),
+            {"make": name, "count": 0, "min_bid": 0.0, "currency": currency or "USD"},
+        )
+        row["count"] += count
+        if min_bid and (row["min_bid"] <= 0 or min_bid < row["min_bid"]):
+            row["min_bid"] = min_bid
+            row["currency"] = currency or row["currency"]
+    ranked = sorted(buckets.values(), key=lambda row: int(row["count"]), reverse=True)
+    return ranked[:limit]
 
 
 def _slim_lot_for_list(lot: AuctionLot) -> AuctionLot:
@@ -218,49 +182,15 @@ def list_lots(
         tab=tab if tab in {"all", "passable", "open", "buy-now"} else "all",  # type: ignore[arg-type]
         region=region,
     )
-    bare = not any(
-        (
-            q,
-            make,
-            model,
-            year_from,
-            year_to,
-            auction,
-            price_min,
-            price_max,
-            body,
-            damage,
-            drive,
-            trans,
-            fuel,
-            mileage_max,
-            eng_min,
-            eng_max,
-            run,
-            buynow,
-        )
-    ) and filters.tab == "all"
-    if bare and sort == "date" and order == "desc":
-        # Already sorted in the snapshot — page 1 does not re-sort 70k rows.
-        items = list(_region_pool(region))
-    else:
-        items = filter_lots(_region_pool(region), filters)
-        reverse = order == "desc"
-        if sort == "price":
-            items.sort(key=lambda x: x.currentBid, reverse=reverse)
-        elif sort == "year":
-            items.sort(key=lambda x: x.year, reverse=reverse)
-        else:
-            items.sort(key=lambda x: x.auctionDate or "", reverse=reverse)
-
-    if own_photo:
-        # Bid.cars CDN answers 403 to site visitors until a photo reaches our storage.
-        items = [x for x in items if x.imageUrl and "bid.car" not in x.imageUrl]
-
-    total = len(items)
+    page_items, total, region_counts = lot_store.query_lots(
+        filters,
+        sort=sort,
+        order=order,
+        limit=page_size,
+        offset=(page - 1) * page_size,
+        own_photo=own_photo,
+    )
     pages = max(1, math.ceil(total / page_size)) if total else 1
-    start = (page - 1) * page_size
-    page_items = items[start : start + page_size]
 
     # List cards only need a cover thumb — full galleries live on GET /lots/{slug}.
     # Sending 40 CDN URLs × N lots made pagination payloads huge and infinite
@@ -268,10 +198,7 @@ def list_lots(
     slim_items = [_slim_lot_for_list(lot) for lot in page_items]
 
     # Always emit all catalog regions (even 0) so clients never hide Korea/China.
-    counts = {"usa": 0, "uk": 0, "korea": 0, "china": 0}
-    for x in items:
-        if x.region in counts:
-            counts[x.region] += 1
+    counts = {key: region_counts.get(key, 0) for key in _REGION_KEYS}
 
     return LotListResponse(
         items=slim_items,
@@ -285,63 +212,52 @@ def list_lots(
 
 @router.get("/featured", response_model=list[AuctionLot])
 def featured_lots(limit: int = Query(4, ge=1, le=24)) -> list[AuctionLot]:
-    now = datetime.now(timezone.utc)
-    window_ms = 12 * 60 * 60 * 1000
-    pool = _catalog_lots()
-
-    def score(lot: AuctionLot) -> tuple[int, float]:
-        try:
-            ts = datetime.fromisoformat(lot.auctionDate.replace("Z", "+00:00")).timestamp() * 1000
-        except Exception:
-            return (1, 1e18)
-        live = 0 if abs(ts - now.timestamp() * 1000) <= window_ms or ts >= now.timestamp() * 1000 - window_ms else 1
-        return (live, abs(ts - now.timestamp() * 1000))
-
-    ranked = sorted(pool, key=score)
-    return [_slim_lot_for_list(lot) for lot in ranked[:limit]]
+    return [_slim_lot_for_list(lot) for lot in lot_store.closest_to_now(limit)]
 
 
 @router.get("/meta", response_model=LotMetaResponse)
 def lots_meta(make: str | None = None, region: str | None = None) -> LotMetaResponse:
-    lots = _region_pool(region)
+    built_at, rows = _region_facets(region)
     make_key = (make or "").strip().lower()
-    cache_key = ((region or "").strip().lower(), make_key)
+    region_key = (region or "").strip().lower()
+    cache_key = (region_key, make_key, built_at)
     cached = _meta_cache.get(cache_key)
     if cached is not None:
         return cached
-    model_pool = (
-        [l for l in lots if (l.make or "").lower() == make_key] if make_key else lots
-    )
+
+    def values(index: int) -> list[str | None]:
+        return [row[index] for row in rows]
+
+    counts_by_region = {key: 0 for key in _REGION_KEYS}
+    counts_by_source: dict[str, int] = {}
+    total = 0
+    for row in rows:
+        count = row[10]
+        total += count
+        counts_by_source[row[2]] = counts_by_source.get(row[2], 0) + count
+        if row[3] in counts_by_region:
+            counts_by_region[row[3]] += count
     response = LotMetaResponse(
-        makes=unique_sorted([l.make for l in lots]),
-        models=unique_sorted([l.model for l in model_pool]),
-        sources=unique_sorted([l.source for l in lots]),
-        regions=unique_sorted([l.region for l in lots]),
-        damages=unique_sorted([l.primaryDamage for l in lots]),
+        makes=unique_sorted(values(0)),
+        models=unique_sorted(
+            [row[1] for row in rows if not make_key or (row[0] or "").lower() == make_key]
+        ),
+        sources=unique_sorted(values(2)),
+        regions=unique_sorted(values(3)),
+        damages=unique_sorted(values(4)),
         body_styles=unique_sorted(
-            [l.bodyStyle for l in lots if l.bodyStyle and "LOTFEATURE" not in (l.bodyStyle or "").upper()]
+            [v for v in values(5) if v and "LOTFEATURE" not in v.upper()]
         ),
-        fuels=unique_sorted(
-            [l.fuel for l in lots if l.fuel and l.fuel != "—"]
-        ),
-        transmissions=unique_sorted(
-            [
-                l.transmission
-                for l in lots
-                if l.transmission and l.transmission not in {"—", "Na"}
-            ]
-        ),
-        drives=unique_sorted(
-            [l.drive for l in lots if l.drive and l.drive != "—"]
-        ),
-        total=len(lots),
-        counts_by_region=_counts_by_region(lots),
-        top_makes=_top_makes(lots, region=(region or "usa").strip().lower() or "usa"),
-        counts_by_source={
-            src: sum(1 for l in lots if l.source == src)
-            for src in sorted({l.source for l in lots})
-        },
+        fuels=unique_sorted([v for v in values(6) if v and v != "—"]),
+        transmissions=unique_sorted([v for v in values(7) if v and v not in {"—", "Na"}]),
+        drives=unique_sorted([v for v in values(8) if v and v != "—"]),
+        total=total,
+        counts_by_region=counts_by_region,
+        top_makes=_top_makes(rows, region=region_key or "usa"),
+        counts_by_source=dict(sorted(counts_by_source.items())),
     )
+    if len(_meta_cache) > 500:
+        _meta_cache.clear()
     _meta_cache[cache_key] = response
     return response
 
@@ -388,7 +304,7 @@ def delete_lot(lot_id: str) -> dict[str, bool]:
 
 @router.post("/prune-ended", dependencies=[Depends(_require_ingest_key)])
 def prune_ended_lots() -> dict[str, int]:
-    """Remove lots whose auction date has passed; rewrite api/data/lots.json."""
+    """Remove lots whose auction date has passed."""
     settings = get_settings()
     removed = lot_store.prune_ended()
     persisted = 0

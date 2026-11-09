@@ -161,7 +161,7 @@ export function SupportChat({ appRoute = false }: { appRoute?: boolean }) {
 
   const position = appRoute
     ? "bottom-4 right-4"
-    : "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-4 lg:bottom-6 lg:right-6";
+    : "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-3 lg:bottom-6 lg:right-6";
 
   return (
     <div className={cn("fixed z-[90]", position)}>
@@ -256,9 +256,9 @@ export function SupportChat({ appRoute = false }: { appRoute?: boolean }) {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Открыть чат с менеджером"
-          className="relative inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg transition hover:brightness-95"
+          className="relative inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary text-white shadow-lg transition hover:brightness-95 lg:h-14 lg:w-14"
         >
-          <MessageCircle className="h-6 w-6" aria-hidden />
+          <MessageCircle className="h-5 w-5 lg:h-6 lg:w-6" aria-hidden />
           {unread ? (
             <span className="absolute right-0.5 top-0.5 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white" />
           ) : (

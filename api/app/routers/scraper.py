@@ -89,9 +89,7 @@ def scraper_r2_reconcile() -> dict:
     sold_galleries = lot_store.release_sold_photo_archives()
     if sold_galleries and settings.scraper_persist:
         lot_store.persist()
-    live_photo_ids = {
-        lot.id for lot in lot_store.all() if not getattr(lot, "sold", False)
-    }
+    live_photo_ids = lot_store.ids("sold = 0")
     return {
         "ok": True,
         "sold_galleries": sold_galleries,

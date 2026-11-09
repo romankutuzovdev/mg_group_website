@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 export type CalculatorMode = "kit-uk" | "kit-usa" | "car" | "customs";
 
 const MODES: {
-  id: Exclude<CalculatorMode, "customs">;
+  id: CalculatorMode;
   label: string;
   href: string;
   blurb: string;
@@ -34,6 +34,12 @@ const MODES: {
     href: "/calculator/vosstanovlenie/",
     blurb:
       "Другая формула: целое авто без разбора, сбор по ставке, доставка Klaipeda или Poti и таможня РБ.",
+  },
+  {
+    id: "customs",
+    label: "Растаможка",
+    href: "/calculator/rastamozhka/",
+    blurb: "Таможенные платежи в РБ по цене и году авто.",
   },
 ];
 
@@ -99,7 +105,7 @@ export function SiteCalculator({
     <div className="space-y-5">
       {showSwitcher ? (
         <div className="space-y-2">
-          <div className="grid gap-1.5 rounded-xl border border-border bg-zinc-50 p-1 sm:grid-cols-3">
+          <div className="grid gap-1.5 rounded-xl border border-border bg-zinc-50 p-1 sm:grid-cols-2 lg:grid-cols-4">
             {MODES.map((item) => (
               <button
                 key={item.id}

@@ -5,11 +5,13 @@ import type {
   CabinetUser,
   Deal,
   DealKind,
+  DismantleYard,
   DealSpecs,
   OriginRegion,
 } from "@/lib/api/cabinet";
 import {
   DEAL_KIND_LABELS,
+  DISMANTLE_YARD_LABELS,
   ORIGIN_REGION_LABELS,
   adminCreateClientAccount,
   adminCreateDeal,
@@ -83,43 +85,51 @@ function specsSummary(specs?: DealSpecs | null): string {
     .join(" · ");
 }
 
-/** Все фото лота (Bid.cars / Copart UK) → медиа сделки, этап «Аукцион». */
-async function uploadCoverFromLotImages(dealId: number, images: string[]) {
-  const candidates = (images || [])
-    .map((u) => (u || "").trim())
-    .filter(Boolean);
-  if (!candidates.length) return;
+const LOT_PHOTO_UPLOAD_CONCURRENCY = 4;
 
-  let uploaded = 0;
-  for (let i = 0; i < candidates.length; i++) {
-    const src = candidates[i];
-    try {
-      const proxied = /^https?:\/\//i.test(src)
-        ? apiUrl(`/api/lot-image?u=${encodeURIComponent(src)}`)
-        : src.startsWith("/")
-          ? apiUrl(src)
-          : src;
-      const res = await fetch(proxied, { cache: "no-store" });
-      if (!res.ok) continue;
-      const blob = await res.blob();
-      if (!blob.size) continue;
-      const rawType = (blob.type || "").toLowerCase();
-      // CDN иногда отдаёт octet-stream / пустой Content-Type
-      const okType =
-        !rawType ||
-        rawType.startsWith("image/") ||
-        rawType === "application/octet-stream";
-      if (!okType) continue;
-      const file = new File([blob], `auction-${i + 1}.jpg`, {
-        type: rawType.startsWith("image/") ? rawType : "image/jpeg",
-      });
-      await adminUploadDealMedia(dealId, file, "auction", "С аукциона");
-      uploaded += 1;
-    } catch {
-      // skip broken image, continue gallery
-    }
+async function uploadLotPhoto(dealId: number, src: string, index: number) {
+  try {
+    const proxied = /^https?:\/\//i.test(src)
+      ? apiUrl(`/api/lot-image?u=${encodeURIComponent(src)}`)
+      : src.startsWith("/")
+        ? apiUrl(src)
+        : src;
+    const res = await fetch(proxied, { cache: "no-store" });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    if (!blob.size) return;
+    const rawType = (blob.type || "").toLowerCase();
+    // CDN иногда отдаёт octet-stream / пустой Content-Type
+    const okType =
+      !rawType ||
+      rawType.startsWith("image/") ||
+      rawType === "application/octet-stream";
+    if (!okType) return;
+    const file = new File([blob], `auction-${index + 1}.jpg`, {
+      type: rawType.startsWith("image/") ? rawType : "image/jpeg",
+    });
+    await adminUploadDealMedia(dealId, file, "auction", "С аукциона");
+  } catch {
+    // skip broken image, continue gallery
   }
-  return uploaded;
+}
+
+/** Все фото лота (Bid.cars / Copart UK) → медиа сделки, этап «Аукцион». */
+async function uploadLotPhotos(dealId: number, images: string[], onProgress: () => void) {
+  if (!images.length) return;
+  // Первое фото отдельно: оно остаётся обложкой, остальные идут параллельно.
+  await uploadLotPhoto(dealId, images[0], 0);
+  onProgress();
+  let next = 1;
+  const worker = async () => {
+    while (next < images.length) {
+      const index = next++;
+      await uploadLotPhoto(dealId, images[index], index);
+      onProgress();
+    }
+  };
+  const workers = Math.min(LOT_PHOTO_UPLOAD_CONCURRENCY, images.length - 1);
+  await Promise.all(Array.from({ length: workers }, worker));
 }
 
 type Props = {
@@ -129,6 +139,9 @@ type Props = {
   canAssignRoles?: boolean;
   /** Текущий менеджер/админ — для закрепления клиентов и фокуса своего списка. */
   currentUser?: CabinetUser | null;
+  /** Только форма, без CRM: вкладка менеджера «Мои клиенты». */
+  formOnly?: "deal" | "client";
+  onClientCreated?: () => void;
 };
 
 type ClientBranch = {
@@ -181,6 +194,8 @@ export function AdminDealsPanel({
   onOpenDeal,
   canAssignRoles = false,
   currentUser = null,
+  formOnly,
+  onClientCreated,
 }: Props) {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [users, setUsers] = useState<CabinetUser[]>([]);
@@ -189,7 +204,7 @@ export function AdminDealsPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-  const [compose, setCompose] = useState<"none" | "client" | "deal">("none");
+  const [compose, setCompose] = useState<"none" | "client" | "deal">(formOnly ?? "none");
   const [query, setQuery] = useState("");
   const [selectedClientKey, setSelectedClientKey] = useState<string | null>(null);
   /** Mobile: список клиентов или карточка клиента с авто */
@@ -212,6 +227,7 @@ export function AdminDealsPanel({
 
   const [telegramId, setTelegramId] = useState("");
   const [kind, setKind] = useState<DealKind>("kit");
+  const [dismantleYard, setDismantleYard] = useState<DismantleYard>("");
   const [lotUrl, setLotUrl] = useState("");
   const [trackingUrl, setTrackingUrl] = useState("");
   const [dismantlePhotosUrl, setDismantlePhotosUrl] = useState("");
@@ -251,6 +267,8 @@ export function AdminDealsPanel({
     password: string;
   } | null>(null);
 
+  const [photoUpload, setPhotoUpload] = useState<{ done: number; total: number } | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -263,7 +281,8 @@ export function AdminDealsPanel({
       setUsers(nextUsers);
       setTelegramId((prev) => {
         if (prev) return prev;
-        return nextUsers[0] ? String(nextUsers[0].telegram_id) : "";
+        const first = formOnly ? nextUsers.find((u) => !u.is_admin && !u.is_manager) : nextUsers[0];
+        return first ? String(first.telegram_id) : "";
       });
       setLoadedOnce(true);
     } catch (err) {
@@ -271,11 +290,24 @@ export function AdminDealsPanel({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [formOnly]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** Фото докачиваются в фоне: сделка уже создана, менеджер не ждёт. */
+  const startLotPhotoUpload = (dealId: number, rawImages: string[]) => {
+    const images = rawImages.map((u) => (u || "").trim()).filter(Boolean);
+    if (!images.length) return;
+    setPhotoUpload((p) => ({ done: p?.done ?? 0, total: (p?.total ?? 0) + images.length }));
+    void uploadLotPhotos(dealId, images, () =>
+      setPhotoUpload((p) => (p ? { ...p, done: p.done + 1 } : p)),
+    ).finally(() => {
+      setPhotoUpload((p) => (p && p.done >= p.total ? null : p));
+      void load();
+    });
+  };
 
   const loadFromAuctionUrl = async () => {
     const url = lotUrl.trim();
@@ -381,6 +413,11 @@ export function AdminDealsPanel({
       setError("Укажите название или загрузите лот по ссылке Bid.cars");
       return;
     }
+    const needsYard = kind === "kit" && originRegion !== "uk";
+    if (needsYard && !dismantleYard) {
+      setError("Выберите разборку: New Jersey или Texas");
+      return;
+    }
     setBusy(true);
     setError(null);
     setOk(null);
@@ -409,19 +446,19 @@ export function AdminDealsPanel({
               ? "uk"
               : "usa"
             : originRegion,
+        dismantle_yard: needsYard ? dismantleYard : "",
         status: "active",
         specs,
         manager_user_id: autoManagerId > 0 ? autoManagerId : undefined,
         payment_stage1_due: due1,
         payment_stage2_due: due2,
       });
-      if (lotImages.length) {
-        await uploadCoverFromLotImages(deal.id, lotImages);
-      }
+      startLotPhotoUpload(deal.id, lotImages);
       setOk(
         `${DEAL_KIND_LABELS[dealKind(deal)]} #${deal.id} · ${regionLabel(deal.origin_region)}`,
       );
       setLotUrl("");
+      setDismantleYard("");
       setTrackingUrl("");
       setDismantlePhotosUrl("");
       setLotMeta(null);
@@ -436,7 +473,7 @@ export function AdminDealsPanel({
       setDue1("");
       setDue2("");
       onCreated?.(deal);
-      await load();
+      void load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка создания сделки");
     } finally {
@@ -508,7 +545,7 @@ export function AdminDealsPanel({
       setTelegramId(String(created.user.telegram_id));
       setSelectedClientKey(`tg:${created.user.telegram_id}`);
       setMobilePane("workspace");
-      setCompose("none");
+      if (!formOnly) setCompose("none");
       const smsBit = created.sms_sent
         ? "SMS отправлено (логин, пароль, ссылка)."
         : created.sms_skipped
@@ -524,6 +561,7 @@ export function AdminDealsPanel({
       setClientLastName("");
       setClientPassword(generateClientPassword());
       await load();
+      onClientCreated?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось создать аккаунт");
     } finally {
@@ -881,6 +919,8 @@ export function AdminDealsPanel({
 
   return (
     <div className="space-y-5">
+      {formOnly ? null : (
+      <>
       {/* Page header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
@@ -937,6 +977,9 @@ export function AdminDealsPanel({
         ))}
       </div>
 
+      </>
+      )}
+
       {error ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-800">
           <span>{error}</span>
@@ -952,6 +995,11 @@ export function AdminDealsPanel({
       {ok ? (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[13px] text-emerald-900">
           {ok}
+        </div>
+      ) : null}
+      {photoUpload ? (
+        <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-[13px] text-zinc-700">
+          Загружаем фото лота: {photoUpload.done} из {photoUpload.total}. Не закрывайте страницу.
         </div>
       ) : null}
 
@@ -1136,7 +1184,7 @@ export function AdminDealsPanel({
             <p className="mt-1 text-[11px] text-zinc-400">
               {kind === "kit"
                 ? "Машинокомплект — карта разбора США или Англии по стране лота"
-                : "Авто под постановку — клиенту только ссылка на внешний трекер"}
+                : "Авто под постановку на учёт — клиенту только ссылка на внешний трекер"}
             </p>
           </div>
 
@@ -1293,14 +1341,24 @@ export function AdminDealsPanel({
                 </option>
               ))}
             </select>
-            {kind === "kit" ? (
-              <p className="mt-1 text-[11px] text-zinc-400">
-                {originRegion === "uk"
-                  ? "Будет карта разбора Англии"
-                  : "Будет карта разбора США"}
-              </p>
+            {kind === "kit" && originRegion === "uk" ? (
+              <p className="mt-1 text-[11px] text-zinc-400">Будет карта разбора Англии</p>
             ) : null}
           </label>
+          {kind === "kit" && originRegion !== "uk" ? (
+            <label className="block text-xs">
+              <span className={labelMuted}>Разборка (бланк карты)</span>
+              <select
+                className={field}
+                value={dismantleYard}
+                onChange={(e) => setDismantleYard(e.target.value as DismantleYard)}
+              >
+                <option value="">Выберите разборку</option>
+                <option value="new_jersey">New Jersey</option>
+                <option value="texas">Texas</option>
+              </select>
+            </label>
+          ) : null}
         </div>
         {telegramId ? (
           <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500">
@@ -1367,6 +1425,7 @@ export function AdminDealsPanel({
             placeholder="Комментарий для клиента (не характеристики)…"
           />
         </label>
+        {error ? <p className="text-[13px] text-rose-700">{error}</p> : null}
         <button
           type="submit"
           disabled={busy || !clientUsers.length}
@@ -1378,6 +1437,7 @@ export function AdminDealsPanel({
       ) : null}
 
       {/* CRM board: clients | cars */}
+      {formOnly ? null : (
       <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
         {/* Mobile tabs */}
         <div className="flex border-b border-zinc-100 lg:hidden">
@@ -1702,6 +1762,7 @@ export function AdminDealsPanel({
                                 {[
                                   DEAL_KIND_LABELS[k],
                                   regionLabel(deal.origin_region),
+                                  deal.dismantle_yard && DISMANTLE_YARD_LABELS[deal.dismantle_yard],
                                   paymentProgressLabel(deal),
                                   deal.lot_number && `#${deal.lot_number}`,
                                   photoCount ? `${photoCount} фото` : null,
@@ -1814,6 +1875,7 @@ export function AdminDealsPanel({
           </section>
         </div>
       </div>
+      )}
 
     </div>
   );

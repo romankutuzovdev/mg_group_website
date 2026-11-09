@@ -17,7 +17,7 @@ function normalizeUrl(raw: string): string {
   return `https://${t}`;
 }
 
-/** Авто под постановку: менеджер вставляет ссылку на внешний трекер, клиент видит только её. */
+/** Авто под постановку на учёт: менеджер вставляет ссылку на внешний трекер, клиент видит только её. */
 export function DealTrackingLink({ deal, isManager = false, onUpdated }: Props) {
   const isCar = dealKind(deal) === "car";
   const [url, setUrl] = useState(deal.tracking_url || "");

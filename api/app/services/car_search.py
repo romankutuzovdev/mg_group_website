@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -124,14 +125,18 @@ def create_search(
         search_id = int(cur.lastrowid)
         row = conn.execute("SELECT * FROM car_searches WHERE id = ?", (search_id,)).fetchone()
     search = _search_row(row)
-    matches = matching_lots(search)
     # Remember the catalog that already exists. Telegram gets only a short sample,
     # then later cycles notify about lots that were not in the catalog yet.
-    sample = matches[:_NOTIFY_NOW]
-    rest_ids = [lot.id for lot in matches[_NOTIFY_NOW:]]
+    sample: list[AuctionLot] = []
+    rest_ids: list[str] = []
+    for lot in matching_lots(search):
+        if len(sample) < _NOTIFY_NOW:
+            sample.append(lot)
+        else:
+            rest_ids.append(lot.id)
     mark_hits(search["id"], rest_ids)
     search["sample"] = sample
-    search["catalog_count"] = len(matches)
+    search["catalog_count"] = len(sample) + len(rest_ids)
     return search
 
 
@@ -192,10 +197,21 @@ def matches(search: dict[str, Any], lot: AuctionLot) -> bool:
     return True
 
 
-def matching_lots(search: dict[str, Any]) -> list[AuctionLot]:
-    found = [lot for lot in lot_store.all() if matches(search, lot)]
-    found.sort(key=lambda lot: lot.auctionDate or "", reverse=True)
-    return found
+def matching_lots(search: dict[str, Any]) -> Iterator[AuctionLot]:
+    """Newest auction first. Lazy: a broad search must not load a whole region."""
+    where = ["sold = 0"]
+    params: list[Any] = []
+    for column, key in (("make_lc", "make"), ("model_lc", "model")):
+        value = (search.get(key) or "").strip().lower()
+        if value:
+            where.append(f"instr({column}, ?) > 0")
+            params.append(value)
+    region = (search.get("region") or "").strip().lower()
+    if region:
+        where.append("region = ?")
+        params.append(region)
+    pool = lot_store.iter_ordered(" AND ".join(where), params, order="auction_date DESC")
+    return (lot for lot in pool if matches(search, lot))
 
 
 def unseen_lots(search: dict[str, Any], *, limit: int) -> list[AuctionLot]:

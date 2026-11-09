@@ -144,6 +144,10 @@ def _is_browser_dead_error(exc: BaseException) -> bool:
     return any(n in msg for n in needles)
 
 
+_CHUNKED_SOURCES = {"bidcars", "china_market"}
+_CHINA_CYCLE_CAP_SECONDS = 4 * 60 * 60
+
+
 class SourceAgent:
     """One continuous scraper loop — owns a permanent tab in the shared Chrome."""
 
@@ -159,6 +163,8 @@ class SourceAgent:
         self.scrape = scrape
         self.mapper = mapper
         self.interval_seconds = interval_seconds
+        self._chunk_upserted = 0
+        self._chunk_new = 0
         self._blocked_streak = 0
         self.status = AgentStatus(name=name)
         self._stop = asyncio.Event()
@@ -285,12 +291,28 @@ class SourceAgent:
                 kwargs["page_size"] = min(50, settings.scraper_page_size)
             elif self.name == "china_market":
                 kwargs["max_pages"] = settings.scraper_max_pages_china_market
-                kwargs["page_size"] = min(48, settings.scraper_page_size)
+                kwargs["page_size"] = min(100, settings.scraper_page_size)
+
+                def _china_chunk(rows: list[dict[str, Any]]) -> None:
+                    lots = [lot for lot in (self.mapper(r) for r in rows) if lot]
+                    upserted, new = lot_store.upsert_many(lots)
+                    self.status.last_mapped += upserted
+                    self.status.last_new += new
+                    self._chunk_upserted += upserted
+                    self._chunk_new += new
+
+                self.status.last_mapped = 0
+                self.status.last_new = 0
+                self._chunk_upserted = 0
+                self._chunk_new = 0
+                kwargs["on_chunk"] = _china_chunk
 
             # Bid.cars: seed-first cycles finish in minutes; keep a hard cap anyway.
             cycle_cap = (
                 max(18, settings.scraper_bidcars_cycle_minutes) * 60
                 if self.name == "bidcars"
+                else _CHINA_CYCLE_CAP_SECONDS
+                if self.name == "china_market"
                 else 12 * 60
             )
             try:
@@ -316,17 +338,17 @@ class SourceAgent:
             mapped: list[AuctionLot] = []
             upserted = 0
             new_count = 0
-            # Bid.cars upserts page-by-page inside the scraper (full catalog).
+            # Bid.cars and China upsert page by page inside the scraper.
             if (
-                self.name == "bidcars"
+                self.name in _CHUNKED_SOURCES
                 and raw
                 and isinstance(raw[0], dict)
                 and raw[0].get("_ok")
             ):
                 stats["raw"] = int(raw[0].get("unique") or 0)
                 stats["mapped"] = int(raw[0].get("unique") or 0)
-                upserted = int(raw[0].get("upserted") or 0)
-                new_count = int(raw[0].get("new") or 0)
+                upserted = int(raw[0].get("upserted") or self._chunk_upserted)
+                new_count = int(raw[0].get("new") or self._chunk_new)
                 stats["upserted"] = upserted
                 stats["new"] = new_count
             else:
@@ -355,7 +377,7 @@ class SourceAgent:
                 "china_market": {"china_market"},
             }.get(self.name, {self.name})
             success = bool(mapped) or (
-                self.name == "bidcars" and int(stats.get("upserted") or 0) > 0
+                self.name in _CHUNKED_SOURCES and int(stats.get("upserted") or 0) > 0
             )
             # Never prune after an empty/failed cycle — that wiped USA/UK while
             # Bid.cars / Copart UK were blocked and left the catalog at 0.
@@ -785,7 +807,16 @@ class MultiAgentOrchestrator:
         agents: dict[str, SourceAgent] = {}
         for name in self._enabled_sources():
             scrape, mapper = specs[name]
-            agents[name] = SourceAgent(name, scrape, mapper, interval_seconds=interval)
+            agents[name] = SourceAgent(
+                name,
+                scrape,
+                mapper,
+                interval_seconds=(
+                    max(interval, settings.scraper_interval_seconds_china_market)
+                    if name == "china_market"
+                    else interval
+                ),
+            )
         return agents
 
     def _all_specs(self) -> dict[str, tuple[ScrapeFn, MapperFn]]:

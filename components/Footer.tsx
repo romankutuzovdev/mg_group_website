@@ -206,13 +206,13 @@ const Footer = ({ dictionary }: FooterProps) => {
             <h3 className="text-lg font-semibold mb-4">Адрес</h3>
             <div className="space-y-3">
               <a 
-                href="https://maps.google.com/?q=Гродно+Гаспадарчая+19"
+                href="https://maps.google.com/?q=Гродно+Медовая+1"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-start gap-2 text-white/55 hover:text-white group transition-colors"
               >
                 <MapPin className="h-4 w-4 mt-1 flex-shrink-0" />
-                <span>Г. Гродно, Ул. Гаспадарчая 19 каб.340/1 БЦ. Марро</span>
+                <span>Г. Гродно, Ул. Медовая 1</span>
                 <ExternalLink className="h-4 w-4 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
               </a>
               <div className="flex items-center gap-2 text-white/55">

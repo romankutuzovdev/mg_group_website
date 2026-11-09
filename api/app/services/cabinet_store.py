@@ -22,6 +22,8 @@ from app.models.cabinet import (
     DealOut,
     DealSpecs,
     DealStageOut,
+    ClaimStatus,
+    DealClaimOut,
     DealStatus,
     DealUpdate,
     DismantleCellOut,
@@ -42,8 +44,8 @@ from app.models.cabinet import (
 )
 from app.services.cabinet_admin import is_admin_telegram
 from app.services.dismantle_map_template import (
-    load_dismantle_template_for_region,
-    map_variant_for_region,
+    load_dismantle_template_for_deal,
+    map_variant_for_deal,
 )
 from app.services.passwords import (
     hash_password,
@@ -145,6 +147,23 @@ class CabinetStore:
 
     def _migrate_schema(self, conn: sqlite3.Connection) -> None:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(deals)").fetchall()}
+        if "car_status" not in cols:
+            conn.execute("ALTER TABLE deals ADD COLUMN car_status TEXT NOT NULL DEFAULT ''")
+        media_cols = {r[1] for r in conn.execute("PRAGMA table_info(deal_media)").fetchall()}
+        if "claim_id" not in media_cols:
+            conn.execute("ALTER TABLE deal_media ADD COLUMN claim_id INTEGER")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS deal_claims (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              deal_id INTEGER NOT NULL,
+              user_id INTEGER NOT NULL,
+              text TEXT NOT NULL,
+              status TEXT NOT NULL DEFAULT 'open',
+              created_at TEXT NOT NULL
+            )
+            """
+        )
         if "origin_region" not in cols:
             conn.execute(
                 "ALTER TABLE deals ADD COLUMN origin_region TEXT NOT NULL DEFAULT 'usa'"
@@ -152,6 +171,10 @@ class CabinetStore:
         if "origin_point" not in cols:
             conn.execute(
                 "ALTER TABLE deals ADD COLUMN origin_point TEXT NOT NULL DEFAULT 'dismantle'"
+            )
+        if "dismantle_yard" not in cols:
+            conn.execute(
+                "ALTER TABLE deals ADD COLUMN dismantle_yard TEXT NOT NULL DEFAULT ''"
             )
         if "price" not in cols:
             conn.execute("ALTER TABLE deals ADD COLUMN price REAL NOT NULL DEFAULT 0")
@@ -852,6 +875,7 @@ class CabinetStore:
             lot_number=row["lot_number"] or "",
             lot_url=lot_url,
             tracking_url=tracking_url,
+            car_status=(row["car_status"] if "car_status" in keys else "") or "",
             dismantle_photos_url=dismantle_photos_url,
             status=row["status"],  # type: ignore[arg-type]
             note=row["note"] or "",
@@ -860,6 +884,7 @@ class CabinetStore:
             kind=kind,
             origin_region=region,
             origin_point=point,
+            dismantle_yard=row["dismantle_yard"] if "dismantle_yard" in row.keys() else "",
             specs=specs,
             client_telegram_id=client_tg,
             client_name=client_name,
@@ -882,13 +907,44 @@ class CabinetStore:
                 else []
             ),
             media=self._load_media(conn, deal_id) if with_details else [],
+            claims=self._load_claims(conn, deal_id) if with_details else [],
         )
 
-    def _load_media(self, conn: sqlite3.Connection, deal_id: int) -> list[DealMediaOut]:
+    def _load_claims(self, conn: sqlite3.Connection, deal_id: int) -> list[DealClaimOut]:
         rows = conn.execute(
-            "SELECT * FROM deal_media WHERE deal_id = ? ORDER BY id",
+            "SELECT * FROM deal_claims WHERE deal_id = ? ORDER BY id DESC",
             (deal_id,),
         ).fetchall()
+        return [
+            DealClaimOut(
+                id=int(r["id"]),
+                deal_id=deal_id,
+                text=r["text"] or "",
+                status=r["status"],  # type: ignore[arg-type]
+                created_at=r["created_at"] or "",
+                photos=self._load_media(conn, deal_id, claim_id=int(r["id"])),
+            )
+            for r in rows
+        ]
+
+    def _load_media(
+        self,
+        conn: sqlite3.Connection,
+        deal_id: int,
+        *,
+        claim_id: int | None = None,
+    ) -> list[DealMediaOut]:
+        # Фото из заметок клиента живут в своей заметке, а не в галерее сделки.
+        if claim_id is None:
+            rows = conn.execute(
+                "SELECT * FROM deal_media WHERE deal_id = ? AND claim_id IS NULL ORDER BY id",
+                (deal_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM deal_media WHERE deal_id = ? AND claim_id = ? ORDER BY id",
+                (deal_id, claim_id),
+            ).fetchall()
         uploads = self._uploads()
         out: list[DealMediaOut] = []
         for r in rows:
@@ -926,6 +982,42 @@ class CabinetStore:
                     "SELECT * FROM deals ORDER BY updated_at DESC"
                 ).fetchall()
                 return [self._deal_from_row(conn, r, with_details=True) for r in rows]
+
+    def list_deals_for_manager(self, manager_id: int) -> list[DealOut]:
+        """Deals assigned to the manager or belonging to the manager's clients."""
+        with self._lock:
+            with self._conn() as conn:
+                rows = conn.execute(
+                    """
+                    SELECT d.* FROM deals d
+                    LEFT JOIN users u ON u.id = d.user_id
+                    WHERE d.created_by_user_id = ? OR u.manager_user_id = ?
+                    ORDER BY d.updated_at DESC
+                    """,
+                    (manager_id, manager_id),
+                ).fetchall()
+                return [self._deal_from_row(conn, r, with_details=True) for r in rows]
+
+    def manager_owns_deal(self, *, manager_id: int, deal_id: int) -> bool:
+        with self._lock:
+            with self._conn() as conn:
+                row = conn.execute(
+                    """
+                    SELECT 1 FROM deals d
+                    LEFT JOIN users u ON u.id = d.user_id
+                    WHERE d.id = ? AND (d.created_by_user_id = ? OR u.manager_user_id = ?)
+                    """,
+                    (deal_id, manager_id, manager_id),
+                ).fetchone()
+                return row is not None
+
+    def media_deal_id(self, media_id: int) -> int | None:
+        with self._lock:
+            with self._conn() as conn:
+                row = conn.execute(
+                    "SELECT deal_id FROM deal_media WHERE id = ?", (media_id,)
+                ).fetchone()
+                return int(row["deal_id"]) if row else None
 
     def list_users(self) -> list[UserOut]:
         with self._lock:
@@ -1009,6 +1101,7 @@ class CabinetStore:
                 region: OriginRegion = data.origin_region
                 if kind == "kit" and region not in ("usa", "uk"):
                     region = "usa"
+                yard = data.dismantle_yard if kind == "kit" and region == "usa" else ""
                 # Приоритет: явно переданный → закреплённый за клиентом → кто создаёт сделку
                 client_owner = 0
                 try:
@@ -1040,11 +1133,11 @@ class CabinetStore:
                     INSERT INTO deals (
                       user_id, title, vin, lot_number, lot_url, tracking_url,
                       dismantle_photos_url, status, note,
-                      price, currency, kind, origin_region, origin_point, specs_json,
-                      created_by_user_id, payment_stage1_due, payment_stage2_due,
+                      price, currency, kind, origin_region, origin_point, dismantle_yard,
+                      specs_json, created_by_user_id, payment_stage1_due, payment_stage2_due,
                       created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         user_id,
@@ -1061,6 +1154,7 @@ class CabinetStore:
                         kind,
                         region,
                         origin_point,
+                        yard,
                         specs_json,
                         manager_id,
                         due1,
@@ -1130,8 +1224,17 @@ class CabinetStore:
                     fields["currency"] = data.currency if data.currency in ("USD", "GBP") else "USD"
                 if data.status is not None:
                     fields["status"] = data.status
+                if data.car_status is not None:
+                    fields["car_status"] = data.car_status
                 if data.origin_region is not None:
                     fields["origin_region"] = data.origin_region
+                if data.dismantle_yard is not None and data.dismantle_yard != row["dismantle_yard"]:
+                    # Другая разборка — другой бланк: отмеченная клиентом карта не должна исчезнуть.
+                    if self.was_dismantle_completed(deal_id):
+                        raise ValueError(
+                            "Карта разбора уже заполнена. Снимите отметку, потом меняйте разборку"
+                        )
+                    fields["dismantle_yard"] = data.dismantle_yard
                 if data.kind is not None:
                     kind: DealKind = data.kind if data.kind in ("car", "kit") else "kit"
                     fields["kind"] = kind
@@ -1307,6 +1410,7 @@ class CabinetStore:
         stage_key: StageKey | None = None,
         caption: str = "",
         content_type: str = "",
+        claim_id: int | None = None,
     ) -> DealMediaOut:
         with self._lock:
             with self._conn() as conn:
@@ -1325,8 +1429,10 @@ class CabinetStore:
                 now = _now()
                 cur = conn.execute(
                     """
-                    INSERT INTO deal_media (deal_id, stage_key, kind, path, filename, caption, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO deal_media (
+                      deal_id, stage_key, kind, path, filename, caption, created_at, claim_id
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         deal_id,
@@ -1336,6 +1442,7 @@ class CabinetStore:
                         safe_name,
                         caption.strip(),
                         now,
+                        claim_id,
                     ),
                 )
                 conn.execute(
@@ -1369,6 +1476,52 @@ class CabinetStore:
                 if not path.is_file():
                     return None
                 return path, row["filename"] or path.name, row["kind"] or "document"
+
+    def create_claim(
+        self,
+        *,
+        deal_id: int,
+        user_id: int,
+        text: str,
+        photos: list[tuple[bytes, str, str]],
+    ) -> DealOut:
+        """Заметка клиента о недостаче. photos: (content, filename, content_type)."""
+        with self._lock:
+            with self._conn() as conn:
+                cur = conn.execute(
+                    """
+                    INSERT INTO deal_claims (deal_id, user_id, text, status, created_at)
+                    VALUES (?, ?, ?, 'open', ?)
+                    """,
+                    (deal_id, user_id, text.strip(), _now()),
+                )
+                conn.commit()
+                claim_id = int(cur.lastrowid)
+            for content, filename, content_type in photos:
+                self.add_media(
+                    deal_id=deal_id,
+                    kind="photo",
+                    content=content,
+                    filename=filename,
+                    content_type=content_type,
+                    claim_id=claim_id,
+                )
+            deal = self.get_deal(deal_id)
+            if deal is None:
+                raise KeyError("deal not found")
+            return deal
+
+    def set_claim_status(self, deal_id: int, claim_id: int, status: ClaimStatus) -> DealOut | None:
+        with self._lock:
+            with self._conn() as conn:
+                cur = conn.execute(
+                    "UPDATE deal_claims SET status = ? WHERE id = ? AND deal_id = ?",
+                    (status, claim_id, deal_id),
+                )
+                conn.commit()
+                if cur.rowcount == 0:
+                    return None
+            return self.get_deal(deal_id)
 
     def media_belongs_to_user(self, media_id: int, user_id: int) -> bool:
         with self._lock:
@@ -1439,8 +1592,8 @@ class CabinetStore:
         if not deal:
             return None
         origin_region = (deal.origin_region or "usa").strip().lower()
-        variant = map_variant_for_region(origin_region)
-        template = load_dismantle_template_for_region(origin_region)
+        variant = map_variant_for_deal(origin_region, deal.dismantle_yard)
+        template = load_dismantle_template_for_deal(origin_region, deal.dismantle_yard)
         with self._lock:
             with self._conn() as conn:
                 meta = conn.execute(
@@ -1488,7 +1641,7 @@ class CabinetStore:
 
         cols_raw = template.get("columns") or {}
         columns = DismantleMapColumns(
-            qty=str(cols_raw.get("qty") or ("Снять" if variant == "usa" else "Кол")),
+            qty=str(cols_raw.get("qty") or ("Кол" if variant == "uk" else "Снять")),
             qty_hint=cols_raw.get("qtyHint"),
             packing=cols_raw.get("packing"),
             note=str(cols_raw.get("note") or "Примечание"),
@@ -1521,6 +1674,10 @@ class CabinetStore:
             title=str(template.get("title") or "Карта разбора"),
             variant=variant,
             origin_region=origin_region if origin_region in ("usa", "uk") else "usa",
+            dismantle_yard=deal.dismantle_yard if origin_region != "uk" else "",
+            lot_number=deal.lot_number or "",
+            vin=deal.vin or "",
+            deal_title=deal.title or "",
             vehicle_label=vehicle_label,
             vehicle_header_hint=str(template.get("vehicleHeaderHint") or ""),
             general_note=general_note,
@@ -1643,7 +1800,7 @@ class CabinetStore:
         if not key:
             raise ValueError("item_key required")
 
-        template = load_dismantle_template_for_region(deal.origin_region)
+        template = load_dismantle_template_for_deal(deal.origin_region, deal.dismantle_yard)
         item = next((i for i in (template.get("items") or []) if str(i.get("key")) == key), None)
         if item is None:
             raise KeyError("item not found")

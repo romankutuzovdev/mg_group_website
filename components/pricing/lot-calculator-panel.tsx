@@ -15,7 +15,13 @@ import {
   type KoreaQuote,
 } from "@/lib/pricing/korea-quote";
 import { fetchKrwUsdtRate } from "@/lib/pricing/krw-usdt-rate";
-import type { RestorationQuote } from "@/lib/pricing/restoration-quote";
+import {
+  KLAIPEDA_MINSK_NOTE,
+  POTI_MINSK_RATES,
+  defaultPotiVehicle,
+  type PotiVehicle,
+  type RestorationQuote,
+} from "@/lib/pricing/restoration-quote";
 import { listTitleTariffs } from "@/lib/pricing/usa-title";
 import type { VehicleSize } from "@/lib/pricing/usa-delivery";
 import { CopartQuoteDisplay } from "./quote-display";
@@ -91,7 +97,17 @@ function RestorationQuoteLines({ quote }: { quote: RestorationQuote }) {
         label={`Комиссия ${(quote.transferFeeRate * 100).toFixed(1)}%`}
         value={usd(quote.transferFee, 2)}
       />
+      {quote.minskDeliveryUsd > 0 ? (
+        <Line
+          label={quote.minskDeliveryLabel}
+          value={usd(quote.minskDeliveryUsd)}
+          hint={quote.minskDeliveryHint || undefined}
+        />
+      ) : null}
       <Line label="Цена с доставкой" value={usd(Math.round(quote.grandUsd))} total />
+      {quote.delivery?.oceanDestination === "klaipeda" ? (
+        <p className="pt-1 text-xs text-text-muted">{KLAIPEDA_MINSK_NOTE}</p>
+      ) : null}
     </dl>
   );
 }
@@ -101,6 +117,7 @@ function UsaRestorationPanel({ lot }: { lot: AuctionLot }) {
   const [bidText, setBidText] = useState(String(lot.currentBid));
   const [size, setSize] = useState<VehicleSize>("regular");
   const [oceanDest, setOceanDest] = useState<"klaipeda" | "poti">("klaipeda");
+  const [potiVehicle, setPotiVehicle] = useState<PotiVehicle | null>(null);
   const matchedTitle =
     TITLE_OPTIONS.find((t) => t.name.toLowerCase() === lot.titleLabel.toLowerCase())?.name ??
     TITLE_OPTIONS[0]?.name ??
@@ -117,19 +134,20 @@ function UsaRestorationPanel({ lot }: { lot: AuctionLot }) {
         bid,
         auctionFeesUsd: fees,
         oceanDestination: oceanDest,
+        potiVehicle: potiVehicle ?? undefined,
         vehicleSize: size,
         titleCode,
         isSublot,
       }),
-    [lot, bid, fees, oceanDest, size, titleCode, isSublot],
+    [lot, bid, fees, oceanDest, potiVehicle, size, titleCode, isSublot],
   );
 
   return (
     <div className="card-premium rounded-xl p-5 sm:p-6">
       <h2 className="font-display text-lg font-semibold">Цена с доставкой</h2>
       <p className="mt-1 text-xs text-text-muted">
-        Просчёт авто: ставка, аукционный сбор IAAI, Title и доставка Klaipeda / Poti. Без разбора и без
-        таможни.
+        Просчёт авто: ставка, аукционный сбор IAAI, Title и доставка Klaipeda / Poti. Считаем до
+        Минска. Без разбора и без таможни.
       </p>
 
       <div className="mt-4 space-y-3">
@@ -204,6 +222,23 @@ function UsaRestorationPanel({ lot }: { lot: AuctionLot }) {
             Sublot / Offsite (+$100)
           </label>
         </div>
+
+        {oceanDest === "poti" ? (
+          <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
+            Тип для доставки Поти → Минск
+            <select
+              value={potiVehicle ?? defaultPotiVehicle(size)}
+              onChange={(e) => setPotiVehicle(e.target.value as PotiVehicle)}
+              className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal text-text-primary"
+            >
+              {POTI_MINSK_RATES.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label} (${r.usd.toLocaleString("en-US")})
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
         <p className="text-xs text-text-muted">
           Площадка: <span className="font-medium text-text-secondary">{platform.toUpperCase()}</span>

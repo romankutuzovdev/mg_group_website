@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { FormEvent, useEffect, useState } from "react";
 import {
   fetchMe,
@@ -14,6 +15,8 @@ import {
   acceptCabinetPolicyConsent,
 } from "@/lib/cabinet-consent";
 import { ConsentCheck } from "@/components/site/consent-check";
+import type { CalculatorMode } from "@/components/pricing/site-calculator";
+import { PasswordInput } from "@/components/site/password-input";
 
 type Status = "loading" | "guest" | "user";
 
@@ -33,14 +36,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-export function CalculatorGate({
-  children,
-  showOverview = false,
-}: {
-  children: React.ReactNode;
-  /** После входа показать список доступных калькуляторов */
-  showOverview?: boolean;
-}) {
+/** Calculators live in the cabinet; this is what a public /calculator/* page shows. */
+export function CalculatorGate({ calc }: { calc?: CalculatorMode }) {
+  const router = useRouter();
+  const cabinetHref = `/cabinet/?tab=calculators${calc ? `&calc=${calc}` : ""}`;
   const [status, setStatus] = useState<Status>("guest");
   const [error, setError] = useState<string | null>(null);
   const [login, setLogin] = useState("");
@@ -71,6 +70,12 @@ export function CalculatorGate({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (status === "user") void router.replace(cabinetHref);
+    // router is not stable across renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, cabinetHref]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -115,10 +120,10 @@ export function CalculatorGate({
       <div className="mx-auto max-w-xl rounded-2xl border border-stone-200 bg-white p-6 sm:p-9">
         <p className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-accent-dark">Защищённый расчёт</p>
         <h2 className="mx-auto mt-3 max-w-md text-center font-display text-2xl font-semibold tracking-[-0.03em] text-stone-950 sm:text-3xl">
-          Войдите, чтобы продолжить
+          Калькуляторы доступны после авторизации
         </h2>
         <p className="mx-auto mt-3 max-w-md text-center text-sm leading-relaxed text-stone-500">
-          Используйте телефон или логин клиента. Расчёты сохранятся в кабинете и будут доступны менеджеру.
+          Есть калькуляторы для авто, машинокомплекта и растаможки. Они доступны в личном кабинете после входа или регистрации.
         </p>
         <form onSubmit={(e) => void submit(e)} className="mt-7 space-y-4 text-left">
           <label className="block text-sm">
@@ -133,9 +138,9 @@ export function CalculatorGate({
           </label>
           <label className="block text-sm">
             <span className="text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">Пароль</span>
-            <input
-              type="password"
-              className="mt-2 h-12 w-full rounded-xl border border-stone-200 bg-stone-50 px-4 text-sm outline-none transition hover:border-stone-300 focus:border-accent-dark focus:bg-white focus:ring-2 focus:ring-accent/15"
+            <PasswordInput
+              wrapperClassName="mt-2"
+              className="h-12 w-full rounded-xl border border-stone-200 bg-stone-50 px-4 text-sm outline-none transition hover:border-stone-300 focus:border-accent-dark focus:bg-white focus:ring-2 focus:ring-accent/15"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
@@ -184,24 +189,15 @@ export function CalculatorGate({
             {busy ? "Входим…" : "Войти"}
           </button>
         </form>
-        <p className="mt-5 text-center text-xs text-text-muted">
-          Нет аккаунта?{" "}
-          <Link href="/cabinet/" className="font-semibold text-emerald-800 underline underline-offset-2">
-            Личный кабинет
-          </Link>
-        </p>
+        <Link
+          href={`${cabinetHref}&auth=register`}
+          className="mt-3 flex min-h-12 w-full items-center justify-center rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-950 transition hover:border-accent-dark hover:text-accent-dark"
+        >
+          Зарегистрироваться
+        </Link>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-5">
-      {showOverview ? (
-        <p className="rounded-xl border border-stone-200 bg-white px-5 py-4 text-sm text-stone-600">
-          Здесь есть калькулятор для машинокомплекта (США и Англия), авто под восстановление и растаможка.
-        </p>
-      ) : null}
-      {children}
-    </div>
-  );
+  return <p className="text-center text-sm text-text-muted">Открываем калькуляторы в кабинете…</p>;
 }
