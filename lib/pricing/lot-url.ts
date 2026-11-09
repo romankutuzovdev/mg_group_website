@@ -39,13 +39,13 @@ export function kitLotUrlError(raw: string): string | null {
   return null;
 }
 
-/** Авто под восстановление: только США. */
+/** Авто под восстановление: только ссылка Bid.cars (сбор берётся с Bid.cars). */
 export function restorationLotUrlError(raw: string): string | null {
   const host = lotHost(raw);
-  if (!raw.trim()) return "Вставьте ссылку IAAI, Bid.cars или Copart.com";
-  if (host === "copart_uk") {
-    return "Авто под восстановление считается только по США: IAAI, Bid.cars или Copart.com";
+  if (!raw.trim()) return "Вставьте ссылку на лот с Bid.cars";
+  if (host === "bidcars") return null;
+  if (host === "iaai" || host === "copart_com" || host === "copart_uk") {
+    return "Авто под восстановление считается только по ссылке Bid.cars. Найдите этот лот на bid.cars и вставьте ссылку оттуда";
   }
-  if (host === "other") return "Нужна ссылка IAAI, Bid.cars или Copart.com";
-  return null;
+  return "Нужна ссылка на лот с Bid.cars: https://bid.cars/…/lot/…";
 }

@@ -43,6 +43,7 @@ from app.models.cabinet import (
     stage_label,
 )
 from app.services.cabinet_admin import is_admin_telegram
+from app.services.dismantle_header import dismantle_header_lines
 from app.services.dismantle_map_template import (
     load_dismantle_template_for_deal,
     map_variant_for_deal,
@@ -317,6 +318,10 @@ class CabinetStore:
         if "general_note" not in meta_cols:
             conn.execute(
                 "ALTER TABLE deal_dismantle_meta ADD COLUMN general_note TEXT NOT NULL DEFAULT ''"
+            )
+        if "yard_code" not in meta_cols:
+            conn.execute(
+                "ALTER TABLE deal_dismantle_meta ADD COLUMN yard_code TEXT NOT NULL DEFAULT ''"
             )
         conn.execute(
             """
@@ -1659,6 +1664,7 @@ class CabinetStore:
         completed = False
         completed_at: str | None = None
         general_note = ""
+        yard_code = ""
         if meta is not None:
             keys = meta.keys()
             if "completed" in keys:
@@ -1667,6 +1673,12 @@ class CabinetStore:
                 completed_at = str(meta["completed_at"])
             if "general_note" in keys and meta["general_note"]:
                 general_note = str(meta["general_note"] or "")
+            if "yard_code" in keys and meta["yard_code"]:
+                yard_code = str(meta["yard_code"] or "").strip()
+
+        header_lines = (
+            dismantle_header_lines(deal) if variant == "usa_nj" else []
+        )
 
         cols_raw = template.get("columns") or {}
         columns = DismantleMapColumns(
@@ -1710,6 +1722,8 @@ class CabinetStore:
             vehicle_label=vehicle_label,
             vehicle_header_hint=str(template.get("vehicleHeaderHint") or ""),
             general_note=general_note,
+            header_lines=header_lines,
+            yard_code=yard_code,
             sections=list(template.get("sections") or []),
             cells=cells,
             columns=columns,
@@ -1744,7 +1758,11 @@ class CabinetStore:
                 if was_completed and not allow_unlock:
                     if data.completed is False:
                         raise ValueError("map_locked_contact_manager")
-                    if data.vehicle_label is not None or data.general_note is not None:
+                    if (
+                        data.vehicle_label is not None
+                        or data.general_note is not None
+                        or data.yard_code is not None
+                    ):
                         raise ValueError("map_locked_contact_manager")
 
                 vehicle_label = (
@@ -1760,6 +1778,14 @@ class CabinetStore:
                     if data.general_note is not None
                     else prev_note
                 )
+                prev_code = ""
+                if existing is not None and "yard_code" in existing.keys():
+                    prev_code = str(existing["yard_code"] or "")
+                yard_code = (
+                    data.yard_code.strip()[:32]
+                    if data.yard_code is not None
+                    else prev_code
+                )
                 completed = int(existing["completed"] or 0) if existing and "completed" in existing.keys() else 0
                 completed_at = (
                     existing["completed_at"]
@@ -1773,16 +1799,17 @@ class CabinetStore:
                 conn.execute(
                     """
                     INSERT INTO deal_dismantle_meta
-                      (deal_id, vehicle_label, general_note, updated_at, completed, completed_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                      (deal_id, vehicle_label, general_note, yard_code, updated_at, completed, completed_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(deal_id) DO UPDATE SET
                       vehicle_label = excluded.vehicle_label,
                       general_note = excluded.general_note,
+                      yard_code = excluded.yard_code,
                       updated_at = excluded.updated_at,
                       completed = excluded.completed,
                       completed_at = excluded.completed_at
                     """,
-                    (deal_id, vehicle_label, general_note, now, completed, completed_at),
+                    (deal_id, vehicle_label, general_note, yard_code, now, completed, completed_at),
                 )
                 conn.execute(
                     "UPDATE deals SET updated_at = ? WHERE id = ?",

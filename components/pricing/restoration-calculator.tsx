@@ -5,8 +5,10 @@ import { CustomsByPanel } from "@/components/pricing/customs-by-panel";
 import { useRecordQuote } from "@/components/pricing/use-record-quote";
 import type { CustomsByResult } from "@/lib/pricing/customs-by";
 import {
-  estimateIaaiAuctionFeesUsd,
-} from "@/lib/auctions/lot-quote";
+  bidcarsFeeProfileFrom,
+  estimateBidcarsAuctionFees,
+  type BidcarsFeeProfile,
+} from "@/lib/pricing/bidcars-fees";
 import {
   KLAIPEDA_MINSK_NOTE,
   POTI_MINSK_RATES,
@@ -59,6 +61,15 @@ export function RestorationCalculator() {
   const [oceanOverride, setOceanOverride] = useState("");
   const [customs, setCustoms] = useState<CustomsByResult | null>(null);
   const [touched, setTouched] = useState(false);
+  /** Профиль сборов со страницы Bid.cars (грузовой / Rec Rides / Crashed Toys). */
+  const [feeProfile, setFeeProfile] = useState<BidcarsFeeProfile | null>(null);
+  /** Сбор, прочитанный прямо со страницы Bid.cars при загруженной ставке. */
+  const [liveFee, setLiveFee] = useState<{
+    bid: number;
+    auction: "iaai" | "copart";
+    total: number;
+    lines: { label: string; amount: number }[];
+  } | null>(null);
 
   const onCustoms = useCallback((r: CustomsByResult | null) => setCustoms(r), []);
 
@@ -81,22 +92,36 @@ export function RestorationCalculator() {
       const lotIsUk =
         lot.region === "uk" ||
         lot.source === "copart_uk" ||
-        lotHost(lot.url || "") === "copart_uk" ||
-        lotHost(url) === "copart_uk";
+        lotHost(lot.url || "") === "copart_uk";
       if (lotIsUk) {
-        setLotError("Авто под восстановление считается только по США: IAAI, Bid.cars или Copart.com");
+        setLotError("Авто под восстановление считается только по США. Вставьте ссылку Bid.cars на лот Copart или IAAI из США");
         return;
       }
-      const host = lotHost(url);
       const auction: "iaai" | "copart" =
-        host === "copart_com"
-          ? "copart"
-          : host === "iaai"
-            ? "iaai"
-            : lot.auction_platform === "copart" || lot.source === "copart"
-              ? "copart"
-              : "iaai";
-      if (lot.bid != null && Number(lot.bid) > 0) setBidText(String(Math.round(Number(lot.bid))));
+        lot.bidcarsFees?.auctionType === "copart" ||
+        lot.bidcarsFees?.auctionType === "iaai"
+          ? lot.bidcarsFees.auctionType
+          : lot.auction_platform === "copart" || lot.source === "copart"
+            ? "copart"
+            : "iaai";
+      setFeeProfile(bidcarsFeeProfileFrom(lot.bidcarsFees, auction));
+      const loadedBid = lot.bid != null && Number(lot.bid) > 0 ? Math.round(Number(lot.bid)) : null;
+      const liveFees = lot.auctionFeesUsd ?? lot.bidcarsFees?.feesUsd;
+      setLiveFee(
+        loadedBid != null &&
+          lot.bidcarsFees?.live &&
+          liveFees != null &&
+          lot.bidcarsFees.atBid != null &&
+          Math.abs(Number(lot.bidcarsFees.atBid) - loadedBid) < 1
+          ? {
+              bid: loadedBid,
+              auction,
+              total: Math.round(Number(liveFees)),
+              lines: lot.bidcarsFees?.lines ?? [],
+            }
+          : null,
+      );
+      if (loadedBid != null) setBidText(String(loadedBid));
       if (lot.year) setYearText(String(lot.year));
       if (lot.title) {
         const titleLow = String(lot.title).toLowerCase();
@@ -137,7 +162,13 @@ export function RestorationCalculator() {
   }, [lotUrl]);
 
   const bid = Number(bidText) || 0;
-  const fees = estimateIaaiAuctionFeesUsd(bid);
+  const feeCalc = useMemo(
+    () => estimateBidcarsAuctionFees(bid, { ...(feeProfile ?? {}), auction: platform }),
+    [bid, feeProfile, platform],
+  );
+  const feeFromPage = liveFee != null && liveFee.bid === bid && liveFee.auction === platform;
+  const fees = feeFromPage ? liveFee.total : feeCalc.total;
+  const feeLines = feeFromPage && liveFee.lines.length ? liveFee.lines : feeCalc.lines;
   const year = Number(yearText) || null;
 
   const yards = platform === "copart" ? COPART_YARDS : IAAI_YARDS;
@@ -210,7 +241,7 @@ export function RestorationCalculator() {
           </p>
 
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted sm:col-span-2">
-            Ссылка на лот (IAAI / Bid.cars / Copart.com)
+            Ссылка на лот (Bid.cars)
             <div className="mt-1 flex flex-col gap-2 sm:flex-row">
               <input
                 type="url"
@@ -222,7 +253,7 @@ export function RestorationCalculator() {
                     void loadFromUrl();
                   }
                 }}
-                placeholder="https://www.iaai.com/… или https://www.copart.com/lot/…"
+                placeholder="https://bid.cars/en/lot/…"
                 className="w-full flex-1 rounded-lg border border-border px-3 py-2 text-sm text-text-primary"
               />
               <LotLoadButton loading={lotLoading} onClick={() => void loadFromUrl()} />
@@ -250,7 +281,10 @@ export function RestorationCalculator() {
               className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-lg font-semibold text-text-primary"
             />
             <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-text-muted">
-              Аукционный сбор считается сам по ставке: {usd(fees)}
+              Аукционный сбор как на Bid.cars{feeFromPage ? " (со страницы лота)" : ""}: {usd(fees)}
+            </span>
+            <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-text-muted">
+              {feeLines.map((l) => `${l.label}: ${usd(l.amount)}`).join(" · ")}
             </span>
           </label>
 
@@ -446,7 +480,7 @@ export function RestorationCalculator() {
                 )}
                 <dl className="mt-4 space-y-2 text-sm">
                   <Line label="Ставка" value={usd(quote.bid)} />
-                  <Line label="Аукционный сбор" value={usd(quote.auctionFeesUsd)} />
+                  <Line label="Аукционный сбор" value={usd(quote.auctionFeesUsd)} hint="как на Bid.cars" />
                   {quote.delivery ? (
                     <>
                       <Line

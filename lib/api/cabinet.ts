@@ -865,6 +865,27 @@ export async function adminUpdateDeal(
   });
 }
 
+/** Подтянуть характеристики сделки (цвет, двигатель, …) из лота в каталоге. Пустые поля, или все при overwrite. */
+export async function adminFillDealSpecsFromLot(
+  dealId: number,
+  opts: { overwrite?: boolean } = {},
+): Promise<Deal> {
+  const q = opts.overwrite ? "?overwrite=true" : "";
+  return cabinetFetch(`/api/v1/admin/deals/${dealId}/specs-from-lot${q}`, { method: "POST" });
+}
+
+export type SpecsBackfillResult = {
+  updated: number[];
+  unchanged: number[];
+  not_found: number[];
+  checked: number;
+};
+
+/** Заполнить из каталога пустые характеристики у всех сделок без цвета или двигателя. */
+export async function adminBackfillDealSpecs(): Promise<SpecsBackfillResult> {
+  return cabinetFetch(`/api/v1/admin/deals/specs-backfill`, { method: "POST" });
+}
+
 export async function adminUpdatePayment(
   dealId: number,
   /** paid_on — дата оплаты YYYY-MM-DD из календаря; без неё сервер ставит «сейчас». */
@@ -1109,6 +1130,10 @@ export type DismantleMap = {
   vehicle_label: string;
   vehicle_header_hint: string;
   general_note?: string;
+  /** Шапка бланка New Jersey: «авто · цвет · VIN» и «Engine · Stock#». */
+  header_lines?: string[];
+  /** Код машины на разборке (New Jersey, «X000»). Ставит менеджер. */
+  yard_code?: string;
   sections: string[];
   cells: DismantleCell[];
   columns?: DismantleMapColumns;
@@ -1124,7 +1149,7 @@ export async function fetchDismantleMap(dealId: number): Promise<DismantleMap> {
 
 export async function patchDismantleMeta(
   dealId: number,
-  body: { vehicle_label?: string; general_note?: string; completed?: boolean },
+  body: { vehicle_label?: string; general_note?: string; completed?: boolean; yard_code?: string },
 ): Promise<DismantleMap> {
   return cabinetFetch(`/api/v1/me/deals/${dealId}/dismantle-map`, {
     method: "PATCH",

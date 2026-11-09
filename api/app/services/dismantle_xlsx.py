@@ -130,70 +130,116 @@ def _build_uk_xlsx(data: DismantleMapOut) -> bytes:
 
 
 def _build_usa_nj_xlsx(data: DismantleMapOut) -> bytes:
-    """New Jersey yard form: same layout as the paper blank, Done stays for the yard."""
+    """New Jersey yard form: header and columns exactly as «ШАБЛОН РАЗБОРА X.xlsx».
+
+    Row 1: ``<car>    <color>     VIN: …`` (A1:D1) and the yard car code (E1:E2).
+    Row 2: ``Engine: …     Stock#: …`` (A2:D2). Row 3: column titles. Items from row 4.
+    """
     wb = Workbook()
     ws = wb.active
     ws.title = "Бланк разбора"
 
-    thin = Border(
-        left=Side(style="thin", color="000000"),
-        right=Side(style="thin", color="000000"),
-        top=Side(style="thin", color="000000"),
-        bottom=Side(style="thin", color="000000"),
-    )
-    bold = Font(name="Arial", size=10, bold=True)
+    black = Side(style="thin", color="000000")
+    thin = Border(left=black, right=black, top=black, bottom=black)
+    medium_side = Side(style="medium", color="000000")
+    medium = Border(left=medium_side, right=medium_side, top=medium_side, bottom=medium_side)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+    title_font = Font(name="Calibri", size=12, bold=True)
+    engine_font = Font(name="Calibri", size=11, bold=True)
+    code_font = Font(name="Calibri", size=20, bold=True)
+    head_font = Font(name="Arial", size=10, bold=True)
+    head_small = Font(name="Arial", size=7, bold=True)
+    section_font = Font(name="Arial", size=10, bold=True)
+    num_font = Font(name="Calibri", size=10)
+    name_font = Font(name="Calibri", size=11)
     plain = Font(name="Calibri", size=10)
 
-    def merged_row(row: int, text: str, font: Font, align: Alignment) -> None:
-        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=5)
-        ws.cell(row=row, column=1, value=_cell_value(text)).font = font
-        ws.cell(row=row, column=1).alignment = align
-        for col in range(1, 6):
+    lines = list(data.header_lines or [])
+    if len(lines) < 2:
+        lot = data.lot_number or "—"
+        lines = [
+            f"{(data.deal_title or '—').upper()}     VIN: {data.vin or '—'}",
+            f"Engine: —     Stock#: {lot}",
+        ]
+
+    ws.merge_cells("A1:D1")
+    ws["A1"] = _cell_value(lines[0])
+    ws["A1"].font = title_font
+    ws["A1"].alignment = center
+    ws.merge_cells("A2:D2")
+    ws["A2"] = _cell_value(lines[1])
+    ws["A2"].font = engine_font
+    ws["A2"].alignment = center
+    for row in (1, 2):
+        for col in range(1, 5):
             ws.cell(row=row, column=col).border = thin
 
-    header = f"Lot: # {data.lot_number or '—'}    VIN: {data.vin or '—'}    Model: {data.deal_title or '—'}"
-    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    merged_row(1, header, plain, center)
-    for col in range(1, 6):
-        ws.cell(row=1, column=col).fill = PatternFill("solid", fgColor="EEEEEE")
+    ws.merge_cells("E1:E2")
+    ws["E1"] = _cell_value((data.yard_code or "").strip())
+    ws["E1"].font = code_font
+    ws["E1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["E1"].border = medium
+    ws["E2"].border = medium
 
-    headers = ["#", "Наименование / Part name", "Order", "Done", "Примечание/Сustomer notes"]
-    for col, text in enumerate(headers, start=1):
-        cell = ws.cell(row=2, column=col, value=text)
-        cell.font = bold
+    headers = [
+        ("#", head_font),
+        ("Наименование / Part name", head_font),
+        ("Order", head_small),
+        ("Done", head_small),
+        ("Примечание/Сustomer notes", head_small),
+    ]
+    for col, (text, font) in enumerate(headers, start=1):
+        cell = ws.cell(row=3, column=col, value=text)
+        cell.font = font
         cell.alignment = center
         cell.border = thin
 
-    row = 3
+    row = 4
     for section in _section_order(data):
         cells = [c for c in data.cells if c.section == section]
         if not cells:
             continue
-        merged_row(row, section, bold, center)
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=5)
+        sec = ws.cell(row=row, column=1, value=_cell_value(section))
+        sec.font = section_font
+        sec.alignment = center
+        for col in range(1, 6):
+            ws.cell(row=row, column=col).border = thin
         row += 1
         for item in cells:
-            values = [item.num if item.num is not None else "", item.name, item.qty, "", item.note]
+            is_extra = item.name.startswith("Доп. позиция")
+            values = [
+                item.num if item.num is not None else "",
+                "" if is_extra else item.name,
+                item.qty,
+                "",
+                item.note,
+            ]
             for col, value in enumerate(values, start=1):
                 cell = ws.cell(row=row, column=col, value=_cell_value(value))
-                cell.font = plain
+                cell.font = name_font if col == 2 else (num_font if col == 1 else plain)
                 cell.border = thin
-                cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+                cell.alignment = left
+            ws.row_dimensions[row].height = 15.95
             row += 1
 
     if (data.general_note or "").strip():
-        merged_row(
-            row,
-            f"Комментарий: {data.general_note.strip()}",
-            plain,
-            Alignment(horizontal="left", vertical="top", wrap_text=True),
-        )
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=5)
+        note = ws.cell(row=row, column=1, value=_cell_value(f"Комментарий: {data.general_note.strip()}"))
+        note.font = plain
+        note.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+        for col in range(1, 6):
+            ws.cell(row=row, column=col).border = thin
         ws.row_dimensions[row].height = 45
 
-    for letter, width in zip("ABCDE", (6, 34, 6, 6, 24)):
+    for letter, width in zip("ABCDE", (4.29, 64.43, 3.0, 5.0, 31.71)):
         ws.column_dimensions[letter].width = width
-    ws.row_dimensions[1].height = 30
-    ws.row_dimensions[2].height = 24
-    ws.freeze_panes = "A3"
+    ws.row_dimensions[1].height = 19.5
+    ws.row_dimensions[2].height = 16.5
+    ws.row_dimensions[3].height = 23.45
+    ws.freeze_panes = "A4"
     ws.page_setup.orientation = "portrait"
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0

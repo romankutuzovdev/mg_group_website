@@ -10,6 +10,7 @@ from html import escape
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
+from pydantic import BaseModel, Field
 
 from app.config import Settings, get_settings
 from app.models.cabinet import (
@@ -81,6 +82,8 @@ _MANAGER_DEAL_FIELDS = {
     "dismantle_yard",
     "payment_stage1_due",
     "payment_stage2_due",
+    # Характеристики лота (цвет, двигатель, …) — они же в шапке бланка разборки.
+    "specs",
 }
 
 
@@ -218,6 +221,8 @@ async def patch_my_dismantle_meta(
         raise HTTPException(status_code=404, detail="Dismantle map only for kits")
     was_completed = cabinet_store.was_dismantle_completed(deal_id)
     staff = _is_staff(user)
+    if body.yard_code is not None and not staff:
+        raise HTTPException(status_code=403, detail="yard_code_manager_only")
     try:
         out = cabinet_store.patch_dismantle_meta(
             deal_id, body, allow_unlock=staff
@@ -608,6 +613,75 @@ def admin_update_deal(
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
     return deal
+
+
+class SpecsBackfillOut(BaseModel):
+    """Итог массового заполнения характеристик из каталога."""
+
+    updated: list[int] = Field(default_factory=list)
+    unchanged: list[int] = Field(default_factory=list)
+    not_found: list[int] = Field(default_factory=list)
+    checked: int = 0
+
+
+@router.post("/admin/deals/specs-backfill", response_model=SpecsBackfillOut)
+def admin_backfill_deal_specs(
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
+    only_missing: bool = True,
+) -> SpecsBackfillOut:
+    """Подтянуть из каталога пустые характеристики (цвет, двигатель, …) у всех сделок.
+
+    Заполненные поля не трогаются. ``only_missing`` — только сделки без цвета или двигателя.
+    """
+    from app.services.deal_specs_fill import needs_header_specs, specs_filled_from_catalog
+
+    deals = (
+        cabinet_store.list_deals_for_manager(actor.id)
+        if is_limited_manager(actor)
+        else cabinet_store.list_all_deals()
+    )
+    out = SpecsBackfillOut()
+    for deal in deals:
+        if only_missing and not needs_header_specs(deal):
+            continue
+        out.checked += 1
+        result = specs_filled_from_catalog(deal)
+        if result is None:
+            out.not_found.append(deal.id)
+            continue
+        specs, changed = result
+        if not changed:
+            out.unchanged.append(deal.id)
+            continue
+        cabinet_store.update_deal(deal.id, DealUpdate(specs=specs))
+        out.updated.append(deal.id)
+    return out
+
+
+@router.post("/admin/deals/{deal_id}/specs-from-lot", response_model=DealOut)
+def admin_fill_deal_specs_from_lot(
+    deal_id: int,
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
+    overwrite: bool = False,
+) -> DealOut:
+    """Заполнить характеристики одной сделки из лота в каталоге (пустые поля, или все при overwrite)."""
+    from app.services.deal_specs_fill import specs_filled_from_catalog
+
+    _require_managed_deal(deal_id, actor)
+    deal = cabinet_store.get_deal(deal_id)
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    result = specs_filled_from_catalog(deal, overwrite=overwrite)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Лот не найден в каталоге — заполните цвет и двигатель вручную",
+        )
+    specs, changed = result
+    if not changed:
+        return deal
+    updated = cabinet_store.update_deal(deal_id, DealUpdate(specs=specs))
+    return updated or deal
 
 
 @router.post("/admin/deals/{deal_id}/claims/{claim_id}", response_model=DealOut)

@@ -386,6 +386,18 @@ export type LotFromUrlResponse = {
   cdp?: string;
   error?: string | null;
   chrome_error?: string | null;
+  /** Аукционный сбор со страницы Bid.cars при текущей ставке (если пересчёт удался). */
+  auctionFeesUsd?: number | null;
+  /** Профиль и разбивка сборов из блока «Final Price Calculator» на Bid.cars. */
+  bidcarsFees?: {
+    auctionType?: "iaai" | "copart" | string | null;
+    isHeavy?: boolean | null;
+    customFees?: string | null;
+    feesUsd?: number | null;
+    atBid?: number | null;
+    live?: boolean;
+    lines?: { label: string; amount: number }[];
+  } | null;
 };
 
 export async function fetchLotFromUrl(url: string): Promise<LotFromUrlResponse> {

@@ -436,6 +436,10 @@ class DismantleMapOut(BaseModel):
     vehicle_label: str = ""
     vehicle_header_hint: str = ""
     general_note: str = ""
+    # Шапка бланка разборки (New Jersey): строки «авто · цвет · VIN» и «Engine · Stock#».
+    header_lines: list[str] = Field(default_factory=list)
+    # Код машины на разборке (New Jersey, «X000» в бланке). Ставит менеджер.
+    yard_code: str = ""
     sections: list[str] = Field(default_factory=list)
     cells: list[DismantleCellOut] = Field(default_factory=list)
     columns: DismantleMapColumns = Field(default_factory=DismantleMapColumns)
@@ -455,6 +459,8 @@ class DismantleMetaPatch(BaseModel):
     vehicle_label: str | None = None
     general_note: str | None = None
     completed: bool | None = None
+    # Только менеджер (проверяется в роутере).
+    yard_code: str | None = None
 
 
 def deal_has_arrived(deal: DealOut) -> bool:

@@ -320,6 +320,94 @@ BIDCars_JS = """
 """
 
 
+# Bid.cars «Final Price Calculator»: ставим ставку в #bid-input, ждём пересчёт
+# (jQuery keyup с задержкой) и читаем «2 Auction Fees» + подсказку с разбивкой.
+BIDCARS_FEES_JS = """
+async ({ bid }) => {
+  const num = (t) => {
+    const n = Number(String(t || '').replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  };
+  const g = (name) => {
+    try { return (0, eval)('typeof ' + name + ' === "undefined" ? null : ' + name); }
+    catch (e) { return null; }
+  };
+  const customFees = g('custom_fees');
+  const isHeavy = g('isHeavy');
+  const profile = {
+    auctionType: g('auctionType'),
+    isHeavy: isHeavy == null ? null : String(isHeavy) === '1',
+    customFees: customFees == null ? null : String(customFees),
+    trucking: Number(g('trucking')) || null,
+  };
+  const feesEl = document.getElementById('auction-fees');
+  const priceEl = document.getElementById('lot-price');
+  const tipEl = document.getElementById('auction-fees-tooltip');
+  const read = () => ({
+    feesUsd: feesEl ? num(feesEl.textContent) : null,
+    atBid: priceEl ? num(priceEl.textContent) : null,
+    tooltip: tipEl
+      ? (tipEl.getAttribute('data-original-title') || tipEl.getAttribute('title') || '')
+      : '',
+  });
+  if (!feesEl) return { profile, ...read(), live: false };
+  const input = document.getElementById('bid-input');
+  const target = Math.round(Number(bid) || 0);
+  const before = read();
+  if (!input || !(target > 0) || !window.jQuery) {
+    return { profile, ...before, live: before.atBid === target && target > 0 };
+  }
+  if (before.atBid === target) return { profile, ...before, live: true };
+  input.value = String(target);
+  window.jQuery(input).trigger('keyup');
+  const started = Date.now();
+  while (Date.now() - started < 3500) {
+    await new Promise((r) => setTimeout(r, 150));
+    const now = read();
+    if (now.atBid === target) return { profile, ...now, live: true };
+  }
+  return { profile, ...read(), live: false };
+}
+"""
+
+
+def bidcars_fees_payload(info: Any) -> dict[str, Any] | None:
+    """Normalize BIDCARS_FEES_JS result → ``bidcarsFees`` for the calculator."""
+    if not isinstance(info, dict):
+        return None
+    profile = info.get("profile") if isinstance(info.get("profile"), dict) else {}
+    auction = str(profile.get("auctionType") or "").strip().lower() or None
+    if auction not in ("iaai", "copart"):
+        auction = None
+    lines: list[dict[str, Any]] = []
+    for chunk in re.split(r"<br\s*/?>", str(info.get("tooltip") or ""), flags=re.I):
+        m = re.match(r"\s*([^:]+?)\s*:\s*\$?\s*([0-9][0-9,]*(?:\.\d+)?)", chunk)
+        if m:
+            lines.append(
+                {"label": m.group(1).strip(), "amount": float(m.group(2).replace(",", ""))}
+            )
+    fees = info.get("feesUsd")
+    at_bid = info.get("atBid")
+    try:
+        fees_f = float(fees) if fees is not None else None
+    except (TypeError, ValueError):
+        fees_f = None
+    try:
+        at_bid_f = float(at_bid) if at_bid is not None else None
+    except (TypeError, ValueError):
+        at_bid_f = None
+    custom = profile.get("customFees")
+    return {
+        "auctionType": auction,
+        "isHeavy": bool(profile.get("isHeavy")) if profile.get("isHeavy") is not None else None,
+        "customFees": None if custom is None else str(custom),
+        "feesUsd": fees_f,
+        "atBid": at_bid_f,
+        "live": bool(info.get("live")) and fees_f is not None and at_bid_f is not None,
+        "lines": lines,
+    }
+
+
 def clean_auction_location(raw: str | None) -> str | None:
     """Площадка с карточки Copart / IAAI / Bid.cars без соседних подписей."""
     if not raw:
@@ -1142,6 +1230,19 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
                 val = dom.get(spec_key)
                 if val:
                     data[spec_key] = val
+        # Аукционный сбор «как на Bid.cars» (блок Final Price Calculator)
+        try:
+            fee_info = await page.evaluate(BIDCARS_FEES_JS, {"bid": data.get("bid")})
+        except Exception as exc:
+            logger.info("bidcars fees %s: %s", canonical, exc)
+            fee_info = None
+        fees_payload = bidcars_fees_payload(fee_info)
+        if fees_payload:
+            data["bidcarsFees"] = fees_payload
+            # Глобал auctionType страницы надёжнее регулярок по тексту
+            if fees_payload.get("auctionType") and data.get("region") != "uk":
+                data["auction_platform"] = fees_payload["auctionType"]
+                data["platform"] = fees_payload["auctionType"]
     elif platform != "iaai":
         title = await page.title()
         text = await page.inner_text("body")
@@ -1213,6 +1314,18 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
         "images": data.get("images") or [],
         "via": "chrome_cdp",
     }
+    fees_payload = data.get("bidcarsFees")
+    if isinstance(fees_payload, dict):
+        chrome_payload["bidcarsFees"] = fees_payload
+        bid_now = chrome_payload.get("bid")
+        if (
+            fees_payload.get("live")
+            and fees_payload.get("feesUsd") is not None
+            and bid_now is not None
+            and fees_payload.get("atBid") is not None
+            and abs(float(bid_now) - float(fees_payload["atBid"])) < 1
+        ):
+            chrome_payload["auctionFeesUsd"] = float(fees_payload["feesUsd"])
     if data.get("chrome_error"):
         chrome_payload["chrome_error"] = data["chrome_error"]
     if is_uk:
@@ -1518,6 +1631,8 @@ async def fetch_lot_from_url(url: str) -> dict[str, Any]:
             "bodyStyle",
             "category",
             "bidSource",
+            "bidcarsFees",
+            "auctionFeesUsd",
             "vin",
             "engine",
             "fuel",

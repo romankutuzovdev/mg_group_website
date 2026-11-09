@@ -13,8 +13,10 @@ import {
   DEAL_KIND_LABELS,
   DISMANTLE_YARD_LABELS,
   ORIGIN_REGION_LABELS,
+  adminBackfillDealSpecs,
   adminCreateClientAccount,
   adminCreateDeal,
+  adminFillDealSpecsFromLot,
   adminResetClientPassword,
   adminUpdateDeal,
   adminImportDealMediaFromUrl,
@@ -726,6 +728,60 @@ export function AdminDealsPanel({
     }
   };
 
+  /** Цвет / двигатель и прочие характеристики одной сделки — руками. */
+  const patchDealSpec = async (deal: Deal, key: keyof DealSpecs, value: string) => {
+    const next = { ...(deal.specs || {}), [key]: value.trim() };
+    if ((deal.specs?.[key] || "") === next[key]) return;
+    await patchDeal(deal.id, { specs: next });
+  };
+
+  const [specsBusy, setSpecsBusy] = useState<number | "all" | null>(null);
+
+  /** Подтянуть характеристики сделки из лота в каталоге (пустые поля). */
+  const fillDealSpecs = async (dealId: number) => {
+    setError(null);
+    setOk(null);
+    setSpecsBusy(dealId);
+    try {
+      const next = await adminFillDealSpecsFromLot(dealId);
+      setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
+      setOk(
+        next.specs?.exterior_color || next.specs?.engine
+          ? `Характеристики подтянуты: ${[next.specs?.exterior_color, next.specs?.engine].filter(Boolean).join(", ")}`
+          : "В каталоге нет цвета и двигателя для этого лота — заполните вручную",
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось подтянуть характеристики");
+    } finally {
+      setSpecsBusy(null);
+    }
+  };
+
+  /** Для всех сделок без цвета или двигателя — из каталога, ничего не перезаписывая. */
+  const backfillAllSpecs = async () => {
+    setError(null);
+    setOk(null);
+    setSpecsBusy("all");
+    try {
+      const res = await adminBackfillDealSpecs();
+      if (res.updated.length) {
+        const fresh = await fetchAdminDeals();
+        setDeals(fresh);
+      }
+      setOk(
+        res.checked === 0
+          ? "У всех сделок уже есть цвет и двигатель"
+          : `Проверено ${res.checked}: обновлено ${res.updated.length}, без изменений ${res.unchanged.length}, не найдено в каталоге ${res.not_found.length}${
+              res.not_found.length ? ` (сделки #${res.not_found.join(", #")} — заполните вручную)` : ""
+            }`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось заполнить характеристики");
+    } finally {
+      setSpecsBusy(null);
+    }
+  };
+
   const stats = useMemo(() => {
     const active = deals.filter((d) => d.status === "active").length;
     const done = deals.filter((d) => d.status === "completed").length;
@@ -980,6 +1036,23 @@ export function AdminDealsPanel({
           </div>
         ))}
       </div>
+
+      {deals.some((d) => !(d.specs?.exterior_color && d.specs?.engine)) ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-900">
+          <span>
+            У {deals.filter((d) => !(d.specs?.exterior_color && d.specs?.engine)).length} сделок нет цвета или
+            двигателя — они нужны для шапки бланка разборки New Jersey.
+          </span>
+          <button
+            type="button"
+            disabled={specsBusy !== null}
+            onClick={() => void backfillAllSpecs()}
+            className="inline-flex h-8 items-center justify-center rounded-md bg-amber-600 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 disabled:opacity-50"
+          >
+            {specsBusy === "all" ? "Подтягиваем…" : "Подтянуть из каталога"}
+          </button>
+        </div>
+      ) : null}
 
       </>
       )}
@@ -1871,6 +1944,40 @@ export function AdminDealsPanel({
                                 }
                               />
                             </label>
+                            {/* Шапка бланка разборки: цвет и двигатель. Из каталога или руками. */}
+                            <div className="grid gap-2 sm:col-span-full sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                              <label className="block text-[11px] font-medium text-zinc-500">
+                                Цвет
+                                <input
+                                  key={`color-${deal.id}-${deal.specs?.exterior_color || ""}`}
+                                  type="text"
+                                  defaultValue={deal.specs?.exterior_color || ""}
+                                  placeholder="Black"
+                                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                  onBlur={(e) => void patchDealSpec(deal, "exterior_color", e.target.value)}
+                                />
+                              </label>
+                              <label className="block text-[11px] font-medium text-zinc-500">
+                                Двигатель
+                                <input
+                                  key={`engine-${deal.id}-${deal.specs?.engine || ""}`}
+                                  type="text"
+                                  defaultValue={deal.specs?.engine || ""}
+                                  placeholder="3.6L V-6 DOHC, 290HP"
+                                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                  onBlur={(e) => void patchDealSpec(deal, "engine", e.target.value)}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                disabled={specsBusy !== null}
+                                onClick={() => void fillDealSpecs(deal.id)}
+                                title="Подтянуть характеристики из лота в каталоге (заполняет только пустые поля)"
+                                className="inline-flex h-[34px] items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:opacity-50"
+                              >
+                                {specsBusy === deal.id ? "Ищем…" : "Из лота"}
+                              </button>
+                            </div>
                           </div>
                         </article>
                       );

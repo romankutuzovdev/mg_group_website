@@ -332,6 +332,20 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
     }
   };
 
+  const saveYardCode = async (value: string) => {
+    if (!isManager) return;
+    setSaveState("saving");
+    setError(null);
+    try {
+      const updated = await patchDismantleMeta(deal.id, { yard_code: value.trim().toUpperCase() });
+      setMap(updated);
+      markSaved();
+    } catch (err) {
+      setSaveState("error");
+      setError(err instanceof Error ? err.message : "Не удалось сохранить код машины");
+    }
+  };
+
   const saveGeneralNote = async (value: string) => {
     if (lockedForClient) return;
     setSaveState("saving");
@@ -532,18 +546,58 @@ export function DealDismantleMap({ deal, isManager = false }: Props) {
         <p className="mt-3 text-sm text-text-secondary">Загрузка карты…</p>
       ) : map ? (
         <div className="mt-3 space-y-4">
-          <div>
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
-              {map.vehicle_header_hint || "Марка, модель, Lot#"}
-            </p>
-            <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm font-medium text-zinc-900">
-              {vehicleLabel || "—"}
-            </p>
-            <p className="mt-1 text-[11px] text-text-muted">
-              Берётся из сделки. Меняет только менеджер в названии сделки.
-              Чтобы сменить бланк карты — смените регион или разборку в маршруте.
-            </p>
-          </div>
+          {map.header_lines && map.header_lines.length >= 2 ? (
+            <div>
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                {map.vehicle_header_hint || "Шапка бланка"}
+              </p>
+              {/* Как в бланке разборки: две строки слева, код машины справа */}
+              <div className="flex overflow-hidden rounded-lg border border-zinc-300 bg-white">
+                <div className="min-w-0 flex-1 divide-y divide-zinc-300">
+                  <p className="whitespace-pre-wrap px-3 py-2 text-center text-sm font-semibold text-zinc-900">
+                    {map.header_lines[0] || "—"}
+                  </p>
+                  <p className="whitespace-pre-wrap px-3 py-1.5 text-center text-[13px] font-semibold text-zinc-800">
+                    {map.header_lines[1] || "—"}
+                  </p>
+                </div>
+                <div className="flex w-28 shrink-0 items-center justify-center border-l-2 border-zinc-800 px-2">
+                  {isManager ? (
+                    <CellInput
+                      value={map.yard_code || ""}
+                      onCommit={(v) => void saveYardCode(v)}
+                      placeholder="X000"
+                      className="w-full rounded-md border border-dashed border-zinc-300 bg-white px-2 py-1.5 text-center text-xl font-bold uppercase tracking-wide text-zinc-900 outline-none focus:border-emerald-500"
+                    />
+                  ) : (
+                    <span className="text-xl font-bold uppercase tracking-wide text-zinc-900">
+                      {map.yard_code || "—"}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <p className="mt-1 text-[11px] text-text-muted">
+                Берётся из сделки: название, цвет и двигатель из характеристик лота, Stock# — номер лота.
+                {isManager
+                  ? " Код машины справа (X000) ставит менеджер, он попадёт в Excel."
+                  : " Код машины справа ставит менеджер."}{" "}
+                Чтобы сменить бланк карты — смените регион или разборку в маршруте.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                {map.vehicle_header_hint || "Марка, модель, Lot#"}
+              </p>
+              <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm font-medium text-zinc-900">
+                {vehicleLabel || "—"}
+              </p>
+              <p className="mt-1 text-[11px] text-text-muted">
+                Берётся из сделки. Меняет только менеджер в названии сделки.
+                Чтобы сменить бланк карты — смените регион или разборку в маршруте.
+              </p>
+            </div>
+          )}
 
           <div>
             <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">

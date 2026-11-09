@@ -97,17 +97,54 @@ class DismantleYardTest(unittest.TestCase):
             self.store.update_deal(deal.id, DealUpdate(dismantle_yard="texas"))
 
     def test_new_jersey_excel_matches_blank(self):
-        deal = self.deal(dismantle_yard="new_jersey")
-        self.store.patch_dismantle_cell(deal.id, "nj_1", DismantleCellPatch(qty="2", note="целая"))
-        ws = load_workbook(BytesIO(build_dismantle_xlsx(self.store.get_dismantle_map(deal.id)))).active
-        self.assertIn("66731706", ws["A1"].value)
-        self.assertEqual(ws["C2"].value, "Order")
-        self.assertEqual(ws["D2"].value, "Done")
-        self.assertEqual(ws["A3"].value, "Оптика")
-        self.assertEqual(
-            [ws.cell(4, c).value for c in range(1, 6)], [1, "Фара", "2", None, "целая"]
+        deal = self.deal(
+            dismantle_yard="new_jersey",
+            specs={"exterior_color": "Black", "engine": "2.5L I-5 DOHC, 400HP"},
         )
+        self.store.patch_dismantle_cell(deal.id, "nj_1", DismantleCellPatch(qty="2", note="целая"))
+        self.store.patch_dismantle_meta(deal.id, DismantleMetaPatch(yard_code="X017"))
+        out = self.store.get_dismantle_map(deal.id)
+        self.assertEqual(
+            out.header_lines,
+            ["2019 AUDI RS3    Black     VIN: WUA1", "Engine: 2.5L I-5 DOHC, 400HP     Stock#: 66731706"],
+        )
+        self.assertEqual(out.yard_code, "X017")
+        ws = load_workbook(BytesIO(build_dismantle_xlsx(out))).active
+        self.assertEqual(ws["A1"].value, "2019 AUDI RS3    Black     VIN: WUA1")
+        self.assertEqual(ws["E1"].value, "X017")
+        self.assertEqual(ws["A2"].value, "Engine: 2.5L I-5 DOHC, 400HP     Stock#: 66731706")
+        self.assertEqual(
+            [ws.cell(3, c).value for c in range(1, 6)],
+            ["#", "Наименование / Part name", "Order", "Done", "Примечание/Сustomer notes"],
+        )
+        self.assertEqual(ws["A4"].value, "Оптика")
+        self.assertEqual(
+            [ws.cell(5, c).value for c in range(1, 6)], [1, "Фара", "2", None, "целая"]
+        )
+        merged = {str(r) for r in ws.merged_cells.ranges}
+        self.assertTrue({"A1:D1", "A2:D2", "E1:E2", "A4:E4"} <= merged)
 
+    def test_new_jersey_header_without_specs(self):
+        out = self.store.get_dismantle_map(self.deal(dismantle_yard="new_jersey").id)
+        self.assertEqual(out.header_lines, ["2019 AUDI RS3     VIN: WUA1", "Engine: —     Stock#: 66731706"])
+        self.assertEqual(out.yard_code, "")
+        ws = load_workbook(BytesIO(build_dismantle_xlsx(out))).active
+        self.assertIsNone(ws["E1"].value)
+        self.assertEqual(ws["A2"].value, "Engine: —     Stock#: 66731706")
+
+    def test_texas_has_no_nj_header(self):
+        out = self.store.get_dismantle_map(self.deal(dismantle_yard="texas").id)
+        self.assertEqual(out.header_lines, [])
+
+    def test_yard_code_locked_after_completion(self):
+        deal = self.deal(dismantle_yard="new_jersey")
+        self.store.patch_dismantle_meta(deal.id, DismantleMetaPatch(completed=True))
+        with self.assertRaises(ValueError):
+            self.store.patch_dismantle_meta(deal.id, DismantleMetaPatch(yard_code="X001"))
+        out = self.store.patch_dismantle_meta(
+            deal.id, DismantleMetaPatch(yard_code="X001"), allow_unlock=True
+        )
+        self.assertEqual(out.yard_code, "X001")
 
 if __name__ == "__main__":
     unittest.main()

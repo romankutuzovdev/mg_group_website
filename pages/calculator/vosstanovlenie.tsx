@@ -20,7 +20,7 @@ export default function RestorationCalculatorPage({ dictionary }: Props) {
             ...dictionary.metadata,
             title: "Калькулятор авто под восстановление | MG.GROUP",
             description:
-              "Просчёт целого авто из США по ссылке IAAI, Bid.cars или Copart.com: площадка, доставка и растаможка РБ.",
+              "Просчёт целого авто из США по ссылке Bid.cars: аукционный сбор как на Bid.cars, площадка, доставка и растаможка РБ.",
           },
         }}
         lang="ru"
@@ -28,7 +28,7 @@ export default function RestorationCalculatorPage({ dictionary }: Props) {
       />
       <PageShell
         title="Авто под восстановление"
-        description="Только США: IAAI, Bid.cars и Copart.com. Площадка берётся из лота."
+        description="Только ссылка Bid.cars. Аукционный сбор и площадка берутся из лота."
       >
         <CalculatorGate calc="car" />
         <p className="mt-8 text-sm text-text-muted">
