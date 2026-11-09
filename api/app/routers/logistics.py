@@ -21,7 +21,7 @@ from app.models.logistics import (
     SmsTemplateOut,
     SmsTemplateUpdate,
 )
-from app.services.auth_deps import require_full_admin_or_key
+from app.services.auth_deps import require_logistics_or_key
 from app.services.logistics_store import logistics_store
 from app.services.sms_by import SmsSendResult, check_sms, human_error, send_sms_queue
 
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/admin/logistics", tags=["logistics"])
 
 @router.get("/board", response_model=LogisticsBoardOut)
 def logistics_board(
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> LogisticsBoardOut:
     return LogisticsBoardOut(
         pool=logistics_store.list_pool(),
@@ -42,7 +42,7 @@ def logistics_board(
 
 @router.get("/containers", response_model=list[ContainerOut])
 def list_containers(
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> list[ContainerOut]:
     return logistics_store.list_containers()
 
@@ -50,7 +50,7 @@ def list_containers(
 @router.post("/containers", response_model=ContainerOut)
 def create_container(
     body: ContainerCreate,
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> ContainerOut:
     try:
         return logistics_store.create_container(
@@ -67,7 +67,7 @@ def create_container(
 def update_container(
     container_id: int,
     body: ContainerUpdate,
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> ContainerOut:
     try:
         return logistics_store.update_container(
@@ -85,7 +85,7 @@ def update_container(
 @router.delete("/containers/{container_id}")
 def delete_container(
     container_id: int,
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> dict[str, bool]:
     try:
         logistics_store.delete_container(container_id)
@@ -98,7 +98,7 @@ def delete_container(
 def add_deal_to_container(
     container_id: int,
     body: ContainerAddDeal,
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> ContainerOut:
     try:
         return logistics_store.add_deal(container_id, body.deal_id)
@@ -119,7 +119,7 @@ def add_deal_to_container(
 def remove_deal_from_container(
     container_id: int,
     deal_id: int,
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> ContainerOut:
     try:
         return logistics_store.remove_deal(container_id, deal_id)
@@ -132,7 +132,7 @@ async def move_container_stage(
     container_id: int,
     body: ContainerMovePayload,
     background_tasks: BackgroundTasks,
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> ContainerMoveResult:
     """Change stage; SMS go out in background one-by-one with delay (no UI timeout)."""
     try:
@@ -228,7 +228,7 @@ def _record_sms_result(log_id: int, result: SmsSendResult) -> None:
 
 @router.get("/sms-log", response_model=list[SmsLogOut])
 def list_sms_log(
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
     container_id: int | None = Query(None, ge=1),
     limit: int = Query(200, ge=1, le=2000),
 ) -> list[SmsLogOut]:
@@ -238,7 +238,7 @@ def list_sms_log(
 
 @router.post("/sms-log/refresh", response_model=SmsLogRefreshResult)
 async def refresh_sms_log(
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
     container_id: int | None = Query(None, ge=1),
     limit: int = Query(200, ge=1, le=2000),
 ) -> SmsLogRefreshResult:
@@ -270,7 +270,7 @@ async def refresh_sms_log(
 
 @router.get("/sms-templates", response_model=list[SmsTemplateOut])
 def list_sms_templates(
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> list[SmsTemplateOut]:
     return logistics_store.list_templates()
 
@@ -278,7 +278,7 @@ def list_sms_templates(
 @router.post("/sms-templates", response_model=SmsTemplateOut)
 def create_sms_template(
     body: SmsTemplateCreate,
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> SmsTemplateOut:
     return logistics_store.create_template(
         title=body.title, body=body.body, kind=body.kind
@@ -289,7 +289,7 @@ def create_sms_template(
 def update_sms_template(
     template_id: int,
     body: SmsTemplateUpdate,
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> SmsTemplateOut:
     try:
         return logistics_store.update_template(
@@ -304,7 +304,7 @@ def update_sms_template(
 @router.delete("/sms-templates/{template_id}")
 def delete_sms_template(
     template_id: int,
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    _: Annotated[UserOut, Depends(require_logistics_or_key)],
 ) -> dict[str, bool]:
     try:
         logistics_store.delete_template(template_id)

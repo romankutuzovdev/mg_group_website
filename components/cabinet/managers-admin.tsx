@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   type CabinetUser,
-  adminSetUserManager,
+  adminSetUserRoles,
   fetchAdminUsers,
   fetchMe,
   getCabinetToken,
@@ -22,8 +22,8 @@ function userLabel(u: CabinetUser): string {
 
 function roleLabel(u: CabinetUser): string {
   if (u.is_admin) return "Администратор";
-  if (u.is_manager) return "Менеджер";
-  return "Клиент";
+  const roles = [u.is_manager ? "Менеджер" : "", u.is_logist ? "Логист" : ""].filter(Boolean);
+  return roles.length ? roles.join(" · ") : "Клиент";
 }
 
 function initials(u: CabinetUser): string {
@@ -70,7 +70,8 @@ export function ManagersAdmin() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = [...users].sort((a, b) => {
-      const rank = (u: CabinetUser) => (u.is_admin ? 0 : u.is_manager ? 1 : 2);
+      const rank = (u: CabinetUser) =>
+        u.is_admin ? 0 : u.is_manager ? 1 : u.is_logist ? 2 : 3;
       const d = rank(a) - rank(b);
       if (d !== 0) return d;
       return userLabel(a).localeCompare(userLabel(b), "ru");
@@ -91,20 +92,23 @@ export function ManagersAdmin() {
   }, [users, query]);
 
   const managersCount = users.filter((u) => u.is_manager && !u.is_admin).length;
+  const logistsCount = users.filter((u) => u.is_logist && !u.is_admin).length;
 
-  const toggleManager = async (u: CabinetUser) => {
+  const toggleRole = async (u: CabinetUser, role: "manager" | "logist") => {
     if (u.is_admin || busyId != null) return;
     setBusyId(u.id);
     setError(null);
     setOk(null);
     try {
-      const next = await adminSetUserManager(u.id, !u.is_manager);
-      setUsers((prev) => prev.map((x) => (x.id === next.id ? next : x)));
-      setOk(
-        next.is_manager
-          ? `${userLabel(next)} назначен менеджером`
-          : `${userLabel(next)} снят с роли менеджера`,
+      const on = role === "manager" ? !u.is_manager : !u.is_logist;
+      const next = await adminSetUserRoles(
+        u.id,
+        role === "manager" ? { is_manager: on } : { is_logist: on },
       );
+      setUsers((prev) => prev.map((x) => (x.id === next.id ? next : x)));
+      const name = role === "manager" ? "менеджером" : "логистом";
+      const roleName = role === "manager" ? "менеджера" : "логиста";
+      setOk(on ? `${userLabel(next)} назначен ${name}` : `${userLabel(next)} снят с роли ${roleName}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось изменить роль");
     } finally {
@@ -153,8 +157,9 @@ export function ManagersAdmin() {
   return (
     <div className="space-y-4">
       <p className="text-[13px] text-zinc-500">
-        Менеджер ведёт сделки клиентов и сроки оплаты. Сейчас менеджеров:{" "}
-        <span className="font-medium tabular-nums text-zinc-900">{managersCount}</span>
+        Менеджер ведёт своих клиентов и их сделки, логист — только логистику. Менеджеров:{" "}
+        <span className="font-medium tabular-nums text-zinc-900">{managersCount}</span>, логистов:{" "}
+        <span className="font-medium tabular-nums text-zinc-900">{logistsCount}</span>
       </p>
 
       {error ? (
@@ -227,23 +232,30 @@ export function ManagersAdmin() {
                     Админ
                   </span>
                 ) : (
-                  <button
-                    type="button"
-                    disabled={busyId != null}
-                    onClick={() => void toggleManager(u)}
-                    className={[
-                      "inline-flex h-8 shrink-0 items-center rounded-md px-3 text-xs font-medium shadow-sm transition disabled:opacity-50",
-                      u.is_manager
-                        ? "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-                        : "bg-emerald-600 text-white hover:bg-emerald-700",
-                    ].join(" ")}
-                  >
-                    {busyId === u.id
-                      ? "…"
-                      : u.is_manager
-                        ? "Снять"
-                        : "Назначить"}
-                  </button>
+                  <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                    {(["manager", "logist"] as const).map((role) => {
+                      const on = role === "manager" ? u.is_manager : u.is_logist;
+                      const label = role === "manager" ? "Менеджер" : "Логист";
+                      return (
+                        <button
+                          key={role}
+                          type="button"
+                          disabled={busyId != null}
+                          aria-pressed={Boolean(on)}
+                          title={on ? `Снять роль: ${label}` : `Назначить: ${label}`}
+                          onClick={() => void toggleRole(u, role)}
+                          className={[
+                            "inline-flex h-8 items-center rounded-md px-3 text-xs font-medium shadow-sm transition disabled:opacity-50",
+                            on
+                              ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                              : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50",
+                          ].join(" ")}
+                        >
+                          {busyId === u.id ? "…" : on ? `✓ ${label}` : `+ ${label}`}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </li>
             ))}

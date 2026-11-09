@@ -372,32 +372,42 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   const isStaff = Boolean(user?.is_admin || user?.is_manager);
   // Менеджер видит только своих клиентов: общие разделы ему закрыты.
   const isLimitedManager = Boolean(user?.is_manager && !user?.is_admin);
-  const tab: Tab =
-    isLimitedManager && !["favorites", "calculators", "manager"].includes(storedTab)
-      ? "clients"
-      : storedTab;
+  // Логист работает только с логистикой (сервер пускает админа и логиста).
+  const canLogistics = Boolean(user?.is_admin || user?.is_logist);
+  const isLogistOnly = Boolean(user?.is_logist && !user?.is_admin && !user?.is_manager);
   const activeDeals = deals.filter((d) => d.status === "active").length;
 
+  const logisticsItem: NavItem = {
+    id: "logistics",
+    label: "Логистика",
+    icon: Ship,
+    section: "Команда",
+  };
+
   const navItems: NavItem[] = [
-    isLimitedManager
-      ? { id: "clients", label: "Мои клиенты", icon: Users }
-      : { id: "deals", label: "Сделки", icon: BriefcaseBusiness, badge: deals.length || null },
+    isLogistOnly
+      ? { ...logisticsItem, section: undefined }
+      : isLimitedManager
+        ? { id: "clients", label: "Мои клиенты", icon: Users }
+        : { id: "deals", label: "Сделки", icon: BriefcaseBusiness, badge: deals.length || null },
     { id: "favorites", label: "Избранное", icon: Heart, badge: favorites.length || null },
     { id: "calculators", label: "Калькуляторы", icon: Calculator },
     // CRM у менеджера: сервер отдаёт только его клиентов и сделки.
     ...(isLimitedManager
       ? [{ id: "manager", label: "CRM · клиенты", icon: Users, section: "Команда" }]
       : []),
+    // Менеджер, которому дали ещё и роль логиста.
+    ...(isLimitedManager && canLogistics ? [logisticsItem] : []),
     ...(isStaff && !isLimitedManager
       ? [
           { id: "manager", label: "CRM · клиенты", icon: Users, section: "Команда" },
-          { id: "logistics", label: "Логистика", icon: Ship, section: "Команда" },
+          logisticsItem,
           { id: "quotes", label: "Просчёты", icon: Calculator, section: "Команда" },
           ...(user?.is_admin
             ? [
                 {
                   id: "managers",
-                  label: "Менеджеры",
+                  label: "Сотрудники",
                   icon: ShieldCheck,
                   section: "Команда",
                   href: "/cabinet/managers/",
@@ -407,6 +417,10 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
         ]
       : []),
   ];
+
+  // Открыта только вкладка из своего меню; иначе — первая в нём.
+  const openTabs = navItems.filter((i) => !i.href).map((i) => i.id);
+  const tab: Tab = openTabs.includes(storedTab) ? storedTab : (openTabs[0] as Tab);
 
   const backToList = () => {
     setView("list");
@@ -1278,7 +1292,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
         </div>
       ) : null}
 
-      {view === "list" && tab === "logistics" && isStaff ? <LogisticsPanel /> : null}
+      {view === "list" && tab === "logistics" && canLogistics ? <LogisticsPanel /> : null}
     </CabinetShell>
   );
 }

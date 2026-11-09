@@ -30,6 +30,7 @@ class ManagerScopeTest(unittest.TestCase):
                 (3, 0, 1, None),  # менеджер B
                 (4, 0, 0, 2),  # клиент A
                 (5, 0, 0, 3),  # клиент B
+                (6, 0, 0, None),  # логист
             ]
             for uid, _admin, manager, owner in rows:
                 conn.execute(
@@ -37,6 +38,7 @@ class ManagerScopeTest(unittest.TestCase):
                     "manager_user_id, created_at) VALUES (?, ?, ?, ?, ?, '2026-01-01')",
                     (uid, 100 + uid, f"u{uid}", manager, owner),
                 )
+            conn.execute("UPDATE users SET is_logist = 1 WHERE id = 6")
         admin_check = mock.patch(
             "app.services.cabinet_store.is_admin_telegram", lambda tid: tid == 101
         )
@@ -128,6 +130,28 @@ class ManagerScopeTest(unittest.TestCase):
         self.assertEqual(self.client.get(f"/api/v1/me/deals/{self.mine.id}", headers=h).status_code, 200)
         self.assertEqual(self.client.get(f"/api/v1/me/deals/{self.other.id}", headers=h).status_code, 403)
         self.assertEqual(self.client.get("/api/v1/admin/deals", headers=h).status_code, 403)
+
+    def test_logist_sees_logistics_only(self):
+        h = self.auth(6)
+        with mock.patch.object(logistics_router, "logistics_store") as store:
+            store.list_containers.return_value = []
+            res = self.client.get("/api/v1/admin/logistics/containers", headers=h)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/admin/deals", headers=h).status_code, 403)
+        self.assertEqual(self.client.get("/api/v1/admin/users", headers=h).status_code, 403)
+        self.assertEqual(self.client.get(f"/api/v1/me/deals/{self.mine.id}", headers=h).status_code, 403)
+
+    def test_admin_assigns_and_removes_logist(self):
+        url = "/api/v1/admin/users/4"
+        self.assertEqual(self.client.patch(url, json={"is_logist": True}, headers=self.auth(2)).status_code, 403)
+        res = self.client.patch(url, json={"is_logist": True}, headers=self.auth(1))
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()["is_logist"])
+        # Роль менеджера при этом не трогается.
+        self.assertFalse(res.json()["is_manager"])
+        res = self.client.patch(url, json={"is_logist": False}, headers=self.auth(1))
+        self.assertFalse(res.json()["is_logist"])
+        self.assertEqual(self.client.patch(url, json={}, headers=self.auth(1)).status_code, 422)
 
 
 if __name__ == "__main__":

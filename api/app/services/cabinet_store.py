@@ -238,6 +238,10 @@ class CabinetStore:
             conn.execute(
                 "ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT ''"
             )
+        if "is_logist" not in user_cols:
+            conn.execute(
+                "ALTER TABLE users ADD COLUMN is_logist INTEGER NOT NULL DEFAULT 0"
+            )
         if "password_hash" not in user_cols:
             conn.execute(
                 "ALTER TABLE users ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''"
@@ -349,6 +353,7 @@ class CabinetStore:
         tid = int(row["telegram_id"])
         keys = row.keys()
         is_manager = bool(int(row["is_manager"] or 0)) if "is_manager" in keys else False
+        is_logist = bool(int(row["is_logist"] or 0)) if "is_logist" in keys else False
         phone = str(row["phone"] or "") if "phone" in keys else ""
         manager_user_id = 0
         if "manager_user_id" in keys and row["manager_user_id"]:
@@ -369,6 +374,7 @@ class CabinetStore:
             phone=phone,
             is_admin=is_admin_telegram(tid),
             is_manager=is_manager,
+            is_logist=is_logist,
             manager_user_id=manager_user_id,
             consent_marketing=consent_marketing,
             consent_service=consent_service,
@@ -571,6 +577,8 @@ class CabinetStore:
                 is_mgr = False
                 if "is_manager" in row.keys():
                     is_mgr = bool(int(row["is_manager"] or 0))
+                if "is_logist" in row.keys():
+                    is_mgr = is_mgr or bool(int(row["is_logist"] or 0))
                 tid = int(row["telegram_id"])
                 if is_mgr or is_admin_telegram(tid):
                     raise ValueError("Нельзя сменить пароль сотруднику этим способом")
@@ -1028,6 +1036,16 @@ class CabinetStore:
                 return [self._user_from_row(r) for r in rows]
 
     def set_user_manager(self, user_id: int, is_manager: bool) -> UserOut | None:
+        return self.set_user_roles(user_id, is_manager=is_manager)
+
+    def set_user_roles(
+        self,
+        user_id: int,
+        *,
+        is_manager: bool | None = None,
+        is_logist: bool | None = None,
+    ) -> UserOut | None:
+        """Set staff roles; None leaves that role as it is."""
         with self._lock:
             with self._conn() as conn:
                 row = conn.execute(
@@ -1036,10 +1054,16 @@ class CabinetStore:
                 ).fetchone()
                 if not row:
                     return None
-                conn.execute(
-                    "UPDATE users SET is_manager = ? WHERE id = ?",
-                    (1 if is_manager else 0, int(user_id)),
-                )
+                if is_manager is not None:
+                    conn.execute(
+                        "UPDATE users SET is_manager = ? WHERE id = ?",
+                        (1 if is_manager else 0, int(user_id)),
+                    )
+                if is_logist is not None:
+                    conn.execute(
+                        "UPDATE users SET is_logist = ? WHERE id = ?",
+                        (1 if is_logist else 0, int(user_id)),
+                    )
                 conn.commit()
                 row = conn.execute(
                     "SELECT * FROM users WHERE id = ?",

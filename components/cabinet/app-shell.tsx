@@ -37,6 +37,7 @@ type Props = {
 export function roleBadge(user: CabinetUser) {
   if (user.is_admin) return <Badge tone="success">Админ</Badge>;
   if (user.is_manager) return <Badge tone="info">Менеджер</Badge>;
+  if (user.is_logist) return <Badge tone="info">Логист</Badge>;
   return <Badge>Клиент</Badge>;
 }
 

@@ -175,6 +175,8 @@ class UserOut(BaseModel):
     phone: str = ""
     is_admin: bool = False
     is_manager: bool = False
+    # Логист: видит и ведёт только логистику (контейнеры, SMS).
+    is_logist: bool = False
     # Менеджер, за которым закреплён клиент (аккаунт с телефоном).
     manager_user_id: int = 0
     consent_marketing: bool = False
@@ -207,9 +209,10 @@ class DealFillMapSmsOut(BaseModel):
 
 
 class UserRoleUpdate(BaseModel):
-    """Owner admin promotes or demotes a logged-in user to manager."""
+    """Owner admin gives or takes the manager / logist role. Omitted = unchanged."""
 
-    is_manager: bool
+    is_manager: bool | None = None
+    is_logist: bool | None = None
 
 
 class AuthResponse(BaseModel):

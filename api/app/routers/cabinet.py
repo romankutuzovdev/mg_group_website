@@ -527,10 +527,14 @@ def admin_set_user_role(
     body: UserRoleUpdate,
     actor: Annotated[UserOut, Depends(require_owner_admin_or_key)],
 ) -> UserOut:
-    """Only site owner admin (or INGEST key) assigns managers — not managers themselves."""
+    """Only site owner admin (or INGEST key) assigns managers and logists."""
     if not actor.is_admin:
-        raise HTTPException(status_code=403, detail="Назначать менеджеров может только администратор")
-    user = cabinet_store.set_user_manager(user_id, body.is_manager)
+        raise HTTPException(status_code=403, detail="Назначать сотрудников может только администратор")
+    if body.is_manager is None and body.is_logist is None:
+        raise HTTPException(status_code=422, detail="Не указана роль")
+    user = cabinet_store.set_user_roles(
+        user_id, is_manager=body.is_manager, is_logist=body.is_logist
+    )
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
     return user
@@ -767,11 +771,14 @@ def get_media(
         raise HTTPException(status_code=404, detail="Media not found")
     if not viewer.is_admin and not cabinet_store.media_belongs_to_user(media_id, viewer.id):
         deal_id = cabinet_store.media_deal_id(media_id)
-        if (
-            not viewer.is_manager
-            or deal_id is None
-            or not cabinet_store.manager_owns_deal(manager_id=viewer.id, deal_id=deal_id)
-        ):
+        # Логист видит фото машин на доске логистики.
+        logist_ok = viewer.is_logist and deal_id is not None
+        manager_ok = (
+            viewer.is_manager
+            and deal_id is not None
+            and cabinet_store.manager_owns_deal(manager_id=viewer.id, deal_id=deal_id)
+        )
+        if not (logist_ok or manager_ok):
             raise HTTPException(status_code=403, detail="Forbidden")
     path, filename, kind = info
     media_type = mimetypes.guess_type(filename)[0] or (

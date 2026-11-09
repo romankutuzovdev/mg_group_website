@@ -13,6 +13,8 @@ export type CabinetUser = {
   phone?: string;
   is_admin: boolean;
   is_manager?: boolean;
+  /** Логист: видит только логистику. */
+  is_logist?: boolean;
   /** Менеджер, за которым закреплён клиент. */
   manager_user_id?: number;
   consent_marketing?: boolean;
@@ -545,13 +547,14 @@ export async function fetchAdminUsers(): Promise<CabinetUser[]> {
   return cabinetFetch("/api/v1/admin/users");
 }
 
-export async function adminSetUserManager(
+/** Админ назначает или снимает роли; не переданная роль не меняется. */
+export async function adminSetUserRoles(
   userId: number,
-  isManager: boolean,
+  roles: { is_manager?: boolean; is_logist?: boolean },
 ): Promise<CabinetUser> {
   return cabinetFetch(`/api/v1/admin/users/${userId}`, {
     method: "PATCH",
-    body: JSON.stringify({ is_manager: isManager }),
+    body: JSON.stringify(roles),
   });
 }
 
