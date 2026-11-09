@@ -183,6 +183,15 @@ export async function fetchLotBySlug(slug: string): Promise<AuctionLot | null> {
   }
 }
 
+/** All photos of a China lot; the API reads them from Autohome on first request. */
+export async function fetchLotGallery(slug: string, signal?: AbortSignal): Promise<string[]> {
+  const data = await apiFetch<{ imageUrls?: string[] }>(
+    `/api/v1/lots/${encodeURIComponent(slug)}/gallery`,
+    { method: "POST", signal },
+  );
+  return Array.isArray(data.imageUrls) ? data.imageUrls.filter(Boolean) : [];
+}
+
 export type LotMetaResponse = {
   total: number;
   makes: string[];

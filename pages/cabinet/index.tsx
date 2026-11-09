@@ -373,7 +373,9 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   // Менеджер видит только своих клиентов: общие разделы ему закрыты.
   const isLimitedManager = Boolean(user?.is_manager && !user?.is_admin);
   const tab: Tab =
-    isLimitedManager && !["favorites", "calculators"].includes(storedTab) ? "clients" : storedTab;
+    isLimitedManager && !["favorites", "calculators", "manager"].includes(storedTab)
+      ? "clients"
+      : storedTab;
   const activeDeals = deals.filter((d) => d.status === "active").length;
 
   const navItems: NavItem[] = [
@@ -382,6 +384,10 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
       : { id: "deals", label: "Сделки", icon: BriefcaseBusiness, badge: deals.length || null },
     { id: "favorites", label: "Избранное", icon: Heart, badge: favorites.length || null },
     { id: "calculators", label: "Калькуляторы", icon: Calculator },
+    // CRM у менеджера: сервер отдаёт только его клиентов и сделки.
+    ...(isLimitedManager
+      ? [{ id: "manager", label: "CRM · клиенты", icon: Users, section: "Команда" }]
+      : []),
     ...(isStaff && !isLimitedManager
       ? [
           { id: "manager", label: "CRM · клиенты", icon: Users, section: "Команда" },

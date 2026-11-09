@@ -30,6 +30,7 @@ import {
 } from "@/lib/auctions/lot-specs";
 import { collectLotPhotoUrls, toLotHeroUrl, toLotThumbUrl } from "@/lib/auctions/lot-image-url";
 import { presentLot } from "@/lib/auctions/listing-blob";
+import { fetchLotGallery } from "@/lib/api/client";
 import { CONSULTATION_TG, consultationMessage } from "@/lib/company";
 
 function formatMoney(amount: number, currency: "USD" | "GBP" | "KRW") {
@@ -135,7 +136,24 @@ export function LotDetailView({
   dictionary: Dictionary;
   lot: AuctionLot;
 }) {
-  const lot = useMemo(() => presentLot(rawLot), [rawLot]);
+  // China search gives one photo per car; the full gallery is read on first view.
+  const [gallery, setGallery] = useState<{ slug: string; urls: string[] } | null>(null);
+  const needsGallery =
+    rawLot.region === "china" && collectLotPhotoUrls(rawLot).length < 2;
+  useEffect(() => {
+    if (!needsGallery) return;
+    const ctrl = new AbortController();
+    fetchLotGallery(rawLot.slug, ctrl.signal)
+      .then((urls) => {
+        if (urls.length > 1) setGallery({ slug: rawLot.slug, urls });
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [needsGallery, rawLot.slug]);
+  const lot = useMemo(() => {
+    const urls = gallery?.slug === rawLot.slug ? gallery.urls : null;
+    return presentLot(urls ? { ...rawLot, imageUrl: urls[0], imageUrls: urls } : rawLot);
+  }, [rawLot, gallery]);
   const router = useRouter();
   const lotPath = `/auctions/${lot.slug}/`;
   const backHref = catalogHref(lot.region);

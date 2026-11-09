@@ -3,6 +3,7 @@
 import { formatCny } from "@/lib/pricing/china-quote";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { LotImage } from "@/components/auctions/lot-image";
 import { FavoriteButton } from "@/components/auctions/favorite-button";
 import {
@@ -165,9 +166,9 @@ export function LotCard({
             <FavoriteButton lotId={lot.id} />
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5 sm:gap-3 sm:p-3">
-            <div className="min-w-0 rounded-xl bg-[#0D3F10]/92 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/10 backdrop-blur-md sm:px-3.5 sm:py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200/90">
+          <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-2 p-2.5 sm:gap-3 sm:p-3">
+            <div className="max-w-full shrink-0 rounded-xl bg-[#0D3F10]/92 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/10 backdrop-blur-md sm:px-3.5 sm:py-2.5">
+              <p className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200/90">
                 {lot.region === "china"
                   ? "Цена в Китае"
                   : lot.region === "korea"
@@ -176,7 +177,12 @@ export function LotCard({
                       ? "Текущая ставка"
                       : "Оценка от"}
               </p>
-              <p className="whitespace-nowrap font-display text-xl font-bold tabular-nums tracking-tight text-white sm:text-2xl">
+              <p
+                className={cn(
+                  "whitespace-nowrap font-display font-bold tabular-nums tracking-tight text-white",
+                  priceKrw > 0 ? "text-lg sm:text-xl" : "text-xl sm:text-2xl",
+                )}
+              >
                 {priceKrw > 0
                   ? `${priceKrw.toLocaleString("ru-RU")} ₩`
                   : isChina
@@ -191,7 +197,7 @@ export function LotCard({
             </div>
             {relative ? (
               <span
-                className="shrink-0 rounded-lg bg-black/55 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm sm:text-[11px]"
+                className="ml-auto shrink-0 rounded-lg bg-black/55 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm sm:text-[11px]"
                 suppressHydrationWarning
               >
                 {relative}

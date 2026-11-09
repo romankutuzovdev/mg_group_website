@@ -271,6 +271,17 @@ def get_lot(slug: str) -> AuctionLot:
     return lot.model_copy(update={"similarSold": lot_store.similar_sold(lot)})
 
 
+@router.post("/{slug}/gallery")
+async def lot_gallery(slug: str) -> dict:
+    """All photos of a China lot. The first call reads them from Autohome in Chrome."""
+    from app.services.china_gallery import ensure_china_gallery
+
+    lot = lot_store.get_by_slug(slug) or lot_store.get_by_id(slug)
+    if not lot:
+        raise HTTPException(status_code=404, detail="Lot not found")
+    return await ensure_china_gallery(lot)
+
+
 @router.put("/{lot_id}", response_model=AuctionLot, dependencies=[Depends(_require_ingest_key)])
 def upsert_lot(lot_id: str, payload: AuctionLot) -> AuctionLot:
     settings = get_settings()
