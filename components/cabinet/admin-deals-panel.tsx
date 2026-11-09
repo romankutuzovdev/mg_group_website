@@ -833,8 +833,6 @@ export function AdminDealsPanel({
     return "";
   };
 
-  const limitedManager = Boolean(currentUser?.is_manager && !currentUser?.is_admin);
-
   const canResetPasswordFor = (c: CrmClient | null) => {
     if (!c) return false;
     const uid =
@@ -1813,70 +1811,67 @@ export function AdminDealsPanel({
                               </div>
                             </div>
                           </button>
-                          {/* Менеджеру сервер не даёт менять сроки оплаты и менеджера сделки. */}
-                          {limitedManager ? null : (
-                            <div
-                              className={[
-                                "grid gap-2 border-t border-zinc-100 bg-zinc-50/50 px-3 py-2.5",
-                                canAssignRoles ? "sm:grid-cols-3" : "sm:grid-cols-2",
-                              ].join(" ")}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {canAssignRoles ? (
-                                <label className="block text-[11px] font-medium text-zinc-500">
-                                  Менеджер
-                                  <select
-                                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/30"
-                                    value={
-                                      deal.manager_user_id
-                                        ? String(deal.manager_user_id)
-                                        : ""
-                                    }
-                                    onChange={(e) =>
-                                      void patchDeal(deal.id, {
-                                        manager_user_id: e.target.value
-                                          ? Number(e.target.value)
-                                          : 0,
-                                      })
-                                    }
-                                  >
-                                    <option value="">Не назначен</option>
-                                    {managers.map((u) => (
-                                      <option key={u.id} value={String(u.id)}>
-                                        {userLabel(u)}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                              ) : null}
+                          <div
+                            className={[
+                              "grid gap-2 border-t border-zinc-100 bg-zinc-50/50 px-3 py-2.5",
+                              canAssignRoles ? "sm:grid-cols-3" : "sm:grid-cols-2",
+                            ].join(" ")}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {canAssignRoles ? (
                               <label className="block text-[11px] font-medium text-zinc-500">
-                                Срок этапа 1
-                                <input
-                                  type="date"
+                                Менеджер
+                                <select
                                   className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/30"
-                                  value={deal.payment_stage1_due || ""}
+                                  value={
+                                    deal.manager_user_id
+                                      ? String(deal.manager_user_id)
+                                      : ""
+                                  }
                                   onChange={(e) =>
                                     void patchDeal(deal.id, {
-                                      payment_stage1_due: e.target.value,
+                                      manager_user_id: e.target.value
+                                        ? Number(e.target.value)
+                                        : 0,
                                     })
                                   }
-                                />
+                                >
+                                  <option value="">Не назначен</option>
+                                  {managers.map((u) => (
+                                    <option key={u.id} value={String(u.id)}>
+                                      {userLabel(u)}
+                                    </option>
+                                  ))}
+                                </select>
                               </label>
-                              <label className="block text-[11px] font-medium text-zinc-500">
-                                Срок этапа 2
-                                <input
-                                  type="date"
-                                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/30"
-                                  value={deal.payment_stage2_due || ""}
-                                  onChange={(e) =>
-                                    void patchDeal(deal.id, {
-                                      payment_stage2_due: e.target.value,
-                                    })
-                                  }
-                                />
-                              </label>
-                            </div>
-                          )}
+                            ) : null}
+                            <label className="block text-[11px] font-medium text-zinc-500">
+                              Срок этапа 1
+                              <input
+                                type="date"
+                                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                value={deal.payment_stage1_due || ""}
+                                onChange={(e) =>
+                                  void patchDeal(deal.id, {
+                                    payment_stage1_due: e.target.value,
+                                  })
+                                }
+                              />
+                            </label>
+                            <label className="block text-[11px] font-medium text-zinc-500">
+                              Срок этапа 2
+                              <input
+                                type="date"
+                                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                value={deal.payment_stage2_due || ""}
+                                onChange={(e) =>
+                                  void patchDeal(deal.id, {
+                                    payment_stage2_due: e.target.value,
+                                  })
+                                }
+                              />
+                            </label>
+                          </div>
                         </article>
                       );
                     })

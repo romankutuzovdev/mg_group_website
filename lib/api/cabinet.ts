@@ -867,7 +867,8 @@ export async function adminUpdateDeal(
 
 export async function adminUpdatePayment(
   dealId: number,
-  body: { stage: 1 | 2; paid: boolean },
+  /** paid_on — дата оплаты YYYY-MM-DD из календаря; без неё сервер ставит «сейчас». */
+  body: { stage: 1 | 2; paid: boolean; paid_on?: string },
 ): Promise<Deal> {
   return cabinetFetch(`/api/v1/admin/deals/${dealId}/payment`, {
     method: "POST",

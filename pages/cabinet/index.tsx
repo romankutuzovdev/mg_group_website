@@ -862,7 +862,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
               <DealPaymentStatus
                 deal={selected}
-                isAdmin={isStaff && !isLimitedManager}
+                isAdmin={isStaff}
                 onUpdated={(next) => {
                   setSelected(next);
                   setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));

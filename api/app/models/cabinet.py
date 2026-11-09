@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -378,6 +380,8 @@ class PaymentStageUpdate(BaseModel):
 
     stage: Literal[1, 2]
     paid: bool = True
+    # Дата фактической оплаты из календаря; пусто — сейчас.
+    paid_on: date | None = None
 
 
 class FavoriteCreate(BaseModel):

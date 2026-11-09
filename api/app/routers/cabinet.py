@@ -41,7 +41,6 @@ from app.services.auth_deps import (
     get_optional_user,
     is_limited_manager,
     require_admin_or_key,
-    require_full_admin_or_key,
     require_owner_admin_or_key,
 )
 from app.services.cabinet_store import cabinet_store
@@ -75,7 +74,14 @@ def _require_managed_deal(deal_id: int, actor: UserOut) -> None:
 
 
 # Всё остальное в сделке меняет только администратор.
-_MANAGER_DEAL_FIELDS = {"car_status", "tracking_url", "dismantle_photos_url", "dismantle_yard"}
+_MANAGER_DEAL_FIELDS = {
+    "car_status",
+    "tracking_url",
+    "dismantle_photos_url",
+    "dismantle_yard",
+    "payment_stage1_due",
+    "payment_stage2_due",
+}
 
 
 def _is_staff(user: UserOut) -> bool:
@@ -622,13 +628,16 @@ def admin_set_claim_status(
 def admin_update_payment(
     deal_id: int,
     body: PaymentStageUpdate,
-    _: Annotated[UserOut, Depends(require_full_admin_or_key)],
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> DealOut:
+    # Менеджер закрывает оплату только по своим сделкам.
+    _require_managed_deal(deal_id, actor)
     try:
         deal = cabinet_store.update_payment_stage(
             deal_id,
             stage=int(body.stage),
             paid=bool(body.paid),
+            paid_on=body.paid_on,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

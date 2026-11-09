@@ -10,8 +10,15 @@ type Props = {
   onUpdated?: (deal: Deal) => void;
 };
 
+function todayStamp(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function formatAt(iso: string | null | undefined): string {
   if (!iso) return "";
+  // Дата из календаря хранится без времени.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return formatDue(iso);
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleString("ru-RU", {
@@ -32,25 +39,37 @@ function formatDue(iso: string | null | undefined): string {
 
 export function paymentDueOverdue(due: string | null | undefined, paid?: boolean): boolean {
   if (!due || paid) return false;
-  const today = new Date();
-  const stamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  return due < stamp;
+  return due < todayStamp();
+}
+
+/** YYYY-MM-DD for the date input: stored date, or the local day of an ISO stamp. */
+function dayOf(iso: string | null | undefined): string {
+  if (!iso) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Дата оплаты, которую выбрали в календаре до нажатия «Этап закрыт».
+  const [paidOn, setPaidOn] = useState<Record<1 | 2, string>>({ 1: "", 2: "" });
 
   const stage1 = Boolean(deal.payment_stage1_paid);
   const stage2 = Boolean(deal.payment_stage2_paid);
   const doneCount = (stage1 ? 1 : 0) + (stage2 ? 1 : 0);
 
-  const setStage = (stage: 1 | 2, paid: boolean) => {
+  const setStage = (stage: 1 | 2, paid: boolean, day?: string) => {
     void (async () => {
       setBusy(true);
       setError(null);
       try {
-        const next = await adminUpdatePayment(deal.id, { stage, paid });
+        const next = await adminUpdatePayment(
+          deal.id,
+          paid && day ? { stage, paid, paid_on: day } : { stage, paid },
+        );
         onUpdated?.(next);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Не удалось обновить оплату");
@@ -178,7 +197,24 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
             </div>
 
             {isAdmin ? (
-              <div className="flex flex-wrap gap-1.5 sm:shrink-0">
+              <div className="flex flex-wrap items-end gap-1.5 sm:shrink-0">
+                <label className="block text-[11px] text-zinc-500">
+                  Дата оплаты
+                  <input
+                    type="date"
+                    max={todayStamp()}
+                    disabled={busy || (!row.paid && !row.canClose)}
+                    value={row.paid ? dayOf(row.at) : paidOn[row.stage] || todayStamp()}
+                    onChange={(e) => {
+                      const day = e.target.value;
+                      if (!day) return;
+                      // Закрытый этап: сразу переносим дату. Открытый — запоминаем до кнопки.
+                      if (row.paid) setStage(row.stage, true, day);
+                      else setPaidOn((prev) => ({ ...prev, [row.stage]: day }));
+                    }}
+                    className="mt-1 block h-8 w-[9.5rem] rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-zinc-900 shadow-sm disabled:opacity-50"
+                  />
+                </label>
                 {row.paid ? (
                   <button
                     type="button"
@@ -192,7 +228,7 @@ export function DealPaymentStatus({ deal, isAdmin = false, onUpdated }: Props) {
                   <button
                     type="button"
                     disabled={busy || !row.canClose}
-                    onClick={() => setStage(row.stage, true)}
+                    onClick={() => setStage(row.stage, true, paidOn[row.stage] || todayStamp())}
                     className="inline-flex h-8 items-center rounded-md bg-emerald-600 px-3 text-xs font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
                   >
                     Этап закрыт

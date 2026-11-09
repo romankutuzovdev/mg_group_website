@@ -7,7 +7,7 @@ import re
 import sqlite3
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -1302,15 +1302,20 @@ class CabinetStore:
         *,
         stage: int,
         paid: bool,
+        paid_on: date | None = None,
     ) -> DealOut | None:
         if stage not in (1, 2):
             raise ValueError("stage must be 1 or 2")
+        if paid_on is not None and paid_on > datetime.now(timezone.utc).date() + timedelta(days=1):
+            raise ValueError("Дата оплаты не может быть в будущем")
         with self._lock:
             with self._conn() as conn:
                 row = conn.execute("SELECT * FROM deals WHERE id = ?", (deal_id,)).fetchone()
                 if not row:
                     return None
                 now = _now()
+                # Выбранный день хранится датой без времени.
+                paid_at = paid_on.isoformat() if paid_on else now
                 paid_col = f"payment_stage{stage}_paid"
                 at_col = f"payment_stage{stage}_at"
                 # Stage 2 can only be closed if stage 1 is already paid (or closing both via reopen)
@@ -1343,7 +1348,7 @@ class CabinetStore:
                           updated_at = ?
                         WHERE id = ?
                         """,
-                        (1 if paid else 0, now if paid else None, now, deal_id),
+                        (1 if paid else 0, paid_at if paid else None, now, deal_id),
                     )
                 conn.commit()
                 row = conn.execute("SELECT * FROM deals WHERE id = ?", (deal_id,)).fetchone()

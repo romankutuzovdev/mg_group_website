@@ -115,12 +115,29 @@ class ManagerScopeTest(unittest.TestCase):
         foreign = f"/api/v1/admin/deals/{self.other.id}"
         self.assertEqual(self.client.patch(foreign, json={"car_status": ""}, headers=h).status_code, 403)
 
-    def test_manager_cannot_touch_payment_or_logistics(self):
+    def test_manager_sets_payment_only_on_own_deal(self):
         h = self.auth(2)
+        url = "/api/v1/admin/deals/{}/payment"
         res = self.client.post(
-            f"/api/v1/admin/deals/{self.mine.id}/payment", json={"stage": 1, "paid": True}, headers=h
+            url.format(self.mine.id), json={"stage": 1, "paid": True, "paid_on": "2026-11-02"}, headers=h
         )
-        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()["payment_stage1_paid"])
+        self.assertEqual(res.json()["payment_stage1_at"], "2026-11-02")
+        foreign = self.client.post(url.format(self.other.id), json={"stage": 1, "paid": True}, headers=h)
+        self.assertEqual(foreign.status_code, 403)
+        future = self.client.post(
+            url.format(self.mine.id), json={"stage": 2, "paid": True, "paid_on": "2099-01-01"}, headers=h
+        )
+        self.assertEqual(future.status_code, 422)
+        due = self.client.patch(
+            f"/api/v1/admin/deals/{self.mine.id}", json={"payment_stage1_due": "2026-12-01"}, headers=h
+        )
+        self.assertEqual(due.status_code, 200)
+        self.assertEqual(due.json()["payment_stage1_due"], "2026-12-01")
+
+    def test_manager_cannot_touch_logistics(self):
+        h = self.auth(2)
         paths = [r.path for r in logistics_router.router.routes if "GET" in getattr(r, "methods", set())]
         path = next(p for p in paths if "{" not in p)
         self.assertEqual(self.client.get(f"/api/v1{path}", headers=h).status_code, 403)
