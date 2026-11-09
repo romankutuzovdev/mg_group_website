@@ -242,6 +242,15 @@ class DealClaimStatusUpdate(BaseModel):
     status: ClaimStatus
 
 
+class DealMediaFromUrl(BaseModel):
+    """Auction photo the server downloads itself and keeps with the deal."""
+
+    url: str = Field(..., min_length=8, max_length=2000)
+    stage_key: StageKey | None = "auction"
+    caption: str = "С аукциона"
+    index: int = Field(1, ge=1, le=200)
+
+
 class DealStageOut(BaseModel):
     key: StageKey
     label: str

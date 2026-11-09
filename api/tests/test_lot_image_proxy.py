@@ -65,3 +65,60 @@ class WindowsForwardTests(unittest.TestCase):
         with patch.object(lot_image, "should_proxy_lot_lookup", return_value=True):
             self.assertTrue(lot_image._windows_serves("cs.copart.com"))
             self.assertFalse(lot_image._windows_serves("ci.encar.com"))
+
+
+class BidCarsHostTests(unittest.TestCase):
+    URL = "https://pluto.bid.car/1-60657476/2023-KIA-Forte-1.jpg?ver=1840"
+
+    def test_new_bid_car_cdn_is_allowed(self):
+        self.assertTrue(lot_image._ALLOWED.search("pluto.bid.car"))
+        self.assertTrue(lot_image._ALLOWED.search("images.bid.cars"))
+        self.assertFalse(lot_image._ALLOWED.search("evilbid.car.example.com"))
+
+    def test_vps_forwards_bidcars_to_windows_chrome(self):
+        with patch.object(lot_image, "should_proxy_lot_lookup", return_value=True):
+            self.assertTrue(lot_image._windows_serves("pluto.bid.car"))
+            self.assertTrue(lot_image._windows_serves("images.bid.cars"))
+        with patch.object(lot_image, "should_proxy_lot_lookup", return_value=False):
+            self.assertFalse(lot_image._windows_serves("pluto.bid.car"))
+
+    def test_windows_falls_back_to_chrome_tab_when_cdn_refuses(self):
+        import asyncio
+
+        data = b"\xff\xd8\xff" + bytes(2000)
+
+        class Refused:
+            status_code = 403
+            headers = {"content-type": "text/html"}
+            content = b"blocked"
+
+        class Client:
+            def __init__(self, **_):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def get(self, *a, **k):
+                return Refused()
+
+        waits = []
+
+        async def chrome(url, *, wait=False):
+            waits.append(wait)
+            return data, "image/jpeg"
+
+        with patch.object(lot_image, "should_proxy_lot_lookup", return_value=False), patch.object(
+            lot_image.httpx, "AsyncClient", Client
+        ), patch.object(lot_image, "_fetch_bidcars_via_chrome", side_effect=chrome), patch.object(
+            lot_image, "_read_cache", return_value=None
+        ), patch.object(lot_image, "_write_cache"), patch.object(
+            lot_image, "get_settings",
+            return_value=SimpleNamespace(lot_image_proxy_url="", ai_proxy_url="", scraper_proxy_url=""),
+        ):
+            got = asyncio.run(lot_image.fetch_lot_image(self.URL, wait_for_chrome=True))
+        self.assertEqual(got, (data, "image/jpeg", "CHROME"))
+        self.assertEqual(waits, [True])

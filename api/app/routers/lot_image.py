@@ -37,6 +37,7 @@ _ALLOWED = re.compile(
     r"(?:^|\.)anvisimages\.com$|"
     r"(?:^|\.)encar\.com$|"
     r"(?:^|\.)bid\.cars$|"
+    r"(?:^|\.)bid\.car$|"
     r"(?:^|\.)autoimg\.cn$|"
     r"(?:^|\.)che168\.com$|"
     r"(?:^|\.)autohome\.com$|"
@@ -180,41 +181,64 @@ def _looks_like_image(data: bytes, ctype: str) -> bool:
     return "image" in low or "octet-stream" in low
 
 
-async def _fetch_bidcars_via_chrome(url: str) -> tuple[bytes, str] | None:
-    """images.bid.cars answers 403 to httpx. The headed Chrome already passed Cloudflare."""
+def _is_bidcars(host: str) -> bool:
+    h = (host or "").lower()
+    return h.endswith("bid.cars") or h == "bid.car" or h.endswith(".bid.car")
+
+
+async def _fetch_bidcars_via_chrome(url: str, *, wait: bool = False) -> tuple[bytes, str] | None:
+    """Bid.cars CDN answers 403 to httpx and to fetch()/XHR from the tab.
+
+    A top-level navigation in the headed Chrome (already past Cloudflare)
+    returns the JPEG, so open the image URL in a helper tab.
+    `wait=True` queues behind busy lookups instead of giving up.
+    """
     from app.services.calc_chrome import get_calc_chrome_pool
 
     async def worker(page):
-        resp = await page.context.request.get(
-            url,
-            headers={
-                "Referer": "https://bid.cars/",
-                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-            },
-            timeout=20_000,
-        )
-        body = await resp.body()
-        ctype = (resp.headers.get("content-type") or "image/jpeg").split(";")[0].strip()
-        if resp.status >= 400 or not _looks_like_image(body, ctype):
+        helper = await page.context.new_page()
+        try:
+            for attempt in (1, 2):
+                resp = await helper.goto(url, wait_until="domcontentloaded", timeout=25_000)
+                if resp is None:
+                    return None
+                ctype = (resp.headers.get("content-type") or "image/jpeg").split(";")[0].strip()
+                if resp.status < 400:
+                    body = await resp.body()
+                    if not _looks_like_image(body, ctype):
+                        return None
+                    if "image" not in ctype.lower():
+                        ctype = "image/jpeg"
+                    return body, ctype
+                if resp.status in (403, 503) and attempt == 1:
+                    # Cloudflare check on the CDN zone auto-solves in a real browser.
+                    await helper.wait_for_timeout(4500)
+                    continue
+                return None
             return None
-        if "image" not in ctype.lower() and "octet-stream" not in ctype.lower():
-            ctype = "image/jpeg"
-        return body, ctype
+        finally:
+            try:
+                await helper.close()
+            except Exception:
+                pass
 
     try:
-        return await get_calc_chrome_pool().run(worker, optional=True)
-    except Exception:
+        return await get_calc_chrome_pool().run(worker, optional=not wait)
+    except Exception as exc:
+        logger.info("bid.cars image via chrome failed: %s", type(exc).__name__)
         return None
 
 
 def _windows_serves(host: str) -> bool:
-    return "copart" in host.lower() and should_proxy_lot_lookup()
+    """Copart refuses our VPS address and bid.cars needs the Windows Chrome."""
+    h = (host or "").lower()
+    return ("copart" in h or _is_bidcars(h)) and should_proxy_lot_lookup()
 
 
 async def _fetch_from_windows(url: str) -> tuple[bytes, str] | None:
     """Public node: ask the Windows API, which caches images on its own disk."""
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(25.0, connect=5.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=5.0)) as client:
             res = await client.get(f"{scraper_api_base()}/api/lot-image", params={"u": url})
     except httpx.HTTPError as exc:
         logger.info("lot image via windows failed: %s", type(exc).__name__)
@@ -244,8 +268,18 @@ def _prefer_copart_thumb(url: str) -> str:
     return url
 
 
-@router.get("/api/lot-image")
-async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
+_IMAGE_HEADERS = {
+    "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+    "Access-Control-Allow-Origin": "*",
+}
+
+
+async def fetch_lot_image(u: str, *, wait_for_chrome: bool = False) -> tuple[bytes, str, str]:
+    """Download one auction photo the way the site proxy does.
+
+    Returns (bytes, content type, cache tag). Raises HTTPException when the
+    URL is not an auction photo or the CDN would not give it up.
+    """
     target = (u or "").strip()
     try:
         parsed = urlparse(target)
@@ -266,31 +300,13 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
     cached = _read_cache(target)
     if cached:
         data, ctype = cached
-        return Response(
-            content=data,
-            status_code=200,
-            media_type=ctype,
-            headers={
-                "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
-                "Access-Control-Allow-Origin": "*",
-                "X-Lot-Image-Cache": "HIT",
-            },
-        )
+        return data, ctype, "HIT"
 
     if _windows_serves(host):
         forwarded = await _fetch_from_windows(original)
         if forwarded:
             body, ctype = forwarded
-            return Response(
-                content=body,
-                status_code=200,
-                media_type=ctype,
-                headers={
-                    "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
-                    "Access-Control-Allow-Origin": "*",
-                    "X-Lot-Image-Cache": "WINDOWS",
-                },
-            )
+            return body, ctype, "WINDOWS"
 
     attempts: list[tuple[str, str]] = [(target, _referer_for(host, target))]
     if "copart" in host.lower():
@@ -317,16 +333,7 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
                 hit = _read_cache(url)
                 if hit:
                     data, ctype = hit
-                    return Response(
-                        content=data,
-                        status_code=200,
-                        media_type=ctype,
-                        headers={
-                            "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
-                            "Access-Control-Allow-Origin": "*",
-                            "X-Lot-Image-Cache": "HIT",
-                        },
-                    )
+                    return data, ctype, "HIT"
                 headers = {
                     "User-Agent": (
                         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -344,26 +351,17 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
                 last_status = upstream.status_code
                 upstream = None
     except Exception as exc:
-        if "bid.cars" not in host.lower() and not host.lower().endswith("bid.car"):
+        if not _is_bidcars(host):
             raise HTTPException(status_code=502, detail=f"Upstream fetch failed: {exc}") from exc
         upstream = None
         last_status = 502
 
-    if upstream is None and ("bid.cars" in host.lower() or host.lower().endswith("bid.car")):
-        via_chrome = await _fetch_bidcars_via_chrome(target)
+    if upstream is None and _is_bidcars(host):
+        via_chrome = await _fetch_bidcars_via_chrome(target, wait=wait_for_chrome)
         if via_chrome:
             body, ctype = via_chrome
             _write_cache(target, body, ctype)
-            return Response(
-                content=body,
-                status_code=200,
-                media_type=ctype,
-                headers={
-                    "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
-                    "Access-Control-Allow-Origin": "*",
-                    "X-Lot-Image-Cache": "CHROME",
-                },
-            )
+            return body, ctype, "CHROME"
 
     if upstream is None:
         if last_status == 404:
@@ -377,15 +375,17 @@ async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
     body = upstream.content
     _write_cache(used_url, body, ctype)
 
+    return body, ctype, "MISS"
+
+
+@router.get("/api/lot-image")
+async def proxy_lot_image(u: str = Query(..., min_length=8)) -> Response:
+    data, ctype, tag = await fetch_lot_image(u)
     return Response(
-        content=body,
+        content=data,
         status_code=200,
         media_type=ctype,
-        headers={
-            "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
-            "Access-Control-Allow-Origin": "*",
-            "X-Lot-Image-Cache": "MISS",
-        },
+        headers={**_IMAGE_HEADERS, "X-Lot-Image-Cache": tag},
     )
 
 

@@ -17,7 +17,7 @@ import {
   adminCreateDeal,
   adminResetClientPassword,
   adminUpdateDeal,
-  adminUploadDealMedia,
+  adminImportDealMediaFromUrl,
   dealKind,
   generateClientPassword,
   stageKeysForDeal,
@@ -85,47 +85,40 @@ function specsSummary(specs?: DealSpecs | null): string {
     .join(" · ");
 }
 
-const LOT_PHOTO_UPLOAD_CONCURRENCY = 4;
+// Bid.cars photos go through one Chrome on Windows — keep the queue short.
+const LOT_PHOTO_UPLOAD_CONCURRENCY = 3;
 
-async function uploadLotPhoto(dealId: number, src: string, index: number) {
+/** Browser-safe preview: auction CDNs block BY visitors, so go through our proxy. */
+function lotPreviewSrc(src: string): string {
+  const u = (src || "").trim();
+  if (/^https?:\/\//i.test(u)) return apiUrl(`/api/lot-image?u=${encodeURIComponent(u)}`);
+  return u.startsWith("/") ? apiUrl(u) : u;
+}
+
+/** The server downloads the photo itself and keeps it with the deal. */
+async function uploadLotPhoto(dealId: number, src: string, index: number): Promise<boolean> {
   try {
-    const proxied = /^https?:\/\//i.test(src)
-      ? apiUrl(`/api/lot-image?u=${encodeURIComponent(src)}`)
-      : src.startsWith("/")
-        ? apiUrl(src)
-        : src;
-    const res = await fetch(proxied, { cache: "no-store" });
-    if (!res.ok) return;
-    const blob = await res.blob();
-    if (!blob.size) return;
-    const rawType = (blob.type || "").toLowerCase();
-    // CDN иногда отдаёт octet-stream / пустой Content-Type
-    const okType =
-      !rawType ||
-      rawType.startsWith("image/") ||
-      rawType === "application/octet-stream";
-    if (!okType) return;
-    const file = new File([blob], `auction-${index + 1}.jpg`, {
-      type: rawType.startsWith("image/") ? rawType : "image/jpeg",
-    });
-    await adminUploadDealMedia(dealId, file, "auction", "С аукциона");
+    await adminImportDealMediaFromUrl(dealId, src, index + 1);
+    return true;
   } catch {
-    // skip broken image, continue gallery
+    return false;
   }
 }
 
-/** Все фото лота (Bid.cars / Copart UK) → медиа сделки, этап «Аукцион». */
-async function uploadLotPhotos(dealId: number, images: string[], onProgress: () => void) {
+/** Все фото лота (Bid.cars / Copart) → медиа сделки, этап «Аукцион». */
+async function uploadLotPhotos(
+  dealId: number,
+  images: string[],
+  onProgress: (ok: boolean) => void,
+) {
   if (!images.length) return;
   // Первое фото отдельно: оно остаётся обложкой, остальные идут параллельно.
-  await uploadLotPhoto(dealId, images[0], 0);
-  onProgress();
+  onProgress(await uploadLotPhoto(dealId, images[0], 0));
   let next = 1;
   const worker = async () => {
     while (next < images.length) {
       const index = next++;
-      await uploadLotPhoto(dealId, images[index], index);
-      onProgress();
+      onProgress(await uploadLotPhoto(dealId, images[index], index));
     }
   };
   const workers = Math.min(LOT_PHOTO_UPLOAD_CONCURRENCY, images.length - 1);
@@ -267,7 +260,11 @@ export function AdminDealsPanel({
     password: string;
   } | null>(null);
 
-  const [photoUpload, setPhotoUpload] = useState<{ done: number; total: number } | null>(null);
+  const [photoUpload, setPhotoUpload] = useState<{
+    done: number;
+    total: number;
+    failed: number;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -300,11 +297,18 @@ export function AdminDealsPanel({
   const startLotPhotoUpload = (dealId: number, rawImages: string[]) => {
     const images = rawImages.map((u) => (u || "").trim()).filter(Boolean);
     if (!images.length) return;
-    setPhotoUpload((p) => ({ done: p?.done ?? 0, total: (p?.total ?? 0) + images.length }));
-    void uploadLotPhotos(dealId, images, () =>
-      setPhotoUpload((p) => (p ? { ...p, done: p.done + 1 } : p)),
+    setPhotoUpload((p) => ({
+      done: p?.done ?? 0,
+      total: (p?.total ?? 0) + images.length,
+      failed: p?.failed ?? 0,
+    }));
+    void uploadLotPhotos(dealId, images, (saved) =>
+      setPhotoUpload((p) =>
+        p ? { ...p, done: p.done + 1, failed: p.failed + (saved ? 0 : 1) } : p,
+      ),
     ).finally(() => {
-      setPhotoUpload((p) => (p && p.done >= p.total ? null : p));
+      // Keep the banner when some photos failed so the manager sees it.
+      setPhotoUpload((p) => (p && p.done >= p.total && !p.failed ? null : p));
       void load();
     });
   };
@@ -999,7 +1003,23 @@ export function AdminDealsPanel({
       ) : null}
       {photoUpload ? (
         <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-[13px] text-zinc-700">
-          Загружаем фото лота: {photoUpload.done} из {photoUpload.total}. Не закрывайте страницу.
+          {photoUpload.done < photoUpload.total
+            ? `Сервер скачивает фото лота: ${photoUpload.done} из ${photoUpload.total}. Не закрывайте страницу.`
+            : `Фото лота сохранены: ${photoUpload.total - photoUpload.failed} из ${photoUpload.total}.`}
+          {photoUpload.failed ? (
+            <span className="text-red-700">
+              {" "}
+              Не скачалось: {photoUpload.failed} — добавьте их вручную в сделке.
+            </span>
+          ) : null}
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-200">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all"
+              style={{
+                width: `${Math.round((photoUpload.done / Math.max(photoUpload.total, 1)) * 100)}%`,
+              }}
+            />
+          </div>
         </div>
       ) : null}
 
@@ -1251,14 +1271,15 @@ export function AdminDealsPanel({
             {lotImages.length ? (
               <div className="space-y-1 pt-1">
                 <p className="text-[11px] text-zinc-500">
-                  На сделку загрузятся все {lotImages.length} фото с аукциона
+                  {lotImages.length} фото с аукциона — сервер скачает их и сохранит в сделке
                 </p>
                 <div className="flex gap-1.5 overflow-x-auto">
                   {lotImages.slice(0, 12).map((src) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       key={src}
-                      src={src}
+                      src={lotPreviewSrc(src)}
+                      loading="lazy"
                       alt=""
                       className="h-14 w-20 shrink-0 rounded-lg object-cover ring-1 ring-zinc-200"
                     />

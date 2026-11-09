@@ -1073,6 +1073,18 @@ async def _scrape_lot_on_page(page: Page, url: str) -> dict[str, Any]:
             data.update({k: v for k, v in api.items() if v is not None})
             if api.get("error") and not api.get("bid") and not api.get("location"):
                 data["chrome_error"] = f"Copart API: {api.get('error')}"
+        # Solr gives one thumb; the deal form needs the whole live gallery.
+        try:
+            from app.scraper.copart_common import FETCH_GALLERIES_JS
+
+            galleries = await page.evaluate(
+                FETCH_GALLERIES_JS, {"origin": origin, "lotNumbers": [lot_number]}
+            )
+            gallery = (galleries or {}).get(str(lot_number)) or []
+            if gallery:
+                data["images"] = [u for u in gallery if isinstance(u, str)][:40]
+        except Exception as exc:
+            logger.info("copart gallery %s: %s", lot_number, exc)
     elif platform == "bidcars":
         dom = await page.evaluate(BIDCars_JS)
         if isinstance(dom, dict):
