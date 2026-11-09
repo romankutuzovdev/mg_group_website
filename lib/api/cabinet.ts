@@ -177,7 +177,11 @@ export function setCabinetToken(token: string | null): void {
 
 const CABINET_FETCH_TIMEOUT_MS = 25_000;
 
-async function cabinetFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function cabinetFetch<T>(
+  path: string,
+  init?: RequestInit,
+  timeoutMs: number = CABINET_FETCH_TIMEOUT_MS,
+): Promise<T> {
   if (!isApiEnabled()) {
     throw new ApiError("API URL is not configured (NEXT_PUBLIC_API_URL)", 0);
   }
@@ -188,7 +192,7 @@ async function cabinetFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
   const externalSignal = init?.signal;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), CABINET_FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   const onExternalAbort = () => ctrl.abort();
   externalSignal?.addEventListener("abort", onExternalAbort);
 
@@ -825,6 +829,25 @@ export async function adminUploadDealMedia(
     method: "POST",
     body: form,
   });
+}
+
+/** Server downloads an auction photo itself and stores it with the deal. */
+export async function adminImportDealMediaFromUrl(
+  dealId: number,
+  url: string,
+  index: number,
+  stageKey: StageKey | null = "auction",
+  caption = "С аукциона",
+): Promise<DealMedia> {
+  // Bid.cars photos go through the Windows Chrome: one can take ~40 s.
+  return cabinetFetch(
+    `/api/v1/admin/deals/${dealId}/media/from-url`,
+    {
+      method: "POST",
+      body: JSON.stringify({ url, index, stage_key: stageKey, caption }),
+    },
+    90_000,
+  );
 }
 
 export function mediaAbsoluteUrl(path: string): string {

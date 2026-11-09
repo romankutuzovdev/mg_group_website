@@ -15,6 +15,7 @@ from app.models.cabinet import (
     ClientAccountCreatedOut,
     CreateClientAccountPayload,
     DealCreate,
+    DealMediaFromUrl,
     DealMediaOut,
     DealOut,
     DealUpdate,
@@ -569,6 +570,71 @@ async def admin_upload_media(
             stage_key=stage_key,
             caption=caption,
             content_type=file.content_type or "",
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Deal not found") from exc
+
+
+_EXT_BY_TYPE = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
+
+
+async def _download_auction_photo(url: str) -> tuple[bytes, str]:
+    """Fresh bytes for one auction photo: CDN through the lot-image proxy,
+    our own `/api/lot-photos/...` archive from disk or from the Windows node."""
+    from app.routers.lot_image import fetch_lot_image
+    from app.services.lot_photos import resolve_photo_file
+    from app.services.scraper_proxy import scraper_api_base
+
+    raw = url.strip()
+    if raw.startswith("/api/lot-photos/"):
+        parts = raw.split("?")[0].split("/")
+        if len(parts) >= 5:
+            path = resolve_photo_file(parts[3], parts[4])
+            if path is not None:
+                return path.read_bytes(), mimetypes.guess_type(path.name)[0] or "image/jpeg"
+        base = scraper_api_base()
+        if not base:
+            raise HTTPException(status_code=404, detail="Photo not found")
+        import httpx
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0)) as client:
+            res = await client.get(f"{base}{raw}")
+        if res.status_code >= 400 or len(res.content) < 600:
+            raise HTTPException(status_code=502, detail=f"Photo upstream {res.status_code}")
+        return res.content, (res.headers.get("content-type") or "image/jpeg").split(";")[0]
+    if raw.startswith("/api/lot-image"):
+        from urllib.parse import parse_qs, urlparse
+
+        raw = (parse_qs(urlparse(raw).query).get("u") or [""])[0]
+    data, ctype, _ = await fetch_lot_image(raw, wait_for_chrome=True)
+    return data, ctype
+
+
+@router.post("/admin/deals/{deal_id}/media/from-url", response_model=DealMediaOut)
+async def admin_import_media_from_url(
+    deal_id: int,
+    body: DealMediaFromUrl,
+    _: Annotated[UserOut, Depends(require_admin_or_key)],
+) -> DealMediaOut:
+    """Server downloads the auction photo and stores it with the deal (VPS disk),
+    so the client never depends on the auction CDN or the manager's browser."""
+    if cabinet_store.get_deal(deal_id) is None:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    data, ctype = await _download_auction_photo(body.url)
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large (max 25MB)")
+    ctype = (ctype or "image/jpeg").lower()
+    if not ctype.startswith("image/"):
+        ctype = "image/jpeg"
+    try:
+        return cabinet_store.add_media(
+            deal_id=deal_id,
+            kind="photo",
+            content=data,
+            filename=f"auction-{body.index}{_EXT_BY_TYPE.get(ctype, '.jpg')}",
+            stage_key=body.stage_key,
+            caption=body.caption,
+            content_type=ctype,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Deal not found") from exc

@@ -15,7 +15,7 @@ import {
   adminCreateDeal,
   adminResetClientPassword,
   adminUpdateDeal,
-  adminUploadDealMedia,
+  adminImportDealMediaFromUrl,
   dealKind,
   generateClientPassword,
   stageKeysForDeal,
@@ -26,6 +26,7 @@ import {
 import { fetchLotFromUrl } from "@/lib/api/client";
 import { apiUrl, isApiEnabled } from "@/lib/api/config";
 import { lotHost } from "@/lib/pricing/lot-url";
+import { cn } from "@/lib/utils";
 import {
   LotLoadButton,
   LotLoadStatus,
@@ -70,42 +71,108 @@ function specsSummary(specs?: DealSpecs | null): string {
 }
 
 /** Все фото лота (Bid.cars / Copart UK) → медиа сделки, этап «Аукцион». */
-async function uploadCoverFromLotImages(dealId: number, images: string[]) {
-  const candidates = (images || [])
-    .map((u) => (u || "").trim())
-    .filter(Boolean);
-  if (!candidates.length) return;
+/** Browser-safe preview: auction CDNs block BY visitors, so go through our proxy. */
+function lotPreviewSrc(src: string): string {
+  const u = (src || "").trim();
+  if (/^https?:\/\//i.test(u)) return apiUrl(`/api/lot-image?u=${encodeURIComponent(u)}`);
+  return u.startsWith("/") ? apiUrl(u) : u;
+}
 
-  let uploaded = 0;
-  for (let i = 0; i < candidates.length; i++) {
-    const src = candidates[i];
-    try {
-      const proxied = /^https?:\/\//i.test(src)
-        ? apiUrl(`/api/lot-image?u=${encodeURIComponent(src)}`)
-        : src.startsWith("/")
-          ? apiUrl(src)
-          : src;
-      const res = await fetch(proxied, { cache: "no-store" });
-      if (!res.ok) continue;
-      const blob = await res.blob();
-      if (!blob.size) continue;
-      const rawType = (blob.type || "").toLowerCase();
-      // CDN иногда отдаёт octet-stream / пустой Content-Type
-      const okType =
-        !rawType ||
-        rawType.startsWith("image/") ||
-        rawType === "application/octet-stream";
-      if (!okType) continue;
-      const file = new File([blob], `auction-${i + 1}.jpg`, {
-        type: rawType.startsWith("image/") ? rawType : "image/jpeg",
-      });
-      await adminUploadDealMedia(dealId, file, "auction", "С аукциона");
-      uploaded += 1;
-    } catch {
-      // skip broken image, continue gallery
+type PhotoImportState = "pending" | "loading" | "ok" | "fail";
+
+/** Server downloads every auction photo and keeps it with the deal (3 at a time). */
+async function importLotPhotos(
+  dealId: number,
+  images: string[],
+  onState: (index: number, state: PhotoImportState) => void,
+): Promise<{ saved: number; failed: number }> {
+  const queue = images.map((u, i) => ({ url: (u || "").trim(), i })).filter((x) => x.url);
+  let saved = 0;
+  let failed = 0;
+  let next = 0;
+  const worker = async () => {
+    while (next < queue.length) {
+      const { url, i } = queue[next++];
+      onState(i, "loading");
+      try {
+        await adminImportDealMediaFromUrl(dealId, url, i + 1);
+        saved += 1;
+        onState(i, "ok");
+      } catch {
+        failed += 1;
+        onState(i, "fail");
+      }
     }
-  }
-  return uploaded;
+  };
+  await Promise.all(Array.from({ length: Math.min(3, queue.length) }, worker));
+  return { saved, failed };
+}
+
+function LotPhotoStrip({
+  images,
+  states,
+}: {
+  images: string[];
+  states: PhotoImportState[];
+}) {
+  const importing = states.length > 0;
+  const done = states.filter((st) => st === "ok" || st === "fail").length;
+  const failed = states.filter((st) => st === "fail").length;
+  return (
+    <div className="space-y-1.5 pt-1">
+      {importing ? (
+        <div className="space-y-1">
+          <p className="text-[11px] font-medium text-emerald-800">
+            Сервер скачивает фото с аукциона: {done} / {images.length}
+            {failed ? ` · не скачалось ${failed}` : ""}
+          </p>
+          <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all"
+              style={{ width: `${Math.round((done / Math.max(images.length, 1)) * 100)}%` }}
+            />
+          </div>
+        </div>
+      ) : (
+        <p className="text-[11px] text-zinc-500">
+          {images.length} фото с аукциона — при сохранении сервер скачает их и сохранит в сделке
+        </p>
+      )}
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {images.map((src, i) => {
+          const st = states[i];
+          return (
+            <div key={`${i}-${src}`} className="relative h-14 w-20 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lotPreviewSrc(src)}
+                alt=""
+                loading="lazy"
+                className={cn(
+                  "h-full w-full rounded-lg object-cover ring-1 ring-zinc-200",
+                  st === "pending" && "opacity-50",
+                  st === "fail" && "opacity-40 grayscale",
+                )}
+              />
+              {st === "loading" ? (
+                <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/30">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                </span>
+              ) : st === "ok" ? (
+                <span className="absolute right-1 top-1 rounded-full bg-emerald-500 px-1 text-[10px] leading-4 text-white">
+                  ✓
+                </span>
+              ) : st === "fail" ? (
+                <span className="absolute right-1 top-1 rounded-full bg-red-500 px-1 text-[10px] leading-4 text-white">
+                  ✕
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 type Props = {
@@ -204,6 +271,7 @@ export function AdminDealsPanel({
   const [lotLoading, setLotLoading] = useState(false);
   const [lotMeta, setLotMeta] = useState<string | null>(null);
   const [lotImages, setLotImages] = useState<string[]>([]);
+  const [photoStates, setPhotoStates] = useState<PhotoImportState[]>([]);
   const [title, setTitle] = useState("");
   const [vin, setVin] = useState("");
   const [lotNumber, setLotNumber] = useState("");
@@ -323,6 +391,7 @@ export function AdminDealsPanel({
         primary_damage: lot.primaryDamage ? String(lot.primaryDamage) : "",
       });
       setLotImages(Array.isArray(lot.images) ? lot.images.filter(Boolean) : []);
+      setPhotoStates([]);
       setLotMeta(
         [
           nextTitle || "Лот",
@@ -389,12 +458,24 @@ export function AdminDealsPanel({
         payment_stage1_due: due1,
         payment_stage2_due: due2,
       });
+      let photoNote = "";
       if (lotImages.length) {
-        await uploadCoverFromLotImages(deal.id, lotImages);
+        setPhotoStates(lotImages.map(() => "pending"));
+        const { saved, failed } = await importLotPhotos(deal.id, lotImages, (i, st) =>
+          setPhotoStates((prev) => {
+            const nextStates = prev.slice();
+            nextStates[i] = st;
+            return nextStates;
+          }),
+        );
+        photoNote = ` · фото сохранено ${saved} из ${lotImages.length}${
+          failed ? ` (не скачалось ${failed})` : ""
+        }`;
       }
       setOk(
-        `${DEAL_KIND_LABELS[dealKind(deal)]} #${deal.id} · ${regionLabel(deal.origin_region)}`,
+        `${DEAL_KIND_LABELS[dealKind(deal)]} #${deal.id} · ${regionLabel(deal.origin_region)}${photoNote}`,
       );
+      setPhotoStates([]);
       setLotUrl("");
       setTrackingUrl("");
       setDismantlePhotosUrl("");
@@ -1173,22 +1254,11 @@ export function AdminDealsPanel({
               </p>
             )}
             {lotImages.length ? (
-              <div className="space-y-1 pt-1">
-                <p className="text-[11px] text-zinc-500">
-                  На сделку загрузятся все {lotImages.length} фото с аукциона
-                </p>
-                <div className="flex gap-1.5 overflow-x-auto">
-                  {lotImages.slice(0, 12).map((src) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={src}
-                      src={src}
-                      alt=""
-                      className="h-14 w-20 shrink-0 rounded-lg object-cover ring-1 ring-zinc-200"
-                    />
-                  ))}
-                </div>
-              </div>
+              <LotPhotoStrip images={lotImages} states={photoStates} />
+            ) : lotMeta ? (
+              <p className="text-[11px] text-amber-700">
+                Фото с аукциона не нашлись — загрузите их вручную в сделке
+              </p>
             ) : null}
           </div>
 
