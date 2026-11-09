@@ -2,6 +2,7 @@ import {
   REGION_ORDER,
   SITE_ORIGIN,
   absoluteUrl,
+  getMakesForRegion,
   type CatalogRegionSlug,
 } from "@/lib/catalog";
 import { CITIES, cityPath, kitCityPath, kitOriginPath } from "@/lib/seo/cities";
@@ -177,12 +178,18 @@ export type CityRegionMakeParams = {
 };
 
 /** Only city×region×make combos that have live stock in that region. */
+/**
+ * Every city × region × make from the static catalog, like `/avto/{region}/{make}/`.
+ * The page shows catalog models, not live lots, so it must not depend on the
+ * build-time lot fetch (it times out on 100k+ lots and left these pages 404).
+ */
 export async function allCityRegionMakeParamsAsync(): Promise<CityRegionMakeParams[]> {
-  const inv = await buildSeoInventory();
   const out: CityRegionMakeParams[] = [];
   for (const city of CITIES) {
-    for (const p of inv.makePaths) {
-      out.push({ city: city.slug, region: p.region, make: p.make });
+    for (const region of REGION_ORDER) {
+      for (const make of getMakesForRegion(region)) {
+        out.push({ city: city.slug, region, make: make.slug });
+      }
     }
   }
   return out;

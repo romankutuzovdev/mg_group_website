@@ -25,7 +25,8 @@ export function usdToCny(usd: number): number {
 
 /** Цена для клиента: «≈ 67 166 ¥». Знак ≈ потому, что это пересчёт, а не цена продавца. */
 export function formatCny(usd: number): string {
-  return `≈ ${usdToCny(usd).toLocaleString("ru-RU")} ¥`;
+  // Non-breaking spaces: the price never wraps the ¥ onto its own line.
+  return `≈\u00a0${usdToCny(usd).toLocaleString("ru-RU")}\u00a0¥`;
 }
 
 export function quoteChina(priceUsd: number): ChinaQuote | null {

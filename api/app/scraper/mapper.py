@@ -1377,6 +1377,16 @@ def _china_mileage(row: dict[str, Any]) -> int:
         return 0
 
 
+def strip_make_prefix(make: str, model: str) -> str:
+    """che168 series names repeat the brand: make "212", model "212 T01"."""
+    mk, md = (make or "").strip(), (model or "").strip()
+    if mk and md.lower().startswith(mk.lower() + " "):
+        rest = md[len(mk):].strip()
+        if rest:
+            return rest
+    return md
+
+
 def map_china_market_row(row: dict[str, Any]) -> AuctionLot | None:
     """China used-car / Autohome Global row → AuctionLot (always with lotUrl)."""
     lid = str(
@@ -1422,6 +1432,7 @@ def map_china_market_row(row: dict[str, Any]) -> AuctionLot | None:
             year, make, model = parse_title_year_make_model(title)
         else:
             return None
+    model = strip_make_prefix(make, model)
     if not lid:
         lid = f"{year}-{slugify(make)}-{slugify(model)}"
 

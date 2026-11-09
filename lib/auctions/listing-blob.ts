@@ -117,7 +117,19 @@ function dirty(value: string | null | undefined): boolean {
 }
 
 /** Replace a dumped IAA search row with separate make, damage, mileage and location. */
-export function presentLot<T extends AuctionLot>(lot: T): T {
+/** che168 series repeat the brand: make "212", model "212 T01" → "T01". */
+function withoutMakePrefix<T extends AuctionLot>(lot: T): T {
+  const make = (lot.make || "").trim();
+  const model = (lot.model || "").trim();
+  if (make && model.toLowerCase().startsWith(`${make.toLowerCase()} `)) {
+    const rest = model.slice(make.length).trim();
+    if (rest) return { ...lot, model: rest };
+  }
+  return lot;
+}
+
+export function presentLot<T extends AuctionLot>(rawLot: T): T {
+  const lot = withoutMakePrefix(rawLot);
   const source = blobText(lot);
   if (!source) return lot;
   const parsed = parseListingBlob(source);

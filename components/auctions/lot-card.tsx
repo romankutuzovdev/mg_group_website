@@ -87,13 +87,15 @@ export function LotCard({
   }
 
   const isKorea = lot.region === "korea";
+  // China listings are dealer prices, not auctions: no sale date, timer or Buy Now.
+  const isChina = lot.region === "china";
   const priceKrw = isKorea ? Number(lot.estimatedRetail) || 0 : 0;
 
   // Relative time only after mount — Date.now() differs between SSR and hydrate.
   const [relative, setRelative] = useState<string | null>(null);
   useEffect(() => {
-    setRelative(formatAuctionRelative(lot.auctionDate, Date.now()));
-  }, [lot.auctionDate]);
+    setRelative(isChina ? null : formatAuctionRelative(lot.auctionDate, Date.now()));
+  }, [lot.auctionDate, isChina]);
 
   const photos = collectLotPhotoUrls(lot);
   const photoCount =
@@ -141,7 +143,7 @@ export function LotCard({
                 {CLOSED_AUCTION_LABEL}
               </span>
             ) : null}
-            {lot.buyNowPrice ? (
+            {lot.buyNowPrice && !isChina ? (
               <span className="rounded-md bg-accent px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
                 Buy Now
               </span>
@@ -174,13 +176,18 @@ export function LotCard({
                       ? "Текущая ставка"
                       : "Оценка от"}
               </p>
-              <p className="font-display text-xl font-bold tabular-nums tracking-tight text-white sm:text-2xl">
+              <p className="whitespace-nowrap font-display text-xl font-bold tabular-nums tracking-tight text-white sm:text-2xl">
                 {priceKrw > 0
                   ? `${priceKrw.toLocaleString("ru-RU")} ₩`
-                  : lot.region === "china"
+                  : isChina
                     ? formatCny(lot.currentBid)
                     : formatMoney(lot.currentBid || lot.estimatedCostMin || 0, lot.currency)}
               </p>
+              {isChina && lot.currentBid > 0 ? (
+                <p className="whitespace-nowrap text-[11px] font-medium tabular-nums text-emerald-100/80">
+                  {formatMoney(lot.currentBid, "USD")}
+                </p>
+              ) : null}
             </div>
             {relative ? (
               <span
@@ -204,12 +211,14 @@ export function LotCard({
           </div>
 
           <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
-            <span className="font-medium text-zinc-600" suppressHydrationWarning>
-              {absolute}
-            </span>
+            {isChina ? null : (
+              <span className="font-medium text-zinc-600" suppressHydrationWarning>
+                {absolute}
+              </span>
+            )}
             {lot.location ? (
               <>
-                <span className="mx-1.5 text-zinc-300">·</span>
+                {isChina ? null : <span className="mx-1.5 text-zinc-300">·</span>}
                 <span className="truncate">{lot.location}</span>
               </>
             ) : null}
