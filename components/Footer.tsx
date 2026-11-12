@@ -1,5 +1,6 @@
 import type { Dictionary } from '@/lib/dictionary';
-import { Phone, MapPin, Clock, ExternalLink } from 'lucide-react';
+import { Phone, MapPin, Clock, ExternalLink, Instagram } from 'lucide-react';
+import { INSTAGRAM_URL } from '@/lib/company';
 import Image from 'next/image';
 import WhatsUpIcon from '../public/whatsapp.svg';
 
@@ -219,6 +220,16 @@ const Footer = ({ dictionary }: FooterProps) => {
                 <Clock className="h-4 w-4 flex-shrink-0" />
                 <span className="whitespace-pre-line">{dictionary.contact.hours}</span>
               </div>
+              <a
+                href={INSTAGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-white/55 transition-colors hover:text-white"
+                aria-label="Instagram MG.GROUP"
+              >
+                <Instagram className="h-4 w-4 flex-shrink-0" />
+                <span>@mg_grupp</span>
+              </a>
             </div>
           </div>
         </div>

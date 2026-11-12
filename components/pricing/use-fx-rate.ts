@@ -1,12 +1,23 @@
 "use client";
 
-import { DEFAULT_FX, type FxRateInfo } from "@/lib/pricing/fx-rate";
+import { useEffect, useState } from "react";
+import { DEFAULT_FX, fetchFxRateGbpUsd, type FxRateInfo } from "@/lib/pricing/fx-rate";
 
 export { DEFAULT_FX };
 
-/** Фиксированный курс GBP→USD: 1.36 + 0.02 */
+/** Курс GBP→USD: мировой + 0.02. Пока грузится — запасной курс. */
 export function useFxRate(): FxRateInfo {
-  return DEFAULT_FX;
+  const [fx, setFx] = useState<FxRateInfo>(DEFAULT_FX);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchFxRateGbpUsd().then((info) => {
+      if (!cancelled) setFx(info);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return fx;
 }
 
 export function parseBidInput(text: string): number {

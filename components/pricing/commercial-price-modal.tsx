@@ -127,7 +127,7 @@ export function CommercialPriceModal({ origin, onClose }: Props) {
                   <li key={line} className="flex gap-3">
                     <span className="font-semibold text-accent">{i + 1}.</span>
                     {line}
-                    {i === 1 && origin === "usa" ? ` + ${USA_DISPATCHING_USD} USD диспетчинг` : null}
+                    {i === 1 && origin === "usa" ? ` + ${USA_DISPATCHING_USD} USD услуги компании США (выкуп и диспетчирование)` : null}
                   </li>
                 ))}
               </ol>

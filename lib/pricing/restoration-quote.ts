@@ -7,7 +7,10 @@ import { lookupUsaDelivery, normalizeSize, type VehicleSize } from "./usa-delive
 import { lookupTitleFee, type TitleFeeInfo } from "./usa-title";
 
 export const USA_TRANSFER_FEE_RATE = 0.035;
-export const USA_DISPATCHING_USD = 250;
+/** Услуги компании в США: выкуп и диспетчирование */
+export const USA_DISPATCHING_USD = 200;
+/** Оформление документов */
+export const USA_DOCS_FEE_USD = 50;
 export const SUBLOT_FEE_USD = 100;
 /** Клайпеда → Минск, стандартное отправление. Комиссия 3,5% на эту сумму не идёт: она только на перевод в США. */
 export const KLAIPEDA_MINSK_USD = 960;
@@ -83,6 +86,8 @@ export type RestorationQuote = {
   sublotUsd: number;
   subtotalUsa: number;
   dispatchingUsd: number;
+  /** Оформление документов */
+  docsFeeUsd: number;
   transferFee: number;
   transferFeeRate: number;
   /** Итого расходы США, база для таможни РБ */
@@ -173,7 +178,8 @@ export function quoteRestoration(input: RestorationQuoteInput): RestorationQuote
 
   const dispatchingUsd = USA_DISPATCHING_USD;
   const transferFee = round2(americaSubtotal * USA_TRANSFER_FEE_RATE);
-  const usaWithFees = round2(americaSubtotal + dispatchingUsd + transferFee);
+  const docsFeeUsd = USA_DOCS_FEE_USD;
+  const usaWithFees = round2(americaSubtotal + dispatchingUsd + docsFeeUsd + transferFee);
   const potiRate =
     delivery?.oceanDestination === "poti"
       ? POTI_MINSK_RATES.find((r) => r.id === (input.potiVehicle ?? defaultPotiVehicle(size)))
@@ -195,6 +201,7 @@ export function quoteRestoration(input: RestorationQuoteInput): RestorationQuote
     sublotUsd,
     subtotalUsa: americaSubtotal,
     dispatchingUsd,
+    docsFeeUsd,
     transferFee,
     transferFeeRate: USA_TRANSFER_FEE_RATE,
     usaWithFees,

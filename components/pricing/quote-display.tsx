@@ -79,7 +79,10 @@ export function CopartQuoteDisplay({ quote }: { quote: CopartQuote }) {
       <Row label="Комиссия 3,5%" value={gbp(quote.transferFee, 2)} />
       <Row label="Итого UK" value={gbp(quote.totalUk, 2)} total />
       {quote.fxRate ? (
-        <Row label="Расходы Англии" value={usd(quote.englandUsd, 2)} />
+        <>
+          <Row label="Курс" value={quote.fxRate.toFixed(2)} />
+          <Row label="Расходы Англии" value={usd(quote.englandUsd, 2)} />
+        </>
       ) : null}
       <Row
         label={quote.dismantleMode === "weight" ? "Разбор по весу" : "Разбор"}
@@ -138,7 +141,7 @@ export function IaaiQuoteDisplay({
           value={usd(quote.deliveryUsa.inlandUsd, 0)}
         />
       ) : null}
-      <Row label="Диспетчинг" value={usd(quote.dispatchingUsd)} />
+      <Row label="Услуги компании США" hint="выкуп и диспетчирование" value={usd(quote.dispatchingUsd)} />
       <Row label="Комиссия 3,5%" value={usd(quote.transferFee, 2)} />
       <Row label="Расходы США" value={usd(quote.usaWithFees, 2)} total />
       <Row

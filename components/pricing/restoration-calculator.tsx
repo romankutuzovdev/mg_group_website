@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { EstimateNotice } from "@/components/pricing/estimate-notice";
 import { CustomsByPanel } from "@/components/pricing/customs-by-panel";
 import { useRecordQuote } from "@/components/pricing/use-record-quote";
 import type { CustomsByResult } from "@/lib/pricing/customs-by";
@@ -17,7 +18,7 @@ import {
   type PotiVehicle,
   type RestorationQuote,
 } from "@/lib/pricing/restoration-quote";
-import { listTitleTariffs } from "@/lib/pricing/usa-title";
+import { listTitleTariffs, lookupTitleFee } from "@/lib/pricing/usa-title";
 import { findYard, listYards, type VehicleSize } from "@/lib/pricing/usa-delivery";
 import { fetchLotFromUrl } from "@/lib/api/client";
 import { isApiEnabled } from "@/lib/api/config";
@@ -55,6 +56,10 @@ export function RestorationCalculator() {
   const [oceanDest, setOceanDest] = useState<"klaipeda" | "poti">("klaipeda");
   const [potiVehicle, setPotiVehicle] = useState<PotiVehicle | null>(null);
   const [titleCode, setTitleCode] = useState("Salvage Title / Certif / of distrctn");
+  /** Документ лота как он указан на аукционе (Sale Document). */
+  const [lotSaleDoc, setLotSaleDoc] = useState<string | null>(null);
+  /** Документ лота не нашёлся в прайсе доплат. */
+  const [lotSaleDocUnmatched, setLotSaleDocUnmatched] = useState(false);
   const [isSublot, setIsSublot] = useState(false);
   const [yearText, setYearText] = useState("2018");
   const [inlandOverride, setInlandOverride] = useState("");
@@ -123,14 +128,16 @@ export function RestorationCalculator() {
       );
       if (loadedBid != null) setBidText(String(loadedBid));
       if (lot.year) setYearText(String(lot.year));
-      if (lot.title) {
-        const titleLow = String(lot.title).toLowerCase();
-        const match = TITLE_OPTIONS.find(
-          (t) =>
-            t.name.toLowerCase().includes(titleLow) ||
-            titleLow.includes(t.name.toLowerCase().slice(0, 12)),
-        );
-        if (match) setTitleCode(match.name);
+      const saleDoc = String(lot.saleDocument || "").trim();
+      setLotSaleDoc(saleDoc || null);
+      setLotSaleDocUnmatched(false);
+      if (saleDoc) {
+        const info = lookupTitleFee(saleDoc);
+        const option =
+          info?.matchedRule &&
+          TITLE_OPTIONS.find((t) => t.name.toLowerCase() === info.matchedRule!.toLowerCase());
+        if (option) setTitleCode(option.name);
+        else setLotSaleDocUnmatched(true);
       }
       const yard = findYard(lot.location, auction);
       const matchedPlatform: "iaai" | "copart" =
@@ -404,9 +411,17 @@ export function RestorationCalculator() {
 
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
             Title / Sale Doc
+            {lotSaleDoc ? (
+              <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-text-secondary">
+                Документ лота на аукционе: <span className="font-semibold">{lotSaleDoc}</span>
+              </span>
+            ) : null}
             <select
               value={titleCode}
-              onChange={(e) => setTitleCode(e.target.value)}
+              onChange={(e) => {
+                setTitleCode(e.target.value);
+                setLotSaleDocUnmatched(false);
+              }}
               className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal text-text-primary"
             >
               {TITLE_OPTIONS.map((t) => (
@@ -416,6 +431,13 @@ export function RestorationCalculator() {
               ))}
             </select>
           </label>
+
+          <DocumentWarning
+            costUsd={quote?.titleDocUsd ?? 0}
+            docName={titleCode}
+            lotSaleDoc={lotSaleDoc}
+            unmatched={lotSaleDocUnmatched}
+          />
 
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
             Год выпуска (для возраста на таможне)
@@ -457,6 +479,7 @@ export function RestorationCalculator() {
         </div>
 
         <div className="space-y-4">
+          <EstimateNotice />
           <div className="card-premium rounded-xl p-5 sm:p-6">
             {quote ? (
               <>
@@ -500,7 +523,13 @@ export function RestorationCalculator() {
                     </>
                   ) : null}
                   {quote.titleDocUsd > 0 ? (
-                    <Line label="Title / Sale Doc" value={usd(quote.titleDocUsd)} />
+                    <div className="-mx-2 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1.5">
+                      <Line
+                        label="⚠ Документы (Title / Sale Doc)"
+                        value={usd(quote.titleDocUsd)}
+                        hint={titleCode}
+                      />
+                    </div>
                   ) : (
                     <Line label="Title / Sale Doc" value="без доплат" />
                   )}
@@ -509,7 +538,12 @@ export function RestorationCalculator() {
                       {quote.isSublot ? (
                         <Line label="Sublot / Offsite" value={usd(quote.sublotUsd)} />
                       ) : null}
-                      <Line label="Диспетчинг" value={usd(quote.dispatchingUsd)} />
+                      <Line
+                        label="Услуги компании США"
+                        value={usd(quote.dispatchingUsd)}
+                        hint="выкуп и диспетчирование"
+                      />
+                      <Line label="Оформление документов" value={usd(quote.docsFeeUsd)} />
                       <Line
                         label={`Комиссия ${(quote.transferFeeRate * 100).toFixed(1)}%`}
                         value={usd(quote.transferFee, 2)}
@@ -570,6 +604,51 @@ export function RestorationCalculator() {
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+function DocumentWarning({
+  costUsd,
+  docName,
+  lotSaleDoc,
+  unmatched,
+}: {
+  costUsd: number;
+  docName: string;
+  lotSaleDoc: string | null;
+  unmatched: boolean;
+}) {
+  if (unmatched) {
+    return (
+      <div role="alert" className="rounded-lg border-2 border-red-300 bg-red-50 p-3 text-sm text-red-900">
+        <p className="font-semibold">⚠ Внимание: документ требует проверки</p>
+        <p className="mt-1 text-xs leading-relaxed">
+          Документ лота «{lotSaleDoc}» не найден в нашем прайсе. Оформление документов может стоить
+          дополнительных денег (до $500). Выберите тип документа вручную или уточните у менеджера до
+          ставки.
+        </p>
+      </div>
+    );
+  }
+  if (costUsd > 0) {
+    return (
+      <div role="alert" className="rounded-lg border-2 border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
+        <p className="font-semibold">⚠ Внимание: документы на это авто стоят денег — +{usd(costUsd)}</p>
+        <p className="mt-1 text-xs leading-relaxed">
+          Тип документа: {docName}. Доплата за оформление уже добавлена в расчёт. Учитывайте её при
+          выборе ставки.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs leading-relaxed text-emerald-900">
+      <p className="font-semibold">✓ Документы без доплат</p>
+      <p className="mt-0.5">
+        Обратите внимание: в зависимости от типа документа (Bill of Sale, Parts only, Lien, Junk и др.)
+        оформление может стоить от $50 до $500. Проверяйте Sale Document на странице лота.
+      </p>
     </div>
   );
 }

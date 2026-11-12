@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CalculatorForm } from "@/components/pricing/calculator-form";
+import { EstimateNotice } from "@/components/pricing/estimate-notice";
 import { RestorationCalculator } from "@/components/pricing/restoration-calculator";
 import { CustomsByPanel } from "@/components/pricing/customs-by-panel";
 import { cn } from "@/lib/utils";
@@ -78,6 +79,7 @@ function CustomsStandalone() {
         </label>
       </div>
       <CustomsByPanel recordHistory priceUsd={Number(price) || null} year={Number(year) || null} />
+      <EstimateNotice />
     </div>
   );
 }

@@ -102,7 +102,7 @@ export function CommercialPricingSection() {
               </div>
               <p className="mt-4 text-xs leading-relaxed text-text-on-dark-muted">
                 Лот + аукцион + доставка по стране + комиссия перевода 3,5%
-                {origin === "usa" ? " + 200 USD диспетчинг по США" : ""}. Самовывоз из Минска возможен.
+                {origin === "usa" ? " + 200 USD услуги компании США (выкуп и диспетчирование)" : ""}. Самовывоз из Минска возможен.
               </p>
               <button
                 type="button"

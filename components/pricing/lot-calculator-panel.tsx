@@ -1,5 +1,6 @@
 "use client";
 
+import { EstimateNotice } from "@/components/pricing/estimate-notice";
 import { useEffect, useMemo, useState } from "react";
 import type { AuctionLot } from "@/lib/auctions/types";
 import { formatOdometerKm } from "@/lib/auctions/odometer";
@@ -92,7 +93,8 @@ function RestorationQuoteLines({ quote }: { quote: RestorationQuote }) {
         <Line label="Title / Sale Doc" value="без доплат" />
       )}
       {quote.isSublot ? <Line label="Sublot / Offsite" value={usd(quote.sublotUsd)} /> : null}
-      <Line label="Диспетчинг" value={usd(quote.dispatchingUsd)} />
+      <Line label="Услуги компании США" value={usd(quote.dispatchingUsd)} hint="выкуп и диспетчирование" />
+      <Line label="Оформление документов" value={usd(quote.docsFeeUsd)} />
       <Line
         label={`Комиссия ${(quote.transferFeeRate * 100).toFixed(1)}%`}
         value={usd(quote.transferFee, 2)}
@@ -108,6 +110,7 @@ function RestorationQuoteLines({ quote }: { quote: RestorationQuote }) {
       {quote.delivery?.oceanDestination === "klaipeda" ? (
         <p className="pt-1 text-xs text-text-muted">{KLAIPEDA_MINSK_NOTE}</p>
       ) : null}
+      <EstimateNotice className="mt-2" />
     </dl>
   );
 }

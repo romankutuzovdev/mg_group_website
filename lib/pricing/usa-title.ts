@@ -59,10 +59,27 @@ export function listTitleTariffs(): { name: string; costUsd: number }[] {
   return items.sort((a, b) => a.costUsd - b.costUsd || a.name.localeCompare(b.name));
 }
 
+/** Bid.cars пишет штат полностью: «Bill of Sale (Wisconsin)» — добавляем код штата для правил. */
+const STATE_CODES: Record<string, string> = {
+  wisconsin: "wi",
+  washington: "wa",
+  "new york": "ny",
+  california: "ca",
+  oregon: "or",
+};
+
+function withStateCodes(text: string): string {
+  const codes = Object.entries(STATE_CODES)
+    .filter(([name]) => text.includes(name))
+    .map(([, code]) => code);
+  return codes.length ? `${text} ${codes.join(" ")}` : text;
+}
+
 export function lookupTitleFee(documentText: string | null | undefined): TitleFeeInfo | null {
   const raw = String(documentText || "").trim();
   if (!raw) return null;
   const text = norm(raw);
+  const ruleText = withStateCodes(text);
 
   for (const row of data.rows || []) {
     const name = String(row.name || "").trim();
@@ -94,8 +111,8 @@ export function lookupTitleFee(documentText: string | null | undefined): TitleFe
     }
     const allNeed = (rule.all || []).map(String).filter(Boolean);
     const anyNeed = (rule.any || []).map(String).filter(Boolean);
-    if (allNeed.length && !allNeed.every((tok) => hasToken(text, tok))) continue;
-    if (anyNeed.length && !anyNeed.some((tok) => hasToken(text, tok))) continue;
+    if (allNeed.length && !allNeed.every((tok) => hasToken(ruleText, tok))) continue;
+    if (anyNeed.length && !anyNeed.some((tok) => hasToken(ruleText, tok))) continue;
     if (!allNeed.length && !anyNeed.length) continue;
     const cost = Number(rule.cost_usd) || 0;
     return {

@@ -80,7 +80,7 @@ export function PurchasedCarCard({ car }: { car: PurchasedCar }) {
           ) : null}
           {car.deliveryAndFees > car.delivery + car.dismantle ? (
             <div className="flex justify-between gap-4">
-              <dt className="text-text-muted">Сборы / диспетчинг</dt>
+              <dt className="text-text-muted">Сборы и услуги компании</dt>
               <dd className="font-medium">
                 {formatMoney(car.deliveryAndFees - car.delivery - car.dismantle, car.currency)}
               </dd>

@@ -186,12 +186,12 @@ export function CustomsByPanel({
         <dl className="space-y-2 border-t border-border pt-3 text-sm">
           <Row label="Таможенная стоимость" value={eur(result.customsValueEur)} />
           <Row
-            label="Единый платёж"
+            label="Таможенная пошлина"
             value={byn(result.dutyByn)}
             hint={result.dutyNote}
           />
           <Row label="Утильсбор" value={byn(result.utilFeeByn)} />
-          <Row label="Таможенные операции" value={byn(result.customsOpsFeeByn)} />
+          <Row label="Таможенный сбор" value={byn(result.customsOpsFeeByn)} />
           {result.eptsFeeByn > 0 ? <Row label="ЭПТС" value={byn(result.eptsFeeByn)} /> : null}
           <Row label="Итого таможня" value={byn(result.totalByn)} total />
           <Row label="≈ в USD" value={usd(result.totalUsd, 0)} />

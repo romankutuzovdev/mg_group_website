@@ -41,6 +41,8 @@ export type CustomsCalcResult = {
   lines: CalcLine[];
   /** Только государственные платежи (пошлина, НДС, утильсбор, сбор), BYN */
   stateFeesByn: number;
+  /** Услуги: декларант, СВХ, ЭПТС, ГАИ, MG Group, оценка ТПП, BYN */
+  servicesByn: number;
   /** Растаможка целиком, BYN */
   clearanceByn: number;
   clearanceEur: number;
@@ -55,6 +57,15 @@ export type CustomsCalcError = { ok: false; error: string; field?: "price" | "vo
 
 /** Таможенный сбор за таможенные операции, BYN */
 export const CUSTOMS_FEE_BYN = 120;
+
+/** Услуги при растаможке, BYN */
+export const DECLARANT_FEE_BYN = 250;
+export const WAREHOUSE_FEE_BYN = 100;
+export const MG_SERVICE_FEE_BYN = 600;
+export const EPTS_FEE_BYN = 80;
+export const GAI_REGISTRATION_FEE_BYN = 140;
+/** Оценка стоимости ТПП — только для авто до 3 лет */
+export const TPP_APPRAISAL_FEE_BYN = 400;
 
 // ---------- Физлицо (ЕЭК №107) ----------
 
@@ -266,7 +277,7 @@ export function calculateCustoms(
   }
   lines.push({
     key: "duty",
-    label: isInd && engine === "fuel" ? "Таможенная пошлина (единая ставка)" : "Таможенная пошлина",
+    label: "Таможенная пошлина",
     amount: dutyEur,
     currency: "EUR",
     hint: dutyHint,
@@ -275,12 +286,31 @@ export function calculateCustoms(
     lines.push({ key: "vat", label: "НДС 20%", amount: vatEur, currency: "EUR" });
   }
   lines.push(
-    { key: "util", label: "Утилизационный сбор", amount: utilByn, currency: "BYN" },
     { key: "fee", label: "Таможенный сбор", amount: customsFeeByn, currency: "BYN" },
+    { key: "util", label: "Утилизационный сбор", amount: utilByn, currency: "BYN" },
+    { key: "declarant", label: "Услуги декларанта", amount: DECLARANT_FEE_BYN, currency: "BYN" },
+  );
+  let servicesByn =
+    DECLARANT_FEE_BYN + WAREHOUSE_FEE_BYN + EPTS_FEE_BYN + GAI_REGISTRATION_FEE_BYN + MG_SERVICE_FEE_BYN;
+  if (!over3) {
+    lines.push({
+      key: "tpp",
+      label: "Оценка стоимости (ТПП)",
+      amount: TPP_APPRAISAL_FEE_BYN,
+      currency: "BYN",
+      hint: "Торгово-промышленная палата — для авто до 3 лет",
+    });
+    servicesByn += TPP_APPRAISAL_FEE_BYN;
+  }
+  lines.push(
+    { key: "warehouse", label: "Стоянка СВХ", amount: WAREHOUSE_FEE_BYN, currency: "BYN" },
+    { key: "epts", label: "Электронный ПТС", amount: EPTS_FEE_BYN, currency: "BYN" },
+    { key: "gai", label: "Регистрация в ГАИ", amount: GAI_REGISTRATION_FEE_BYN, currency: "BYN" },
+    { key: "mg", label: "Услуга MG Group", amount: MG_SERVICE_FEE_BYN, currency: "BYN" },
   );
 
   const stateFeesByn = r2((dutyEur + vatEur) * eur + utilByn + customsFeeByn);
-  const clearanceByn = stateFeesByn;
+  const clearanceByn = r2(stateFeesByn + servicesByn);
   const clearanceEur = r2(clearanceByn / eur);
   const totalEur = r2(price + delivery + clearanceEur);
   const totalByn = r2(totalEur * eur);
@@ -294,6 +324,7 @@ export function calculateCustoms(
     ok: true,
     lines,
     stateFeesByn,
+    servicesByn,
     clearanceByn,
     clearanceEur,
     totalEur,

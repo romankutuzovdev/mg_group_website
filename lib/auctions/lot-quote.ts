@@ -52,7 +52,7 @@ export type LotTurnkeyBreakdown = {
   delivery: number;
   /** Разбор (0 для restoration) */
   dismantle: number;
-  /** Прочее: диспетчинг, transfer, title и т.п. */
+  /** Прочее: услуги компании США, оформление документов, transfer, title и т.п. */
   otherFees: number;
   /** Доставка + разбор + прочие сборы (без аукциона) */
   deliveryAndFees: number;
@@ -148,7 +148,7 @@ function breakdownFromRestoration(quote: RestorationQuote): LotTurnkeyBreakdown 
     (quote.delivery?.inlandUsd ?? 0) + (quote.delivery?.oceanUsd ?? 0) + quote.minskDeliveryUsd,
   );
   const otherFees = Math.round(
-    quote.dispatchingUsd + quote.transferFee + quote.titleDocUsd + quote.sublotUsd,
+    quote.dispatchingUsd + quote.docsFeeUsd + quote.transferFee + quote.titleDocUsd + quote.sublotUsd,
   );
   const amount = Math.round(quote.grandUsd);
   return {

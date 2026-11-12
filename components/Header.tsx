@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { ChevronDown, Menu, Phone, UserRound } from "lucide-react";
+import { ChevronDown, Instagram, Menu, Phone, UserRound } from "lucide-react";
+import { INSTAGRAM_URL } from "@/lib/company";
 import { useState } from "react";
 import type { Dictionary } from "@/lib/dictionary";
 import { cn } from "@/lib/utils";
@@ -179,6 +180,17 @@ const Header = ({ dictionary }: HeaderProps) => {
               {dictionary.contact.phone}
             </a>
 
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white transition hover:bg-white/10 hover:text-primary"
+              aria-label="Instagram MG.GROUP"
+              title="Instagram"
+            >
+              <Instagram className="h-5 w-5" aria-hidden="true" />
+            </a>
+
             <Link
               href="/cabinet/"
               className={cn(
@@ -276,6 +288,15 @@ const Header = ({ dictionary }: HeaderProps) => {
                     <UserRound className="h-4 w-4" aria-hidden="true" />
                     Кабинет
                   </Link>
+                  <a
+                    href={INSTAGRAM_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-stone-300 px-4 py-2 text-[13px] font-semibold text-stone-900 hover:bg-stone-100"
+                  >
+                    <Instagram className="h-4 w-4" aria-hidden="true" />
+                    Instagram
+                  </a>
                 </div>
               </SheetContent>
             </Sheet>

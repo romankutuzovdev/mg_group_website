@@ -6,14 +6,13 @@ import { AuctionsCatalog } from "@/components/auctions/auctions-catalog";
 import { YardsMap } from "@/components/kits/yards-map";
 import { PageShell } from "@/components/layout/page-shell";
 import { CommercialPricingSection } from "@/components/pricing/commercial-pricing-section";
-import { CityNavLinks } from "@/components/seo/seo-blocks";
 import { AnchorButton, LinkButton } from "@/components/site/button";
 import type { AuctionLot } from "@/lib/auctions/types";
 import { KIT_AUCTION_SOURCES } from "@/lib/auctions/types";
 import { loadLotsPageLite } from "@/lib/auctions/ssg-lite";
 import { getDictionary, type Dictionary } from "@/lib/dictionary";
 import { CONSULTATION_TG, PARTS } from "@/lib/company";
-import { CITIES, kitCityPath, kitOriginPath } from "@/lib/seo/cities";
+import { kitOriginPath } from "@/lib/seo/cities";
 
 interface Props {
   dictionary: Dictionary;
@@ -119,13 +118,6 @@ export default function MashinokomplektPage({ dictionary, lots }: Props) {
           </AnchorButton>
         </div>
 
-        <div className="mt-10 rounded-2xl border border-border bg-white p-6">
-          <h2 className="font-display text-xl font-semibold">По городам</h2>
-          <p className="mt-2 text-sm text-text-secondary">
-            SEO-страницы под запросы вроде «машинокомплект в Гродно».
-          </p>
-          <CityNavLinks cities={CITIES} hrefFor={(s) => kitCityPath(s)} />
-        </div>
       </PageShell>
 
       <section id="lots" className="scroll-mt-24 border-t border-border bg-bg-base py-12 sm:py-16">
