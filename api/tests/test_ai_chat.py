@@ -6,7 +6,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import httpx
+import httpx2
 
 from app.models.lots import AuctionLot
 from app.scraper.mapper import _encar_year
@@ -15,7 +15,7 @@ from app.services import ai_chat
 
 def _settings(**over):
     base = dict(
-        openai_api_key="k", openai_model="m", ai_proxy_url="", ai_chat_max_tokens=100,
+        anthropic_api_key="k", anthropic_model="m", anthropic_effort="low", ai_proxy_url="", ai_chat_max_tokens=100,
     )
     base.update(over)
     return SimpleNamespace(**base)
@@ -101,6 +101,14 @@ class LimiterTests(unittest.TestCase):
         self.assertEqual(rl.allow("c", hourly=2, daily=3, now=now + 4), "daily_limit")
 
 
+def _msg(stop, content):
+    return {
+        "id": "msg_1", "type": "message", "role": "assistant", "model": "m",
+        "content": content, "stop_reason": stop, "stop_sequence": None,
+        "usage": {"input_tokens": 1, "output_tokens": 1},
+    }
+
+
 class ChatFlowTests(unittest.TestCase):
     def _run(self, responses, pool, **kw):
         sent = []
@@ -113,37 +121,47 @@ class ChatFlowTests(unittest.TestCase):
             with patch.object(ai_chat, "get_settings", return_value=_settings()):
                 return await ai_chat.chat(
                     [{"role": "user", "content": "Камри до 10к"}], pool,
-                    transport=httpx.MockTransport(handler), **kw,
+                    transport=httpx2.MockTransport(handler), **kw,
                 )
 
         return asyncio.run(go()), sent
 
     def test_tool_call_then_answer_returns_real_cards(self):
-        tool = {"choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [
-            {"id": "c1", "type": "function", "function": {"name": "search_lots", "arguments": '{"make":"Toyota"}'}}
-        ]}}]}
-        final = {"choices": [{"message": {"role": "assistant", "content": "Вот вариант."}}]}
+        tool = _msg("tool_use", [
+            {"type": "tool_use", "id": "c1", "name": "search_lots", "input": {"make": "Toyota"}}
+        ])
+        final = _msg("end_turn", [{"type": "text", "text": "Вот вариант."}])
         out, sent = self._run(
-            [httpx.Response(200, json=tool), httpx.Response(200, json=final)], [_lot("camry")]
+            [httpx2.Response(200, json=tool), httpx2.Response(200, json=final)], [_lot("camry")]
         )
         self.assertEqual(out["reply"], "Вот вариант.")
         self.assertEqual([c["slug"] for c in out["lots"]], ["camry"])
-        self.assertEqual(sent[1]["messages"][-1]["role"], "tool")
-        self.assertEqual(sent[0]["messages"][0]["role"], "system")
+        last = sent[1]["messages"][-1]
+        self.assertEqual(last["role"], "user")
+        self.assertEqual(last["content"][0]["type"], "tool_result")
+        self.assertEqual(last["content"][0]["tool_use_id"], "c1")
+        self.assertIn("system", sent[0])
+        self.assertEqual(sent[0]["fallbacks"], "default")
 
-    def test_openai_error_is_safe(self):
+    def test_api_error_is_safe(self):
         with self.assertRaises(ai_chat.AiChatError) as ctx:
-            self._run([httpx.Response(403, json={"error": {"code": "unsupported_country_region_territory"}})], [])
+            self._run([httpx2.Response(403, json={"type": "error", "error": {"type": "forbidden", "message": "region"}})], [])
+        self.assertEqual(ctx.exception.code, "ai_unavailable")
+
+    def test_refusal_is_safe(self):
+        with self.assertRaises(ai_chat.AiChatError) as ctx:
+            self._run([httpx2.Response(200, json=_msg("refusal", []))], [])
         self.assertEqual(ctx.exception.code, "ai_unavailable")
 
     def test_current_lot_goes_into_context(self):
-        final = {"choices": [{"message": {"role": "assistant", "content": "Ок"}}]}
-        _, sent = self._run([httpx.Response(200, json=final)], [], current_lot=_lot("open"))
-        self.assertIn("open", sent[0]["messages"][1]["content"])
+        final = _msg("end_turn", [{"type": "text", "text": "Ок"}])
+        _, sent = self._run([httpx2.Response(200, json=final)], [], current_lot=_lot("open"))
+        self.assertIn("open", sent[0]["system"])
+        self.assertEqual(sent[0]["messages"][0]["role"], "user")
 
     def test_disabled_without_key(self):
         async def go():
-            with patch.object(ai_chat, "get_settings", return_value=_settings(openai_api_key="")):
+            with patch.object(ai_chat, "get_settings", return_value=_settings(anthropic_api_key="")):
                 await ai_chat.chat([{"role": "user", "content": "x"}], [])
 
         with self.assertRaises(ai_chat.AiChatError) as ctx:

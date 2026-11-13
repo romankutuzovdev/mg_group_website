@@ -178,13 +178,15 @@ class Settings(BaseSettings):
     support_chat_ids: str = ""
 
     # AI car picker. Empty key = chat hidden on the site.
-    openai_api_key: str = ""
-    openai_model: str = "gpt-5.4-mini"
-    # OpenAI refuses BY addresses: set http://user:pass@host:port on the VPS.
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-opus-5-5"
+    # low | medium | high: chat replies stay fast at low.
+    anthropic_effort: str = "low"
+    # Anthropic refuses BY addresses: set http://user:pass@host:port on the VPS.
     ai_proxy_url: str = ""
     # Copart CDN refuses the VPS. Empty = reuse ai_proxy_url.
     lot_image_proxy_url: str = ""
-    ai_chat_max_tokens: int = 700
+    ai_chat_max_tokens: int = 4000
     ai_chat_ip_hourly_limit: int = 20
     ai_chat_daily_limit: int = 500
 
