@@ -130,7 +130,7 @@ export function organizationJsonLd() {
     },
     image: absoluteUrl("/logo.png"),
     telephone: "+375298668811",
-    sameAs: ["https://t.me/Yury_MG_Global", "https://www.instagram.com/mg_grupp/"],
+    sameAs: ["https://t.me/Yury_MG_Global", "https://www.instagram.com/mg.group_by/"],
     address: {
       "@type": "PostalAddress",
       streetAddress: "ул. Медовая 1",

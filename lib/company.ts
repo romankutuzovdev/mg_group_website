@@ -1,5 +1,5 @@
 export const CONSULTATION_TG = "https://t.me/Yury_MG_Global";
-export const INSTAGRAM_URL = "https://www.instagram.com/mg_grupp/";
+export const INSTAGRAM_URL = "https://www.instagram.com/mg.group_by/";
 
 export const COMPANY = {
   name: "MG.GROUP",
