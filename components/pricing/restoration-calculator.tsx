@@ -193,7 +193,6 @@ export function RestorationCalculator() {
   );
   const feeFromPage = liveFee != null && liveFee.bid === bid && liveFee.auction === platform;
   const fees = feeFromPage ? liveFee.total : feeCalc.total;
-  const feeLines = feeFromPage && liveFee.lines.length ? liveFee.lines : feeCalc.lines;
   const year = Number(yearText) || null;
 
   const yards = platform === "copart" ? COPART_YARDS : IAAI_YARDS;
@@ -329,12 +328,6 @@ export function RestorationCalculator() {
               onChange={(e) => setBidText(e.target.value)}
               className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-lg font-semibold text-text-primary"
             />
-            <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-text-muted">
-              Аукционный сбор как на Bid.cars{feeFromPage ? " (со страницы лота)" : ""}: {usd(fees)}
-            </span>
-            <span className="mt-0.5 block text-[11px] font-normal normal-case tracking-normal text-text-muted">
-              {feeLines.map((l) => `${l.label}: ${usd(l.amount)}`).join(" · ")}
-            </span>
           </label>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -625,7 +618,7 @@ export function RestorationCalculator() {
                 )}
                 <dl className="mt-4 space-y-2 text-sm">
                   <Line label="Ставка" value={usd(quote.bid)} />
-                  <Line label="Аукционный сбор" value={usd(quote.auctionFeesUsd)} hint="как на Bid.cars" />
+                  <Line label="Аукционный сбор" value={usd(quote.auctionFeesUsd)} />
                   {quote.delivery ? (
                     <>
                       <Line

@@ -20,7 +20,7 @@ export default function RestorationCalculatorPage({ dictionary }: Props) {
             ...dictionary.metadata,
             title: "Калькулятор авто под восстановление | MG.GROUP",
             description:
-              "Просчёт целого авто из США по ссылке Bid.cars: аукционный сбор как на Bid.cars, площадка, доставка и растаможка РБ.",
+              "Просчёт целого авто из США по ссылке Bid.cars: аукционный сбор, площадка, доставка и растаможка РБ.",
           },
         }}
         lang="ru"
