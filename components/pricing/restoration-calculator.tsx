@@ -18,8 +18,22 @@ import {
   type PotiVehicle,
   type RestorationQuote,
 } from "@/lib/pricing/restoration-quote";
+import {
+  EXTRA_SERVICES,
+  INSURANCE_NOTE,
+  extrasTotalUsd,
+  insuranceUsd,
+  type ExtraSelection,
+} from "@/lib/pricing/restoration-extras";
 import { listTitleTariffs, lookupTitleFee } from "@/lib/pricing/usa-title";
-import { findYard, listYards, type VehicleSize } from "@/lib/pricing/usa-delivery";
+import {
+  findYard,
+  listYards,
+  lookupUsaDelivery,
+  oceanUsd as oceanRateUsd,
+  type VehicleSize,
+} from "@/lib/pricing/usa-delivery";
+import { ContainerLoadPicker, type ContainerLoad } from "@/components/pricing/container-load-picker";
 import { fetchLotFromUrl } from "@/lib/api/client";
 import { isApiEnabled } from "@/lib/api/config";
 import { LotLoadButton, LotLoadStatus, lotLoadErrorMessage } from "@/components/pricing/lot-url-load";
@@ -65,6 +79,10 @@ export function RestorationCalculator() {
   const [inlandOverride, setInlandOverride] = useState("");
   const [oceanOverride, setOceanOverride] = useState("");
   const [customs, setCustoms] = useState<CustomsByResult | null>(null);
+  const [extras, setExtras] = useState<ExtraSelection>({});
+  const [withInsurance, setWithInsurance] = useState(false);
+  /** Сколько машин в контейнере: 4 (стандарт) или 3 (тройка, море дороже). */
+  const [containerLoad, setContainerLoad] = useState<ContainerLoad>(4);
   const [touched, setTouched] = useState(false);
   /** Профиль сборов со страницы Bid.cars (грузовой / Rec Rides / Crashed Toys). */
   const [feeProfile, setFeeProfile] = useState<BidcarsFeeProfile | null>(null);
@@ -197,6 +215,20 @@ export function RestorationCalculator() {
     setLocation(preferred);
   };
 
+  /** Тройка: море по тарифу «OVERSIZE (3-ка)» из прайса для того же порта. */
+  const triple = useMemo(() => {
+    if (size === "moto") return null;
+    const t = lookupUsaDelivery(location, size, platform, oceanDest);
+    if (!t) return null;
+    const tripleOcean = oceanRateUsd(t.usPort, "oversize", oceanDest);
+    if (tripleOcean == null) return null;
+    return { ocean: tripleOcean, surcharge: Math.max(0, Math.round(tripleOcean - t.oceanUsd)) };
+  }, [location, size, platform, oceanDest]);
+  const containerLocked = size === "oversize";
+  const effectiveLoad: ContainerLoad = containerLocked ? 3 : containerLoad;
+  const tripleOceanUsd =
+    effectiveLoad === 3 && !containerLocked && triple ? triple.ocean : null;
+
   const quote: RestorationQuote | null = useMemo(
     () =>
       quoteRestoration({
@@ -210,19 +242,29 @@ export function RestorationCalculator() {
         titleCode,
         isSublot,
         inlandUsd: inlandOverride !== "" ? Number(inlandOverride) : null,
-        oceanUsd: oceanOverride !== "" ? Number(oceanOverride) : null,
+        oceanUsd: oceanOverride !== "" ? Number(oceanOverride) : tripleOceanUsd,
         includeDelivery: true,
       }),
-    [bid, fees, location, platform, size, oceanDest, potiVehicle, titleCode, isSublot, inlandOverride, oceanOverride],
+    [bid, fees, location, platform, size, oceanDest, potiVehicle, titleCode, isSublot, inlandOverride, oceanOverride, tripleOceanUsd],
   );
 
+  const extrasUsd = extrasTotalUsd(extras);
+  const insurance = withInsurance ? insuranceUsd(bid + fees) : null;
+  const addonsUsd = extrasUsd + (insurance?.usd ?? 0);
+  const selectedExtras = EXTRA_SERVICES.filter((s) => (extras[s.id] || 0) > 0);
+
   const pricedQuote = quote?.delivery ? quote : null;
+  /** Итог без таможни с доп. услугами и страховкой. */
+  const grandUsd = quote ? quote.grandUsd + addonsUsd : 0;
   const grandWithCustoms =
     pricedQuote && customs?.ok && customs.totalUsd != null
-      ? Math.round(pricedQuote.grandUsd + customs.totalUsd)
+      ? Math.round(grandUsd + customs.totalUsd)
       : pricedQuote
-        ? Math.round(pricedQuote.grandUsd)
+        ? Math.round(grandUsd)
         : null;
+
+  const setExtraQty = (id: string, qty: number) =>
+    setExtras((prev) => ({ ...prev, [id]: Math.max(0, Math.min(99, Math.floor(qty) || 0)) }));
 
   useRecordQuote(
     touched && pricedQuote && bid > 0
@@ -392,6 +434,15 @@ export function RestorationCalculator() {
             </label>
           </div>
 
+          {size !== "moto" ? (
+            <ContainerLoadPicker
+              value={effectiveLoad}
+              onChange={setContainerLoad}
+              surchargeUsd={triple?.surcharge ?? null}
+              locked={containerLocked}
+            />
+          ) : null}
+
           {oceanDest === "poti" ? (
             <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
               Тип для доставки Поти → Минск
@@ -476,6 +527,77 @@ export function RestorationCalculator() {
               </label>
             </div>
           </details>
+
+          <details className="rounded-lg border border-border bg-bg-base p-3 text-sm">
+            <summary className="cursor-pointer font-medium text-text-secondary">
+              Дополнительный сервис и страхование
+              {addonsUsd > 0 ? (
+                <span className="ml-2 font-semibold text-primary">+{usd(addonsUsd)}</span>
+              ) : null}
+            </summary>
+            <div className="mt-3 space-y-2">
+              {EXTRA_SERVICES.map((s) => {
+                const qty = extras[s.id] || 0;
+                return (
+                  <div key={s.id} className="flex items-start gap-3 rounded-lg border border-border bg-white p-2.5">
+                    <input
+                      type="checkbox"
+                      id={`extra-${s.id}`}
+                      checked={qty > 0}
+                      onChange={(e) => setExtraQty(s.id, e.target.checked ? 1 : 0)}
+                      className="mt-1"
+                    />
+                    <label htmlFor={`extra-${s.id}`} className="min-w-0 flex-1 cursor-pointer">
+                      <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <span className="font-medium text-text-primary">{s.label}</span>
+                        <span className="font-semibold text-red-600">
+                          {usd(s.usd)}
+                          {s.unit ? <span className="font-normal text-text-muted"> / {s.unit}</span> : null}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 block text-xs text-text-muted">{s.description}</span>
+                    </label>
+                    {s.unit && qty > 0 ? (
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={qty}
+                        onChange={(e) => setExtraQty(s.id, Math.max(1, Number(e.target.value)))}
+                        aria-label={`Количество: ${s.label}`}
+                        className="w-16 rounded-lg border border-border px-2 py-1 text-sm"
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
+
+              <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                Страхование авто
+              </p>
+              <label className="flex items-start gap-3 rounded-lg border border-border bg-white p-2.5">
+                <input
+                  type="checkbox"
+                  checked={withInsurance}
+                  onChange={(e) => setWithInsurance(e.target.checked)}
+                  className="mt-1"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                    <span className="font-medium text-text-primary">Застраховать авто</span>
+                    {insuranceUsd(bid + fees) ? (
+                      <span className="font-semibold text-red-600">
+                        {usd(insuranceUsd(bid + fees)!.usd)}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-text-muted">
+                    До $4000 — $150 · $4001–8000 — $300 · свыше $8000 — 3%. {INSURANCE_NOTE}
+                  </span>
+                </span>
+              </label>
+            </div>
+          </details>
         </div>
 
         <div className="space-y-4">
@@ -493,7 +615,7 @@ export function RestorationCalculator() {
                 </p>
                 {quote.delivery ? (
                   <p className="mt-2 font-display text-3xl font-semibold text-accent-dark">
-                    {usd(Math.round(quote.grandUsd))}
+                    {usd(Math.round(grandUsd))}
                   </p>
                 ) : (
                   <p className="mt-3 text-sm text-amber-700">
@@ -518,7 +640,14 @@ export function RestorationCalculator() {
                       <Line
                         label={`Море → ${quote.delivery.oceanDestination === "poti" ? "Poti" : "Klaipeda"}`}
                         value={usd(quote.delivery.oceanUsd)}
-                        hint={quote.delivery.usPortLabel || undefined}
+                        hint={
+                          [
+                            quote.delivery.usPortLabel,
+                            effectiveLoad === 3 && size !== "moto" ? "контейнер на 3 авто" : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || undefined
+                        }
                       />
                     </>
                   ) : null}
@@ -549,6 +678,20 @@ export function RestorationCalculator() {
                         value={usd(quote.transferFee, 2)}
                       />
                       <Line label="Итого США" value={usd(Math.round(quote.usaWithFees))} total />
+                      {selectedExtras.map((s) => {
+                        const qty = extras[s.id] || 0;
+                        return (
+                          <Line
+                            key={s.id}
+                            label={s.label}
+                            value={usd(s.usd * qty)}
+                            hint={s.unit && qty > 1 ? `${qty} × ${usd(s.usd)}` : undefined}
+                          />
+                        );
+                      })}
+                      {insurance ? (
+                        <Line label="Страхование" value={usd(insurance.usd, insurance.usd % 1 ? 2 : 0)} hint={insurance.tier} />
+                      ) : null}
                       {quote.minskDeliveryUsd > 0 ? (
                         <>
                           <Line
@@ -556,8 +699,10 @@ export function RestorationCalculator() {
                             value={usd(quote.minskDeliveryUsd)}
                             hint={quote.minskDeliveryHint || undefined}
                           />
-                          <Line label="Итого до Минска" value={usd(Math.round(quote.grandUsd))} total />
+                          <Line label="Итого до Минска" value={usd(Math.round(grandUsd))} total />
                         </>
+                      ) : addonsUsd > 0 ? (
+                        <Line label="Итого с доп. услугами" value={usd(Math.round(grandUsd))} total />
                       ) : null}
                     </>
                   ) : null}
@@ -596,7 +741,7 @@ export function RestorationCalculator() {
               {customs?.ok ? (
                 <p className="mt-2 text-sm text-text-secondary">
                   {quote!.minskDeliveryUsd > 0 ? "До Минска" : "США"}{" "}
-                  {usd(Math.round(quote!.grandUsd))} + таможня ≈{" "}
+                  {usd(Math.round(grandUsd))} + таможня ≈{" "}
                   {usd(Math.round(customs.totalUsd || 0))} ({byn(Math.round(customs.totalByn))})
                 </p>
               ) : null}
