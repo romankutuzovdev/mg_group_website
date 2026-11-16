@@ -124,10 +124,18 @@ export type TeamMember = {
 };
 
 // Временные картинки: чтобы поставить настоящие фото, замените файлы в public/office/.
-export const OFFICE_PHOTOS = [1, 2, 3, 4, 5].map((n) => ({
-  src: `/office/office-${n}.jpg`,
-  alt: `Офис MG.GROUP, фото ${n}`,
-}));
+/** Вертикальные кадры фотосессии офиса (остальные горизонтальные 3:2). */
+const OFFICE_PORTRAIT = new Set([18, 38, 39, 40, 41, 42, 43, 44, 45, 46, 48]);
+
+export const OFFICE_PHOTOS = Array.from({ length: 51 }, (_, i) => {
+  const n = String(i + 1).padStart(2, "0");
+  return {
+    src: `/office/gallery/office-${n}.jpg`,
+    thumb: `/office/gallery/thumb/office-${n}.jpg`,
+    alt: `Офис MG.GROUP, фото ${i + 1}`,
+    portrait: OFFICE_PORTRAIT.has(i + 1),
+  };
+});
 
 export const TEAM: TeamMember[] = [
   { id: "director", name: "Алексей", role: "Директор", photo: "/team/director.png" },

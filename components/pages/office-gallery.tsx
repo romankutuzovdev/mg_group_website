@@ -7,9 +7,14 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { OFFICE_PHOTOS } from "@/lib/company";
 import { cn } from "@/lib/utils";
 
+/** Сколько фото видно в сетке до «Показать все». */
+const PREVIEW_COUNT = 8;
+
 export function OfficeGallery() {
   const [open, setOpen] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const count = OFFICE_PHOTOS.length;
+  const visible = showAll ? OFFICE_PHOTOS : OFFICE_PHOTOS.slice(0, PREVIEW_COUNT);
 
   const step = useCallback(
     (delta: number) => setOpen((i) => (i === null ? i : (i + delta + count) % count)),
@@ -33,7 +38,7 @@ export function OfficeGallery() {
       </p>
 
       <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {OFFICE_PHOTOS.map((photo, index) => (
+        {visible.map((photo, index) => (
           <button
             key={photo.src}
             type="button"
@@ -45,15 +50,28 @@ export function OfficeGallery() {
             )}
           >
             <Image
-              src={photo.src}
+              src={photo.thumb}
               alt={photo.alt}
               fill
+              loading={index === 0 ? "eager" : "lazy"}
               sizes={index === 0 ? "(min-width: 1024px) 50vw, 100vw" : "(min-width: 1024px) 25vw, 50vw"}
               className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           </button>
         ))}
       </div>
+
+      {count > PREVIEW_COUNT ? (
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="rounded-full border border-border px-5 py-2 text-sm font-medium text-text-primary transition-colors hover:border-accent hover:text-accent-dark"
+          >
+            {showAll ? "Свернуть" : `Показать все фото (${count})`}
+          </button>
+        </div>
+      ) : null}
 
       <Dialog open={open !== null} onOpenChange={(value) => !value && setOpen(null)}>
         <DialogContent
@@ -63,7 +81,12 @@ export function OfficeGallery() {
         >
           <DialogTitle className="sr-only">{current?.alt ?? "Фото офиса"}</DialogTitle>
           {current && (
-            <div className="relative aspect-[3/2] max-h-[85vh] w-full overflow-hidden rounded-2xl bg-black">
+            <div
+              className={cn(
+                "relative mx-auto max-h-[85vh] overflow-hidden rounded-2xl bg-black",
+                current.portrait ? "aspect-[2/3] h-[85vh] max-w-full" : "aspect-[3/2] w-full",
+              )}
+            >
               <Image src={current.src} alt={current.alt} fill sizes="100vw" className="object-contain" />
               <button
                 type="button"
