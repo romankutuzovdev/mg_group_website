@@ -46,6 +46,19 @@ function usd(n: number, digits = 0) {
   })}`;
 }
 
+/** Год лота: из поля API, иначе из названия или ссылки (…-2018-toyota-camry-…). */
+function lotYear(lot: { year?: number | null; title?: string | null; url?: string | null }, url: string): number | null {
+  const max = new Date().getFullYear() + 1;
+  const ok = (n: number) => Number.isFinite(n) && n >= 1950 && n <= max;
+  const direct = Number(lot.year);
+  if (ok(direct)) return direct;
+  for (const text of [lot.title, lot.url, url]) {
+    const m = String(text || "").match(/(?:^|[^0-9])((?:19|20)\d{2})(?![0-9])/);
+    if (m && ok(Number(m[1]))) return Number(m[1]);
+  }
+  return null;
+}
+
 function byn(n: number) {
   return `${n.toLocaleString("ru-RU", { maximumFractionDigits: 0 })} BYN`;
 }
@@ -76,6 +89,10 @@ export function RestorationCalculator() {
   const [lotSaleDocUnmatched, setLotSaleDocUnmatched] = useState(false);
   const [isSublot, setIsSublot] = useState(false);
   const [yearText, setYearText] = useState("2018");
+  /** Год подставлен из лота (а не дефолт / ручной ввод). */
+  const [yearFromLot, setYearFromLot] = useState(false);
+  const [lotEngine, setLotEngine] = useState<string | null>(null);
+  const [lotFuel, setLotFuel] = useState<string | null>(null);
   const [inlandOverride, setInlandOverride] = useState("");
   const [oceanOverride, setOceanOverride] = useState("");
   const [customs, setCustoms] = useState<CustomsByResult | null>(null);
@@ -145,7 +162,11 @@ export function RestorationCalculator() {
           : null,
       );
       if (loadedBid != null) setBidText(String(loadedBid));
-      if (lot.year) setYearText(String(lot.year));
+      const y = lotYear(lot, url);
+      if (y) setYearText(String(y));
+      setYearFromLot(y != null);
+      setLotEngine(lot.engine ? String(lot.engine) : null);
+      setLotFuel(lot.fuel ? String(lot.fuel) : null);
       const saleDoc = String(lot.saleDocument || "").trim();
       setLotSaleDoc(saleDoc || null);
       setLotSaleDocUnmatched(false);
@@ -169,7 +190,7 @@ export function RestorationCalculator() {
       } else if (lot.location) {
         setYardFilter(lot.location);
       }
-      const label = [lot.year, lot.make, lot.model, lot.lotNumber && `#${lot.lotNumber}`]
+      const label = [y, lot.make, lot.model, lot.lotNumber && `#${lot.lotNumber}`]
         .filter(Boolean)
         .join(" ");
       const place = yard?.location || lot.location;
@@ -485,10 +506,16 @@ export function RestorationCalculator() {
 
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
             Год выпуска (для возраста на таможне)
+            {yearFromLot ? (
+              <span className="ml-2 font-normal normal-case tracking-normal text-emerald-700">из лота</span>
+            ) : null}
             <input
               type="number"
               value={yearText}
-              onChange={(e) => setYearText(e.target.value)}
+              onChange={(e) => {
+                setYearText(e.target.value);
+                setYearFromLot(false);
+              }}
               className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm font-normal normal-case tracking-normal text-text-primary"
             />
           </label>
@@ -718,6 +745,8 @@ export function RestorationCalculator() {
             <CustomsByPanel
               priceUsd={pricedQuote?.usaWithFees ?? null}
               year={year}
+              engine={lotEngine}
+              fuel={lotFuel}
               onResult={onCustoms}
             />
           </div>
