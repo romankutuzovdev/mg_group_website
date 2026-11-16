@@ -213,7 +213,7 @@ export function CustomsByPanel({
           <Row label="Таможенная стоимость" value={eur(result.customsValueEur)} />
           <Row
             label="Таможенная пошлина"
-            value={byn(result.dutyByn)}
+            value={`${eur(result.dutyEur)} · ${byn(result.dutyByn)}`}
             hint={result.dutyNote}
           />
           {result.feeLines.map((line) => (
@@ -251,7 +251,7 @@ function Row({
         {label}
         {hint ? <span className="mt-0.5 block text-[10px] font-normal text-text-muted">{hint}</span> : null}
       </dt>
-      <dd className={total ? "font-display text-accent-dark" : "font-medium"}>{value}</dd>
+      <dd className={total ? "text-right font-display text-accent-dark" : "text-right font-medium"}>{value}</dd>
     </div>
   );
 }

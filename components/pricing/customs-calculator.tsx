@@ -345,8 +345,13 @@ function ResultView({
               {l.label}
               {l.hint ? <span className="block text-xs text-stone-400">{l.hint}</span> : null}
             </dt>
-            <dd className="whitespace-nowrap font-medium tabular-nums text-stone-950">
+            <dd className="whitespace-nowrap text-right font-medium tabular-nums text-stone-950">
               {fmtLine(l)}
+              {l.key === "duty" ? (
+                <span className="block text-xs font-normal text-stone-500">
+                  ≈ {money(Math.round(l.amount * rates.EUR), "BYN", 0)}
+                </span>
+              ) : null}
             </dd>
           </div>
         ))}
