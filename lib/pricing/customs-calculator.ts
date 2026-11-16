@@ -55,7 +55,7 @@ export type CustomsCalcResult = {
 
 export type CustomsCalcError = { ok: false; error: string; field?: "price" | "volume" };
 
-/** Таможенный сбор за таможенные операции, BYN */
+/** Таможенный сбор, BYN */
 export const CUSTOMS_FEE_BYN = 120;
 
 /** Услуги при растаможке, BYN */

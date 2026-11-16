@@ -6,25 +6,42 @@
 export const UTIL_FEE_UNDER_3_BYN = 624.92;
 export const UTIL_FEE_OVER_3_BYN = 1282.02;
 export const CUSTOMS_OPS_FEE_BYN = 120.0;
-export const EPTS_FEE_BYN = 80.4;
+export const EPTS_FEE_BYN = 80;
 
 /** Услуги при растаможке (BYN). Оценка ТПП — только для авто до 3 лет. */
 export const DECLARANT_FEE_BYN = 250;
-export const WAREHOUSE_FEE_BYN = 100;
-export const MG_SERVICE_FEE_BYN = 600;
 export const TPP_VALUATION_FEE_BYN = 400;
+export const WAREHOUSE_FEE_BYN = 100;
+export const GAI_REGISTRATION_FEE_BYN = 140;
+export const MG_SERVICE_FEE_BYN = 600;
 
-export type CustomsServiceLine = { id: string; label: string; byn: number };
+export type CustomsFeeLine = { id: string; label: string; byn: number; hint?: string };
 
-export function customsServiceLines(band: AgeBand | string): CustomsServiceLine[] {
-  return [
+/**
+ * Платежи после таможенной пошлины, в порядке MG.GROUP:
+ * сбор → утиль → декларант → оценка ТПП (до 3 лет) → СВХ → ЭПТС → ГАИ → услуга MG.
+ */
+function customsFeeLines(band: string, utilByn: number, includeEpts: boolean): CustomsFeeLine[] {
+  const lines: CustomsFeeLine[] = [
+    { id: "ops", label: "Таможенный сбор", byn: CUSTOMS_OPS_FEE_BYN },
+    { id: "util", label: "Утилизационный сбор", byn: utilByn },
     { id: "declarant", label: "Услуги декларанта", byn: DECLARANT_FEE_BYN },
-    { id: "warehouse", label: "Услуги склада", byn: WAREHOUSE_FEE_BYN },
-    { id: "mg", label: "Услуга MG.GROUP", byn: MG_SERVICE_FEE_BYN },
-    ...(band === "under3"
-      ? [{ id: "tpp", label: "Оценка стоимости (ТПП)", byn: TPP_VALUATION_FEE_BYN }]
-      : []),
   ];
+  if (band === "under3") {
+    lines.push({
+      id: "tpp",
+      label: "Оценка стоимости (ТПП)",
+      byn: TPP_VALUATION_FEE_BYN,
+      hint: "Торгово-промышленная палата · авто до 3 лет",
+    });
+  }
+  lines.push({ id: "warehouse", label: "Стоянка СВХ", byn: WAREHOUSE_FEE_BYN });
+  if (includeEpts) lines.push({ id: "epts", label: "Электронный ПТС", byn: EPTS_FEE_BYN });
+  lines.push(
+    { id: "gai", label: "Регистрация в ГАИ", byn: GAI_REGISTRATION_FEE_BYN },
+    { id: "mg", label: "Услуга MG.GROUP", byn: MG_SERVICE_FEE_BYN },
+  );
+  return lines;
 }
 
 const UNDER_3_BRACKETS: [number, number, number][] = [
@@ -77,8 +94,9 @@ export type CustomsByResult = {
   utilFeeByn: number;
   customsOpsFeeByn: number;
   eptsFeeByn: number;
-  /** Декларант, склад, услуга MG, оценка ТПП (до 3 лет). */
-  serviceLines: CustomsServiceLine[];
+  /** Все платежи после пошлины, в порядке показа. */
+  feeLines: CustomsFeeLine[];
+  /** Декларант, ТПП, СВХ, ГАИ, услуга MG. */
   servicesByn: number;
   totalByn: number;
   totalEur: number;
@@ -259,7 +277,7 @@ export function calculateCustomsBy(input: {
   if (isElectric) {
     dutyEur = 0;
     dutyNote =
-      "Электромобиль (BEV): единый таможенный платёж = 0. Гибриды не считаются EV.";
+      "Электромобиль (BEV): таможенная пошлина = 0. Гибриды не считаются EV.";
     formula = "EV → 0";
   } else if (!isIndividual) {
     const dutyBase = round2(customsValueEur * 0.15);
@@ -287,7 +305,7 @@ export function calculateCustomsBy(input: {
         utilFeeByn: 0,
         customsOpsFeeByn: 0,
         eptsFeeByn: 0,
-        serviceLines: [],
+        feeLines: [],
         servicesByn: 0,
         totalByn: 0,
         totalEur: 0,
@@ -331,9 +349,9 @@ export function calculateCustomsBy(input: {
   const eurByn = rates.EUR || 3.45;
   const usdByn = rates.USD || 3.2;
   const dutyByn = round2(dutyEur * eurByn);
-  const serviceLines = customsServiceLines(band);
-  const servicesByn = serviceLines.reduce((sum, l) => sum + l.byn, 0);
-  const feesByn = utilByn + opsByn + eptsByn + servicesByn;
+  const feeLines = customsFeeLines(band, utilByn, input.includeEpts !== false);
+  const feesByn = feeLines.reduce((sum, l) => sum + l.byn, 0);
+  const servicesByn = feesByn - utilByn - opsByn - eptsByn;
   const totalByn = round2(dutyByn + feesByn);
   const totalEur = round2(dutyEur + feesByn / eurByn);
   const totalUsd = usdByn ? round2(totalByn / usdByn) : null;
@@ -360,7 +378,7 @@ export function calculateCustomsBy(input: {
     utilFeeByn: utilByn,
     customsOpsFeeByn: opsByn,
     eptsFeeByn: eptsByn,
-    serviceLines,
+    feeLines,
     servicesByn,
     totalByn,
     totalEur,
@@ -375,7 +393,7 @@ export function calculateCustomsBy(input: {
       "Возраст считается от года выпуска.",
       ...(isElectric
         ? [
-            "Для EV в калькуляторе платёж = 0 по правилу MG.GROUP (гибриды — не EV).",
+            "Для EV в калькуляторе таможенная пошлина = 0 по правилу MG.GROUP (гибриды — не EV).",
           ]
         : []),
     ],
