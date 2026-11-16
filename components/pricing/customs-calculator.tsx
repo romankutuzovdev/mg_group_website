@@ -1,5 +1,6 @@
 "use client";
 
+import { CustomsExtraServices } from "@/components/pricing/customs-extra-services";
 import { EstimateNotice } from "@/components/pricing/estimate-notice";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Info } from "lucide-react";
@@ -375,14 +376,7 @@ function ResultView({
 
       <EstimateNotice className="mt-4" />
 
-      <div className="mt-4 rounded-xl border border-stone-200 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Доп. услуги</p>
-        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-stone-700">
-          <li>*Эвакуатор от таможни до дверей клиента</li>
-          <li>*Полное таможенное сопровождение</li>
-        </ol>
-        <p className="mt-2 text-xs text-stone-500">* В расчёт не входят, стоимость уточняйте у менеджера.</p>
-      </div>
+      <CustomsExtraServices className="mt-4" />
 
       <div className="mt-4 space-y-1 text-xs leading-relaxed text-stone-500">
         <p>

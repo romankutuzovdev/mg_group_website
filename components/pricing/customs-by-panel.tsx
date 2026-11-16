@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CustomsExtraServices } from "@/components/pricing/customs-extra-services";
 import { useRecordQuote } from "@/components/pricing/use-record-quote";
 import {
   calculateCustomsBy,
@@ -200,6 +201,8 @@ export function CustomsByPanel({
           ) : null}
         </dl>
       ) : null}
+
+      <CustomsExtraServices />
     </div>
   );
 }
