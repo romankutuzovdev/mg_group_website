@@ -127,10 +127,10 @@ export type TeamMember = {
 /** Номера файлов фотосессии офиса (дубли серий удалены). */
 const OFFICE_PHOTO_NUMBERS = [
   1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 17, 19, 20, 22, 24, 25, 27, 28, 29, 31, 32, 33, 34,
-  35, 36, 38, 40, 42, 44, 47, 49, 51,
+  35, 36, 38, 40, 42, 47, 49, 51,
 ];
 /** Вертикальные кадры (остальные горизонтальные 3:2). */
-const OFFICE_PORTRAIT = new Set([38, 40, 42, 44]);
+const OFFICE_PORTRAIT = new Set([38, 40, 42]);
 
 export const OFFICE_PHOTOS = OFFICE_PHOTO_NUMBERS.map((num, i) => {
   const n = String(num).padStart(2, "0");
