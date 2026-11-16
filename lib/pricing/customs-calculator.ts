@@ -4,7 +4,7 @@
  * Ставки сверены с калькулятором autogood.by/tools/customs-calculator (ноябрь 2026):
  * - физлицо, ДВС/PHEV: единая ставка ЕЭК №107 (до 3 лет — max(% , €/см³); старше — €/см³);
  * - юрлицо, ДВС/PHEV: пошлина ЕТТ ЕАЭС (% c минимумом €/см³) + НДС 20% от (стоимость + пошлина);
- * - электро: пошлина и НДС 0, таможенный сбор 0, только утильсбор;
+ * - электро: пошлина 15% от стоимости, НДС 0, таможенный сбор 0, утильсбор;
  * - EREV: пошлина 15% + НДС 20% от (стоимость + пошлина);
  * - льгота 50% (Указ №140) — только физлицо, не для электро.
  * Утильсбор — постановление Совмина РБ (ред. от 23.04.2026).
@@ -54,6 +54,9 @@ export type CustomsCalcResult = {
 };
 
 export type CustomsCalcError = { ok: false; error: string; field?: "price" | "volume" };
+
+/** Таможенная пошлина для электромобиля — доля от стоимости */
+export const EV_DUTY_PERCENT = 0.15;
 
 /** Таможенный сбор, BYN */
 export const CUSTOMS_FEE_BYN = 120;
@@ -211,8 +214,9 @@ export function calculateCustoms(
 
   if (engine === "electric") {
     customsFeeByn = 0;
+    dutyEur = r2(price * EV_DUTY_PERCENT);
     utilByn = isInd ? (over3 ? IND_UTIL.over3 : IND_UTIL.under3) : CO_UTIL_ELECTRIC[age];
-    dutyHint = "Электромобиль: пошлина и НДС не взимаются";
+    dutyHint = "Электромобиль: 15% от стоимости";
   } else if (engine === "erev") {
     dutyEur = r2(price * EREV_DUTY_PERCENT);
     vatEur = r2((price + dutyEur) * VAT);

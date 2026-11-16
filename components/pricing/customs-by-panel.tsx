@@ -186,7 +186,7 @@ export function CustomsByPanel({
       <div className="flex flex-wrap gap-4 text-sm">
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={electric} onChange={(e) => setElectric(e.target.checked)} />
-          Электромобиль (пошлина 0)
+          Электромобиль (пошлина 15%)
         </label>
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={benefit50} onChange={(e) => setBenefit50(e.target.checked)} />

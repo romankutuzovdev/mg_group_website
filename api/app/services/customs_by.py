@@ -261,12 +261,12 @@ def calculate_customs_by(
     formula = ""
 
     if is_electric:
-        duty_eur = 0.0
+        duty_eur = round(customs_value_eur * 0.15, 2)
         duty_note = (
-            "Электромобиль (BEV): таможенная пошлина = 0 "
-            "(тарифная льгота / правило калькулятора). Гибриды не считаются EV."
+            "Электромобиль (BEV): таможенная пошлина 15% от стоимости. "
+            "Гибриды не считаются EV."
         )
-        formula = "EV → 0"
+        formula = f"15%×{customs_value_eur}"
     elif not is_individual:
         # Упрощённо для юрлица: пошлина 15% + НДС 20% (ориентир; точные коды ТН ВЭД могут отличаться)
         duty_base = round2(customs_value_eur * 0.15)

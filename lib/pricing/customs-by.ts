@@ -7,6 +7,8 @@ export const UTIL_FEE_UNDER_3_BYN = 624.92;
 export const UTIL_FEE_OVER_3_BYN = 1282.02;
 export const CUSTOMS_OPS_FEE_BYN = 120.0;
 export const EPTS_FEE_BYN = 80;
+/** Таможенная пошлина для электромобиля — доля от таможенной стоимости. */
+export const EV_DUTY_PERCENT = 0.15;
 
 /** Услуги при растаможке (BYN). Оценка ТПП — только для авто до 3 лет. */
 export const DECLARANT_FEE_BYN = 250;
@@ -281,10 +283,9 @@ export function calculateCustomsBy(input: {
   let formula = "";
 
   if (isElectric) {
-    dutyEur = 0;
-    dutyNote =
-      "Электромобиль (BEV): таможенная пошлина = 0. Гибриды не считаются EV.";
-    formula = "EV → 0";
+    dutyEur = round2(customsValueEur * EV_DUTY_PERCENT);
+    dutyNote = "Электромобиль (BEV): таможенная пошлина 15% от стоимости. Гибриды не считаются EV.";
+    formula = `15%×${customsValueEur}`;
   } else if (!isIndividual) {
     const dutyBase = round2(customsValueEur * 0.15);
     const vat = round2((customsValueEur + dutyBase) * 0.2);
@@ -399,7 +400,7 @@ export function calculateCustomsBy(input: {
       "Возраст считается от года выпуска.",
       ...(isElectric
         ? [
-            "Для EV в калькуляторе таможенная пошлина = 0 по правилу MG.GROUP (гибриды — не EV).",
+            "Для EV таможенная пошлина 15% от стоимости по правилу MG.GROUP (гибриды — не EV).",
           ]
         : []),
     ],
