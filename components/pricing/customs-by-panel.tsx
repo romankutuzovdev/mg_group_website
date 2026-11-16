@@ -44,6 +44,8 @@ type Props = {
   engine?: string | null;
   fuel?: string | null;
   title?: string | null;
+  /** Меняется при загрузке нового лота — объём снова берётся из лота. */
+  lotKey?: string | null;
   onResult?: (result: CustomsByResult | null) => void;
   /** Писать просчёт в историю. В калькуляторе восстановления история пишется отдельно. */
   recordHistory?: boolean;
@@ -55,6 +57,7 @@ export function CustomsByPanel({
   engine,
   fuel,
   title,
+  lotKey,
   onResult,
   recordHistory = false,
 }: Props) {
@@ -71,11 +74,25 @@ export function CustomsByPanel({
     void fetchNbrbRates().then(setRates);
   }, []);
 
-  useEffect(() => {
-    if (ccTouched) return;
+  const lotCc = useMemo(() => {
     const parsed = parseEngineCc(engine, title);
-    if (parsed && parsed > 0) setCc(String(parsed));
-  }, [engine, title, ccTouched]);
+    return parsed && parsed > 0 ? parsed : null;
+  }, [engine, title]);
+
+  // Новый лот: сбрасываем ручной ввод и берём объём из лота (если он там есть).
+  useEffect(() => {
+    if (!lotKey) return;
+    setCcTouched(false);
+    setCc(lotCc ? String(lotCc) : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lotKey]);
+
+  useEffect(() => {
+    if (ccTouched || !lotCc) return;
+    setCc(String(lotCc));
+  }, [lotCc, ccTouched]);
+
+  const ccFromLot = lotCc != null && !ccTouched && Number(cc) === lotCc;
 
   const result: CustomsByResult | null = useMemo(() => {
     const price = Number(priceUsd);
@@ -144,6 +161,9 @@ export function CustomsByPanel({
         </label>
         <label className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
           Объём, см³
+          {ccFromLot ? (
+            <span className="ml-2 font-normal normal-case tracking-normal text-emerald-700">из лота</span>
+          ) : null}
           <input
             type="number"
             min={0}
@@ -155,6 +175,11 @@ export function CustomsByPanel({
             }}
             placeholder="например 1998"
           />
+          {lotKey && !lotCc && !cc ? (
+            <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-amber-700">
+              В лоте нет объёма{engine ? ` («${engine}»)` : ""} — введите вручную
+            </span>
+          ) : null}
         </label>
       </div>
 

@@ -93,6 +93,8 @@ export function RestorationCalculator() {
   const [yearFromLot, setYearFromLot] = useState(false);
   const [lotEngine, setLotEngine] = useState<string | null>(null);
   const [lotFuel, setLotFuel] = useState<string | null>(null);
+  /** Ключ загруженного лота — по нему растаможка заново берёт объём. */
+  const [lotKey, setLotKey] = useState<string | null>(null);
   const [inlandOverride, setInlandOverride] = useState("");
   const [oceanOverride, setOceanOverride] = useState("");
   const [customs, setCustoms] = useState<CustomsByResult | null>(null);
@@ -167,6 +169,7 @@ export function RestorationCalculator() {
       setYearFromLot(y != null);
       setLotEngine(lot.engine ? String(lot.engine) : null);
       setLotFuel(lot.fuel ? String(lot.fuel) : null);
+      setLotKey(`${lot.lotNumber || url}:${Date.now()}`);
       const saleDoc = String(lot.saleDocument || "").trim();
       setLotSaleDoc(saleDoc || null);
       setLotSaleDocUnmatched(false);
@@ -747,6 +750,7 @@ export function RestorationCalculator() {
               year={year}
               engine={lotEngine}
               fuel={lotFuel}
+              lotKey={lotKey}
               onResult={onCustoms}
             />
           </div>

@@ -156,6 +156,12 @@ export function parseEngineCc(engine?: string | null, title?: string | null): nu
     const liters = Number(m[1]);
     if (liters >= 1 && liters <= 8) return liters * 1000;
   }
+  // Bid.cars иногда отдаёт объём без «L»: «2.0», «2», «2.0T», «1.6 TURBO» — только в поле двигателя.
+  const eng = String(engine || "").trim();
+  m = eng.match(/^(\d)[.,](\d)(?:\s*(?:t\b|turbo\b)|\s|$)/i);
+  if (m) return Number(m[1]) * 1000 + Number(m[2]) * 100;
+  m = eng.match(/^(\d)$/);
+  if (m && Number(m[1]) >= 1 && Number(m[1]) <= 8) return Number(m[1]) * 1000;
   m = text.match(/\b(\d{4})\b/);
   if (m) {
     const n = Number(m[1]);
