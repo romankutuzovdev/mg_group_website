@@ -124,16 +124,21 @@ export type TeamMember = {
 };
 
 // Временные картинки: чтобы поставить настоящие фото, замените файлы в public/office/.
-/** Вертикальные кадры фотосессии офиса (остальные горизонтальные 3:2). */
-const OFFICE_PORTRAIT = new Set([18, 38, 39, 40, 41, 42, 43, 44, 45, 46, 48]);
+/** Номера файлов фотосессии офиса (дубли серий удалены). */
+const OFFICE_PHOTO_NUMBERS = [
+  1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 17, 19, 20, 22, 24, 25, 27, 28, 29, 31, 32, 33, 34,
+  35, 36, 38, 40, 42, 44, 47, 49, 51,
+];
+/** Вертикальные кадры (остальные горизонтальные 3:2). */
+const OFFICE_PORTRAIT = new Set([38, 40, 42, 44]);
 
-export const OFFICE_PHOTOS = Array.from({ length: 51 }, (_, i) => {
-  const n = String(i + 1).padStart(2, "0");
+export const OFFICE_PHOTOS = OFFICE_PHOTO_NUMBERS.map((num, i) => {
+  const n = String(num).padStart(2, "0");
   return {
     src: `/office/gallery/office-${n}.jpg`,
     thumb: `/office/gallery/thumb/office-${n}.jpg`,
     alt: `Офис MG.GROUP, фото ${i + 1}`,
-    portrait: OFFICE_PORTRAIT.has(i + 1),
+    portrait: OFFICE_PORTRAIT.has(num),
   };
 });
 
