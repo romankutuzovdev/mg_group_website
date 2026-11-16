@@ -8,6 +8,25 @@ export const UTIL_FEE_OVER_3_BYN = 1282.02;
 export const CUSTOMS_OPS_FEE_BYN = 120.0;
 export const EPTS_FEE_BYN = 80.4;
 
+/** Услуги при растаможке (BYN). Оценка ТПП — только для авто до 3 лет. */
+export const DECLARANT_FEE_BYN = 250;
+export const WAREHOUSE_FEE_BYN = 100;
+export const MG_SERVICE_FEE_BYN = 600;
+export const TPP_VALUATION_FEE_BYN = 400;
+
+export type CustomsServiceLine = { id: string; label: string; byn: number };
+
+export function customsServiceLines(band: AgeBand | string): CustomsServiceLine[] {
+  return [
+    { id: "declarant", label: "Услуги декларанта", byn: DECLARANT_FEE_BYN },
+    { id: "warehouse", label: "Услуги склада", byn: WAREHOUSE_FEE_BYN },
+    { id: "mg", label: "Услуга MG.GROUP", byn: MG_SERVICE_FEE_BYN },
+    ...(band === "under3"
+      ? [{ id: "tpp", label: "Оценка стоимости (ТПП)", byn: TPP_VALUATION_FEE_BYN }]
+      : []),
+  ];
+}
+
 const UNDER_3_BRACKETS: [number, number, number][] = [
   [8500, 0.54, 2.5],
   [16700, 0.48, 3.5],
@@ -58,6 +77,9 @@ export type CustomsByResult = {
   utilFeeByn: number;
   customsOpsFeeByn: number;
   eptsFeeByn: number;
+  /** Декларант, склад, услуга MG, оценка ТПП (до 3 лет). */
+  serviceLines: CustomsServiceLine[];
+  servicesByn: number;
   totalByn: number;
   totalEur: number;
   totalUsd?: number | null;
@@ -265,6 +287,8 @@ export function calculateCustomsBy(input: {
         utilFeeByn: 0,
         customsOpsFeeByn: 0,
         eptsFeeByn: 0,
+        serviceLines: [],
+        servicesByn: 0,
         totalByn: 0,
         totalEur: 0,
         totalUsd: null,
@@ -307,8 +331,11 @@ export function calculateCustomsBy(input: {
   const eurByn = rates.EUR || 3.45;
   const usdByn = rates.USD || 3.2;
   const dutyByn = round2(dutyEur * eurByn);
-  const totalByn = round2(dutyByn + utilByn + opsByn + eptsByn);
-  const totalEur = round2(dutyEur + (utilByn + opsByn + eptsByn) / eurByn);
+  const serviceLines = customsServiceLines(band);
+  const servicesByn = serviceLines.reduce((sum, l) => sum + l.byn, 0);
+  const feesByn = utilByn + opsByn + eptsByn + servicesByn;
+  const totalByn = round2(dutyByn + feesByn);
+  const totalEur = round2(dutyEur + feesByn / eurByn);
   const totalUsd = usdByn ? round2(totalByn / usdByn) : null;
 
   const ageBandLabel =
@@ -333,6 +360,8 @@ export function calculateCustomsBy(input: {
     utilFeeByn: utilByn,
     customsOpsFeeByn: opsByn,
     eptsFeeByn: eptsByn,
+    serviceLines,
+    servicesByn,
     totalByn,
     totalEur,
     totalUsd,

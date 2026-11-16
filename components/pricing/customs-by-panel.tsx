@@ -193,6 +193,14 @@ export function CustomsByPanel({
           <Row label="Утильсбор" value={byn(result.utilFeeByn)} />
           <Row label="Таможенный сбор" value={byn(result.customsOpsFeeByn)} />
           {result.eptsFeeByn > 0 ? <Row label="ЭПТС" value={byn(result.eptsFeeByn)} /> : null}
+          {result.serviceLines.map((line) => (
+            <Row
+              key={line.id}
+              label={line.label}
+              value={byn(line.byn)}
+              hint={line.id === "tpp" ? "Торгово-промышленная палата · авто до 3 лет" : undefined}
+            />
+          ))}
           <Row label="Итого таможня" value={byn(result.totalByn)} total />
           <Row label="≈ в USD" value={usd(result.totalUsd, 0)} />
           {result.formula ? (
