@@ -5,6 +5,7 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { LotCard } from "@/components/auctions/lot-card";
 import { LinkButton } from "@/components/site/button";
+import { CardRow, PickCard, useShowcase } from "@/components/home/showcase-picks";
 import { fetchLotsPage } from "@/lib/api/client";
 import { isApiEnabled } from "@/lib/api/config";
 import { pickShowcaseLots } from "@/lib/auctions/showcase-picks";
@@ -30,6 +31,8 @@ export function HomeShowcase({ initialLots, counts }: Props) {
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
   const tabs = useRef<Array<HTMLButtonElement | null>>([]);
+  /** Последние 6 авто, которые менеджеры отправили «На главную» из калькулятора. */
+  const picks = useShowcase("home", "restoration", 6);
 
   useEffect(() => {
     if (!isApiEnabled()) return;
@@ -53,12 +56,26 @@ export function HomeShowcase({ initialLots, counts }: Props) {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
           <div className="max-w-2xl">
-            <p className="lux-kicker">Автомобили со всего мира</p>
+            <p className="lux-kicker">{picks.length ? "Выбор менеджеров · посчитано под ключ" : "Автомобили со всего мира"}</p>
             <h2 id="home-showcase-title" className="mt-4 font-display text-[clamp(2rem,4vw,3.5rem)] font-semibold leading-[1.06] tracking-tight">Следующая остановка —<br /><span className="text-text-secondary">ваш гараж.</span></h2>
           </div>
           <Link href="/avto/" className="inline-flex min-h-11 w-fit items-center gap-3 text-sm font-medium text-accent-dark underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">Весь каталог <ArrowUpRight className="h-4 w-4" aria-hidden /></Link>
         </div>
 
+        {picks.length ? (
+          <>
+            <CardRow>
+              {picks.map((pick) => (
+                <PickCard key={pick.id} pick={pick} />
+              ))}
+            </CardRow>
+            <div className="mt-8 flex flex-col justify-between gap-5 border-t border-border pt-6 sm:flex-row sm:items-center">
+              <p className="max-w-lg text-xs leading-relaxed text-text-secondary">Авто под восстановление, которые менеджеры посчитали в калькуляторе: ставка и итог под ключ. Итог зависит от ставки, логистики и таможенных платежей.</p>
+              <LinkButton href="/avto/" variant="secondary" className="shrink-0">Весь каталог <ArrowRight className="h-4 w-4" aria-hidden /></LinkButton>
+            </div>
+          </>
+        ) : (
+        <>
         <div role="tablist" aria-label="Страна покупки автомобиля" className="mt-9 flex gap-1 border-b border-border sm:gap-5">
           {REGIONS.map((item, index) => (
             <button key={item} ref={(element) => { tabs.current[index] = element; }} id={`home-tab-${item}`} type="button" role="tab" aria-selected={region === item} aria-controls={`home-panel-${item}`} tabIndex={region === item ? 0 : -1}
@@ -107,6 +124,8 @@ export function HomeShowcase({ initialLots, counts }: Props) {
           <p className="max-w-lg text-xs leading-relaxed text-text-secondary">Стоимость под ключ — предварительный расчёт. Итог зависит от ставки, логистики и таможенных платежей.</p>
           <LinkButton href={`/avto/${region}/`} variant="secondary" className="shrink-0">Все авто: {REGION_LABELS[region]} <ArrowRight className="h-4 w-4" aria-hidden /></LinkButton>
         </div>
+        </>
+        )}
       </div>
     </section>
   );

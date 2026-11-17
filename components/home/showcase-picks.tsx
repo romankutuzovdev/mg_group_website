@@ -43,7 +43,7 @@ function pickTitle(pick: ShowcasePick) {
   return [pick.year, pick.make, pick.model].filter(Boolean).join(" ") || pick.title || "Авто";
 }
 
-function useShowcase(section: "home" | "bought", kind: "" | ShowcaseKind, limit: number) {
+export function useShowcase(section: "home" | "bought", kind: "" | ShowcaseKind, limit: number) {
   const [items, setItems] = useState<ShowcasePick[]>([]);
   useEffect(() => {
     if (!isApiEnabled()) return;
@@ -62,7 +62,7 @@ function useShowcase(section: "home" | "bought", kind: "" | ShowcaseKind, limit:
   return items;
 }
 
-function PickCard({ pick, bought }: { pick: ShowcasePick; bought?: boolean }) {
+export function PickCard({ pick, bought }: { pick: ShowcasePick; bought?: boolean }) {
   const title = pickTitle(pick);
   const damage = displayDamage(pick.damage);
   const image = pick.image_url ? resolveLotImageUrl(pick.image_url, pick.make) : "";
@@ -170,7 +170,7 @@ function Shell({
   );
 }
 
-function CardRow({ children }: { children: React.ReactNode }) {
+export function CardRow({ children }: { children: React.ReactNode }) {
   return (
     <div className="-mx-4 mt-10 flex snap-x gap-4 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-3 [&::-webkit-scrollbar]:hidden">
       {children}

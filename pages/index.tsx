@@ -31,7 +31,6 @@ export default function Home({ dictionary, regionalLots, counts }: HomeProps) {
       <StatsBar />
       <HomeDirections />
       <HomeShowcase initialLots={regionalLots} counts={counts} />
-      <ManagerPicksSection kind="restoration" />
       <ManagerPicksSection kind="kit" />
       <BoughtCarsSection />
       <Process />
