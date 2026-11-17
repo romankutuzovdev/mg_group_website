@@ -63,6 +63,24 @@ class ShowcasePicksTests(unittest.TestCase):
         self.assertFalse(second["on_home"])
         self.assertEqual(len(showcase_picks.list_all()), 1)
 
+    def test_snapshot_is_stored_and_public_page_hides_drafts(self):
+        pick = self._save(
+            on_home=True,
+            images=["https://img/1.jpg", "https://img/2.jpg"],
+            specs={"Двигатель": "3.0", "Привод": ""},
+            breakdown=[{"label": "Ставка", "amount": 8000}, {"label": "Доставка", "amount": 2500.456}],
+        )
+        page = showcase_picks.get_public(pick["id"])
+        self.assertEqual(page["images"], ["https://img/1.jpg", "https://img/2.jpg"])
+        self.assertEqual(page["specs"], {"Двигатель": "3.0"})
+        self.assertEqual(page["breakdown"][1], {"label": "Доставка", "amount": 2500.46})
+        self.assertNotIn("lot_url", page)
+        # повторное сохранение без фото не стирает снимок
+        self._save(images=[])
+        self.assertEqual(len(showcase_picks.get_public(pick["id"])["images"]), 2)
+        showcase_picks.patch(pick["id"], ShowcasePickPatch(on_home=False))
+        self.assertIsNone(showcase_picks.get_public(pick["id"]))
+
     def test_kind_filter_and_manager_scope(self):
         self._save(on_home=True)
         self._save(kind="kit", lot_url="https://www.copart.co.uk/lot/2", on_home=True)

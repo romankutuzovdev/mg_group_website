@@ -7,16 +7,52 @@ import type { LotFromUrlResponse } from "@/lib/api/client";
 import { formatOdometerKm } from "@/lib/auctions/odometer";
 import { isJunkLotImageUrl } from "@/lib/auctions/lot-image-url";
 import { SOURCE_LABELS, type AuctionSource } from "@/lib/auctions/types";
+import { formatDriveRu, formatFuelRu, formatTransmissionRu } from "@/lib/auctions/lot-specs";
+import type { ShowcaseBreakdownLine } from "@/lib/api/cabinet";
 import { useIsManager } from "@/lib/use-is-manager";
 
 /** Карточка лота для витрины: то, что видит клиент на главной. */
 export type ShowcaseLotCard = Pick<
   ShowcasePickInput,
-  "year" | "make" | "model" | "image_url" | "source" | "damage" | "odometer" | "region"
+  "year" | "make" | "model" | "image_url" | "source" | "damage" | "odometer" | "region" | "images" | "specs"
 >;
 
+/** Строки просчёта для страницы машины: остаток до итога уходит в «Услуги и сборы». */
+export function showcaseBreakdown(
+  parts: Array<[string, number | null | undefined]>,
+  totalUsd: number,
+): ShowcaseBreakdownLine[] {
+  const lines = parts
+    .filter(([, amount]) => amount != null && Number.isFinite(amount) && Math.round(amount) > 0)
+    .map(([label, amount]) => ({ label, amount: Math.round(amount as number) }));
+  const rest = Math.round(totalUsd) - lines.reduce((sum, line) => sum + line.amount, 0);
+  if (rest >= 1) lines.push({ label: "Услуги и сборы", amount: rest });
+  return lines;
+}
+
 export function showcaseLotCard(lot: LotFromUrlResponse, fallbackSource = ""): ShowcaseLotCard {
-  const image = (lot.images || []).find((url) => url && !isJunkLotImageUrl(url)) || "";
+  const images = Array.from(
+    new Set((lot.images || []).map((url) => (url || "").trim()).filter((url) => url && !isJunkLotImageUrl(url))),
+  ).slice(0, 60);
+  const image = images[0] || "";
+  const spec = (value: string | null | undefined, format?: (v: string) => string) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    const out = format ? format(raw) : raw;
+    return out === "—" ? "" : out;
+  };
+  const specs: Record<string, string> = {
+    Двигатель: spec(lot.engine),
+    Топливо: spec(lot.fuel, formatFuelRu),
+    Коробка: spec(lot.transmission, formatTransmissionRu),
+    Привод: spec(lot.drive, formatDriveRu),
+    Кузов: spec(lot.bodyStyle),
+    Цвет: spec(lot.exteriorColor),
+    Ключ: spec(lot.keyInfo),
+    "На ходу": spec(lot.startCode),
+    "Доп. повреждение": spec(lot.secondaryDamage),
+  };
+  for (const key of Object.keys(specs)) if (!specs[key]) delete specs[key];
   const odometer =
     lot.odometer != null && Number(lot.odometer) > 0
       ? formatOdometerKm(Number(lot.odometer), lot.odometerUnit === "km" ? "km" : "mi")
@@ -26,6 +62,8 @@ export function showcaseLotCard(lot: LotFromUrlResponse, fallbackSource = ""): S
     make: lot.make || "",
     model: lot.model || "",
     image_url: image,
+    images,
+    specs,
     source: SOURCE_LABELS[lot.source as AuctionSource] || fallbackSource,
     damage: lot.primaryDamage || "",
     odometer,

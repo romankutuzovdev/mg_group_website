@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { LotImage } from "@/components/auctions/lot-image";
 import { LinkButton } from "@/components/site/button";
 import { fetchShowcase, type ShowcaseKind, type ShowcasePick } from "@/lib/api/cabinet";
 import { isApiEnabled } from "@/lib/api/config";
 import { displayDamage } from "@/lib/auctions/listing-blob";
-import { resolveLotImageUrl } from "@/lib/auctions/lot-image-url";
+import {
+  collectLotPhotoUrls,
+  LOT_IMAGE_FALLBACK,
+  resolveLotImageUrl,
+} from "@/lib/auctions/lot-image-url";
 
 const REGION_LABELS: Record<string, string> = {
   usa: "США",
@@ -14,16 +20,16 @@ const REGION_LABELS: Record<string, string> = {
   korea: "Корея",
 };
 
-const KIND_LABELS: Record<ShowcaseKind, string> = {
+export const KIND_LABELS: Record<ShowcaseKind, string> = {
   restoration: "Под восстановление",
   kit: "Машинокомплект",
 };
 
-function regionLabel(region: string) {
+export function regionLabel(region: string) {
   return REGION_LABELS[region] || region.toUpperCase();
 }
 
-function money(amount: number | null | undefined, currency: "USD" | "GBP" = "USD") {
+export function money(amount: number | null | undefined, currency: "USD" | "GBP" = "USD") {
   if (amount == null || !(amount > 0)) return "—";
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
@@ -45,8 +51,12 @@ function pickTitle(pick: ShowcasePick) {
 
 export function useShowcase(section: "home" | "bought", kind: "" | ShowcaseKind, limit: number) {
   const [items, setItems] = useState<ShowcasePick[]>([]);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    if (!isApiEnabled()) return;
+    if (!isApiEnabled()) {
+      setLoaded(true);
+      return;
+    }
     let cancelled = false;
     fetchShowcase(section, kind, limit)
       .then((list) => {
@@ -54,82 +64,123 @@ export function useShowcase(section: "home" | "bought", kind: "" | ShowcaseKind,
       })
       .catch(() => {
         /* блок просто не покажется */
+      })
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
       });
     return () => {
       cancelled = true;
     };
   }, [section, kind, limit]);
-  return items;
+  return { items, loaded };
 }
 
+export function pickHref(pick: ShowcasePick) {
+  return `/podborka/?id=${pick.id}`;
+}
+
+/** Карточка в стиле каталога (LotCard): фото, ставка на фото, итог под ключ зелёной плашкой. */
 export function PickCard({ pick, bought }: { pick: ShowcasePick; bought?: boolean }) {
-  const title = pickTitle(pick);
+  const title = [pick.make, pick.model].filter(Boolean).join(" ") || pick.title || "Авто";
   const damage = displayDamage(pick.damage);
-  const image = pick.image_url ? resolveLotImageUrl(pick.image_url, pick.make) : "";
+  const photos = collectLotPhotoUrls({ imageUrl: pick.image_url, imageUrls: pick.images });
+  const cover = photos[0] ? resolveLotImageUrl(photos[0], pick.make) : LOT_IMAGE_FALLBACK;
   const when = bought ? monthYear(pick.bought_at) : "";
+  const specs = [pick.odometer || null, damage || null, pick.specs?.["Ключ"] ? "Есть ключ" : null].filter(
+    Boolean,
+  ) as string[];
 
   return (
-    <article className="card-premium flex w-[min(85vw,20rem)] shrink-0 snap-start flex-col overflow-hidden rounded-2xl sm:w-auto">
-      <div className="relative aspect-[16/10] overflow-hidden bg-zinc-100">
-        {image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={image} alt={title} loading="lazy" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-text-muted">Нет фото</div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <div className="absolute bottom-3 left-3 right-3 flex flex-wrap gap-2">
-          <span className="rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
-            {regionLabel(pick.region)}
-            {pick.source ? ` · ${pick.source}` : ""}
-          </span>
-          {bought ? (
-            <span className="rounded-full bg-[#22c55e] px-2.5 py-1 text-[10px] font-semibold text-white">
-              Купили
-            </span>
-          ) : null}
-        </div>
-      </div>
+    <Link href={pickHref(pick)} className="group block h-full min-w-0" prefetch={false}>
+      <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
+        <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-zinc-100">
+          <LotImage
+            src={cover}
+            alt={`${pick.year ?? ""} ${title}`.trim()}
+            fill
+            tone="dark"
+            loading="lazy"
+            decoding="async"
+            className="object-cover transition duration-500 group-hover:scale-[1.04]"
+            sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
 
-      <div className="flex flex-1 flex-col p-5">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-display text-lg font-semibold leading-snug">{title}</h3>
-          {when ? <span className="shrink-0 pt-1 text-xs text-text-muted">{when}</span> : null}
-        </div>
-        <p className="mt-1 text-xs text-text-muted">{KIND_LABELS[pick.kind]}</p>
-        {damage || pick.odometer ? (
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            {damage ? (
-              <span className="rounded-full bg-red-50 px-2 py-0.5 text-red-700">{damage}</span>
+          <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+            <span className="rounded-md bg-white/95 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-zinc-800 shadow-sm backdrop-blur-sm">
+              {regionLabel(pick.region)}
+            </span>
+            {photos.length > 1 ? (
+              <span className="rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                {photos.length} фото
+              </span>
             ) : null}
-            {pick.odometer ? (
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-text-secondary">
-                {pick.odometer}
+            {bought ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#22c55e] px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-white shadow-sm ring-2 ring-white/40">
+                <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden />
+                Купили
               </span>
             ) : null}
           </div>
-        ) : null}
 
-        <div className="min-h-5 flex-1" />
-        <dl className="grid grid-cols-2 gap-2 border-t border-border pt-4">
-          <div>
-            <dt className="text-[10px] uppercase tracking-wider text-text-muted">Ставка</dt>
-            <dd className="mt-1 font-display text-sm font-semibold tabular-nums">
-              {money(pick.bid, pick.currency)}
-            </dd>
+          <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-2 p-2.5 sm:gap-3 sm:p-3">
+            <div className="max-w-full shrink-0 rounded-xl bg-[#0D3F10]/92 px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/10 backdrop-blur-md sm:px-3.5 sm:py-2.5">
+              <p className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200/90">
+                {bought ? "Ставка на аукционе" : "Ставка"}
+              </p>
+              <p className="whitespace-nowrap font-display text-xl font-bold tabular-nums tracking-tight text-white sm:text-2xl">
+                {money(pick.bid, pick.currency)}
+              </p>
+            </div>
+            {when ? (
+              <span className="ml-auto shrink-0 rounded-lg bg-black/55 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm sm:text-[11px]">
+                {when}
+              </span>
+            ) : null}
           </div>
-          <div>
-            <dt className="text-[10px] uppercase tracking-wider text-text-muted">
-              {bought ? "Обошлось под ключ" : "Под ключ"}
-            </dt>
-            <dd className="mt-1 font-display text-base font-semibold tabular-nums text-accent-dark">
-              {money(pick.total_usd)}
-            </dd>
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col px-3.5 pb-3.5 pt-3.5 sm:px-4 sm:pb-4 sm:pt-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-400">
+              {[pick.year, KIND_LABELS[pick.kind]].filter(Boolean).join(" · ")}
+            </p>
+            <h3 className="mt-0.5 line-clamp-2 font-display text-[15px] font-semibold leading-snug tracking-tight text-zinc-900 transition group-hover:text-accent-dark sm:text-base">
+              {title}
+            </h3>
           </div>
-        </dl>
-        {pick.summary ? <p className="mt-2 text-[11px] text-text-muted">{pick.summary}</p> : null}
-      </div>
-    </article>
+
+          {pick.source ? <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">{pick.source}</p> : null}
+
+          {specs.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-x-2 gap-y-1 border-t border-zinc-100 pt-3 text-[11px] text-zinc-600 sm:text-xs">
+              {specs.map((item, i) => (
+                <span key={`${item}-${i}`} className="inline-flex items-center gap-2">
+                  {i > 0 ? <span className="text-zinc-300" aria-hidden>•</span> : null}
+                  {item}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-auto pt-3">
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 px-3 py-2.5 ring-1 ring-inset ring-[#22c55e]/30">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">
+                  {bought ? "Обошлось под ключ" : "Под ключ"}
+                </p>
+                <p className="mt-0.5 text-[10px] text-zinc-500">
+                  {pick.kind === "kit" ? "лот + аукцион + доставка + разбор" : pick.summary || "ставка + сборы + доставка"}
+                </p>
+              </div>
+              <p className="shrink-0 font-display text-lg font-bold tabular-nums tracking-tight text-[#0D3F10] sm:text-xl">
+                {money(pick.total_usd)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </article>
+    </Link>
   );
 }
 
@@ -171,16 +222,12 @@ function Shell({
 }
 
 export function CardRow({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="-mx-4 mt-10 flex snap-x gap-4 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-3 [&::-webkit-scrollbar]:hidden">
-      {children}
-    </div>
-  );
+  return <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{children}</div>;
 }
 
 /** «Выбор менеджеров»: лоты, которые менеджер отправил на главную из калькулятора. */
 export function ManagerPicksSection({ kind }: { kind: ShowcaseKind }) {
-  const items = useShowcase("home", kind, 9);
+  const { items } = useShowcase("home", kind, 9);
   if (!items.length) return null;
 
   const isKit = kind === "kit";
@@ -212,7 +259,7 @@ export function ManagerPicksSection({ kind }: { kind: ShowcaseKind }) {
 
 /** «Купленные авто»: что уже привезли и за сколько, с фильтром по стране. */
 export function BoughtCarsSection() {
-  const items = useShowcase("bought", "", 24);
+  const { items } = useShowcase("bought", "", 24);
   const [region, setRegion] = useState("all");
 
   const regions = useMemo(() => {

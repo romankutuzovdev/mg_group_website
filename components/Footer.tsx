@@ -228,7 +228,7 @@ const Footer = ({ dictionary }: FooterProps) => {
                 aria-label="Instagram MG.GROUP"
               >
                 <Instagram className="h-4 w-4 flex-shrink-0" />
-                <span>@mg_grupp</span>
+                <span>@mg.group_by</span>
               </a>
             </div>
           </div>

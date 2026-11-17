@@ -1209,6 +1209,8 @@ export async function downloadDismantleMapXlsx(dealId: number): Promise<void> {
 
 export type ShowcaseKind = "restoration" | "kit";
 
+export type ShowcaseBreakdownLine = { label: string; amount: number };
+
 export type ShowcasePick = {
   id: number;
   kind: ShowcaseKind;
@@ -1225,6 +1227,10 @@ export type ShowcasePick = {
   currency: "USD" | "GBP";
   total_usd: number | null;
   summary: string;
+  location?: string;
+  images: string[];
+  specs: Record<string, string>;
+  breakdown: ShowcaseBreakdownLine[];
   on_home: boolean;
   bought: boolean;
   bought_at: string;
@@ -1232,7 +1238,6 @@ export type ShowcasePick = {
   updated_at: string;
   /** Только в кабинете. */
   lot_url?: string;
-  location?: string;
   manager_user_id?: number;
   manager_name?: string;
 };
@@ -1254,9 +1259,16 @@ export type ShowcasePickInput = {
   currency?: "USD" | "GBP";
   total_usd?: number | null;
   summary?: string;
+  images?: string[];
+  specs?: Record<string, string>;
+  breakdown?: ShowcaseBreakdownLine[];
   on_home?: boolean;
   bought?: boolean;
 };
+
+export async function fetchShowcasePick(id: number): Promise<ShowcasePick> {
+  return cabinetFetch(`/api/v1/showcase/${id}`);
+}
 
 export async function fetchShowcase(
   section: "home" | "bought",

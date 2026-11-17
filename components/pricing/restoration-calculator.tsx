@@ -6,6 +6,7 @@ import { CustomsByPanel } from "@/components/pricing/customs-by-panel";
 import { useRecordQuote } from "@/components/pricing/use-record-quote";
 import {
   ShowcasePickButtons,
+  showcaseBreakdown,
   showcaseLotCard,
   type ShowcaseLotCard,
 } from "@/components/pricing/showcase-pick-buttons";
@@ -802,6 +803,18 @@ export function RestorationCalculator() {
                     summary: customs?.ok
                       ? "Под ключ с растаможкой РБ"
                       : "Под ключ, без растаможки",
+                    breakdown: showcaseBreakdown(
+                      [
+                        ["Ставка на аукционе", bid],
+                        ["Сборы аукциона", pricedQuote?.auctionFeesUsd],
+                        ["Доставка по США до порта", pricedQuote?.delivery?.inlandUsd],
+                        ["Море до порта назначения", pricedQuote?.delivery?.oceanUsd],
+                        ["Доставка до Минска", pricedQuote?.minskDeliveryUsd],
+                        ["Доп. услуги и страховка", addonsUsd],
+                        ["Таможня РБ", customs?.ok ? customs.totalUsd : null],
+                      ],
+                      grandWithCustoms,
+                    ),
                   }
                 : null
             }

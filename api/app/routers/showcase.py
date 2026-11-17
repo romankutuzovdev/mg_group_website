@@ -40,6 +40,14 @@ def public_showcase(
     return {"items": items, "count": len(items)}
 
 
+@router.get("/showcase/{pick_id}")
+def public_showcase_pick(pick_id: int) -> dict[str, Any]:
+    pick = showcase_picks.get_public(pick_id)
+    if not pick:
+        raise HTTPException(status_code=404, detail="Не найдено")
+    return pick
+
+
 @router.get("/cabinet/showcase")
 def staff_showcase(user: Staff) -> list[dict[str, Any]]:
     return showcase_picks.list_all(manager_user_id=user.id if is_limited_manager(user) else None)

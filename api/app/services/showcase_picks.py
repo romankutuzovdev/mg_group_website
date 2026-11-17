@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -18,6 +19,11 @@ from app.config import get_settings
 PickKind = Literal["restoration", "kit"]
 
 _lock = threading.RLock()
+
+
+class BreakdownLine(BaseModel):
+    label: str = Field(..., max_length=80)
+    amount: float
 
 
 class ShowcasePickIn(BaseModel):
@@ -37,6 +43,10 @@ class ShowcasePickIn(BaseModel):
     currency: Literal["USD", "GBP"] = "USD"
     total_usd: float | None = Field(None, ge=0)
     summary: str = Field("", max_length=500)
+    # Снимок просчёта: все фото лота, характеристики и разбивка цены (USD).
+    images: list[str] = Field(default_factory=list, max_length=60)
+    specs: dict[str, str] = Field(default_factory=dict)
+    breakdown: list[BreakdownLine] = Field(default_factory=list, max_length=20)
     on_home: bool | None = None
     bought: bool | None = None
 
@@ -99,6 +109,18 @@ def init() -> None:
               ON showcase_picks(kind, lot_url);
             """
         )
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(showcase_picks)").fetchall()}
+        for col in ("images_json", "specs_json", "breakdown_json"):
+            if col not in cols:
+                conn.execute(f"ALTER TABLE showcase_picks ADD COLUMN {col} TEXT NOT NULL DEFAULT ''")
+
+
+def _loads(raw: str | None, fallback: Any) -> Any:
+    try:
+        value = json.loads(raw or "")
+    except ValueError:
+        return fallback
+    return value if isinstance(value, type(fallback)) else fallback
 
 
 def _row(row: sqlite3.Row, *, public: bool = False) -> dict[str, Any]:
@@ -120,6 +142,9 @@ def _row(row: sqlite3.Row, *, public: bool = False) -> dict[str, Any]:
         "currency": row["currency"] or "USD",
         "total_usd": row["total_usd"],
         "summary": row["summary"] or "",
+        "images": _loads(row["images_json"], []),
+        "specs": _loads(row["specs_json"], {}),
+        "breakdown": _loads(row["breakdown_json"], []),
         "on_home": bool(row["on_home"]),
         "bought": bool(row["bought"]),
         "bought_at": row["bought_at"] or "",
@@ -161,6 +186,23 @@ def upsert(body: ShowcasePickIn, *, manager_user_id: int, manager_name: str) -> 
         "currency": body.currency,
         "total_usd": body.total_usd,
         "summary": body.summary.strip(),
+        "images_json": json.dumps(
+            [u.strip() for u in body.images if u and u.strip()][:60], ensure_ascii=False
+        )
+        if body.images
+        else "",
+        "specs_json": json.dumps(
+            {k.strip()[:40]: str(v).strip()[:120] for k, v in body.specs.items() if k.strip() and str(v).strip()},
+            ensure_ascii=False,
+        )
+        if body.specs
+        else "",
+        "breakdown_json": json.dumps(
+            [{"label": line.label.strip(), "amount": round(line.amount, 2)} for line in body.breakdown],
+            ensure_ascii=False,
+        )
+        if body.breakdown
+        else "",
     }
     with _lock, _connect() as conn:
         existing = (
@@ -174,7 +216,10 @@ def upsert(body: ShowcasePickIn, *, manager_user_id: int, manager_name: str) -> 
         if existing:
             sets = dict(fields)
             # Пустые значения не затирают то, что уже было сохранено.
-            for key in ("image_url", "year", "make", "model", "damage", "odometer"):
+            for key in (
+                "image_url", "year", "make", "model", "damage", "odometer",
+                "images_json", "specs_json", "breakdown_json",
+            ):
                 if not sets[key]:
                     sets.pop(key)
             if body.on_home is not None:
@@ -199,9 +244,10 @@ def upsert(body: ShowcasePickIn, *, manager_user_id: int, manager_name: str) -> 
                 INSERT INTO showcase_picks (
                   kind, title, year, make, model, image_url, lot_url, region, source,
                   location, damage, odometer, bid, currency, total_usd, summary,
+                  images_json, specs_json, breakdown_json,
                   on_home, bought, bought_at, manager_user_id, manager_name,
                   created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     body.kind,
@@ -220,6 +266,9 @@ def upsert(body: ShowcasePickIn, *, manager_user_id: int, manager_name: str) -> 
                     fields["currency"],
                     fields["total_usd"],
                     fields["summary"],
+                    fields["images_json"],
+                    fields["specs_json"],
+                    fields["breakdown_json"],
                     int(on_home),
                     int(bought),
                     now if bought else "",
@@ -277,6 +326,15 @@ def list_public(*, section: Literal["home", "bought"], kind: str = "", limit: in
             (*params, limit),
         ).fetchall()
         return [_row(row, public=True) for row in rows]
+
+
+def get_public(pick_id: int) -> dict[str, Any] | None:
+    """Страница машины на сайте: только то, что сейчас на главной или в купленных."""
+    with _lock, _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM showcase_picks WHERE id = ? AND (on_home = 1 OR bought = 1)", (pick_id,)
+        ).fetchone()
+        return _row(row, public=True) if row else None
 
 
 def list_all(*, manager_user_id: int | None = None, limit: int = 200) -> list[dict[str, Any]]:

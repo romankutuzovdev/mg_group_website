@@ -19,6 +19,7 @@ import { kitLotUrlError, lotHost, ukKitLotUrlError, usaKitLotUrlError } from "@/
 import { useRecordQuote } from "@/components/pricing/use-record-quote";
 import {
   ShowcasePickButtons,
+  showcaseBreakdown,
   showcaseLotCard,
   type ShowcaseLotCard,
 } from "@/components/pricing/showcase-pick-buttons";
@@ -131,6 +132,33 @@ type Props = {
   /** Когда ссылка сама переключает Англию и США */
   onMarketChange?: (tab: Tab) => void;
 };
+
+/** Разбивка просчёта машинокомплекта в USD для страницы машины на сайте. */
+function kitBreakdown(quote: unknown, tab: "uk" | "usa", totalUsd: number) {
+  if (tab === "uk") {
+    const q = quote as CopartQuote | null;
+    const rate = q?.fxRate || 0;
+    if (!q || !rate) return showcaseBreakdown([], totalUsd);
+    return showcaseBreakdown(
+      [
+        ["Лот и сборы Copart UK", q.copart.copartTotal * rate],
+        ["Доставка по Англии", q.delivery.amount * rate],
+        ["Разбор и отправка", q.dismantleUsd],
+      ],
+      totalUsd,
+    );
+  }
+  const q = quote as IaaiQuote | null;
+  if (!q) return showcaseBreakdown([], totalUsd);
+  return showcaseBreakdown(
+    [
+      ["Лот и сборы аукциона", q.iaai.iaaiTotal],
+      ["Доставка по США", q.deliveryUsa?.inlandUsd],
+      ["Разбор и отправка", q.dismantleUsd],
+    ],
+    totalUsd,
+  );
+}
 
 export function CalculatorForm({
   defaultTab = "uk",
@@ -586,6 +614,7 @@ export function CalculatorForm({
                     currency: tab === "uk" ? "GBP" : "USD",
                     total_usd: totalUsd,
                     summary: tab === "uk" ? "Машинокомплект · Англия" : "Машинокомплект · США",
+                    breakdown: kitBreakdown(quote, tab, totalUsd),
                   }
                 : null
             }
