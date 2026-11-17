@@ -15,6 +15,7 @@ import { HomeShowcase } from "@/components/home/home-showcase";
 import { Process } from "@/components/home/process";
 import { ReviewsSection } from "@/components/home/reviews-section";
 import { CasesFeed } from "@/components/pages/cases-feed";
+import { BoughtCarsSection, ManagerPicksSection } from "@/components/home/showcase-picks";
 
 type HomeProps = {
   dictionary: Dictionary;
@@ -30,6 +31,9 @@ export default function Home({ dictionary, regionalLots, counts }: HomeProps) {
       <StatsBar />
       <HomeDirections />
       <HomeShowcase initialLots={regionalLots} counts={counts} />
+      <ManagerPicksSection kind="restoration" />
+      <ManagerPicksSection kind="kit" />
+      <BoughtCarsSection />
       <Process />
       <Benefits dictionary={dictionary} />
       <CasesFeed limit={3} hideWhenEmpty />

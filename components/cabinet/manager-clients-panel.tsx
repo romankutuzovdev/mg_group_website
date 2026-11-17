@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BriefcaseBusiness, ChevronRight, Route, Search, Users } from "lucide-react";
 import { AdminDealsPanel } from "@/components/cabinet/admin-deals-panel";
+import { DeleteAccountButton } from "@/components/cabinet/delete-account-button";
 import {
   Avatar,
   Badge,
@@ -31,7 +32,7 @@ import {
   regionLabel,
 } from "@/lib/api/cabinet";
 
-type ClientGroup = { key: string; name: string; sub: string; deals: Deal[] };
+type ClientGroup = { key: string; name: string; sub: string; deals: Deal[]; userId?: number };
 
 function userName(u: CabinetUser): string {
   return [u.first_name, u.last_name].filter(Boolean).join(" ") || u.phone || `Клиент #${u.id}`;
@@ -46,6 +47,7 @@ function buildGroups(users: CabinetUser[], deals: Deal[], managerId: number): Cl
       name: userName(u),
       sub: u.phone || (u.username ? `@${u.username}` : ""),
       deals: [],
+      userId: u.is_manager || u.is_admin || u.is_logist ? undefined : u.id,
     });
   }
   for (const deal of deals) {
@@ -188,7 +190,16 @@ export function ManagerClientsPanel({
                 </div>
               </div>
               {group.deals.length === 0 ? (
-                <p className="px-4 py-3 text-[13px] text-zinc-500">Сделок пока нет</p>
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                  <p className="text-[13px] text-zinc-500">Сделок пока нет</p>
+                  {group.userId ? (
+                    <DeleteAccountButton
+                      userId={group.userId}
+                      label={[group.name, group.sub].filter(Boolean).join(", ")}
+                      onDeleted={() => void load()}
+                    />
+                  ) : null}
+                </div>
               ) : (
                 <ul className="divide-y divide-zinc-100">
                   {group.deals.map((deal) => {

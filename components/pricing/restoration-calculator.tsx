@@ -4,6 +4,11 @@ import { useCallback, useMemo, useState } from "react";
 import { EstimateNotice } from "@/components/pricing/estimate-notice";
 import { CustomsByPanel } from "@/components/pricing/customs-by-panel";
 import { useRecordQuote } from "@/components/pricing/use-record-quote";
+import {
+  ShowcasePickButtons,
+  showcaseLotCard,
+  type ShowcaseLotCard,
+} from "@/components/pricing/showcase-pick-buttons";
 import type { CustomsByResult } from "@/lib/pricing/customs-by";
 import {
   bidcarsFeeProfileFrom,
@@ -75,6 +80,7 @@ export function RestorationCalculator() {
   const [lotLoading, setLotLoading] = useState(false);
   const [lotError, setLotError] = useState<string | null>(null);
   const [lotMeta, setLotMeta] = useState<string | null>(null);
+  const [lotCard, setLotCard] = useState<ShowcaseLotCard | null>(null);
   const [bidText, setBidText] = useState("8000");
   const [platform, setPlatform] = useState<"iaai" | "copart">("iaai");
   const [location, setLocation] = useState(DEFAULT_IAAI);
@@ -129,6 +135,7 @@ export function RestorationCalculator() {
     setLotLoading(true);
     setLotError(null);
     setLotMeta(null);
+    setLotCard(null);
     try {
       const lot = await fetchLotFromUrl(url);
       const lotIsUk =
@@ -197,6 +204,10 @@ export function RestorationCalculator() {
         .filter(Boolean)
         .join(" ");
       const place = yard?.location || lot.location;
+      setLotCard({
+        ...showcaseLotCard(lot, matchedPlatform === "copart" ? "Copart" : "IAAI"),
+        year: y ?? lot.year ?? null,
+      });
       setLotMeta(
         [label || "Лот загружен", place, matchedPlatform === "copart" ? "Copart" : "IAAI"]
           .filter(Boolean)
@@ -773,6 +784,28 @@ export function RestorationCalculator() {
               ) : null}
             </div>
           ) : null}
+
+          <ShowcasePickButtons
+            pick={
+              grandWithCustoms != null && bid > 0
+                ? {
+                    kind: "restoration",
+                    ...(lotCard ?? { region: "usa" }),
+                    title:
+                      [lotCard?.year, lotCard?.make, lotCard?.model].filter(Boolean).join(" ") ||
+                      lotMeta || "Авто под восстановление",
+                    lot_url: lotUrl.trim(),
+                    location,
+                    bid,
+                    currency: "USD",
+                    total_usd: grandWithCustoms,
+                    summary: customs?.ok
+                      ? "Под ключ с растаможкой РБ"
+                      : "Под ключ, без растаможки",
+                  }
+                : null
+            }
+          />
         </div>
       </div>
     </div>

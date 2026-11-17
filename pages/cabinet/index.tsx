@@ -15,6 +15,7 @@ import {
   Route,
   ShieldCheck,
   Ship,
+  Star,
   Users,
 } from "lucide-react";
 import SEO from "@/components/SEO";
@@ -54,6 +55,7 @@ import { DealSpecsGrid } from "@/components/cabinet/deal-specs";
 import { AdminDealsPanel } from "@/components/cabinet/admin-deals-panel";
 import { LogisticsPanel } from "@/components/cabinet/logistics-panel";
 import { QuoteHistoryPanel } from "@/components/cabinet/quote-history-panel";
+import { ShowcasePicksPanel } from "@/components/cabinet/showcase-picks-panel";
 import type { CalculatorMode } from "@/components/pricing/site-calculator";
 import { DealCarStatus, DealCarStatusBadge } from "@/components/cabinet/deal-car-status";
 import { DealClaims } from "@/components/cabinet/deal-claims";
@@ -109,9 +111,26 @@ function formatMoney(amount: number, currency: string) {
   }).format(amount || 0);
 }
 
-type Tab = "deals" | "favorites" | "calculators" | "quotes" | "manager" | "logistics" | "clients";
+type Tab =
+  | "deals"
+  | "favorites"
+  | "calculators"
+  | "quotes"
+  | "manager"
+  | "logistics"
+  | "clients"
+  | "showcase";
 
-const TAB_IDS: Tab[] = ["deals", "favorites", "calculators", "quotes", "manager", "logistics", "clients"];
+const TAB_IDS: Tab[] = [
+  "deals",
+  "favorites",
+  "calculators",
+  "quotes",
+  "manager",
+  "logistics",
+  "clients",
+  "showcase",
+];
 
 function tabFromQuery(raw: string | null): Tab | null {
   if (!raw) return null;
@@ -123,6 +142,7 @@ function tabFromQuery(raw: string | null): Tab | null {
   if (v === "logistics" || v === "логистика" || v === "containers" || v === "контейнеры")
     return "logistics";
   if (v === "deals" || v === "сделки") return "deals";
+  if (v === "showcase" || v === "витрина") return "showcase";
   return TAB_IDS.includes(v as Tab) ? (v as Tab) : null;
 }
 
@@ -384,6 +404,13 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     section: "Команда",
   };
 
+  const showcaseItem: NavItem = {
+    id: "showcase",
+    label: "Витрина на главной",
+    icon: Star,
+    section: "Команда",
+  };
+
   const navItems: NavItem[] = [
     isLogistOnly
       ? { ...logisticsItem, section: undefined }
@@ -394,7 +421,10 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     { id: "calculators", label: "Калькуляторы", icon: Calculator },
     // CRM у менеджера: сервер отдаёт только его клиентов и сделки.
     ...(isLimitedManager
-      ? [{ id: "manager", label: "CRM · клиенты", icon: Users, section: "Команда" }]
+      ? [
+          { id: "manager", label: "CRM · клиенты", icon: Users, section: "Команда" },
+          showcaseItem,
+        ]
       : []),
     // Менеджер, которому дали ещё и роль логиста.
     ...(isLimitedManager && canLogistics ? [logisticsItem] : []),
@@ -403,6 +433,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
           { id: "manager", label: "CRM · клиенты", icon: Users, section: "Команда" },
           logisticsItem,
           { id: "quotes", label: "Просчёты", icon: Calculator, section: "Команда" },
+          showcaseItem,
           ...(user?.is_admin
             ? [
                 {
@@ -1269,6 +1300,16 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
             description="История расчётов клиентов в калькуляторах. Каждый просчёт также приходит в Telegram."
           />
           <QuoteHistoryPanel scope="all" />
+        </div>
+      ) : null}
+
+      {view === "list" && tab === "showcase" && isStaff ? (
+        <div className="space-y-5">
+          <PageHeader
+            title="Витрина на главной"
+            description="Лоты из калькуляторов: «На главную» — блоки «Выбор менеджеров», «Купили» — блок «Купленные авто» с ценой."
+          />
+          <ShowcasePicksPanel showManager={!isLimitedManager} />
         </div>
       ) : null}
 

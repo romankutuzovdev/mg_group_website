@@ -23,6 +23,7 @@ from app.services import support_chat
 from app.config import get_settings
 from app.data.store import lot_store
 from app.routers import (
+    showcase,
     ai,
     support,
     auction_pages,
@@ -42,7 +43,7 @@ from app.scraper.worker import scraper_worker, start_scraper_in_background
 from app.services.cabinet_store import cabinet_store
 from app.services.logistics_store import logistics_store
 from app.services.purchased_cars_store import purchased_cars_store
-from app.services import car_search, quote_history
+from app.services import car_search, quote_history, showcase_picks
 from app.services.lots_sync import lots_sync_loop
 
 
@@ -69,6 +70,7 @@ async def lifespan(_app: FastAPI):
     logistics_store.init()
     purchased_cars_store.init()
     quote_history.init()
+    showcase_picks.init()
     car_search.init()
     support_chat.init()
     print("[mg-api] cabinet + logistics + purchased cars db ready")
@@ -252,6 +254,7 @@ def create_app() -> FastAPI:
     app.include_router(cabinet.router, prefix=prefix)
     app.include_router(logistics.router, prefix=prefix)
     app.include_router(purchased_cars.router, prefix=prefix)
+    app.include_router(showcase.router, prefix=prefix)
     # Dynamic lot HTML + image proxy (before StaticFiles)
     app.include_router(auction_pages.router)
     app.include_router(lot_image.router)

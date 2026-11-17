@@ -561,6 +561,41 @@ class CabinetStore:
             return False
         return int(client.manager_user_id or 0) == int(manager_id)
 
+    def delete_user(self, user_id: int) -> None:
+        """Удалить аккаунт без сделок вместе с избранным, поисками и просчётами.
+
+        KeyError — нет такого; ValueError — есть сделки (их сначала удаляют или переносят).
+        """
+        with self._lock:
+            with self._conn() as conn:
+                if not conn.execute("SELECT 1 FROM users WHERE id = ?", (user_id,)).fetchone():
+                    raise KeyError(user_id)
+                deals = conn.execute(
+                    "SELECT COUNT(*) FROM deals WHERE user_id = ?", (user_id,)
+                ).fetchone()[0]
+                if deals:
+                    raise ValueError(f"У аккаунта есть сделки ({deals}) — удалить нельзя")
+                tables = {
+                    r[0]
+                    for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+                }
+                if "car_searches" in tables:
+                    if "car_search_hits" in tables:
+                        conn.execute(
+                            "DELETE FROM car_search_hits WHERE search_id IN "
+                            "(SELECT id FROM car_searches WHERE user_id = ?)",
+                            (user_id,),
+                        )
+                    conn.execute("DELETE FROM car_searches WHERE user_id = ?", (user_id,))
+                for table in ("favorites", "quote_history", "deal_claims"):
+                    if table in tables:
+                        conn.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
+                # Если удаляли менеджера — его клиенты остаются без закрепления.
+                conn.execute(
+                    "UPDATE users SET manager_user_id = NULL WHERE manager_user_id = ?", (user_id,)
+                )
+                conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
     def set_client_password(self, user_id: int, password: str) -> UserOut:
         pwd = (password or "").strip()
         if len(pwd) < 4:

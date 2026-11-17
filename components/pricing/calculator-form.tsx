@@ -18,6 +18,11 @@ import { LotLoadButton, LotLoadStatus, lotLoadErrorMessage } from "@/components/
 import { kitLotUrlError, lotHost, ukKitLotUrlError, usaKitLotUrlError } from "@/lib/pricing/lot-url";
 import { useRecordQuote } from "@/components/pricing/use-record-quote";
 import {
+  ShowcasePickButtons,
+  showcaseLotCard,
+  type ShowcaseLotCard,
+} from "@/components/pricing/showcase-pick-buttons";
+import {
   DISMANTLE_KG_DEFAULT,
   WeightDismantleControl,
 } from "@/components/pricing/weight-dismantle-control";
@@ -149,6 +154,7 @@ export function CalculatorForm({
   const [lotLoading, setLotLoading] = useState(false);
   const [lotError, setLotError] = useState<string | null>(null);
   const [lotMeta, setLotMeta] = useState<string | null>(null);
+  const [lotCard, setLotCard] = useState<ShowcaseLotCard | null>(null);
   const [touched, setTouched] = useState(false);
 
   useEffect(() => {
@@ -173,6 +179,7 @@ export function CalculatorForm({
     setLotLoading(true);
     setLotError(null);
     setLotMeta(null);
+    setLotCard(null);
     try {
       const lot = await fetchLotFromUrl(url);
       const market = kitMarket(url, lot);
@@ -267,6 +274,10 @@ export function CalculatorForm({
       const label = [lot.year, lot.make, lot.model, lot.lotNumber && `#${lot.lotNumber}`]
         .filter(Boolean)
         .join(" ");
+      setLotCard({
+        ...showcaseLotCard(lot, market === "uk" ? "Copart UK" : ""),
+        region: market,
+      });
       const place = yardLabel ? ` · ${yardLabel}` : "";
       const cat = market === "uk" ? matchCategory(lot) : "";
       const catLabel = cat ? ` · Cat ${cat}` : "";
@@ -556,6 +567,29 @@ export function CalculatorForm({
             <IaaiQuoteDisplay quote={quote as IaaiQuote} route={inlandRoute} />
           ) : null}
           {quote ? <QuoteTotals quote={quote} region={tab} /> : null}
+        </div>
+
+        <div className="lg:col-start-2">
+          <ShowcasePickButtons
+            pick={
+              bid > 0 && totalUsd != null
+                ? {
+                    kind: "kit",
+                    ...(lotCard ?? {}),
+                    region: tab,
+                    title:
+                      [lotCard?.year, lotCard?.make, lotCard?.model].filter(Boolean).join(" ") ||
+                      lotMeta || (tab === "uk" ? "Машинокомплект Англия" : "Машинокомплект США"),
+                    lot_url: lotUrl.trim(),
+                    location: tab === "uk" ? location : usaLocation,
+                    bid,
+                    currency: tab === "uk" ? "GBP" : "USD",
+                    total_usd: totalUsd,
+                    summary: tab === "uk" ? "Машинокомплект · Англия" : "Машинокомплект · США",
+                  }
+                : null
+            }
+          />
         </div>
       </div>
     </div>

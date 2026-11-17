@@ -190,6 +190,70 @@ function NoteTextarea({
   );
 }
 
+/** ПК: количество вписывается цифрами (на телефоне — барабан IosWheelPicker). */
+function QtyNumberInput({
+  value,
+  onCommit,
+  min,
+  max,
+  readOnly,
+  ariaLabel,
+}: {
+  value: string;
+  onCommit: (next: string) => void;
+  min: number;
+  max: number;
+  readOnly?: boolean;
+  ariaLabel?: string;
+}) {
+  const [local, setLocal] = useState(value);
+  const lastSent = useRef(value);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (inputRef.current && document.activeElement === inputRef.current) return;
+    setLocal(value);
+    lastSent.current = value;
+  }, [value]);
+
+  const commit = () => {
+    if (readOnly) return;
+    const digits = local.replace(/\D/g, "");
+    const next = digits ? String(Math.min(max, Math.max(min, Number.parseInt(digits, 10)))) : "";
+    setLocal(next);
+    if (next === lastSent.current) return;
+    lastSent.current = next;
+    onCommit(next);
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      inputMode="numeric"
+      aria-label={ariaLabel}
+      value={local}
+      placeholder={`${min}–${max}`}
+      readOnly={Boolean(readOnly)}
+      onChange={(e) => setLocal(e.target.value.replace(/\D/g, "").slice(0, 3))}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+          e.currentTarget.blur();
+        }
+      }}
+      className={[
+        "w-20 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-center text-sm tabular-nums outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30",
+        readOnly ? "cursor-default bg-zinc-50 text-zinc-700" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    />
+  );
+}
+
 /** Доп. упаковка: только «да» или прочерк (пусто). */
 function normalizePacking(raw: string): string {
   const v = (raw || "").trim().toLowerCase();
@@ -877,7 +941,7 @@ function DesktopSectionRows({
                 readOnly={readOnly}
               />
             ) : (
-              <IosWheelPicker
+              <QtyNumberInput
                 value={cell.qty}
                 onCommit={(v) => onSave(cell.key, "qty", v)}
                 min={qtyMin}

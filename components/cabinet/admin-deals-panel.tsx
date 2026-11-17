@@ -28,6 +28,7 @@ import {
   regionLabel,
 } from "@/lib/api/cabinet";
 import { fetchLotFromUrl } from "@/lib/api/client";
+import { DeleteAccountButton } from "@/components/cabinet/delete-account-button";
 import { formatOdometerKm } from "@/lib/auctions/odometer";
 import { apiUrl, isApiEnabled } from "@/lib/api/config";
 import { lotHost } from "@/lib/pricing/lot-url";
@@ -906,6 +907,16 @@ export function AdminDealsPanel({
     if (!c) return 0;
     if (c.userId) return c.userId;
     return users.find((x) => x.telegram_id === c.telegramId)?.id || 0;
+  };
+
+  /** Удалить можно обычного клиента без сделок: админ — любого, менеджер — своего. */
+  const deletableClientId = (c: CrmClient | null): number => {
+    if (!c || c.deals.length > 0) return 0;
+    const uid = clientUserId(c);
+    const u = users.find((x) => x.id === uid);
+    if (!u || u.is_admin || u.is_manager || u.is_logist || u.id === currentUser?.id) return 0;
+    if (canAssignRoles || currentUser?.is_admin) return uid;
+    return currentUser?.id && c.managerId === currentUser.id ? uid : 0;
   };
 
   const resetSelectedPassword = async () => {
@@ -1801,6 +1812,22 @@ export function AdminDealsPanel({
                       >
                         Создать сделку
                       </button>
+                      {deletableClientId(selectedClient) ? (
+                        <div className="mx-auto mt-6 flex max-w-sm justify-center">
+                          <DeleteAccountButton
+                            key={selectedClient.key}
+                            userId={deletableClientId(selectedClient)}
+                            label={[selectedClient.label, clientPhoneLogin(selectedClient)]
+                              .filter(Boolean)
+                              .join(", ")}
+                            onDeleted={() => {
+                              setSelectedClientKey(null);
+                              setOk(`Аккаунт ${selectedClient.label} удалён`);
+                              void load();
+                            }}
+                          />
+                        </div>
+                      ) : null}
                     </div>
                   ) : (
                     selectedClient.deals.map((deal) => {

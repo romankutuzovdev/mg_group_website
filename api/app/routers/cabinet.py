@@ -485,6 +485,34 @@ async def admin_create_client_account(
     )
 
 
+@router.delete("/admin/users/{user_id}")
+def admin_delete_user(
+    user_id: int,
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
+) -> dict[str, bool]:
+    """Удалить аккаунт без сделок. Админ — любой (кроме админов), менеджер — только своего клиента."""
+    target = cabinet_store.get_user(user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if target.id == actor.id:
+        raise HTTPException(status_code=422, detail="Нельзя удалить свой аккаунт")
+    if target.is_admin:
+        raise HTTPException(status_code=403, detail="Аккаунт администратора удалить нельзя")
+    if not actor.is_admin:
+        if target.is_manager or target.is_logist or not cabinet_store.manager_owns_client(
+            manager_id=actor.id,
+            client_user_id=user_id,
+        ):
+            raise HTTPException(status_code=403, detail="Можно удалить только своего клиента")
+    try:
+        cabinet_store.delete_user(user_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Пользователь не найден") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"ok": True}
+
+
 @router.post("/admin/clients/{user_id}/password", response_model=ClientAccountCreatedOut)
 async def admin_reset_client_password(
     user_id: int,

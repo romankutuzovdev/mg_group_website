@@ -582,6 +582,11 @@ export async function adminResetClientPassword(
   });
 }
 
+/** Удалить аккаунт без сделок (вместе с избранным, поисками и просчётами). */
+export async function adminDeleteUser(userId: number): Promise<void> {
+  await cabinetFetch(`/api/v1/admin/users/${userId}`, { method: "DELETE" });
+}
+
 /** Generate a short readable password for a new client account. */
 export function generateClientPassword(length = 8): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -1198,4 +1203,87 @@ export async function downloadDismantleMapXlsx(dealId: number): Promise<void> {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/* ---------- Витрина: «На главную» и «Купили» из калькуляторов ---------- */
+
+export type ShowcaseKind = "restoration" | "kit";
+
+export type ShowcasePick = {
+  id: number;
+  kind: ShowcaseKind;
+  title: string;
+  year: number | null;
+  make: string;
+  model: string;
+  image_url: string;
+  region: string;
+  source: string;
+  damage: string;
+  odometer: string;
+  bid: number | null;
+  currency: "USD" | "GBP";
+  total_usd: number | null;
+  summary: string;
+  on_home: boolean;
+  bought: boolean;
+  bought_at: string;
+  created_at: string;
+  updated_at: string;
+  /** Только в кабинете. */
+  lot_url?: string;
+  location?: string;
+  manager_user_id?: number;
+  manager_name?: string;
+};
+
+export type ShowcasePickInput = {
+  kind: ShowcaseKind;
+  title?: string;
+  year?: number | null;
+  make?: string;
+  model?: string;
+  image_url?: string;
+  lot_url?: string;
+  region?: string;
+  source?: string;
+  location?: string;
+  damage?: string;
+  odometer?: string;
+  bid?: number | null;
+  currency?: "USD" | "GBP";
+  total_usd?: number | null;
+  summary?: string;
+  on_home?: boolean;
+  bought?: boolean;
+};
+
+export async function fetchShowcase(
+  section: "home" | "bought",
+  kind: "" | ShowcaseKind = "",
+  limit = 12,
+): Promise<ShowcasePick[]> {
+  const qs = new URLSearchParams({ section, limit: String(limit) });
+  if (kind) qs.set("kind", kind);
+  const res = await cabinetFetch<{ items: ShowcasePick[] }>(`/api/v1/showcase?${qs}`);
+  return res.items || [];
+}
+
+export async function staffListShowcase(): Promise<ShowcasePick[]> {
+  return cabinetFetch("/api/v1/cabinet/showcase");
+}
+
+export async function staffSaveShowcasePick(body: ShowcasePickInput): Promise<ShowcasePick> {
+  return cabinetFetch("/api/v1/cabinet/showcase", { method: "POST", body: JSON.stringify(body) });
+}
+
+export async function staffPatchShowcasePick(
+  id: number,
+  body: { on_home?: boolean; bought?: boolean; total_usd?: number },
+): Promise<ShowcasePick> {
+  return cabinetFetch(`/api/v1/cabinet/showcase/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+}
+
+export async function staffDeleteShowcasePick(id: number): Promise<void> {
+  await cabinetFetch(`/api/v1/cabinet/showcase/${id}`, { method: "DELETE" });
 }

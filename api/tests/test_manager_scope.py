@@ -78,6 +78,36 @@ class ManagerScopeTest(unittest.TestCase):
         ids = {u["id"] for u in self.client.get("/api/v1/admin/users", headers=h).json()}
         self.assertEqual(ids, {2, 4})
 
+    def _add_client(self, uid, owner):
+        with sqlite3.connect(self.store._path()) as conn:
+            conn.execute(
+                "INSERT INTO users (id, telegram_id, first_name, manager_user_id, created_at) "
+                "VALUES (?, ?, ?, ?, '2026-01-01')",
+                (uid, 100 + uid, f"u{uid}", owner),
+            )
+            conn.execute(
+                "INSERT INTO favorites (user_id, lot_id, created_at) VALUES (?, 'lot-1', '2026-01-01')",
+                (uid,),
+            )
+
+    def test_delete_account_rules(self):
+        self._add_client(7, 2)
+        self._add_client(8, 3)
+        mgr = self.auth(2)
+        # чужой клиент, клиент со сделкой, админ и сам себя — нельзя
+        self.assertEqual(self.client.delete("/api/v1/admin/users/8", headers=mgr).status_code, 403)
+        self.assertEqual(self.client.delete("/api/v1/admin/users/4", headers=mgr).status_code, 409)
+        self.assertEqual(self.client.delete("/api/v1/admin/users/1", headers=mgr).status_code, 403)
+        self.assertEqual(self.client.delete("/api/v1/admin/users/2", headers=mgr).status_code, 422)
+        # свой клиент без сделок — удаляется вместе с избранным
+        self.assertEqual(self.client.delete("/api/v1/admin/users/7", headers=mgr).status_code, 200)
+        self.assertIsNone(self.store.get_user(7))
+        with sqlite3.connect(self.store._path()) as conn:
+            left = conn.execute("SELECT COUNT(*) FROM favorites WHERE user_id = 7").fetchone()[0]
+        self.assertEqual(left, 0)
+        # админ удаляет любого клиента без сделок
+        self.assertEqual(self.client.delete("/api/v1/admin/users/8", headers=self.auth(1)).status_code, 200)
+
     def test_admin_still_sees_everything(self):
         deals = self.client.get("/api/v1/admin/deals", headers=self.auth(1)).json()
         self.assertEqual(len(deals), 2)
