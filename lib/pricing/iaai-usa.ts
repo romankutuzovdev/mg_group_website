@@ -11,6 +11,8 @@ const IAAI_SERVICE_FEE_HIGH = 79;
 const IAAI_ENVIRONMENTAL_FEE_HIGH = 10;
 const IAAI_TITLE_FEE = 20;
 const USA_DISPATCHING_USD = 200;
+/** Надбавка к аукционному сбору — только машинокомплекты из США (quoteIaaiUsa). */
+export const USA_KIT_AUCTION_FEE_EXTRA_USD = 20;
 const USA_DISMANTLE_WEIGHT_BASE = 1300;
 const USA_DISMANTLE_WEIGHT_PER_KG = 2.2;
 
@@ -183,10 +185,17 @@ export function quoteIaaiUsa(input: IaaiQuoteInput): IaaiQuote | null {
   const rawType = String(input.dismantleType ?? classified.dismantleType).toLowerCase();
   const dtype = USA_DISMANTLE_ALIASES[rawType] ?? "sedan";
 
-  const iaai = estimateIaaiWholesale(input.bid, {
+  // Таблица IAAI общая с целыми авто, поэтому +$20 добавляем здесь, а не в estimateIaaiWholesale.
+  const iaaiBase = estimateIaaiWholesale(input.bid, {
     bidMethod: input.bidMethod,
     volume: input.volume,
   });
+  const iaai = {
+    ...iaaiBase,
+    fixedFees: round2(iaaiBase.fixedFees + USA_KIT_AUCTION_FEE_EXTRA_USD),
+    feesNet: round2(iaaiBase.feesNet + USA_KIT_AUCTION_FEE_EXTRA_USD),
+    iaaiTotal: round2(iaaiBase.iaaiTotal + USA_KIT_AUCTION_FEE_EXTRA_USD),
+  };
 
   const kg = input.dismantleKg && input.dismantleKg > 0 ? input.dismantleKg : null;
   let dismantleUsd: number;

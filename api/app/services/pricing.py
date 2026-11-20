@@ -156,6 +156,10 @@ BODY_RULES = [
 ]
 
 
+# Надбавка к аукционному сбору IAAI — только машинокомплекты из США.
+USA_KIT_AUCTION_FEE_EXTRA_USD = 20
+
+
 def round2(value: Any) -> float:
     return round(float(value or 0) * 100) / 100
 
@@ -353,7 +357,8 @@ def quote_iaai_usa(
     environmental = 10 if is_high else 15
     title_fee = 20
     fixed = round2(service + environmental + title_fee)
-    fees_net = round2(buyer + virtual + fixed)
+    # Машинокомплект США: к аукционному сбору +$20 (наша надбавка).
+    fees_net = round2(buyer + virtual + fixed + USA_KIT_AUCTION_FEE_EXTRA_USD)
     iaai_total = round2(sale + fees_net)
 
     kg = dismantle_kg if dismantle_kg and dismantle_kg > 0 else None
