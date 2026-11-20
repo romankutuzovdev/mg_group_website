@@ -5,7 +5,7 @@ import { useRouter } from "next/router";
 import SEO from "@/components/SEO";
 import { LotImage } from "@/components/auctions/lot-image";
 import { AnchorButton, LinkButton } from "@/components/site/button";
-import { KIND_LABELS, money, regionLabel } from "@/components/home/showcase-picks";
+import { KIND_LABELS, marketSaving, money, publicSpecs, regionLabel } from "@/components/home/showcase-picks";
 import { fetchShowcasePick, type ShowcasePick } from "@/lib/api/cabinet";
 import { displayDamage } from "@/lib/auctions/listing-blob";
 import { collectLotPhotoUrls, toLotHeroUrl, toLotThumbUrl } from "@/lib/auctions/lot-image-url";
@@ -67,7 +67,7 @@ export default function ShowcasePickPage({ dictionary }: Props) {
         ["Год", pick.year ? String(pick.year) : ""],
         ["Пробег", pick.odometer],
         ["Повреждение", displayDamage(pick.damage)],
-        ...Object.entries(pick.specs || {}),
+        ...publicSpecs(pick.specs),
       ].filter(([, value]) => value) as Array<[string, string]>)
     : [];
   const backHref = pick?.bought ? "/#bought" : pick?.kind === "kit" ? "/#picks-kits" : "/#catalog-showcase";
@@ -208,6 +208,21 @@ export default function ShowcasePickPage({ dictionary }: Props) {
                     </p>
                     {pick.summary ? <p className="mt-1 text-xs text-zinc-600">{pick.summary}</p> : null}
                   </div>
+                  {(() => {
+                    const market = marketSaving(pick);
+                    return market ? (
+                      <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 text-sm">
+                        <div>
+                          <p className="text-text-secondary">Такие на рынке РБ</p>
+                          <p className="font-semibold tabular-nums">от {money(market.market)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-text-secondary">Экономия</p>
+                          <p className="font-display text-lg font-bold tabular-nums text-[#15803d]">~{money(market.saving)}</p>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                   <p className="mt-3 text-xs leading-relaxed text-text-muted">
                     Просчёт менеджера на момент добавления. Итог зависит от ставки, курса, логистики и таможни.
                   </p>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { LotImage } from "@/components/auctions/lot-image";
 import { LinkButton } from "@/components/site/button";
@@ -45,6 +46,23 @@ function monthYear(iso: string) {
   return date.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
 }
 
+/** Служебный ключ в specs: цена аналога на рынке РБ (av.by), вводит менеджер. */
+export const MARKET_SPEC_KEY = "market_usd";
+
+/** Цена аналога на рынке и экономия — только если менеджер указал и выходит дешевле рынка. */
+export function marketSaving(pick: Pick<ShowcasePick, "specs" | "total_usd">) {
+  const raw = String(pick.specs?.[MARKET_SPEC_KEY] ?? "").replace(/[^\d.]/g, "");
+  const market = Number(raw);
+  const total = pick.total_usd ?? 0;
+  if (!(market > 0) || !(total > 0) || market <= total) return null;
+  return { market, saving: market - total };
+}
+
+/** specs без служебных ключей — для таблицы характеристик. */
+export function publicSpecs(specs: Record<string, string> | undefined) {
+  return Object.entries(specs || {}).filter(([key]) => key !== MARKET_SPEC_KEY);
+}
+
 function pickTitle(pick: ShowcasePick) {
   return [pick.year, pick.make, pick.model].filter(Boolean).join(" ") || pick.title || "Авто";
 }
@@ -86,6 +104,7 @@ export function PickCard({ pick, bought }: { pick: ShowcasePick; bought?: boolea
   const photos = collectLotPhotoUrls({ imageUrl: pick.image_url, imageUrls: pick.images });
   const cover = photos[0] ? resolveLotImageUrl(photos[0], pick.make) : LOT_IMAGE_FALLBACK;
   const when = bought ? monthYear(pick.bought_at) : "";
+  const market = marketSaving(pick);
   const specs = [pick.odometer || null, damage || null, pick.specs?.["Ключ"] ? "Есть ключ" : null].filter(
     Boolean,
   ) as string[];
@@ -177,6 +196,14 @@ export function PickCard({ pick, bought }: { pick: ShowcasePick; bought?: boolea
                 {money(pick.total_usd)}
               </p>
             </div>
+            {market ? (
+              <p className="mt-2 flex flex-wrap items-baseline justify-between gap-x-2 px-1 text-[11px] text-zinc-500 sm:text-xs">
+                <span>
+                  На рынке РБ от <span className="font-semibold tabular-nums text-zinc-700">{money(market.market)}</span>
+                </span>
+                <span className="font-semibold tabular-nums text-[#15803d]">экономия ~{money(market.saving)}</span>
+              </p>
+            ) : null}
           </div>
         </div>
       </article>
@@ -225,9 +252,99 @@ export function CardRow({ children }: { children: React.ReactNode }) {
   return <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{children}</div>;
 }
 
+/** Сколько карточек в одном блоке и сколько всего блоков (6 × 6 = 36). */
+export const PAGE_SIZE = 6;
+export const MAX_PAGES = 6;
+export const SHOWCASE_LIMIT = PAGE_SIZE * MAX_PAGES;
+
+function coverOf(pick: ShowcasePick) {
+  const photos = collectLotPhotoUrls({ imageUrl: pick.image_url, imageUrls: pick.images });
+  return photos[0] ? resolveLotImageUrl(photos[0], pick.make) : "";
+}
+
+/** Сетка по 6 карточек, листается блоками; обложки следующего блока грузятся заранее. */
+export function PagedPicks({ items, bought }: { items: ShowcasePick[]; bought?: boolean }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(0);
+  const pages = Math.min(MAX_PAGES, Math.max(1, Math.ceil(items.length / PAGE_SIZE)));
+  const current = Math.min(page, pages - 1);
+
+  // Список поменялся (например, фильтр) — возвращаемся на первый блок.
+  useEffect(() => setPage(0), [items]);
+
+  // Предзагрузка обложек соседнего блока, чтобы листание было без «пустых» фото.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const next = items.slice((current + 1) * PAGE_SIZE, (current + 2) * PAGE_SIZE);
+    next.forEach((pick) => {
+      const src = coverOf(pick);
+      if (src) {
+        const img = new window.Image();
+        img.decoding = "async";
+        img.src = src;
+      }
+    });
+  }, [items, current]);
+
+  const go = (target: number) => {
+    const nextPage = (target + pages) % pages;
+    setPage(nextPage);
+    const el = rootRef.current;
+    if (el && el.getBoundingClientRect().top < 80) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const visible = items.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
+
+  return (
+    <div ref={rootRef} className="scroll-mt-28">
+      <CardRow>
+        {visible.map((pick) => (
+          <PickCard key={pick.id} pick={pick} bought={bought} />
+        ))}
+      </CardRow>
+      {pages > 1 ? (
+        <div className="mt-8 flex items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => go(current - 1)}
+            aria-label="Предыдущие"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-bg-elevated text-text-primary transition hover:border-accent/40 hover:text-accent-dark"
+          >
+            <ChevronLeft className="h-5 w-5" aria-hidden />
+          </button>
+          <div className="flex items-center gap-2">
+            {Array.from({ length: pages }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => go(i)}
+                aria-label={`Блок ${i + 1} из ${pages}`}
+                aria-current={i === current ? "true" : undefined}
+                className={`h-2.5 rounded-full transition-all ${
+                  i === current ? "w-7 bg-accent-dark" : "w-2.5 bg-zinc-300 hover:bg-zinc-400"
+                }`}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => go(current + 1)}
+            aria-label="Следующие"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-bg-elevated text-text-primary transition hover:border-accent/40 hover:text-accent-dark"
+          >
+            <ChevronRight className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** «Выбор менеджеров»: лоты, которые менеджер отправил на главную из калькулятора. */
 export function ManagerPicksSection({ kind }: { kind: ShowcaseKind }) {
-  const { items } = useShowcase("home", kind, 9);
+  const { items } = useShowcase("home", kind, SHOWCASE_LIMIT);
   if (!items.length) return null;
 
   const isKit = kind === "kit";
@@ -248,11 +365,7 @@ export function ManagerPicksSection({ kind }: { kind: ShowcaseKind }) {
         </LinkButton>
       }
     >
-      <CardRow>
-        {items.map((pick) => (
-          <PickCard key={pick.id} pick={pick} />
-        ))}
-      </CardRow>
+      <PagedPicks items={items} />
     </Shell>
   );
 }

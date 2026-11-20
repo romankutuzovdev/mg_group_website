@@ -10,6 +10,7 @@ import { SOURCE_LABELS, type AuctionSource } from "@/lib/auctions/types";
 import { formatDriveRu, formatFuelRu, formatTransmissionRu } from "@/lib/auctions/lot-specs";
 import type { ShowcaseBreakdownLine } from "@/lib/api/cabinet";
 import { useIsManager } from "@/lib/use-is-manager";
+import { MARKET_SPEC_KEY } from "@/components/home/showcase-picks";
 
 /** Карточка лота для витрины: то, что видит клиент на главной. */
 export type ShowcaseLotCard = Pick<
@@ -79,11 +80,13 @@ export function ShowcasePickButtons({ pick }: { pick: ShowcasePickInput | null }
   const [busy, setBusy] = useState<Saved>(null);
   const [saved, setSaved] = useState<Saved>(null);
   const [error, setError] = useState<string | null>(null);
+  const [market, setMarket] = useState("");
   const lotKey = `${pick?.kind}|${pick?.lot_url || pick?.title || ""}`;
 
   useEffect(() => {
     setSaved(null);
     setError(null);
+    setMarket("");
   }, [lotKey]);
 
   if (!isManager) return null;
@@ -95,8 +98,13 @@ export function ShowcasePickButtons({ pick }: { pick: ShowcasePickInput | null }
     setBusy(target);
     setError(null);
     try {
+      const marketUsd = Math.round(Number(market.replace(/[^\d]/g, "")));
+      const specs = { ...(pick.specs || {}) };
+      if (marketUsd > 0) specs[MARKET_SPEC_KEY] = String(marketUsd);
+      else delete specs[MARKET_SPEC_KEY];
       await staffSaveShowcasePick({
         ...pick,
+        specs,
         ...(target === "home" ? { on_home: true } : { bought: true }),
       });
       setSaved(target);
@@ -112,6 +120,20 @@ export function ShowcasePickButtons({ pick }: { pick: ShowcasePickInput | null }
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">
         Для менеджера
       </p>
+      <label className="mt-3 block text-xs text-text-secondary">
+        Такие на рынке РБ (av.by) от, $ — необязательно
+        <input
+          type="text"
+          inputMode="numeric"
+          value={market}
+          onChange={(e) => setMarket(e.target.value.replace(/[^\d\s]/g, ""))}
+          placeholder="например 19500"
+          className="mt-1 block min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm tabular-nums text-zinc-900 outline-none focus:border-accent-dark"
+        />
+        <span className="mt-1 block text-[11px] text-text-muted">
+          Если указать — на карточке покажем «на рынке от» и экономию. Пусто — не показываем.
+        </span>
+      </label>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <button
           type="button"

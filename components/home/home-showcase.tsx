@@ -3,14 +3,14 @@
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { LinkButton } from "@/components/site/button";
-import { CardRow, PickCard, useShowcase } from "@/components/home/showcase-picks";
+import { PagedPicks, SHOWCASE_LIMIT, useShowcase } from "@/components/home/showcase-picks";
 
 /**
  * «Следующая остановка — ваш гараж»: только авто, которые менеджеры добавили
- * «На главную» из калькулятора (последние 6). Каталог здесь не показываем.
+ * «На главную» из калькулятора (последние 36, блоками по 6). Каталог здесь не показываем.
  */
 export function HomeShowcase() {
-  const { items: picks, loaded } = useShowcase("home", "restoration", 6);
+  const { items: picks, loaded } = useShowcase("home", "restoration", SHOWCASE_LIMIT);
 
   return (
     <section id="catalog-showcase" className="scroll-mt-20 bg-bg-base py-16 sm:py-20 lg:py-24" aria-labelledby="home-showcase-title">
@@ -24,11 +24,7 @@ export function HomeShowcase() {
         </div>
 
         {picks.length ? (
-          <CardRow>
-            {picks.map((pick) => (
-              <PickCard key={pick.id} pick={pick} />
-            ))}
-          </CardRow>
+          <PagedPicks items={picks} />
         ) : (
           <div className="mt-8 rounded-2xl border border-white/10 bg-stone-950 px-6 py-14 text-center text-white">
             <h3 className="text-xl font-semibold">{loaded ? "Скоро здесь появятся автомобили" : "Загружаем автомобили"}</h3>
