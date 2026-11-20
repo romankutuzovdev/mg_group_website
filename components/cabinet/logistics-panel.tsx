@@ -99,6 +99,18 @@ function tone(stage: string) {
   return STAGE_TONE[stage] || STAGE_TONE.loading;
 }
 
+/** Нижний регистр без пробелов и дефисов — VIN можно вставить как угодно. */
+function normSearch(v: string): string {
+  return v.toLowerCase().replace(/[\s\-_.]/g, "");
+}
+
+function dealMatches(d: LogisticsDealCard, q: string): boolean {
+  const qn = normSearch(q);
+  if (!qn) return true;
+  const hay = [d.title, d.lot_number, d.client_name, d.client_phone, d.vin].join(" ");
+  return hay.toLowerCase().includes(q.trim().toLowerCase()) || normSearch(hay).includes(qn);
+}
+
 function dealLabel(d: LogisticsDealCard): string {
   const bits = [d.title];
   if (d.lot_number) bits.push(`#${d.lot_number}`);
@@ -119,11 +131,14 @@ function DealCard({
   onRemove,
   busy,
   compact,
+  highlight,
 }: {
   deal: LogisticsDealCard;
   onRemove?: () => void;
   busy?: boolean;
   compact?: boolean;
+  /** Подходит под поиск — подсвечиваем в контейнере. */
+  highlight?: boolean;
 }) {
   const hasPhone = Boolean(deal.client_phone?.trim());
   const cover = deal.cover_url?.trim()
@@ -145,6 +160,7 @@ function DealCard({
         "group cursor-grab active:cursor-grabbing rounded-xl border border-zinc-200/90 bg-white",
         "shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition",
         "hover:border-emerald-300/70 hover:shadow-[0_8px_24px_-12px_rgba(16,185,129,0.35)]",
+        highlight ? "border-amber-400 ring-2 ring-amber-300/60" : "",
         compact ? "p-2.5" : "p-3",
       ].join(" ")}
     >
@@ -327,15 +343,31 @@ export function LogisticsPanel() {
   }, [containers, pool]);
 
   const filteredPool = useMemo(() => {
-    const q = poolFilter.trim().toLowerCase();
-    if (!q) return pool;
-    return pool.filter((d) =>
-      [d.title, d.lot_number, d.client_name, d.client_phone, d.vin]
-        .join(" ")
-        .toLowerCase()
-        .includes(q),
-    );
+    if (!normSearch(poolFilter)) return pool;
+    return pool.filter((d) => dealMatches(d, poolFilter));
   }, [pool, poolFilter]);
+
+  /** Поиск идёт и по контейнерам: показываем те, где есть подходящая машина (или совпал код). */
+  const searching = normSearch(poolFilter).length > 0;
+  const filteredContainers = useMemo(() => {
+    if (!searching) return containers;
+    const qn = normSearch(poolFilter);
+    return containers.filter(
+      (c) =>
+        normSearch(`${c.code} ${c.title || ""}`).includes(qn) ||
+        c.deals.some((d) => dealMatches(d, poolFilter)),
+    );
+  }, [containers, poolFilter, searching]);
+  const foundInContainers = useMemo(
+    () =>
+      searching
+        ? filteredContainers.reduce(
+            (n, c) => n + c.deals.filter((d) => dealMatches(d, poolFilter)).length,
+            0,
+          )
+        : 0,
+    [filteredContainers, poolFilter, searching],
+  );
 
   const applyTemplate = (tpl: SmsTemplate | null) => {
     if (!tpl) return;
@@ -919,9 +951,17 @@ export function LogisticsPanel() {
           <input
             value={poolFilter}
             onChange={(e) => setPoolFilter(e.target.value)}
-            placeholder="Поиск по авто, клиенту, VIN…"
+            placeholder="Поиск: VIN, лот, авто, клиент — везде"
             className="mb-3 w-full rounded-xl border border-zinc-200 bg-zinc-50/60 px-3 py-2 text-xs outline-none ring-emerald-500/20 focus:bg-white focus:ring-2"
           />
+          {searching ? (
+            <p className="-mt-1.5 mb-3 text-[11px] text-zinc-500">
+              В пуле: <span className="font-semibold tabular-nums text-zinc-800">{filteredPool.length}</span>
+              {" · "}в контейнерах:{" "}
+              <span className="font-semibold tabular-nums text-amber-700">{foundInContainers}</span>
+              {foundInContainers ? " (подсвечены справа)" : ""}
+            </p>
+          ) : null}
           <div className="max-h-[min(68vh,720px)] space-y-2 overflow-y-auto overscroll-contain pr-0.5">
             {filteredPool.length === 0 ? (
               <div className="rounded-xl border border-dashed border-zinc-200 px-3 py-8 text-center text-xs text-zinc-400">
@@ -953,9 +993,13 @@ export function LogisticsPanel() {
                 Создать первый контейнер
               </button>
             </div>
+          ) : searching && filteredContainers.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/60 px-6 py-10 text-center text-xs text-zinc-500">
+              В контейнерах по запросу ничего нет
+            </div>
           ) : (
             <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 lg:grid lg:grid-cols-2 lg:overflow-visible xl:grid-cols-3">
-              {containers.map((c) => {
+              {filteredContainers.map((c) => {
                 const t = tone(c.stage);
                 const over = dropOverId === c.id;
                 return (
@@ -1060,6 +1104,7 @@ export function LogisticsPanel() {
                           <DealCard
                             key={d.deal_id}
                             deal={d}
+                            highlight={searching && dealMatches(d, poolFilter)}
                             busy={busy}
                             onRemove={() => {
                               void (async () => {
