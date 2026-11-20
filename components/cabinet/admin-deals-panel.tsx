@@ -137,6 +137,8 @@ type Props = {
   currentUser?: CabinetUser | null;
   /** Только форма, без CRM: вкладка менеджера «Мои клиенты». */
   formOnly?: "deal" | "client";
+  /** Клиент, выбранный в форме новой сделки сразу (кнопка «Создать сделку» у клиента). */
+  initialClientTelegramId?: number;
   onClientCreated?: () => void;
 };
 
@@ -191,6 +193,7 @@ export function AdminDealsPanel({
   canAssignRoles = false,
   currentUser = null,
   formOnly,
+  initialClientTelegramId,
   onClientCreated,
 }: Props) {
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -221,7 +224,9 @@ export function AdminDealsPanel({
     }, 80);
   }, []);
 
-  const [telegramId, setTelegramId] = useState("");
+  const [telegramId, setTelegramId] = useState(
+    initialClientTelegramId ? String(initialClientTelegramId) : "",
+  );
   const [kind, setKind] = useState<DealKind>("kit");
   const [dismantleYard, setDismantleYard] = useState<DismantleYard>("");
   const [lotUrl, setLotUrl] = useState("");
@@ -1727,7 +1732,7 @@ export function AdminDealsPanel({
                         onClick={() => openDealCompose(selectedClient.telegramId)}
                         className="rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500"
                       >
-                        + Авто
+                        + Создать сделку
                       </button>
                     </div>
                   </div>

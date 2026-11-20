@@ -1,7 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { BriefcaseBusiness, ChevronRight, Route, Search, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  BriefcaseBusiness,
+  ChevronRight,
+  Route,
+  Search,
+  Users,
+} from "lucide-react";
 import { AdminDealsPanel } from "@/components/cabinet/admin-deals-panel";
 import { DeleteAccountButton } from "@/components/cabinet/delete-account-button";
 import {
@@ -44,7 +50,11 @@ type ClientGroup = {
 };
 
 function userName(u: CabinetUser): string {
-  return [u.first_name, u.last_name].filter(Boolean).join(" ") || u.phone || `Клиент #${u.id}`;
+  return (
+    [u.first_name, u.last_name].filter(Boolean).join(" ") ||
+    u.phone ||
+    `Клиент #${u.id}`
+  );
 }
 
 function isStaff(u: CabinetUser) {
@@ -87,17 +97,22 @@ function buildGroups(users: CabinetUser[], deals: Deal[]): ClientGroup[] {
     }
     if (!group.managerId && deal.manager_user_id) {
       group.managerId = Number(deal.manager_user_id);
-      group.managerName = deal.manager_name || staffNames.get(group.managerId) || "";
+      group.managerName =
+        deal.manager_name || staffNames.get(group.managerId) || "";
     }
     group.deals.push(deal);
   }
   return Array.from(groups.values()).sort(
-    (a, b) => b.deals.length - a.deals.length || a.name.localeCompare(b.name, "ru"),
+    (a, b) =>
+      b.deals.length - a.deals.length || a.name.localeCompare(b.name, "ru"),
   );
 }
 
 function isMine(group: ClientGroup, managerId: number) {
-  return group.managerId === managerId || group.deals.some((d) => d.manager_user_id === managerId);
+  return (
+    group.managerId === managerId ||
+    group.deals.some((d) => d.manager_user_id === managerId)
+  );
 }
 
 type Scope = "all" | "mine";
@@ -116,16 +131,35 @@ export function ManagerClientsPanel({
   const [query, setQuery] = useState("");
   const [compose, setCompose] = useState<"deal" | "client" | null>(null);
   const [scope, setScope] = useState<Scope>("all");
+  /** Клиент, для которого открыта форма «Создать сделку». */
+  const [dealFor, setDealFor] = useState<number | undefined>(undefined);
+  const composeRef = useRef<HTMLDivElement | null>(null);
+
+  const openDealFor = (telegramId: number) => {
+    setDealFor(telegramId);
+    setCompose("deal");
+    requestAnimationFrame(() =>
+      composeRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      }),
+    );
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [nextUsers, nextDeals] = await Promise.all([fetchAdminUsers(), fetchAdminDeals()]);
+      const [nextUsers, nextDeals] = await Promise.all([
+        fetchAdminUsers(),
+        fetchAdminDeals(),
+      ]);
       setUsers(nextUsers);
       setDeals(nextDeals);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось загрузить клиентов");
+      setError(
+        err instanceof Error ? err.message : "Не удалось загрузить клиентов",
+      );
     } finally {
       setLoading(false);
     }
@@ -136,14 +170,22 @@ export function ManagerClientsPanel({
   }, [load]);
 
   const allGroups = useMemo(() => buildGroups(users, deals), [users, deals]);
-  const mineGroups = useMemo(() => allGroups.filter((g) => isMine(g, manager.id)), [allGroups, manager.id]);
+  const mineGroups = useMemo(
+    () => allGroups.filter((g) => isMine(g, manager.id)),
+    [allGroups, manager.id],
+  );
   const groups = scope === "mine" ? mineGroups : allGroups;
   const scopeDeals = useMemo(() => groups.flatMap((g) => g.deals), [groups]);
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return groups;
     return groups.filter((g) =>
-      [g.name, g.sub, g.managerName, ...g.deals.flatMap((d) => [d.title, d.lot_number, d.vin])]
+      [
+        g.name,
+        g.sub,
+        g.managerName,
+        ...g.deals.flatMap((d) => [d.title, d.lot_number, d.vin]),
+      ]
         .join(" ")
         .toLowerCase()
         .includes(q),
@@ -159,11 +201,19 @@ export function ManagerClientsPanel({
           <>
             <Button
               variant="secondary"
-              onClick={() => setCompose((v) => (v === "client" ? null : "client"))}
+              onClick={() => {
+                setDealFor(undefined);
+                setCompose((v) => (v === "client" ? null : "client"));
+              }}
             >
               {compose === "client" ? "Скрыть форму" : "+ Клиент"}
             </Button>
-            <Button onClick={() => setCompose((v) => (v === "deal" ? null : "deal"))}>
+            <Button
+              onClick={() => {
+                setDealFor(undefined);
+                setCompose((v) => (v === "deal" ? null : "deal"));
+              }}
+            >
               {compose === "deal" ? "Скрыть форму" : "+ Сделка"}
             </Button>
           </>
@@ -171,14 +221,17 @@ export function ManagerClientsPanel({
       />
 
       {compose ? (
-        <AdminDealsPanel
-          key={compose}
-          formOnly={compose}
-          currentUser={manager}
-          onCreated={() => void load()}
-          onClientCreated={() => void load()}
-          onOpenDeal={onOpenDeal}
-        />
+        <div ref={composeRef} className="scroll-mt-24">
+          <AdminDealsPanel
+            key={`${compose}-${dealFor ?? ""}`}
+            formOnly={compose}
+            initialClientTelegramId={compose === "deal" ? dealFor : undefined}
+            currentUser={manager}
+            onCreated={() => void load()}
+            onClientCreated={() => void load()}
+            onOpenDeal={onOpenDeal}
+          />
+        </div>
       ) : null}
 
       <div className="flex w-fit gap-1 rounded-md bg-zinc-100 p-0.5 text-sm">
@@ -200,7 +253,11 @@ export function ManagerClientsPanel({
       </div>
 
       <StatRow className="md:grid-cols-3">
-        <StatTile label="Клиенты" value={groups.length} icon={<Users className="h-4 w-4" />} />
+        <StatTile
+          label="Клиенты"
+          value={groups.length}
+          icon={<Users className="h-4 w-4" />}
+        />
         <StatTile
           label="Сделки"
           value={scopeDeals.length}
@@ -248,17 +305,37 @@ export function ManagerClientsPanel({
               <div className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3">
                 <Avatar name={group.name} size="sm" />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-zinc-900">{group.name}</p>
-                  {group.sub ? <p className="truncate text-xs text-zinc-500">{group.sub}</p> : null}
+                  <p className="truncate text-sm font-semibold text-zinc-900">
+                    {group.name}
+                  </p>
+                  {group.sub ? (
+                    <p className="truncate text-xs text-zinc-500">
+                      {group.sub}
+                    </p>
+                  ) : null}
                 </div>
-                <span className="ml-auto shrink-0">
+                <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
                   {group.managerId === manager.id ? (
                     <Badge tone="success">Мой</Badge>
                   ) : group.managerName ? (
-                    <span className="text-xs text-zinc-500">Менеджер: {group.managerName}</span>
+                    <span className="text-xs text-zinc-500">
+                      Менеджер: {group.managerName}
+                    </span>
                   ) : (
                     <span className="text-xs text-zinc-400">Без менеджера</span>
                   )}
+                  {/* Сделку сервер даёт создать только своему клиенту. */}
+                  {group.userId &&
+                  group.managerId === manager.id &&
+                  Number(group.key) > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => openDealFor(Number(group.key))}
+                      className="inline-flex h-8 items-center rounded-md bg-emerald-600 px-3 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-700"
+                    >
+                      + Создать сделку
+                    </button>
+                  ) : null}
                 </span>
               </div>
               {group.deals.length === 0 ? (
@@ -291,15 +368,21 @@ export function ManagerClientsPanel({
                               {[
                                 DEAL_KIND_LABELS[dealKind(deal)],
                                 regionLabel(deal.origin_region),
-                                deal.dismantle_yard && DISMANTLE_YARD_LABELS[deal.dismantle_yard],
+                                deal.dismantle_yard &&
+                                  DISMANTLE_YARD_LABELS[deal.dismantle_yard],
                                 deal.lot_number && `#${deal.lot_number}`,
                               ]
                                 .filter(Boolean)
                                 .join(" · ")}
                             </span>
                             <span className="mt-2 flex items-center gap-2">
-                              <Progress value={(p.done / p.total) * 100} className="max-w-[160px]" />
-                              <span className="truncate text-xs text-zinc-500">{p.current}</span>
+                              <Progress
+                                value={(p.done / p.total) * 100}
+                                className="max-w-[160px]"
+                              />
+                              <span className="truncate text-xs text-zinc-500">
+                                {p.current}
+                              </span>
                             </span>
                           </span>
                           <Badge tone={dealStatusTone(deal.status)} dot>
