@@ -15,10 +15,13 @@ function usd(amount: number | null) {
   return amount ? `$${Math.round(amount).toLocaleString("ru-RU")}` : "—";
 }
 
-type Filter = "all" | "home" | "bought";
+type Filter = "all" | "mine" | "home" | "bought";
 
-/** Что менеджеры отправили на главную из калькуляторов и что отметили «Купили». */
-export function ShowcasePicksPanel({ showManager }: { showManager: boolean }) {
+/**
+ * Что менеджеры отправили на главную из калькуляторов и что отметили «Купили».
+ * Видно всем сотрудникам; менять чужие лоты может только админ.
+ */
+export function ShowcasePicksPanel({ currentUserId, canEditAll }: { currentUserId: number; canEditAll: boolean }) {
   const [rows, setRows] = useState<ShowcasePick[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -62,7 +65,13 @@ export function ShowcasePicksPanel({ showManager }: { showManager: boolean }) {
   };
 
   const visible = (rows ?? []).filter((r) =>
-    filter === "home" ? r.on_home && !r.bought : filter === "bought" ? r.bought : true,
+    filter === "mine"
+      ? r.manager_user_id === currentUserId
+      : filter === "home"
+        ? r.on_home && !r.bought
+        : filter === "bought"
+          ? r.bought
+          : true,
   );
 
   return (
@@ -72,6 +81,7 @@ export function ShowcasePicksPanel({ showManager }: { showManager: boolean }) {
           {(
             [
               ["all", "Все"],
+              ["mine", "Мои"],
               ["home", "На главной"],
               ["bought", "Купили"],
             ] as const
@@ -99,6 +109,7 @@ export function ShowcasePicksPanel({ showManager }: { showManager: boolean }) {
         <ul className="divide-y divide-zinc-100">
           {visible.map((row) => {
             const busy = busyId === row.id;
+            const editable = canEditAll || row.manager_user_id === currentUserId;
             return (
               <li key={row.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-[13px] sm:px-5">
                 <div className="min-w-0 flex-1">
@@ -113,7 +124,7 @@ export function ShowcasePicksPanel({ showManager }: { showManager: boolean }) {
                     {Math.round(row.bid || 0).toLocaleString("ru-RU")} → под ключ {usd(row.total_usd)}
                   </p>
                   <p className="mt-0.5 text-xs text-zinc-500">
-                    {showManager && row.manager_name ? `${row.manager_name} · ` : ""}
+                    {row.manager_name ? `${row.manager_name} · ` : ""}
                     {new Date(row.updated_at).toLocaleDateString("ru-RU")}
                     {row.lot_url ? (
                       <>
@@ -125,6 +136,11 @@ export function ShowcasePicksPanel({ showManager }: { showManager: boolean }) {
                     ) : null}
                   </p>
                 </div>
+                {!editable ? (
+                  <span className="text-xs text-zinc-400">
+                    {row.bought ? "Купили" : row.on_home ? "На главной" : "Скрыт"} · добавил коллега
+                  </span>
+                ) : (
                 <div className="flex flex-wrap gap-2">
                   {!row.bought ? (
                     <button
@@ -161,6 +177,7 @@ export function ShowcasePicksPanel({ showManager }: { showManager: boolean }) {
                     Удалить
                   </button>
                 </div>
+                )}
               </li>
             );
           })}

@@ -50,7 +50,8 @@ def public_showcase_pick(pick_id: int) -> dict[str, Any]:
 
 @router.get("/cabinet/showcase")
 def staff_showcase(user: Staff) -> list[dict[str, Any]]:
-    return showcase_picks.list_all(manager_user_id=user.id if is_limited_manager(user) else None)
+    # Витрина общая: каждый менеджер видит всё, что добавили коллеги.
+    return showcase_picks.list_all(manager_user_id=None)
 
 
 @router.post("/cabinet/showcase")

@@ -32,40 +32,75 @@ import {
   regionLabel,
 } from "@/lib/api/cabinet";
 
-type ClientGroup = { key: string; name: string; sub: string; deals: Deal[]; userId?: number };
+type ClientGroup = {
+  key: string;
+  name: string;
+  sub: string;
+  deals: Deal[];
+  userId?: number;
+  /** Менеджер клиента: из карточки клиента или из сделки. */
+  managerId: number;
+  managerName: string;
+};
 
 function userName(u: CabinetUser): string {
   return [u.first_name, u.last_name].filter(Boolean).join(" ") || u.phone || `Клиент #${u.id}`;
 }
 
-function buildGroups(users: CabinetUser[], deals: Deal[], managerId: number): ClientGroup[] {
+function isStaff(u: CabinetUser) {
+  return Boolean(u.is_manager || u.is_admin || u.is_logist);
+}
+
+/** Все клиенты (сотрудники не в списке) с их сделками. */
+function buildGroups(users: CabinetUser[], deals: Deal[]): ClientGroup[] {
+  const staffNames = new Map<number, string>();
+  for (const u of users) if (isStaff(u)) staffNames.set(u.id, userName(u));
+
   const groups = new Map<string, ClientGroup>();
   for (const u of users) {
-    if (u.id === managerId) continue;
+    if (isStaff(u)) continue;
+    const managerId = Number(u.manager_user_id || 0);
     groups.set(String(u.telegram_id), {
       key: String(u.telegram_id),
       name: userName(u),
       sub: u.phone || (u.username ? `@${u.username}` : ""),
       deals: [],
-      userId: u.is_manager || u.is_admin || u.is_logist ? undefined : u.id,
+      userId: u.id,
+      managerId,
+      managerName: staffNames.get(managerId) || "",
     });
   }
   for (const deal of deals) {
     const key = String(deal.client_telegram_id || `deal-${deal.id}`);
-    if (!groups.has(key)) {
-      groups.set(key, {
+    let group = groups.get(key);
+    if (!group) {
+      // Сделка на сотрудника или клиента, которого нет в списке.
+      group = {
         key,
         name: deal.client_name || "Клиент",
         sub: deal.client_username ? `@${deal.client_username}` : "",
         deals: [],
-      });
+        managerId: 0,
+        managerName: "",
+      };
+      groups.set(key, group);
     }
-    groups.get(key)?.deals.push(deal);
+    if (!group.managerId && deal.manager_user_id) {
+      group.managerId = Number(deal.manager_user_id);
+      group.managerName = deal.manager_name || staffNames.get(group.managerId) || "";
+    }
+    group.deals.push(deal);
   }
   return Array.from(groups.values()).sort(
     (a, b) => b.deals.length - a.deals.length || a.name.localeCompare(b.name, "ru"),
   );
 }
+
+function isMine(group: ClientGroup, managerId: number) {
+  return group.managerId === managerId || group.deals.some((d) => d.manager_user_id === managerId);
+}
+
+type Scope = "all" | "mine";
 
 export function ManagerClientsPanel({
   manager,
@@ -80,6 +115,7 @@ export function ManagerClientsPanel({
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [compose, setCompose] = useState<"deal" | "client" | null>(null);
+  const [scope, setScope] = useState<Scope>("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -99,12 +135,15 @@ export function ManagerClientsPanel({
     void load();
   }, [load]);
 
-  const groups = useMemo(() => buildGroups(users, deals, manager.id), [users, deals, manager.id]);
+  const allGroups = useMemo(() => buildGroups(users, deals), [users, deals]);
+  const mineGroups = useMemo(() => allGroups.filter((g) => isMine(g, manager.id)), [allGroups, manager.id]);
+  const groups = scope === "mine" ? mineGroups : allGroups;
+  const scopeDeals = useMemo(() => groups.flatMap((g) => g.deals), [groups]);
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return groups;
     return groups.filter((g) =>
-      [g.name, g.sub, ...g.deals.flatMap((d) => [d.title, d.lot_number, d.vin])]
+      [g.name, g.sub, g.managerName, ...g.deals.flatMap((d) => [d.title, d.lot_number, d.vin])]
         .join(" ")
         .toLowerCase()
         .includes(q),
@@ -114,8 +153,8 @@ export function ManagerClientsPanel({
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Мои клиенты"
-        description="Ваши клиенты и их сделки. Откройте сделку, чтобы отметить этапы."
+        title="Клиенты"
+        description="Все клиенты компании и их сделки. Во вкладке «Мои» — клиенты, которых ведёте вы. Менять можно только своих."
         actions={
           <>
             <Button
@@ -142,16 +181,34 @@ export function ManagerClientsPanel({
         />
       ) : null}
 
+      <div className="flex w-fit gap-1 rounded-md bg-zinc-100 p-0.5 text-sm">
+        {(
+          [
+            ["all", "Все клиенты", allGroups.length],
+            ["mine", "Мои клиенты", mineGroups.length],
+          ] as const
+        ).map(([key, label, count]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setScope(key)}
+            className={`rounded px-3 py-1.5 font-medium ${scope === key ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-600"}`}
+          >
+            {label} <span className="tabular-nums text-zinc-400">{count}</span>
+          </button>
+        ))}
+      </div>
+
       <StatRow className="md:grid-cols-3">
         <StatTile label="Клиенты" value={groups.length} icon={<Users className="h-4 w-4" />} />
         <StatTile
           label="Сделки"
-          value={deals.length}
+          value={scopeDeals.length}
           icon={<BriefcaseBusiness className="h-4 w-4" />}
         />
         <StatTile
           label="В работе"
-          value={deals.filter((d) => d.status === "active").length}
+          value={scopeDeals.filter((d) => d.status === "active").length}
           icon={<Route className="h-4 w-4" />}
         />
       </StatRow>
@@ -176,7 +233,13 @@ export function ManagerClientsPanel({
         <EmptyState
           icon={<Users className="h-5 w-5" />}
           title={query ? "Ничего не найдено" : "Клиентов пока нет"}
-          description={query ? "Измените запрос." : "Администратор закрепит за вами клиентов."}
+          description={
+            query
+              ? "Измените запрос."
+              : scope === "mine"
+                ? "Создайте клиента кнопкой «+ Клиент» или попросите администратора закрепить за вами."
+                : "Клиенты появятся, когда зарегистрируются или их создаст менеджер."
+          }
         />
       ) : (
         <div className="space-y-4">
@@ -188,11 +251,20 @@ export function ManagerClientsPanel({
                   <p className="truncate text-sm font-semibold text-zinc-900">{group.name}</p>
                   {group.sub ? <p className="truncate text-xs text-zinc-500">{group.sub}</p> : null}
                 </div>
+                <span className="ml-auto shrink-0">
+                  {group.managerId === manager.id ? (
+                    <Badge tone="success">Мой</Badge>
+                  ) : group.managerName ? (
+                    <span className="text-xs text-zinc-500">Менеджер: {group.managerName}</span>
+                  ) : (
+                    <span className="text-xs text-zinc-400">Без менеджера</span>
+                  )}
+                </span>
               </div>
               {group.deals.length === 0 ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
                   <p className="text-[13px] text-zinc-500">Сделок пока нет</p>
-                  {group.userId ? (
+                  {group.userId && group.managerId === manager.id ? (
                     <DeleteAccountButton
                       userId={group.userId}
                       label={[group.name, group.sub].filter(Boolean).join(", ")}

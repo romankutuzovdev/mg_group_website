@@ -390,7 +390,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
   };
 
   const isStaff = Boolean(user?.is_admin || user?.is_manager);
-  // Менеджер видит только своих клиентов: общие разделы ему закрыты.
+  // Менеджер без админки: клиенты и витрина общие, менять может только своё.
   const isLimitedManager = Boolean(user?.is_manager && !user?.is_admin);
   // Логист работает только с логистикой (сервер пускает админа и логиста).
   const canLogistics = Boolean(user?.is_admin || user?.is_logist);
@@ -415,11 +415,11 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
     isLogistOnly
       ? { ...logisticsItem, section: undefined }
       : isLimitedManager
-        ? { id: "clients", label: "Мои клиенты", icon: Users }
+        ? { id: "clients", label: "Клиенты", icon: Users }
         : { id: "deals", label: "Сделки", icon: BriefcaseBusiness, badge: deals.length || null },
     { id: "favorites", label: "Избранное", icon: Heart, badge: favorites.length || null },
     { id: "calculators", label: "Калькуляторы", icon: Calculator },
-    // CRM у менеджера: сервер отдаёт только его клиентов и сделки.
+    // CRM у менеджера: видны все клиенты, менять можно только своих.
     ...(isLimitedManager
       ? [
           { id: "manager", label: "CRM · клиенты", icon: Users, section: "Команда" },
@@ -865,7 +865,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
             onClick={backToList}
             className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 transition hover:text-zinc-900"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> {isLimitedManager ? "Мои клиенты" : "Все сделки"}
+            <ArrowLeft className="h-3.5 w-3.5" /> {isLimitedManager ? "Клиенты" : "Все сделки"}
           </button>
           <PageHeader
             breadcrumb={`Сделка #${selected.id}`}
@@ -1309,7 +1309,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
             title="Витрина на главной"
             description="Лоты из калькуляторов: «На главную» — блоки «Выбор менеджеров», «Купили» — блок «Купленные авто» с ценой."
           />
-          <ShowcasePicksPanel showManager={!isLimitedManager} />
+          <ShowcasePicksPanel currentUserId={user.id} canEditAll={!isLimitedManager} />
         </div>
       ) : null}
 

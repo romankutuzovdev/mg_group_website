@@ -53,11 +53,15 @@ logger = logging.getLogger("mg.cabinet")
 router = APIRouter(tags=["cabinet"])
 
 
-def _require_deal_access(deal_id: int, user: UserOut) -> DealOut:
+def _require_deal_access(deal_id: int, user: UserOut, *, read_only: bool = False) -> DealOut:
+    """Клиент — свою сделку, админ — любую. Менеджер читает любую (клиенты общие),
+    а менять может только сделки своих клиентов."""
     deal = cabinet_store.get_deal(deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
     owner = cabinet_store.get_deal_owner_id(deal_id)
+    if read_only and user.is_manager:
+        return deal
     if owner != user.id and not user.is_admin:
         if not user.is_manager or not cabinet_store.manager_owns_deal(
             manager_id=user.id, deal_id=deal_id
@@ -106,7 +110,7 @@ def my_deal(
     deal_id: int,
     user: Annotated[UserOut, Depends(get_current_user)],
 ) -> DealOut:
-    return _require_deal_access(deal_id, user)
+    return _require_deal_access(deal_id, user, read_only=True)
 
 
 CLAIM_TEXT_MAX = 2000
@@ -165,7 +169,7 @@ def my_dismantle_map(
     deal_id: int,
     user: Annotated[UserOut, Depends(get_current_user)],
 ) -> DismantleMapOut:
-    deal = _require_deal_access(deal_id, user)
+    deal = _require_deal_access(deal_id, user, read_only=True)
     if deal.origin_point != "dismantle":
         raise HTTPException(status_code=404, detail="Dismantle map only for kits")
     out = cabinet_store.get_dismantle_map(deal_id)
@@ -179,7 +183,7 @@ def my_dismantle_map_xlsx(
     deal_id: int,
     user: Annotated[UserOut, Depends(get_current_user)],
 ) -> Response:
-    deal = _require_deal_access(deal_id, user)
+    deal = _require_deal_access(deal_id, user, read_only=True)
     if deal.origin_point != "dismantle":
         raise HTTPException(status_code=404, detail="Dismantle map only for kits")
     out = cabinet_store.get_dismantle_map(deal_id)
@@ -433,10 +437,8 @@ def remove_favorite(
 def admin_list_users(
     actor: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> list[UserOut]:
-    users = cabinet_store.list_users()
-    if is_limited_manager(actor):
-        return [u for u in users if u.id == actor.id or u.manager_user_id == actor.id]
-    return users
+    # Клиенты общие: менеджер видит всех, «Мои клиенты» фильтруются на клиенте по manager_user_id.
+    return cabinet_store.list_users()
 
 
 @router.post("/admin/clients", response_model=ClientAccountCreatedOut)
@@ -583,8 +585,7 @@ def admin_set_user_role(
 def admin_list_deals(
     actor: Annotated[UserOut, Depends(require_admin_or_key)],
 ) -> list[DealOut]:
-    if is_limited_manager(actor):
-        return cabinet_store.list_deals_for_manager(actor.id)
+    # Сделки видны всем менеджерам; менять — только свои (_require_managed_deal).
     return cabinet_store.list_all_deals()
 
 
