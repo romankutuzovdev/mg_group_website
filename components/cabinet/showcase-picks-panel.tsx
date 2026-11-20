@@ -19,9 +19,9 @@ type Filter = "all" | "mine" | "home" | "bought";
 
 /**
  * Что менеджеры отправили на главную из калькуляторов и что отметили «Купили».
- * Видно всем сотрудникам; менять чужие лоты может только админ.
+ * Витрина общая: любой менеджер видит и меняет все лоты.
  */
-export function ShowcasePicksPanel({ currentUserId, canEditAll }: { currentUserId: number; canEditAll: boolean }) {
+export function ShowcasePicksPanel({ currentUserId }: { currentUserId: number }) {
   const [rows, setRows] = useState<ShowcasePick[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -109,7 +109,6 @@ export function ShowcasePicksPanel({ currentUserId, canEditAll }: { currentUserI
         <ul className="divide-y divide-zinc-100">
           {visible.map((row) => {
             const busy = busyId === row.id;
-            const editable = canEditAll || row.manager_user_id === currentUserId;
             return (
               <li key={row.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-[13px] sm:px-5">
                 <div className="min-w-0 flex-1">
@@ -136,11 +135,6 @@ export function ShowcasePicksPanel({ currentUserId, canEditAll }: { currentUserI
                     ) : null}
                   </p>
                 </div>
-                {!editable ? (
-                  <span className="text-xs text-zinc-400">
-                    {row.bought ? "Купили" : row.on_home ? "На главной" : "Скрыт"} · добавил коллега
-                  </span>
-                ) : (
                 <div className="flex flex-wrap gap-2">
                   {!row.bought ? (
                     <button
@@ -177,7 +171,6 @@ export function ShowcasePicksPanel({ currentUserId, canEditAll }: { currentUserI
                     Удалить
                   </button>
                 </div>
-                )}
               </li>
             );
           })}

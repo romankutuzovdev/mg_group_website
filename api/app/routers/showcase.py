@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.models.cabinet import UserOut
 from app.services import showcase_picks
-from app.services.auth_deps import is_limited_manager, require_admin
+from app.services.auth_deps import require_admin
 from app.services.showcase_picks import ShowcasePickIn, ShowcasePickPatch
 
 router = APIRouter(tags=["showcase"])
@@ -21,12 +21,11 @@ def _manager_name(user: UserOut) -> str:
     return name or (f"@{user.username}" if user.username else f"TG {user.telegram_id}")
 
 
-def _own_or_404(pick_id: int, user: UserOut) -> dict[str, Any]:
+def _pick_or_404(pick_id: int, user: UserOut) -> dict[str, Any]:
+    """Витрина общая: любой менеджер может менять любой лот."""
     pick = showcase_picks.get(pick_id)
     if not pick:
         raise HTTPException(status_code=404, detail="Не найдено")
-    if is_limited_manager(user) and pick["manager_user_id"] != user.id:
-        raise HTTPException(status_code=403, detail="Это добавил другой менеджер")
     return pick
 
 
@@ -63,7 +62,7 @@ def staff_save_pick(body: ShowcasePickIn, user: Staff) -> dict[str, Any]:
 
 @router.patch("/cabinet/showcase/{pick_id}")
 def staff_patch_pick(pick_id: int, body: ShowcasePickPatch, user: Staff) -> dict[str, Any]:
-    _own_or_404(pick_id, user)
+    _pick_or_404(pick_id, user)
     pick = showcase_picks.patch(pick_id, body)
     if not pick:
         raise HTTPException(status_code=404, detail="Не найдено")
@@ -72,6 +71,6 @@ def staff_patch_pick(pick_id: int, body: ShowcasePickPatch, user: Staff) -> dict
 
 @router.delete("/cabinet/showcase/{pick_id}")
 def staff_delete_pick(pick_id: int, user: Staff) -> dict[str, bool]:
-    _own_or_404(pick_id, user)
+    _pick_or_404(pick_id, user)
     showcase_picks.delete(pick_id)
     return {"ok": True}

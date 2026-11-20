@@ -1309,7 +1309,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
             title="Витрина на главной"
             description="Лоты из калькуляторов: «На главную» — блоки «Выбор менеджеров», «Купили» — блок «Купленные авто» с ценой."
           />
-          <ShowcasePicksPanel currentUserId={user.id} canEditAll={!isLimitedManager} />
+          <ShowcasePicksPanel currentUserId={user.id} />
         </div>
       ) : null}
 
