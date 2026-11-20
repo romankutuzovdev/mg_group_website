@@ -173,6 +173,15 @@ function DealCard({
             {ORIGIN_REGION_LABELS[deal.origin_region] || deal.origin_region}
             {deal.kind === "kit" ? " · комплект" : " · авто"}
           </p>
+          {deal.vin?.trim() ? (
+            <p
+              className="mt-0.5 truncate font-mono text-[11px] tracking-wide text-zinc-700"
+              title={`VIN ${deal.vin.trim()}`}
+            >
+              <span className="font-sans text-[10px] font-semibold text-zinc-400">VIN </span>
+              <span className="select-all">{deal.vin.trim().toUpperCase()}</span>
+            </p>
+          ) : null}
           {tech ? (
             <p className="mt-0.5 truncate text-[10px] text-zinc-400">{tech}</p>
           ) : null}
@@ -910,7 +919,7 @@ export function LogisticsPanel() {
           <input
             value={poolFilter}
             onChange={(e) => setPoolFilter(e.target.value)}
-            placeholder="Поиск по авто, клиенту…"
+            placeholder="Поиск по авто, клиенту, VIN…"
             className="mb-3 w-full rounded-xl border border-zinc-200 bg-zinc-50/60 px-3 py-2 text-xs outline-none ring-emerald-500/20 focus:bg-white focus:ring-2"
           />
           <div className="max-h-[min(68vh,720px)] space-y-2 overflow-y-auto overscroll-contain pr-0.5">
