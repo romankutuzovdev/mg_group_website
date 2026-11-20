@@ -32,6 +32,7 @@ from app.models.cabinet import (
     FavoriteLotOut,
     PaymentStageUpdate,
     ResetClientPasswordPayload,
+    UserCredentialsUpdate,
     StageKey,
     StageUpdate,
     UserOut,
@@ -560,6 +561,24 @@ async def admin_reset_client_password(
         sms_skipped=sms_skipped,
         sms_error=sms_error,
     )
+
+
+@router.put("/admin/users/{user_id}/credentials", response_model=UserOut)
+def admin_set_user_credentials(
+    user_id: int,
+    body: UserCredentialsUpdate,
+    actor: Annotated[UserOut, Depends(require_owner_admin_or_key)],
+) -> UserOut:
+    """Только администратор: сменить логин (телефон) и/или пароль любому пользователю."""
+    try:
+        user = cabinet_store.set_user_credentials(user_id, phone=body.phone, password=body.password)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Пользователь не найден") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    logger.info("credentials changed: user=%s by=%s phone=%s pwd=%s", user_id, actor.id,
+                body.phone is not None, body.password is not None)
+    return user
 
 
 @router.patch("/admin/users/{user_id}", response_model=UserOut)

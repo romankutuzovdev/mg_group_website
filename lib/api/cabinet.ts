@@ -558,6 +558,17 @@ export async function adminSetUserRoles(
   });
 }
 
+/** Только админ: сменить логин (телефон) и/или пароль любому пользователю. */
+export async function adminSetUserCredentials(
+  userId: number,
+  body: { phone?: string; password?: string },
+): Promise<CabinetUser> {
+  return cabinetFetch(`/api/v1/admin/users/${userId}/credentials`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function adminCreateClientAccount(body: {
   phone: string;
   password: string;

@@ -633,6 +633,51 @@ class CabinetStore:
                 ).fetchone()
                 return self._user_from_row(row)
 
+    def set_user_credentials(
+        self,
+        user_id: int,
+        *,
+        phone: str | None = None,
+        password: str | None = None,
+    ) -> UserOut:
+        """Админ: сменить логин (телефон) и/или пароль любому, включая сотрудников."""
+        normalized = normalize_phone(phone) if phone is not None and phone.strip() else None
+        pwd = (password or "").strip() if password is not None else None
+        if pwd is not None and len(pwd) < 4:
+            raise ValueError("Пароль слишком короткий (минимум 4 символа)")
+        if normalized is None and pwd is None:
+            raise ValueError("Укажите новый логин или пароль")
+        with self._lock:
+            with self._conn() as conn:
+                row = conn.execute("SELECT * FROM users WHERE id = ?", (int(user_id),)).fetchone()
+                if not row:
+                    raise KeyError("user not found")
+                old_phone = str(row["phone"] or "") if "phone" in row.keys() else ""
+                if normalized is not None and normalized != old_phone:
+                    clash = conn.execute(
+                        "SELECT id FROM users WHERE phone = ? AND id != ?",
+                        (normalized, int(user_id)),
+                    ).fetchone()
+                    if clash:
+                        raise ValueError("Этот телефон уже занят другим аккаунтом")
+                    conn.execute("UPDATE users SET phone = ? WHERE id = ?", (normalized, int(user_id)))
+                    # У аккаунтов по телефону username = телефон — обновляем вместе.
+                    if old_phone and str(row["username"] or "") == old_phone:
+                        conn.execute(
+                            "UPDATE users SET username = ? WHERE id = ?", (normalized, int(user_id))
+                        )
+                    old_phone = normalized
+                if pwd is not None:
+                    if not old_phone:
+                        raise ValueError("Сначала задайте логин (телефон) — без него пароль не работает")
+                    conn.execute(
+                        "UPDATE users SET password_hash = ? WHERE id = ?",
+                        (hash_password(pwd), int(user_id)),
+                    )
+                conn.commit()
+                row = conn.execute("SELECT * FROM users WHERE id = ?", (int(user_id),)).fetchone()
+                return self._user_from_row(row)
+
     def authenticate_phone(self, phone: str, password: str) -> UserOut | None:
         try:
             normalized = normalize_phone(phone)

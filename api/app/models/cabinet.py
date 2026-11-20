@@ -167,6 +167,13 @@ class ResetClientPasswordPayload(BaseModel):
     send_sms: bool = True
 
 
+class UserCredentialsUpdate(BaseModel):
+    """Админ меняет логин (телефон) и/или пароль любому пользователю."""
+
+    phone: str | None = Field(default=None, max_length=32)
+    password: str | None = Field(default=None, min_length=4, max_length=64)
+
+
 class UserOut(BaseModel):
     id: int
     telegram_id: int

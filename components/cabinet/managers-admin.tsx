@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   type CabinetUser,
+  adminSetUserCredentials,
   adminSetUserRoles,
   fetchAdminUsers,
   fetchMe,
@@ -13,7 +14,8 @@ import {
 function userLabel(u: CabinetUser): string {
   const name = [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
   const phone = (u.phone || "").trim();
-  const nick = u.username && !/^\d{9,15}$/.test(u.username) ? `@${u.username}` : "";
+  const nick =
+    u.username && !/^\d{9,15}$/.test(u.username) ? `@${u.username}` : "";
   if (name && phone) return `${name} · ${phone}`;
   if (phone) return phone;
   if (name && nick) return `${name} (${nick})`;
@@ -22,12 +24,117 @@ function userLabel(u: CabinetUser): string {
 
 function roleLabel(u: CabinetUser): string {
   if (u.is_admin) return "Администратор";
-  const roles = [u.is_manager ? "Менеджер" : "", u.is_logist ? "Логист" : ""].filter(Boolean);
+  const roles = [
+    u.is_manager ? "Менеджер" : "",
+    u.is_logist ? "Логист" : "",
+  ].filter(Boolean);
   return roles.length ? roles.join(" · ") : "Клиент";
 }
 
+/** Форма смены логина (телефона) и пароля — только для администратора. */
+function CredentialsForm({
+  user,
+  onSaved,
+  onCancel,
+}: {
+  user: CabinetUser;
+  onSaved: (next: CabinetUser, message: string) => void;
+  onCancel: () => void;
+}) {
+  const [phone, setPhone] = useState(user.phone || "");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const phoneChanged =
+    phone.trim() !== (user.phone || "").trim() && phone.trim() !== "";
+  const passwordSet = password.trim().length > 0;
+
+  const save = async () => {
+    if (!phoneChanged && !passwordSet) {
+      setError("Измените логин или введите новый пароль");
+      return;
+    }
+    if (passwordSet && password.trim().length < 4) {
+      setError("Пароль — минимум 4 символа");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const next = await adminSetUserCredentials(user.id, {
+        ...(phoneChanged ? { phone: phone.trim() } : {}),
+        ...(passwordSet ? { password: password.trim() } : {}),
+      });
+      const parts = [
+        phoneChanged ? `логин ${next.phone}` : "",
+        passwordSet ? `пароль ${password.trim()}` : "",
+      ];
+      onSaved(
+        next,
+        `${userLabel(next)}: новый ${parts.filter(Boolean).join(", ")}`,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось сохранить");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const field =
+    "h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-[13px] shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20";
+
+  return (
+    <div className="border-t border-zinc-100 bg-zinc-50/70 px-4 py-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-[11px] font-medium text-zinc-600">
+          Логин (телефон)
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            inputMode="tel"
+            placeholder="+375 29 123-45-67"
+            className={`mt-1 ${field}`}
+          />
+        </label>
+        <label className="block text-[11px] font-medium text-zinc-600">
+          Новый пароль
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="пусто — не менять"
+            autoComplete="new-password"
+            className={`mt-1 ${field}`}
+          />
+        </label>
+      </div>
+      {error ? <p className="mt-2 text-[12px] text-rose-700">{error}</p> : null}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void save()}
+          className="inline-flex h-8 items-center rounded-md bg-zinc-900 px-3 text-xs font-medium text-white disabled:opacity-50"
+        >
+          {busy ? "Сохраняем…" : "Сохранить"}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onCancel}
+          className="inline-flex h-8 items-center rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700"
+        >
+          Отмена
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function initials(u: CabinetUser): string {
-  const src = userLabel(u).replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g, " ").trim();
+  const src = userLabel(u)
+    .replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g, " ")
+    .trim();
   const parts = src.split(/\s+/).filter(Boolean);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return (src.slice(0, 2) || "??").toUpperCase();
@@ -41,6 +148,7 @@ export function ManagersAdmin() {
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -55,7 +163,9 @@ export function ManagersAdmin() {
       setMe(who);
       setUsers(list);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось загрузить пользователей");
+      setError(
+        e instanceof Error ? e.message : "Не удалось загрузить пользователей",
+      );
       setMe(null);
       setUsers([]);
     } finally {
@@ -108,7 +218,11 @@ export function ManagersAdmin() {
       setUsers((prev) => prev.map((x) => (x.id === next.id ? next : x)));
       const name = role === "manager" ? "менеджером" : "логистом";
       const roleName = role === "manager" ? "менеджера" : "логиста";
-      setOk(on ? `${userLabel(next)} назначен ${name}` : `${userLabel(next)} снят с роли ${roleName}`);
+      setOk(
+        on
+          ? `${userLabel(next)} назначен ${name}`
+          : `${userLabel(next)} снят с роли ${roleName}`,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось изменить роль");
     } finally {
@@ -127,7 +241,9 @@ export function ManagersAdmin() {
   if (!me) {
     return (
       <div className="space-y-4 rounded-lg border border-zinc-200 bg-white shadow-sm p-6 text-center">
-        <p className="text-[13px] text-zinc-600">Войдите в кабинет как администратор.</p>
+        <p className="text-[13px] text-zinc-600">
+          Войдите в кабинет как администратор.
+        </p>
         <Link
           href="/cabinet/"
           className="inline-flex h-9 items-center rounded-md bg-zinc-900 px-3.5 text-[13px] font-medium text-white"
@@ -157,9 +273,15 @@ export function ManagersAdmin() {
   return (
     <div className="space-y-4">
       <p className="text-[13px] text-zinc-500">
-        Менеджер ведёт своих клиентов и их сделки, логист — только логистику. Менеджеров:{" "}
-        <span className="font-medium tabular-nums text-zinc-900">{managersCount}</span>, логистов:{" "}
-        <span className="font-medium tabular-nums text-zinc-900">{logistsCount}</span>
+        Менеджер ведёт своих клиентов и их сделки, логист — только логистику.
+        Менеджеров:{" "}
+        <span className="font-medium tabular-nums text-zinc-900">
+          {managersCount}
+        </span>
+        , логистов:{" "}
+        <span className="font-medium tabular-nums text-zinc-900">
+          {logistsCount}
+        </span>
       </p>
 
       {error ? (
@@ -199,64 +321,105 @@ export function ManagersAdmin() {
         ) : (
           <ul className="divide-y divide-zinc-100">
             {filtered.map((u) => (
-              <li
-                key={u.id}
-                className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-zinc-50"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  {u.photo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={u.photo_url}
-                      alt=""
-                      className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
-                    />
-                  ) : (
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200">
-                      {initials(u)}
+              <li key={u.id}>
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition hover:bg-zinc-50">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {u.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={u.photo_url}
+                        alt=""
+                        className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
+                      />
+                    ) : (
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200">
+                        {initials(u)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-medium text-zinc-900">
+                        {userLabel(u)}
+                      </p>
+                      <p className="text-[11px] text-zinc-500">
+                        {roleLabel(u)}
+                        {u.created_at
+                          ? ` · с ${u.created_at.slice(0, 10)}`
+                          : ""}
+                        {u.telegram_id ? ` · TG ${u.telegram_id}` : ""}
+                      </p>
                     </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="truncate text-[13px] font-medium text-zinc-900">
-                      {userLabel(u)}
-                    </p>
-                    <p className="text-[11px] text-zinc-500">
-                      {roleLabel(u)}
-                      {u.created_at ? ` · с ${u.created_at.slice(0, 10)}` : ""}
-                      {u.telegram_id ? ` · TG ${u.telegram_id}` : ""}
-                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOk(null);
+                        setEditId((id) => (id === u.id ? null : u.id));
+                      }}
+                      className={[
+                        "inline-flex h-8 items-center rounded-md px-3 text-xs font-medium shadow-sm transition",
+                        editId === u.id
+                          ? "bg-zinc-900 text-white"
+                          : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50",
+                      ].join(" ")}
+                    >
+                      Логин / пароль
+                    </button>
+                    {u.is_admin ? (
+                      <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
+                        Админ
+                      </span>
+                    ) : (
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        {(["manager", "logist"] as const).map((role) => {
+                          const on =
+                            role === "manager" ? u.is_manager : u.is_logist;
+                          const label =
+                            role === "manager" ? "Менеджер" : "Логист";
+                          return (
+                            <button
+                              key={role}
+                              type="button"
+                              disabled={busyId != null}
+                              aria-pressed={Boolean(on)}
+                              title={
+                                on
+                                  ? `Снять роль: ${label}`
+                                  : `Назначить: ${label}`
+                              }
+                              onClick={() => void toggleRole(u, role)}
+                              className={[
+                                "inline-flex h-8 items-center rounded-md px-3 text-xs font-medium shadow-sm transition disabled:opacity-50",
+                                on
+                                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                  : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50",
+                              ].join(" ")}
+                            >
+                              {busyId === u.id
+                                ? "…"
+                                : on
+                                  ? `✓ ${label}`
+                                  : `+ ${label}`}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
-                {u.is_admin ? (
-                  <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
-                    Админ
-                  </span>
-                ) : (
-                  <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-                    {(["manager", "logist"] as const).map((role) => {
-                      const on = role === "manager" ? u.is_manager : u.is_logist;
-                      const label = role === "manager" ? "Менеджер" : "Логист";
-                      return (
-                        <button
-                          key={role}
-                          type="button"
-                          disabled={busyId != null}
-                          aria-pressed={Boolean(on)}
-                          title={on ? `Снять роль: ${label}` : `Назначить: ${label}`}
-                          onClick={() => void toggleRole(u, role)}
-                          className={[
-                            "inline-flex h-8 items-center rounded-md px-3 text-xs font-medium shadow-sm transition disabled:opacity-50",
-                            on
-                              ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                              : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50",
-                          ].join(" ")}
-                        >
-                          {busyId === u.id ? "…" : on ? `✓ ${label}` : `+ ${label}`}
-                        </button>
+                {editId === u.id ? (
+                  <CredentialsForm
+                    user={u}
+                    onCancel={() => setEditId(null)}
+                    onSaved={(next, message) => {
+                      setUsers((prev) =>
+                        prev.map((x) => (x.id === next.id ? next : x)),
                       );
-                    })}
-                  </div>
-                )}
+                      setEditId(null);
+                      setOk(message);
+                    }}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>
