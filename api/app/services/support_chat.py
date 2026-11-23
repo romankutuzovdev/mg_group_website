@@ -31,9 +31,9 @@ NEED_REPLY = "Чтобы ответить клиенту, нажмите «От�
 TEXT_ONLY = "Клиенту можно отправить только текст."
 
 # Telegram cannot tell whether a person is around, so "online" means working
-# hours: weekdays 9:00-19:00 in Minsk (UTC+3 all year), as on the site.
+# hours: weekdays 9:00-18:00 in Minsk (UTC+3 all year), as on the site.
 _MINSK = timezone(timedelta(hours=3))
-WORK_HOURS = (9, 19)
+WORK_HOURS = (9, 18)
 
 _lock = threading.Lock()
 

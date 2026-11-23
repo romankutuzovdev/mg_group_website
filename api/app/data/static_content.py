@@ -6,7 +6,7 @@ COMPANY = {
     "name": "MG.GROUP",
     "description": "Подбор и доставка авто под заказ из США, Китая и Кореи. Машинокомплекты из США и Англии",
     "address": "г. Гродно, ул. Медовая 1",
-    "hours_weekdays": "Будни — 9:00–19:00",
+    "hours_weekdays": "Будни — 9:00–18:00",
     "hours_weekend": "Суббота, воскресенье — выходной",
     "partners": "Copart, IAAI, Manheim, Mobile.de, Autoplius.lt",
     "consultation_tg": "https://t.me/Yury_MG_Global",

@@ -4,7 +4,7 @@ const stats = [
   { label: "выгода vs рынок РБ" },
   { value: "США · Китай · Корея", label: "авто под заказ" },
   { value: "США · Англия", label: "машинокомплекты" },
-  { value: "9:00–19:00", label: "будни, Гродно" },
+  { value: "9:00–18:00", label: "будни, Гродно" },
 ];
 
 export function StatsBar() {

@@ -6,7 +6,7 @@ export const COMPANY = {
   description:
     "Подбор и доставка авто под заказ из США, Китая и Кореи. Машинокомплекты из США и Англии",
   address: "г. Гродно, ул. Медовая 1",
-  hoursWeekdays: "Будни — 9:00–19:00",
+  hoursWeekdays: "Будни — 9:00–18:00",
   hoursWeekend: "Суббота, воскресенье — выходной",
   partners: "Copart, IAAI, Manheim, Mobile.de, Autoplius.lt, Encar, Che168, Guazi",
 } as const;
