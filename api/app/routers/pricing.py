@@ -11,11 +11,13 @@ from app.data import static_content as sc
 from app.data.store import lot_store
 from app.models.leads import QuoteRequest, WeightPriceRequest
 from app.models.lots import AuctionLot
+from app.models.quote_share import QuoteShareInput, QuoteShareOut
 from app.services.auth_deps import get_current_user, require_full_admin
 from app.services.customs_by import calculate_customs_by
 from app.services.lot_lookup import fetch_lot_from_url
 from app.services.pricing import price_by_weight, quote_copart_uk, quote_iaai_usa
 from app.services import quote_history
+from app.services import quote_shares
 from app.services import car_search
 from app.services.telegram_notify import _escape, send_telegram_message
 from app.services.cabinet_admin import parse_admin_ids
@@ -228,6 +230,19 @@ class QuoteHistoryIn(BaseModel):
     currency: Literal["USD", "GBP"] = "USD"
     total_usd: float | None = None
     summary: str = ""
+
+
+@router.post("/shared-quotes", response_model=QuoteShareOut)
+def share_quote(body: QuoteShareInput, user=Depends(get_current_user)) -> dict[str, Any]:
+    return quote_shares.create(owner_user_id=user.id, snapshot=body.model_dump())
+
+
+@router.get("/shared-quotes/{token}", response_model=QuoteShareOut)
+def public_quote(token: str) -> dict[str, Any]:
+    shared = quote_shares.get(token)
+    if shared is None:
+        raise HTTPException(status_code=404, detail="Просчёт не найден. Проверьте ссылку у отправителя.")
+    return shared
 
 
 _KIND_LABEL = {

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { AdminDealsPanel } from "@/components/cabinet/admin-deals-panel";
 import { DeleteAccountButton } from "@/components/cabinet/delete-account-button";
+import { ApiError } from "@/lib/api/client";
 import {
   Avatar,
   Badge,
@@ -33,6 +34,7 @@ import {
   DISMANTLE_YARD_LABELS,
   dealKind,
   dealProgress,
+  assignClientManager,
   fetchAdminDeals,
   fetchAdminUsers,
   regionLabel,
@@ -128,6 +130,12 @@ export function ManagerClientsPanel({
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState<number | null>(null);
+  const [editingManager, setEditingManager] = useState<number | null>(null);
+  const [selectedManager, setSelectedManager] = useState(0);
+  const [assignmentBlocked, setAssignmentBlocked] = useState(false);
+  const assignmentDisabled = assigning !== null || assignmentBlocked;
   const [query, setQuery] = useState("");
   const [compose, setCompose] = useState<"deal" | "client" | null>(null);
   const [scope, setScope] = useState<Scope>("all");
@@ -156,10 +164,13 @@ export function ManagerClientsPanel({
       ]);
       setUsers(nextUsers);
       setDeals(nextDeals);
+      setAssignmentBlocked(false);
+      return true;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Не удалось загрузить клиентов",
       );
+      return false;
     } finally {
       setLoading(false);
     }
@@ -168,6 +179,57 @@ export function ManagerClientsPanel({
   useEffect(() => {
     void load();
   }, [load]);
+
+  const managers = useMemo(
+    () => users.filter((u) => u.is_manager || u.is_admin)
+      .sort((a, b) => userName(a).localeCompare(userName(b), "ru")),
+    [users],
+  );
+
+  const assignManager = async (userId: number, managerId: number) => {
+    const client = users.find((u) => u.id === userId);
+    if (!client || !managerId || assignmentDisabled) return;
+    setAssigning(userId);
+    setError(null);
+    setSuccess(null);
+    try {
+      const updated = await assignClientManager(userId, managerId, Number(client.manager_user_id || 0));
+      const assignee = managers.find((u) => u.id === updated.manager_user_id);
+      // Preserve the confirmed assignment even if the following refresh fails.
+      setUsers((current) => current.map((u) => u.id === userId ? updated : u));
+      setDeals((current) => current.map((deal) =>
+        deal.client_telegram_id === updated.telegram_id
+          ? {
+              ...deal,
+              manager_user_id: updated.manager_user_id,
+              manager_name: assignee ? userName(assignee) : "",
+              manager_telegram_id: assignee?.telegram_id || 0,
+              manager_username: assignee?.username || "",
+            }
+          : deal,
+      ));
+      setEditingManager(null);
+      await load();
+      const name = managers.find((u) => u.id === managerId);
+      setSuccess(
+        managerId === manager.id
+          ? `Клиент ${userName(client)} и его сделки закреплены за вами.`
+          : `Клиент ${userName(client)} и его сделки переданы менеджеру ${name ? userName(name) : `#${managerId}`}.`,
+      );
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setEditingManager(null);
+        if (!(await load())) {
+          setAssignmentBlocked(true);
+          setError("Менеджер клиента изменился, но список не удалось обновить. Нажмите «Обновить список» и повторите выбор.");
+          return;
+        }
+      }
+      setError(err instanceof Error ? err.message : "Не удалось назначить менеджера");
+    } finally {
+      setAssigning(null);
+    }
+  };
 
   const allGroups = useMemo(() => buildGroups(users, deals), [users, deals]);
   const mineGroups = useMemo(
@@ -196,7 +258,7 @@ export function ManagerClientsPanel({
     <div className="space-y-5">
       <PageHeader
         title="Клиенты"
-        description="Все клиенты компании и их сделки. Во вкладке «Мои» — клиенты, которых ведёте вы. Менять можно только своих."
+        description="Все клиенты компании и их сделки. Можно забрать клиента себе или передать другому менеджеру вместе со сделками. Во вкладке «Мои» — ваши клиенты."
         actions={
           <>
             <Button
@@ -280,7 +342,12 @@ export function ManagerClientsPanel({
         />
       </label>
 
-      {error ? <Notice tone="danger">{error}</Notice> : null}
+      {error ? (
+        <Notice tone="danger" action={<Button size="sm" variant="ghost" onClick={() => void load()}>Обновить список</Button>}>
+          {error}
+        </Notice>
+      ) : null}
+      {success ? <Notice tone="success">{success}</Notice> : null}
 
       {loading ? (
         <div className="flex justify-center py-10">
@@ -294,7 +361,7 @@ export function ManagerClientsPanel({
             query
               ? "Измените запрос."
               : scope === "mine"
-                ? "Создайте клиента кнопкой «+ Клиент» или попросите администратора закрепить за вами."
+                ? "Создайте клиента кнопкой «+ Клиент» или откройте «Все клиенты» и нажмите «Забрать себе»."
                 : "Клиенты появятся, когда зарегистрируются или их создаст менеджер."
           }
         />
@@ -302,9 +369,9 @@ export function ManagerClientsPanel({
         <div className="space-y-4">
           {visible.map((group) => (
             <Card key={group.key} className="overflow-hidden">
-              <div className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-3 border-b border-zinc-100 px-4 py-3">
                 <Avatar name={group.name} size="sm" />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-zinc-900">
                     {group.name}
                   </p>
@@ -314,7 +381,7 @@ export function ManagerClientsPanel({
                     </p>
                   ) : null}
                 </div>
-                <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
+                <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end">
                   {group.managerId === manager.id ? (
                     <Badge tone="success">Мой</Badge>
                   ) : group.managerName ? (
@@ -324,6 +391,34 @@ export function ManagerClientsPanel({
                   ) : (
                     <span className="text-xs text-zinc-400">Без менеджера</span>
                   )}
+                  {group.userId ? (
+                    <>
+                      {group.managerId !== manager.id ? (
+                        <Button
+                          size="sm"
+                          disabled={assignmentDisabled}
+                          onClick={() => void assignManager(group.userId!, manager.id)}
+                        >
+                          {assigning === group.userId ? "Сохраняем…" : "Забрать себе"}
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={assignmentDisabled}
+                        aria-expanded={editingManager === group.userId}
+                        onClick={() => {
+                          setEditingManager(editingManager === group.userId ? null : group.userId!);
+                          const current = users.find((u) => u.id === group.userId);
+                          setSelectedManager(Number(current?.manager_user_id || manager.id));
+                          setError(null);
+                          setSuccess(null);
+                        }}
+                      >
+                        {group.managerId ? "Сменить менеджера" : "Назначить менеджера"}
+                      </Button>
+                    </>
+                  ) : null}
                   {/* Сделку сервер даёт создать только своему клиенту. */}
                   {group.userId &&
                   group.managerId === manager.id &&
@@ -336,8 +431,45 @@ export function ManagerClientsPanel({
                       + Создать сделку
                     </button>
                   ) : null}
-                </span>
+                </div>
               </div>
+              {group.userId && editingManager === group.userId ? (
+                <form
+                  className="space-y-2 border-b border-zinc-100 bg-zinc-50 px-4 py-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void assignManager(group.userId!, selectedManager);
+                  }}
+                >
+                  <label className="block text-xs font-medium text-zinc-600" htmlFor={`client-manager-${group.userId}`}>
+                    Ответственный менеджер
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      id={`client-manager-${group.userId}`}
+                      className={`${inputClass} sm:max-w-xs`}
+                      value={selectedManager}
+                      onChange={(e) => setSelectedManager(Number(e.target.value))}
+                      disabled={assignmentDisabled}
+                      required
+                    >
+                      <option value={0} disabled>Выберите менеджера</option>
+                      {managers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {userName(u)}{u.id === manager.id ? " (вы)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <Button type="submit" size="sm" variant="primary" disabled={!selectedManager || assignmentDisabled}>
+                      {assigning === group.userId ? "Сохраняем…" : "Сохранить"}
+                    </Button>
+                    <Button size="sm" variant="ghost" disabled={assigning !== null} onClick={() => setEditingManager(null)}>
+                      Отмена
+                    </Button>
+                  </div>
+                  <p className="text-xs text-zinc-500">Клиент и все его сделки перейдут выбранному менеджеру.</p>
+                </form>
+              ) : null}
               {group.deals.length === 0 ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
                   <p className="text-[13px] text-zinc-500">Сделок пока нет</p>

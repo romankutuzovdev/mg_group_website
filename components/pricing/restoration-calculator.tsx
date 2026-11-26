@@ -4,6 +4,8 @@ import { useCallback, useMemo, useState } from "react";
 import { EstimateNotice } from "@/components/pricing/estimate-notice";
 import { CustomsByPanel } from "@/components/pricing/customs-by-panel";
 import { useRecordQuote } from "@/components/pricing/use-record-quote";
+import { QuoteShareActions } from "@/components/pricing/quote-share-actions";
+import { restorationQuoteSnapshot } from "@/lib/pricing/share-quote";
 import {
   ShowcasePickButtons,
   showcaseBreakdown,
@@ -786,6 +788,17 @@ export function RestorationCalculator() {
             </div>
           ) : null}
 
+          <QuoteShareActions quote={pricedQuote && bid > 0 ? restorationQuoteSnapshot(pricedQuote, {
+            title: [lotCard?.year, lotCard?.make, lotCard?.model].filter(Boolean).join(" ") || "Авто под восстановление",
+            lot_url: lotUrl.trim(), location, image_url: lotCard?.image_url,
+            summary: `${platform === "copart" ? "Copart" : "IAAI"} · ${oceanDest === "poti" ? "Poti" : "Klaipeda"}`,
+          }, [
+            ...selectedExtras.map((service) => ({
+              label: `${service.label}${(extras[service.id] || 0) > 1 ? ` × ${extras[service.id]}` : ""}`,
+              amount: service.usd * (extras[service.id] || 0), currency: "USD" as const,
+            })),
+            ...(insurance ? [{ label: "Страхование", amount: insurance.usd, currency: "USD" as const }] : []),
+          ], customs) : null} />
           <ShowcasePickButtons
             pick={
               grandWithCustoms != null && bid > 0

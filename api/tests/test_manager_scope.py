@@ -71,12 +71,36 @@ class ManagerScopeTest(unittest.TestCase):
         )
         return {"Authorization": f"Bearer {token}"}
 
-    def test_manager_lists_only_own_deals_and_clients(self):
+    def test_manager_lists_all_deals_and_clients(self):
         h = self.auth(2)
         deals = self.client.get("/api/v1/admin/deals", headers=h).json()
-        self.assertEqual([d["title"] for d in deals], ["мой"])
+        self.assertEqual({d["title"] for d in deals}, {"мой", "чужой"})
         ids = {u["id"] for u in self.client.get("/api/v1/admin/users", headers=h).json()}
-        self.assertEqual(ids, {2, 4})
+        self.assertEqual(ids, {1, 2, 3, 4, 5, 6})
+
+    def test_client_deals_are_ordered_by_purchase_date(self):
+        older = self.store.create_deal(
+            DealCreate(telegram_id=104, title="куплена первой", dismantle_yard="texas")
+        )
+        newer = self.store.create_deal(
+            DealCreate(telegram_id=104, title="куплена второй", dismantle_yard="texas")
+        )
+        with sqlite3.connect(self.store._path()) as conn:
+            conn.execute(
+                "UPDATE deals SET created_at = ?, updated_at = ? WHERE id = ?",
+                ("2026-01-01T10:00:00+00:00", "2026-01-03T10:00:00+00:00", older.id),
+            )
+            conn.execute(
+                "UPDATE deals SET created_at = ?, updated_at = ? WHERE id = ?",
+                ("2026-01-02T10:00:00+00:00", "2026-01-02T10:00:00+00:00", newer.id),
+            )
+
+        deals = self.store.list_deals_for_user(4)
+
+        self.assertEqual(
+            [deal.title for deal in deals],
+            ["куплена первой", "куплена второй", "мой"],
+        )
 
     def _add_client(self, uid, owner):
         with sqlite3.connect(self.store._path()) as conn:
@@ -129,12 +153,12 @@ class ManagerScopeTest(unittest.TestCase):
         self.assertEqual(self.client.post(url.format(self.mine.id), json=body, headers=h).status_code, 200)
         self.assertEqual(self.client.post(url.format(self.other.id), json=body, headers=h).status_code, 403)
 
-    def test_manager_cannot_open_foreign_deal(self):
+    def test_manager_can_read_foreign_deal(self):
         h = self.auth(2)
         self.assertEqual(self.client.get(f"/api/v1/me/deals/{self.mine.id}", headers=h).status_code, 200)
-        self.assertEqual(self.client.get(f"/api/v1/me/deals/{self.other.id}", headers=h).status_code, 403)
+        self.assertEqual(self.client.get(f"/api/v1/me/deals/{self.other.id}", headers=h).status_code, 200)
         res = self.client.get(f"/api/v1/me/deals/{self.other.id}/dismantle-map", headers=h)
-        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.status_code, 200)
 
     def test_manager_patch_limited_to_progress_fields(self):
         h = self.auth(2)
@@ -199,6 +223,186 @@ class ManagerScopeTest(unittest.TestCase):
         res = self.client.patch(url, json={"is_logist": False}, headers=self.auth(1))
         self.assertFalse(res.json()["is_logist"])
         self.assertEqual(self.client.patch(url, json={}, headers=self.auth(1)).status_code, 422)
+
+    def test_manager_claims_self_registered_phone_client(self):
+        user = self.store.create_client_account(
+            phone="375291234567", password="test-password", first_name="Клиент"
+        )
+        self.assertEqual(user.manager_user_id, 0)
+        res = self.client.put(
+            f"/api/v1/admin/clients/{user.id}/manager",
+            json={"manager_user_id": 2, "expected_manager_user_id": 0},
+            headers=self.auth(2),
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["manager_user_id"], 2)
+        self.assertEqual(self.store.get_user(user.id).manager_user_id, 2)
+        deal = self.client.post(
+            "/api/v1/admin/deals",
+            json={"telegram_id": user.telegram_id, "title": "Новая сделка", "kind": "car"},
+            headers=self.auth(2),
+        )
+        self.assertEqual(deal.status_code, 200)
+        self.assertEqual(deal.json()["manager_user_id"], 2)
+
+    def test_claim_also_assigns_existing_unassigned_deals(self):
+        self._add_client(7, None)
+        deal = self.store.create_deal(DealCreate(telegram_id=107, title="Без менеджера"))
+        res = self.client.put(
+            "/api/v1/admin/clients/7/manager",
+            json={"manager_user_id": 2, "expected_manager_user_id": 0},
+            headers=self.auth(2),
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(self.store.get_deal(deal.id).manager_user_id, 2)
+
+    def test_any_manager_transfers_client_and_all_deals(self):
+        # Клиент создан менеджером B; сделки могли назначаться разным сотрудникам.
+        user = self.store.create_client_account(
+            phone="375291234568", password="test-password", manager_user_id=3
+        )
+        first = self.store.create_deal(
+            DealCreate(telegram_id=user.telegram_id, title="Первая"), created_by_user_id=3
+        )
+        second = self.store.create_deal(
+            DealCreate(telegram_id=user.telegram_id, title="Вторая", manager_user_id=1)
+        )
+        res = self.client.put(
+            f"/api/v1/admin/clients/{user.id}/manager",
+            json={"manager_user_id": 2, "expected_manager_user_id": 3},
+            headers=self.auth(2),
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["manager_user_id"], 2)
+        for deal in (first, second):
+            with self.subTest(deal=deal.id):
+                updated = self.store.get_deal(deal.id)
+                self.assertEqual(updated.manager_user_id, 2)
+                self.assertEqual(updated.manager_name, "u2")
+                self.assertTrue(self.store.manager_owns_deal(manager_id=2, deal_id=deal.id))
+                self.assertFalse(self.store.manager_owns_deal(manager_id=3, deal_id=deal.id))
+        url = f"/api/v1/admin/deals/{first.id}/stages/auction"
+        body = {"status": "done"}
+        self.assertEqual(self.client.post(url, json=body, headers=self.auth(3)).status_code, 403)
+        self.assertEqual(self.client.post(url, json=body, headers=self.auth(2)).status_code, 200)
+        self.assertEqual(
+            self.client.get(f"/api/v1/me/deals/{first.id}", headers=self.auth(3)).status_code, 200
+        )
+        self.assertEqual(self.store.get_user(5).manager_user_id, 3)
+        self.assertEqual(self.store.get_deal(self.other.id).manager_user_id, 3)
+
+    def test_manager_assigns_foreign_client_to_another_staff_member(self):
+        res = self.client.put(
+            "/api/v1/admin/clients/5/manager",
+            json={"manager_user_id": 1, "expected_manager_user_id": 3},
+            headers=self.auth(2),
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["manager_user_id"], 1)
+        self.assertEqual(self.store.get_deal(self.other.id).manager_user_id, 1)
+
+    def test_admin_can_reassign_client(self):
+        res = self.client.put(
+            "/api/v1/admin/clients/4/manager",
+            json={"manager_user_id": 3, "expected_manager_user_id": 2},
+            headers=self.auth(1),
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(self.store.get_user(4).manager_user_id, 3)
+        self.assertEqual(self.store.get_deal(self.mine.id).manager_user_id, 3)
+
+    def test_client_and_logist_cannot_reassign_clients(self):
+        url = "/api/v1/admin/clients/5/manager"
+        body = {"manager_user_id": 2, "expected_manager_user_id": 3}
+        for uid in (4, 6):
+            with self.subTest(actor=uid):
+                self.assertEqual(self.client.put(url, json=body, headers=self.auth(uid)).status_code, 403)
+        self.assertEqual(self.client.put(url, json=body).status_code, 401)
+        self.assertEqual(self.store.get_user(5).manager_user_id, 3)
+
+    def test_staff_and_missing_client_cannot_be_assigned(self):
+        for uid, status in ((1, 422), (2, 422), (6, 422), (999, 404)):
+            with self.subTest(client=uid):
+                res = self.client.put(
+                    f"/api/v1/admin/clients/{uid}/manager",
+                    json={"manager_user_id": 3, "expected_manager_user_id": 0},
+                    headers=self.auth(2),
+                )
+                self.assertEqual(res.status_code, status)
+
+    def test_invalid_assignee_keeps_client_and_deals_unchanged(self):
+        for assignee in (4, 6, 999):
+            with self.subTest(assignee=assignee):
+                res = self.client.put(
+                    "/api/v1/admin/clients/5/manager",
+                    json={"manager_user_id": assignee, "expected_manager_user_id": 3},
+                    headers=self.auth(2),
+                )
+                self.assertEqual(res.status_code, 422)
+                self.assertEqual(self.store.get_user(5).manager_user_id, 3)
+                self.assertEqual(self.store.get_deal(self.other.id).manager_user_id, 3)
+
+    def test_stale_assignment_cannot_overwrite_new_manager(self):
+        self._add_client(7, None)
+        url = "/api/v1/admin/clients/7/manager"
+        first = self.client.put(
+            url, json={"manager_user_id": 2, "expected_manager_user_id": 0}, headers=self.auth(2)
+        )
+        self.assertEqual(first.status_code, 200)
+        stale = self.client.put(
+            url, json={"manager_user_id": 3, "expected_manager_user_id": 0}, headers=self.auth(3)
+        )
+        self.assertEqual(stale.status_code, 409)
+        self.assertEqual(self.store.get_user(7).manager_user_id, 2)
+
+    def test_assignment_requires_valid_ids_and_expected_manager(self):
+        for body in (
+            {"manager_user_id": 0, "expected_manager_user_id": 3},
+            {"manager_user_id": -1, "expected_manager_user_id": 3},
+            {"manager_user_id": 2, "expected_manager_user_id": -1},
+            {"manager_user_id": 2},
+        ):
+            with self.subTest(body=body):
+                res = self.client.put(
+                    "/api/v1/admin/clients/5/manager", json=body, headers=self.auth(2)
+                )
+                self.assertEqual(res.status_code, 422)
+
+    def test_assignment_rolls_back_if_deal_update_fails(self):
+        with sqlite3.connect(self.store._path()) as conn:
+            conn.execute(
+                "CREATE TRIGGER reject_transfer BEFORE UPDATE OF created_by_user_id ON deals "
+                "BEGIN SELECT RAISE(ABORT, 'transfer failed'); END"
+            )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.client.put(
+                "/api/v1/admin/clients/5/manager",
+                json={"manager_user_id": 2, "expected_manager_user_id": 3},
+                headers=self.auth(2),
+            )
+        self.assertEqual(self.store.get_user(5).manager_user_id, 3)
+        self.assertEqual(self.store.get_deal(self.other.id).manager_user_id, 3)
+
+    def test_old_manager_cannot_create_deal_during_transfer(self):
+        create_deal = self.store.create_deal
+
+        def transfer_then_create(data, **kwargs):
+            self.store.assign_client_manager(
+                4, manager_user_id=3, expected_manager_user_id=2
+            )
+            return create_deal(data, **kwargs)
+
+        # Pause after the route's ownership check, then transfer before insertion.
+        with mock.patch.object(self.store, "create_deal", side_effect=transfer_then_create):
+            res = self.client.post(
+                "/api/v1/admin/deals",
+                json={"telegram_id": 104, "title": "После передачи", "kind": "car"},
+                headers=self.auth(2),
+            )
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(self.store.get_user(4).manager_user_id, 3)
+        self.assertEqual(len(self.store.list_deals_for_user(4)), 1)
+        self.assertFalse(self.store.manager_owns_deal(manager_id=2, deal_id=self.mine.id))
 
 
 if __name__ == "__main__":

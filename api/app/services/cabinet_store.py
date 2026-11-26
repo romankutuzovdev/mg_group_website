@@ -70,6 +70,10 @@ def _due_date(value: str | None) -> str | None:
     return raw
 
 
+class ClientManagerConflictError(ValueError):
+    """The client's manager changed since the client list was loaded."""
+
+
 class CabinetStore:
     def __init__(self) -> None:
         self._lock = threading.RLock()
@@ -560,6 +564,46 @@ class CabinetStore:
         if not client:
             return False
         return int(client.manager_user_id or 0) == int(manager_id)
+
+    def assign_client_manager(
+        self,
+        user_id: int,
+        *,
+        manager_user_id: int,
+        expected_manager_user_id: int,
+    ) -> UserOut:
+        """Transfer a client and all their deals together, rejecting stale lists."""
+        with self._lock:
+            with self._conn() as conn:
+                # Serialize validation and writes across API workers as well.
+                conn.execute("BEGIN IMMEDIATE")
+                row = conn.execute(
+                    "SELECT * FROM users WHERE id = ?", (user_id,)
+                ).fetchone()
+                if not row:
+                    raise KeyError(user_id)
+                client = self._user_from_row(row)
+                if client.is_admin or client.is_manager or client.is_logist:
+                    raise ValueError("Назначить менеджера можно только клиенту")
+                if client.manager_user_id != expected_manager_user_id:
+                    raise ClientManagerConflictError(
+                        "Менеджер клиента уже изменился. Список обновлён, повторите выбор."
+                    )
+                manager_id = self._require_manager_id(conn, manager_user_id)
+                conn.execute(
+                    "UPDATE users SET manager_user_id = ? WHERE id = ?",
+                    (manager_id, user_id),
+                )
+                # created_by_user_id is the existing deal assignee field.
+                conn.execute(
+                    "UPDATE deals SET created_by_user_id = ?, updated_at = ? WHERE user_id = ?",
+                    (manager_id, _now(), user_id),
+                )
+                updated = conn.execute(
+                    "SELECT * FROM users WHERE id = ?", (user_id,)
+                ).fetchone()
+                conn.commit()
+                return self._user_from_row(updated)
 
     def delete_user(self, user_id: int) -> None:
         """Удалить аккаунт без сделок вместе с избранным, поисками и просчётами.
@@ -1063,7 +1107,10 @@ class CabinetStore:
         with self._lock:
             with self._conn() as conn:
                 rows = conn.execute(
-                    "SELECT * FROM deals WHERE user_id = ? ORDER BY updated_at DESC",
+                    # A deal is created when a purchased car is added. Keep the
+                    # client's list in purchase order; progress edits must not
+                    # move a car around. ID is a stable tie-breaker.
+                    "SELECT * FROM deals WHERE user_id = ? ORDER BY created_at ASC, id ASC",
                     (user_id,),
                 ).fetchall()
                 return [self._deal_from_row(conn, r, with_details=True) for r in rows]
@@ -1193,15 +1240,23 @@ class CabinetStore:
         data: DealCreate,
         *,
         created_by_user_id: int | None = None,
+        required_manager_user_id: int | None = None,
     ) -> DealOut:
         with self._lock:
             with self._conn() as conn:
+                # A transfer must run either before this check or after insertion.
+                conn.execute("BEGIN IMMEDIATE")
                 user = conn.execute(
                     "SELECT id, manager_user_id FROM users WHERE telegram_id = ?",
                     (data.telegram_id,),
                 ).fetchone()
                 if not user:
                     raise KeyError("user not found")
+                if (
+                    required_manager_user_id is not None
+                    and int(user["manager_user_id"] or 0) != required_manager_user_id
+                ):
+                    raise PermissionError("Добавлять сделки можно только своим клиентам")
 
                 user_id = int(user["id"])
                 kind: DealKind = data.kind if data.kind in ("car", "kit") else "kit"

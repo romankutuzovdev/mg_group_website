@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { QuoteShareActions } from "@/components/pricing/quote-share-actions";
+import { QUOTE_KIND_LABELS } from "@/lib/pricing/share-quote";
 import {
   fetchAllQuoteHistory,
   fetchMyQuoteHistory,
@@ -96,6 +98,14 @@ export function QuoteHistoryPanel({ scope }: { scope: "mine" | "all" }) {
                 >
                   {row.lot_url}
                 </a>
+              ) : null}
+              {row.total_usd != null && row.total_usd > 0 ? (
+                <QuoteShareActions quote={{
+                  kind: row.kind, title: row.title.slice(0, 240) || QUOTE_KIND_LABELS[row.kind],
+                  lot_url: row.lot_url, location: row.location, bid: row.bid,
+                  currency: row.currency, total_usd: row.total_usd,
+                  summary: row.summary, breakdown: [],
+                }} />
               ) : null}
             </li>
           ))}

@@ -2,6 +2,8 @@
 
 import { CustomsExtraServices } from "@/components/pricing/customs-extra-services";
 import { EstimateNotice } from "@/components/pricing/estimate-notice";
+import { QuoteShareActions } from "@/components/pricing/quote-share-actions";
+import { publicCustomsQuoteSnapshot } from "@/lib/pricing/share-quote";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -281,7 +283,10 @@ export function CustomsCalculator() {
         className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6 lg:col-span-3"
       >
         {result.ok ? (
-          <ResultView result={result} rates={rates} />
+          <>
+            <ResultView result={result} rates={rates} />
+            <QuoteShareActions quote={publicCustomsQuoteSnapshot(result, Number(price))} />
+          </>
         ) : (
           <EmptyState message={hasInput ? result.error : null} />
         )}

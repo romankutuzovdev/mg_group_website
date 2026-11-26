@@ -18,6 +18,7 @@ from app.models.cabinet import (
     deal_has_arrived,
     STAGE_KEYS,
     ClientAccountCreatedOut,
+    ClientManagerUpdate,
     CreateClientAccountPayload,
     DealCreate,
     DealMediaFromUrl,
@@ -45,7 +46,7 @@ from app.services.auth_deps import (
     require_admin_or_key,
     require_owner_admin_or_key,
 )
-from app.services.cabinet_store import cabinet_store
+from app.services.cabinet_store import ClientManagerConflictError, cabinet_store
 from app.services.dismantle_xlsx import build_dismantle_xlsx
 from app.data.store import lot_store
 
@@ -488,6 +489,32 @@ async def admin_create_client_account(
     )
 
 
+@router.put("/admin/clients/{user_id}/manager", response_model=UserOut)
+def admin_assign_client_manager(
+    user_id: int,
+    body: ClientManagerUpdate,
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
+) -> UserOut:
+    """Any manager can claim or transfer a client, including all their deals."""
+    try:
+        user = cabinet_store.assign_client_manager(
+            user_id,
+            manager_user_id=body.manager_user_id,
+            expected_manager_user_id=body.expected_manager_user_id,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Клиент не найден") from exc
+    except ClientManagerConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    logger.info(
+        "client manager changed: client=%s from=%s to=%s by=%s",
+        user_id, body.expected_manager_user_id, user.manager_user_id, actor.id,
+    )
+    return user
+
+
 @router.delete("/admin/users/{user_id}")
 def admin_delete_user(
     user_id: int,
@@ -629,16 +656,19 @@ async def admin_create_deal(
         deal = cabinet_store.create_deal(
             body,
             created_by_user_id=admin.id if admin.id else None,
+            required_manager_user_id=admin.id if is_limited_manager(admin) else None,
         )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Клиент не найден — пусть войдёт в кабинет") from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # Сервисное SMS: машина добавлена + просьба заполнить карту разбора.
+    # Карта разбора нужна только машинокомплектам; авто под учёт её не заполняют.
     # В фоне: шлюз SMS не должен держать ответ менеджеру.
     client = cabinet_store.get_user_by_telegram_id(body.telegram_id)
-    if client and client.consent_service and (client.phone or "").strip():
+    if deal.kind == "kit" and client and client.consent_service and (client.phone or "").strip():
         from app.services.sms_by import notify_deal_added_fill_map
 
         background_tasks.add_task(notify_deal_added_fill_map, phone=client.phone, car=deal.title)

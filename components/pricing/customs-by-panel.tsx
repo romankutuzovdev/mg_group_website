@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CustomsExtraServices } from "@/components/pricing/customs-extra-services";
 import { useRecordQuote } from "@/components/pricing/use-record-quote";
+import { QuoteShareActions } from "@/components/pricing/quote-share-actions";
+import { customsQuoteSnapshot } from "@/lib/pricing/share-quote";
 import {
   calculateCustomsBy,
   fetchNbrbRates,
@@ -227,6 +229,9 @@ export function CustomsByPanel({
         </dl>
       ) : null}
 
+      {recordHistory ? <QuoteShareActions quote={result ? customsQuoteSnapshot(result, {
+        title: title || "Растаможка РБ", summary: year ? `Авто ${year} года.` : "",
+      }, Number(priceUsd) || 0) : null} /> : null}
       <CustomsExtraServices />
     </div>
   );

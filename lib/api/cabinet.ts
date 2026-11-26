@@ -1,5 +1,6 @@
 import { apiUrl, isApiEnabled } from "@/lib/api/config";
 import { ApiError } from "@/lib/api/client";
+import type { QuoteSnapshot, SharedQuote } from "@/lib/pricing/share-quote";
 
 const TOKEN_KEY = "mg_cabinet_token";
 
@@ -535,6 +536,14 @@ export async function fetchAllQuoteHistory(): Promise<QuoteHistoryEntry[]> {
   return cabinetFetch("/api/v1/pricing/history/all");
 }
 
+export async function createSharedQuote(quote: QuoteSnapshot): Promise<SharedQuote> {
+  return cabinetFetch("/api/v1/pricing/shared-quotes", { method: "POST", body: JSON.stringify(quote) });
+}
+
+export async function fetchSharedQuote(id: string): Promise<SharedQuote> {
+  return cabinetFetch(`/api/v1/pricing/shared-quotes/${encodeURIComponent(id)}`);
+}
+
 export async function fetchMyDeals(): Promise<Deal[]> {
   return cabinetFetch("/api/v1/me/deals");
 }
@@ -545,6 +554,21 @@ export async function fetchMyDeal(id: number): Promise<Deal> {
 
 export async function fetchAdminUsers(): Promise<CabinetUser[]> {
   return cabinetFetch("/api/v1/admin/users");
+}
+
+/** Любой менеджер закрепляет клиента вместе со всеми его сделками. */
+export async function assignClientManager(
+  userId: number,
+  managerId: number,
+  expectedManagerId: number,
+): Promise<CabinetUser> {
+  return cabinetFetch(`/api/v1/admin/clients/${userId}/manager`, {
+    method: "PUT",
+    body: JSON.stringify({
+      manager_user_id: managerId,
+      expected_manager_user_id: expectedManagerId,
+    }),
+  });
 }
 
 /** Админ назначает или снимает роли; не переданная роль не меняется. */

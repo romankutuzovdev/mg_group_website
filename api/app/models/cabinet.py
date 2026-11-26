@@ -224,6 +224,11 @@ class UserRoleUpdate(BaseModel):
     is_logist: bool | None = None
 
 
+class ClientManagerUpdate(BaseModel):
+    manager_user_id: int = Field(gt=0)
+    expected_manager_user_id: int = Field(ge=0)
+
+
 class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

@@ -17,6 +17,8 @@ import { isApiEnabled } from "@/lib/api/config";
 import { LotLoadButton, LotLoadStatus, lotLoadErrorMessage } from "@/components/pricing/lot-url-load";
 import { kitLotUrlError, lotHost, ukKitLotUrlError, usaKitLotUrlError } from "@/lib/pricing/lot-url";
 import { useRecordQuote } from "@/components/pricing/use-record-quote";
+import { QuoteShareActions } from "@/components/pricing/quote-share-actions";
+import { kitQuoteSnapshot } from "@/lib/pricing/share-quote";
 import {
   ShowcasePickButtons,
   showcaseBreakdown,
@@ -595,6 +597,12 @@ export function CalculatorForm({
             <IaaiQuoteDisplay quote={quote as IaaiQuote} route={inlandRoute} />
           ) : null}
           {quote ? <QuoteTotals quote={quote} region={tab} /> : null}
+          <QuoteShareActions quote={quote && bid > 0 ? kitQuoteSnapshot(quote, {
+            title: [lotCard?.year, lotCard?.make, lotCard?.model].filter(Boolean).join(" ") ||
+              (tab === "uk" ? "Машинокомплект Англия" : "Машинокомплект США"),
+            lot_url: lotUrl.trim(), location: tab === "uk" ? location : usaLocation,
+            image_url: lotCard?.image_url,
+          }) : null} />
         </div>
 
         <div className="lg:col-start-2">
