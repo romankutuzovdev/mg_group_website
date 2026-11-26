@@ -21,12 +21,13 @@ export default function SharedQuotePage({ dictionary }: { dictionary: Dictionary
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
-  const [failedImage, setFailedImage] = useState("");
+  const [failedImages, setFailedImages] = useState<string[]>([]);
 
   useEffect(() => {
     if (!router.isReady) return;
     let cancelled = false;
     setShared(null);
+    setFailedImages([]);
     setError("");
     if (!/^[A-Za-z0-9_-]{32}$/.test(id)) {
       setLoading(false);
@@ -42,6 +43,9 @@ export default function SharedQuotePage({ dictionary }: { dictionary: Dictionary
   }, [id, router.isReady, attempt]);
 
   const quote = shared?.quote;
+  const images = Array.from(new Set(
+    [quote?.image_url, ...(quote?.image_urls || [])].map((url) => (url || "").trim()).filter(Boolean),
+  ));
 
   return (
     <>
@@ -67,29 +71,40 @@ export default function SharedQuotePage({ dictionary }: { dictionary: Dictionary
         ) : shared && quote ? (
           <>
             <section className="overflow-hidden rounded-xl border border-border bg-white">
-              <div className="grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-                {quote.image_url && failedImage !== quote.image_url ? (
-                  <div className="aspect-[4/3] bg-zinc-100 sm:aspect-auto sm:min-h-64">
-                    <img src={resolveLotImageUrl(quote.image_url)} alt={quote.title} referrerPolicy="no-referrer"
-                      className="h-full w-full object-cover" onError={() => setFailedImage(quote.image_url || "")} />
-                  </div>
-                ) : null}
-                <div className={`p-5 sm:p-8 ${!quote.image_url || failedImage === quote.image_url ? "sm:col-span-2" : ""}`}>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-dark">MG.GROUP · Сохранённый просчёт</p>
-                  <h1 className="mt-3 break-words font-display text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">{quote.title}</h1>
-                  <p className="mt-2 text-sm text-text-secondary">{QUOTE_KIND_LABELS[quote.kind]}</p>
-                  {quote.location ? <p className="mt-2 text-sm text-text-secondary">Площадка: {quote.location}</p> : null}
-                  {quote.bid != null ? (
-                    <p className="mt-2 text-sm text-text-secondary">
-                      {quote.kind === "customs" ? "Стоимость авто" : "Исходная ставка"}: <strong className="font-medium text-text-primary">{formatQuoteMoney(quote.bid, quote.currency)}</strong>
-                    </p>
-                  ) : null}
-                  <p className="mt-5 text-xs text-text-muted">
-                    Сохранён {new Date(shared.created_at).toLocaleString("ru-RU")}
+              <div className="p-5 sm:p-8">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-dark">MG.GROUP · Сохранённый просчёт</p>
+                <h1 className="mt-3 break-words font-display text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">{quote.title}</h1>
+                <p className="mt-2 text-sm text-text-secondary">{QUOTE_KIND_LABELS[quote.kind]}</p>
+                {quote.location ? <p className="mt-2 text-sm text-text-secondary">Площадка: {quote.location}</p> : null}
+                {quote.bid != null ? (
+                  <p className="mt-2 text-sm text-text-secondary">
+                    {quote.kind === "customs" ? "Стоимость авто" : "Исходная ставка"}: <strong className="font-medium text-text-primary">{formatQuoteMoney(quote.bid, quote.currency)}</strong>
                   </p>
-                </div>
+                ) : null}
+                <p className="mt-5 text-xs text-text-muted">
+                  Сохранён {new Date(shared.created_at).toLocaleString("ru-RU")}
+                </p>
               </div>
             </section>
+
+            {images.length ? (
+              <section className="rounded-xl border border-border bg-white p-4 sm:p-6">
+                <h2 className="mb-4 font-display text-lg font-semibold text-text-primary">
+                  Фото автомобиля <span className="text-sm font-normal text-text-muted">· {images.length}</span>
+                </h2>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
+                  {images.map((image, index) => failedImages.includes(image) ? null : (
+                    <a key={`${index}-${image}`} href={resolveLotImageUrl(image)} target="_blank" rel="noreferrer"
+                      className="group aspect-[4/3] overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-200">
+                      <img src={resolveLotImageUrl(image)} alt={`${quote.title} — фото ${index + 1}`}
+                        loading={index < 4 ? "eager" : "lazy"} referrerPolicy="no-referrer"
+                        className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                        onError={() => setFailedImages((current) => [...current, image])} />
+                    </a>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
               <section className="min-w-0 rounded-xl border border-border bg-white p-5 sm:p-7">

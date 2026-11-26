@@ -85,6 +85,19 @@ test("archived lot photos survive snapshot creation", () => {
   assert.equal(snapshot.image_url, "/api/lot-photos/copart-123/01-car.jpg");
 });
 
+test("shared auto quote retains every distinct auction photo", () => {
+  const snapshot = kitQuoteSnapshot({
+    iaai: { bid: 100, feesNet: 20 }, dispatchingUsd: 200, transferFee: 12,
+    dismantleUsd: 1300, grandUsd: 1632,
+  }, {
+    title: "Camry", image_url: "https://images.bid.cars/one.jpg",
+    image_urls: ["https://images.bid.cars/one.jpg", "https://images.bid.cars/two.jpg"],
+  });
+  assert.deepEqual(snapshot.image_urls, [
+    "https://images.bid.cars/one.jpg", "https://images.bid.cars/two.jpg",
+  ]);
+});
+
 test("public customs snapshot preserves EUR purchase and full under-key total", () => {
   const quote = publicCustomsQuoteSnapshot({
     ok: true, totalUsd: 20500, clearanceByn: 12000, totalEur: 19000,
@@ -100,4 +113,28 @@ test("public customs snapshot preserves EUR purchase and full under-key total", 
     { label: "Авто", amount: 15000, currency: "EUR" },
     { label: "Платежи", amount: 12000, currency: "BYN" },
   ]);
+});
+
+test("electric and hybrid shipment service offers each port option at its listed price", async () => {
+  const extrasSource = await readFile(new URL("../lib/pricing/restoration-extras.ts", import.meta.url), "utf8");
+  const extrasJs = ts.transpileModule(extrasSource, {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const { EXTRA_SERVICES } = await import(`data:text/javascript;base64,${Buffer.from(extrasJs).toString("base64")}`);
+  const shipping = EXTRA_SERVICES.filter((service) => service.exclusiveGroup === "ev-shipping");
+  assert.deepEqual(shipping.map((service) => service.usd), [150, 250, 200]);
+  assert.match(shipping[0].description, /опасн.*груз|огнеупорн.*контейнер/i);
+  assert.match(shipping[1].label, /Клайпеда.*Поти.*Seattle/i);
+});
+
+test("selecting an electric vehicle shipment option clears the other ports", async () => {
+  const extrasSource = await readFile(new URL("../lib/pricing/restoration-extras.ts", import.meta.url), "utf8");
+  const extrasJs = ts.transpileModule(extrasSource, {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const { setExtraSelectionQty } = await import(`data:text/javascript;base64,${Buffer.from(extrasJs).toString("base64")}`);
+  const first = setExtraSelectionQty({}, "evKlaipeda", 1);
+  const second = setExtraSelectionQty(first, "evPoti", 1);
+  assert.equal(second.evKlaipeda, 0);
+  assert.equal(second.evPoti, 1);
 });

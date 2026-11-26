@@ -9,6 +9,8 @@ export type ExtraService = {
   description: string;
   /** Цена за штуку — у услуги есть количество. */
   unit?: string;
+  /** Options in the same exclusive group cannot be selected together. */
+  exclusiveGroup?: string;
 };
 
 export const EXTRA_SERVICES: ExtraService[] = [
@@ -66,10 +68,47 @@ export const EXTRA_SERVICES: ExtraService[] = [
     usd: 150,
     description: "Чехол на весь мотоцикл",
   },
+  {
+    id: "evKlaipeda",
+    label: "Электро / гибрид — Клайпеда",
+    usd: 150,
+    exclusiveGroup: "ev-shipping",
+    description: "Оформление как опасный груз или доплата за огнеупорный контейнер на Клайпеду.",
+  },
+  {
+    id: "evKlaipedaPoti",
+    label: "Электро / гибрид — Клайпеда + Поти (Seattle)",
+    usd: 250,
+    exclusiveGroup: "ev-shipping",
+    description: "Оформление как опасный груз или доплата за огнеупорный контейнер на Клайпеду и Поти (Seattle).",
+  },
+  {
+    id: "evPoti",
+    label: "Электро / гибрид — Поти",
+    usd: 200,
+    exclusiveGroup: "ev-shipping",
+    description: "Оформление как опасный груз или доплата за огнеупорный контейнер на Поти.",
+  },
 ];
 
 /** Выбранные услуги: id → количество (0 — не выбрана). */
 export type ExtraSelection = Record<string, number>;
+
+export function setExtraSelectionQty(
+  selection: ExtraSelection,
+  id: string,
+  qty: number,
+): ExtraSelection {
+  const next = { ...selection };
+  const selected = EXTRA_SERVICES.find((service) => service.id === id);
+  if (qty > 0 && selected?.exclusiveGroup) {
+    for (const service of EXTRA_SERVICES) {
+      if (service.exclusiveGroup === selected.exclusiveGroup) next[service.id] = 0;
+    }
+  }
+  next[id] = Math.max(0, Math.min(99, Math.floor(qty) || 0));
+  return next;
+}
 
 export function extrasTotalUsd(selection: ExtraSelection): number {
   return EXTRA_SERVICES.reduce((sum, s) => sum + s.usd * Math.max(0, selection[s.id] || 0), 0);

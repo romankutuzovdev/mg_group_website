@@ -32,6 +32,7 @@ import { DeleteAccountButton } from "@/components/cabinet/delete-account-button"
 import { formatOdometerKm } from "@/lib/auctions/odometer";
 import { apiUrl, isApiEnabled } from "@/lib/api/config";
 import { lotHost } from "@/lib/pricing/lot-url";
+import { importLotPhotos } from "@/lib/cabinet/import-lot-photos";
 import {
   LotLoadButton,
   LotLoadStatus,
@@ -88,9 +89,6 @@ function specsSummary(specs?: DealSpecs | null): string {
     .join(" · ");
 }
 
-// Bid.cars photos go through one Chrome on Windows — keep the queue short.
-const LOT_PHOTO_UPLOAD_CONCURRENCY = 3;
-
 /** Browser-safe preview: auction CDNs block BY visitors, so go through our proxy. */
 function lotPreviewSrc(src: string): string {
   const u = (src || "").trim();
@@ -98,34 +96,23 @@ function lotPreviewSrc(src: string): string {
   return u.startsWith("/") ? apiUrl(u) : u;
 }
 
-/** The server downloads the photo itself and keeps it with the deal. */
-async function uploadLotPhoto(dealId: number, src: string, index: number): Promise<boolean> {
-  try {
-    await adminImportDealMediaFromUrl(dealId, src, index + 1);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** Все фото лота (Bid.cars / Copart) → медиа сделки, этап «Аукцион». */
 async function uploadLotPhotos(
   dealId: number,
   images: string[],
-  onProgress: (ok: boolean) => void,
+  onProgress: (index: number, saved: boolean) => void,
+  onlyIndices?: number[],
 ) {
-  if (!images.length) return;
-  // Первое фото отдельно: оно остаётся обложкой, остальные идут параллельно.
-  onProgress(await uploadLotPhoto(dealId, images[0], 0));
-  let next = 1;
-  const worker = async () => {
-    while (next < images.length) {
-      const index = next++;
-      onProgress(await uploadLotPhoto(dealId, images[index], index));
-    }
-  };
-  const workers = Math.min(LOT_PHOTO_UPLOAD_CONCURRENCY, images.length - 1);
-  await Promise.all(Array.from({ length: workers }, worker));
+  const indices = onlyIndices || images.map((_, index) => index);
+  const selected = indices.map((index) => images[index]).filter(Boolean);
+  const selectedIndices = indices.filter((index) => Boolean(images[index]));
+  const result = await importLotPhotos(
+    dealId,
+    selected,
+    (id, src, index) => adminImportDealMediaFromUrl(id, src, selectedIndices[index] + 1),
+    (index, saved) => onProgress(selectedIndices[index], saved),
+  );
+  return result.failedIndices.map((index) => selectedIndices[index]);
 }
 
 type Props = {
@@ -269,10 +256,14 @@ export function AdminDealsPanel({
   } | null>(null);
 
   const [photoUpload, setPhotoUpload] = useState<{
+    dealId: number;
+    images: string[];
     done: number;
     total: number;
     failed: number;
+    failedIndices: number[];
   } | null>(null);
+  const [retryingPhotos, setRetryingPhotos] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -301,24 +292,51 @@ export function AdminDealsPanel({
     void load();
   }, [load]);
 
-  /** Фото докачиваются в фоне: сделка уже создана, менеджер не ждёт. */
-  const startLotPhotoUpload = (dealId: number, rawImages: string[]) => {
-    const images = rawImages.map((u) => (u || "").trim()).filter(Boolean);
-    if (!images.length) return;
-    setPhotoUpload((p) => ({
-      done: p?.done ?? 0,
-      total: (p?.total ?? 0) + images.length,
-      failed: p?.failed ?? 0,
-    }));
-    void uploadLotPhotos(dealId, images, (saved) =>
-      setPhotoUpload((p) =>
-        p ? { ...p, done: p.done + 1, failed: p.failed + (saved ? 0 : 1) } : p,
-      ),
-    ).finally(() => {
-      // Keep the banner when some photos failed so the manager sees it.
-      setPhotoUpload((p) => (p && p.done >= p.total && !p.failed ? null : p));
+  const saveLotPhotos = async (dealId: number, images: string[]) => {
+    if (!images.length) return [];
+    setPhotoUpload({ dealId, images, done: 0, total: images.length, failed: 0, failedIndices: [] });
+    const failedIndices = await uploadLotPhotos(dealId, images, (index, saved) =>
+      setPhotoUpload((current) => current ? {
+        ...current,
+        done: current.done + 1,
+        failed: current.failed + (saved ? 0 : 1),
+        failedIndices: saved ? current.failedIndices : [...current.failedIndices, index],
+      } : current),
+    );
+    if (failedIndices.length) {
+      setPhotoUpload({ dealId, images, done: images.length, total: images.length, failed: failedIndices.length, failedIndices });
+    } else {
+      setPhotoUpload(null);
+    }
+    return failedIndices;
+  };
+
+  const retryFailedLotPhotos = async () => {
+    const current = photoUpload;
+    if (!current?.failedIndices.length || retryingPhotos) return;
+    setRetryingPhotos(true);
+    const retryIndices = current.failedIndices;
+    setPhotoUpload({ ...current, done: 0, total: retryIndices.length, failed: 0, failedIndices: [] });
+    try {
+      const failedIndices = await uploadLotPhotos(current.dealId, current.images, (index, saved) =>
+        setPhotoUpload((state) => state ? {
+          ...state,
+          done: state.done + 1,
+          failed: state.failed + (saved ? 0 : 1),
+          failedIndices: saved ? state.failedIndices : [...state.failedIndices, index],
+        } : state),
+      retryIndices);
+      if (failedIndices.length) {
+        setPhotoUpload((state) => state ? {
+          ...state, done: state.total, failed: failedIndices.length, failedIndices,
+        } : state);
+      } else {
+        setPhotoUpload(null);
+      }
       void load();
-    });
+    } finally {
+      setRetryingPhotos(false);
+    }
   };
 
   const loadFromAuctionUrl = async () => {
@@ -340,6 +358,7 @@ export function AdminDealsPanel({
     setError(null);
     setOk(null);
     setLotMeta(null);
+    setLotImages([]);
     setLotWarning(null);
     try {
       const lot = await fetchLotFromUrl(url);
@@ -385,7 +404,9 @@ export function AdminDealsPanel({
         sale_document: lot.saleDocument ? String(lot.saleDocument) : "",
         seller: lot.seller ? String(lot.seller) : "",
       });
-      setLotImages(Array.isArray(lot.images) ? lot.images.filter(Boolean) : []);
+      setLotImages(Array.isArray(lot.images)
+        ? Array.from(new Set(lot.images.map((image) => (image || "").trim()).filter(Boolean)))
+        : []);
       if (lot.via === "scraper_proxy_failed") {
         setLotWarning(
           "Сервер аукциона не ответил, характеристик нет. Попробуйте ещё раз или заполните вручную.",
@@ -416,6 +437,10 @@ export function AdminDealsPanel({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (photoUpload?.failedIndices.length) {
+      setError("Сначала повторно сохраните фотографии предыдущего авто с аукциона.");
+      return;
+    }
     const tg = Number(telegramId);
     if (!Number.isFinite(tg) || tg <= 0) {
       setError("Выберите клиента из списка");
@@ -428,6 +453,15 @@ export function AdminDealsPanel({
     const needsYard = kind === "kit" && originRegion !== "uk";
     if (needsYard && !dismantleYard) {
       setError("Выберите разборку: New Jersey или Texas");
+      return;
+    }
+    const auctionImages = Array.from(new Set(lotImages.map((image) => (image || "").trim()).filter(Boolean)));
+    if (lotUrl && lotHost(lotUrl) === "bidcars" && !auctionImages.length) {
+      setError("Не удалось загрузить фотографии BidCars. Повторно загрузите лот — нельзя добавить машину без её фото.");
+      return;
+    }
+    if (auctionImages.length > 200) {
+      setError("В лоте больше 200 фотографий. Уточните лот у разработчика, прежде чем добавлять машину.");
       return;
     }
     setBusy(true);
@@ -465,10 +499,9 @@ export function AdminDealsPanel({
         payment_stage1_due: due1,
         payment_stage2_due: due2,
       });
-      startLotPhotoUpload(deal.id, lotImages);
-      setOk(
-        `${DEAL_KIND_LABELS[dealKind(deal)]} #${deal.id} · ${regionLabel(deal.origin_region)}`,
-      );
+      setOk(auctionImages.length
+        ? `${DEAL_KIND_LABELS[dealKind(deal)]} #${deal.id} · сохраняем фото…`
+        : `${DEAL_KIND_LABELS[dealKind(deal)]} #${deal.id} · ${regionLabel(deal.origin_region)}`);
       setLotUrl("");
       setDismantleYard("");
       setTrackingUrl("");
@@ -484,6 +517,11 @@ export function AdminDealsPanel({
       setPrice("");
       setDue1("");
       setDue2("");
+      const failedPhotoIndices = await saveLotPhotos(deal.id, auctionImages);
+      setOk(
+        `${DEAL_KIND_LABELS[dealKind(deal)]} #${deal.id} · ${regionLabel(deal.origin_region)}` +
+          (auctionImages.length ? ` · сохранено фото: ${auctionImages.length - failedPhotoIndices.length}/${auctionImages.length}` : ""),
+      );
       onCreated?.(deal);
       void load();
     } catch (err) {
@@ -1093,13 +1131,15 @@ export function AdminDealsPanel({
       {photoUpload ? (
         <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-[13px] text-zinc-700">
           {photoUpload.done < photoUpload.total
-            ? `Сервер скачивает фото лота: ${photoUpload.done} из ${photoUpload.total}. Не закрывайте страницу.`
-            : `Фото лота сохранены: ${photoUpload.total - photoUpload.failed} из ${photoUpload.total}.`}
-          {photoUpload.failed ? (
-            <span className="text-red-700">
-              {" "}
-              Не скачалось: {photoUpload.failed} — добавьте их вручную в сделке.
-            </span>
+            ? `Скачиваем оригиналы с аукциона и добавляем в сделку: ${photoUpload.done} из ${photoUpload.total}. Не закрывайте страницу.`
+            : photoUpload.failed
+              ? `Не удалось сохранить ${photoUpload.failed} фото после повторных попыток.`
+              : `Фото сохранены в сделке: ${photoUpload.total} из ${photoUpload.total}.`}
+          {photoUpload.failedIndices.length ? (
+            <button type="button" onClick={() => void retryFailedLotPhotos()} disabled={retryingPhotos}
+              className="ml-2 font-semibold text-emerald-800 underline underline-offset-2 disabled:opacity-50">
+              {retryingPhotos ? "Повторяем загрузку…" : `Повторить загрузку (${photoUpload.failedIndices.length})`}
+            </button>
           ) : null}
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-200">
             <div
@@ -1340,7 +1380,12 @@ export function AdminDealsPanel({
                 <input
                   className={`${field} mt-0`}
                   value={lotUrl}
-                  onChange={(e) => setLotUrl(e.target.value)}
+                  disabled={lotLoading || busy}
+                  onChange={(e) => {
+                    setLotUrl(e.target.value);
+                    setLotImages([]);
+                    setLotMeta(null);
+                  }}
                   placeholder="https://bid.cars/en/lot/…"
                   inputMode="url"
                 />
@@ -1360,7 +1405,7 @@ export function AdminDealsPanel({
             {lotImages.length ? (
               <div className="space-y-1 pt-1">
                 <p className="text-[11px] text-zinc-500">
-                  {lotImages.length} фото с аукциона — сервер скачает их и сохранит в сделке
+                  {lotImages.length} фото получено с аукциона. При добавлении каждое будет скачано и сохранено в файлы сделки.
                 </p>
                 <div className="flex gap-1.5 overflow-x-auto">
                   {lotImages.slice(0, 12).map((src) => (

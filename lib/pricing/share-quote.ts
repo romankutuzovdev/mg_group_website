@@ -16,10 +16,11 @@ export type QuoteSnapshot = {
   total_usd: number;
   summary?: string;
   image_url?: string;
+  image_urls?: string[];
   breakdown?: QuoteLine[];
 };
 export type SharedQuote = { id: string; created_at: string; quote: QuoteSnapshot };
-type QuoteMeta = Pick<QuoteSnapshot, "title" | "lot_url" | "location" | "image_url" | "summary">;
+type QuoteMeta = Pick<QuoteSnapshot, "title" | "lot_url" | "location" | "image_url" | "image_urls" | "summary">;
 
 export const QUOTE_KIND_LABELS: Record<QuoteSnapshot["kind"], string> = {
   usa: "Машинокомплект · США",
@@ -30,12 +31,18 @@ export const QUOTE_KIND_LABELS: Record<QuoteSnapshot["kind"], string> = {
 
 function meta(input: QuoteMeta): QuoteMeta {
   const http = (url?: string) => /^https?:\/\//i.test(url || "") ? url : "";
+  const localImage = (url?: string) => /^\/(?:api\/lot-photos\/|api\/lot-image(?:\?|\/)|auctions\/lots\/)/.test(url || "") ? url : "";
+  const image_urls = Array.from(new Set(
+    [input.image_url, ...(input.image_urls || [])]
+      .map((url) => (url || "").trim())
+      .filter((url) => Boolean(http(url) || localImage(url))),
+  )).slice(0, 200);
   return {
     title: input.title.slice(0, 240),
     location: input.location?.slice(0, 160) || "",
     lot_url: http(input.lot_url),
-    image_url: http(input.image_url) ||
-      (/^\/(?:api\/lot-photos\/|api\/lot-image(?:\?|\/)|auctions\/lots\/)/.test(input.image_url || "") ? input.image_url : ""),
+    image_url: image_urls[0] || "",
+    image_urls,
     summary: input.summary?.slice(0, 1000) || "",
   };
 }

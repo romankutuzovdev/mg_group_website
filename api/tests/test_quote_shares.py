@@ -38,6 +38,7 @@ class QuoteSharesTests(unittest.TestCase):
             "bid": 8000, "currency": "USD", "total_usd": 12500,
             "summary": "До Минска, без растаможки",
             "image_url": "https://example.com/car.jpg",
+            "image_urls": ["https://example.com/car.jpg"],
             "breakdown": [
                 {"label": "Ставка", "amount": 8000, "currency": "USD"},
                 {"label": "Сборы и доставка", "amount": 4500, "currency": "USD"},
@@ -126,6 +127,22 @@ class QuoteSharesTests(unittest.TestCase):
             with self.subTest(image=image):
                 body = {**self.body, "image_url": image}
                 self.assertEqual(self.create(body)["quote"]["image_url"], image)
+
+    def test_shared_quote_keeps_full_photo_gallery(self):
+        images = [f"https://images.bid.cars/photo-{index}.jpg" for index in range(1, 81)]
+        response = self.client.post(
+            "/api/v1/pricing/shared-quotes",
+            json={**self.body, "image_url": images[0], "image_urls": images},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["quote"]["image_urls"], images)
+
+    def test_shared_quote_rejects_non_http_photo_in_gallery(self):
+        response = self.client.post(
+            "/api/v1/pricing/shared-quotes",
+            json={**self.body, "image_urls": ["javascript:alert(1)"]},
+        )
+        self.assertEqual(response.status_code, 422)
 
 
 if __name__ == "__main__":

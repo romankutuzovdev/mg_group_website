@@ -601,7 +601,7 @@ export function CalculatorForm({
             title: [lotCard?.year, lotCard?.make, lotCard?.model].filter(Boolean).join(" ") ||
               (tab === "uk" ? "Машинокомплект Англия" : "Машинокомплект США"),
             lot_url: lotUrl.trim(), location: tab === "uk" ? location : usaLocation,
-            image_url: lotCard?.image_url,
+            image_url: lotCard?.image_url, image_urls: lotCard?.images,
           }) : null} />
         </div>
 

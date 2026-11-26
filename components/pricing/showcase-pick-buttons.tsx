@@ -34,7 +34,7 @@ export function showcaseBreakdown(
 export function showcaseLotCard(lot: LotFromUrlResponse, fallbackSource = ""): ShowcaseLotCard {
   const images = Array.from(
     new Set((lot.images || []).map((url) => (url || "").trim()).filter((url) => url && !isJunkLotImageUrl(url))),
-  ).slice(0, 60);
+  ).slice(0, 200);
   const image = images[0] || "";
   const spec = (value: string | null | undefined, format?: (v: string) => string) => {
     const raw = String(value ?? "").trim();

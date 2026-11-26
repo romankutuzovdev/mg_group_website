@@ -31,6 +31,7 @@ import {
   INSURANCE_NOTE,
   extrasTotalUsd,
   insuranceUsd,
+  setExtraSelectionQty,
   type ExtraSelection,
 } from "@/lib/pricing/restoration-extras";
 import { listTitleTariffs, lookupTitleFee } from "@/lib/pricing/usa-title";
@@ -301,7 +302,7 @@ export function RestorationCalculator() {
         : null;
 
   const setExtraQty = (id: string, qty: number) =>
-    setExtras((prev) => ({ ...prev, [id]: Math.max(0, Math.min(99, Math.floor(qty) || 0)) }));
+    setExtras((prev) => setExtraSelectionQty(prev, id, qty));
 
   useRecordQuote(
     touched && pricedQuote && bid > 0
@@ -790,7 +791,7 @@ export function RestorationCalculator() {
 
           <QuoteShareActions quote={pricedQuote && bid > 0 ? restorationQuoteSnapshot(pricedQuote, {
             title: [lotCard?.year, lotCard?.make, lotCard?.model].filter(Boolean).join(" ") || "Авто под восстановление",
-            lot_url: lotUrl.trim(), location, image_url: lotCard?.image_url,
+            lot_url: lotUrl.trim(), location, image_url: lotCard?.image_url, image_urls: lotCard?.images,
             summary: `${platform === "copart" ? "Copart" : "IAAI"} · ${oceanDest === "poti" ? "Poti" : "Klaipeda"}`,
           }, [
             ...selectedExtras.map((service) => ({
