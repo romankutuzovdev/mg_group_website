@@ -74,7 +74,7 @@ export default function CalculatorHubPage({ dictionary }: Props) {
       />
       <PageShell bare className="!max-w-none !p-0">
         <CatalogHero
-          title="Стоимость без сюрпризов"
+          title="Калькуляторы стоимости авто и машинокомплектов"
           description="Рассчитайте доставку, аукционные сборы, разборку и таможенные платежи до начала сделки."
           crumbs={[{ label: "Калькуляторы" }]}
           image="/calculator/vosstanovlenie.jpg"

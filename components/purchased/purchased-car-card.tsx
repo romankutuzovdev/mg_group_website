@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import {
   formatMoney,
   savingsPercent,
@@ -107,9 +106,9 @@ export function PurchasedCarCard({ car }: { car: PurchasedCar }) {
 
   if (car.href) {
     return (
-      <Link href={car.href} className="card-premium group block overflow-hidden rounded-xl">
+      <a href={car.href} className="card-premium group block overflow-hidden rounded-xl">
         {body}
-      </Link>
+      </a>
     );
   }
 

@@ -1,6 +1,6 @@
 import Head from "next/head";
 import { absoluteUrl } from "@/lib/catalog";
-import { COMPANY } from "@/lib/company";
+import { COMPANY, OFFICE_LOCATION, OFFICE_MAPS, PHONES } from "@/lib/company";
 
 type JsonLd = Record<string, unknown> | Record<string, unknown>[];
 
@@ -86,11 +86,12 @@ export function serviceJsonLd(opts: {
     url: absoluteUrl(opts.path),
     provider: {
       "@type": "AutoDealer",
+      "@id": `${absoluteUrl("/")}#organization`,
       name: COMPANY.name,
       address: {
         "@type": "PostalAddress",
-        addressLocality: "Гродно",
-        streetAddress: "ул. Медовая 1",
+        addressLocality: OFFICE_LOCATION.city,
+        streetAddress: OFFICE_LOCATION.name,
         addressCountry: "BY",
       },
     },
@@ -129,25 +130,26 @@ export function organizationJsonLd() {
       url: absoluteUrl("/logo.png"),
     },
     image: absoluteUrl("/logo.png"),
-    telephone: "+375298668811",
+    telephone: PHONES[0].tel,
+    hasMap: OFFICE_MAPS.google,
     sameAs: ["https://t.me/Yury_MG_Global", "https://www.instagram.com/mg.group_by/"],
     address: {
       "@type": "PostalAddress",
-      streetAddress: "ул. Медовая 1",
-      addressLocality: "Гродно",
+      streetAddress: OFFICE_LOCATION.name,
+      addressLocality: OFFICE_LOCATION.city,
       addressCountry: "BY",
     },
     geo: {
       "@type": "GeoCoordinates",
-      latitude: 53.68574,
-      longitude: 23.82836,
+      latitude: OFFICE_LOCATION.lat,
+      longitude: OFFICE_LOCATION.lng,
     },
     openingHoursSpecification: [
       {
         "@type": "OpeningHoursSpecification",
         dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-        opens: "09:00",
-        closes: "18:00",
+        opens: OFFICE_LOCATION.opens,
+        closes: OFFICE_LOCATION.closes,
       },
     ],
     areaServed: { "@type": "Country", name: "Belarus" },

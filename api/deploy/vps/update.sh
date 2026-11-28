@@ -38,7 +38,7 @@ if [[ -f "$APP_DIR/package.json" ]]; then
   else
     npm install
   fi
-  npm run build
+  API_URL="${API_URL:-http://127.0.0.1:8080}" npm run build
 fi
 
 chown -R mg:mg "$APP_DIR" 2>/dev/null || true

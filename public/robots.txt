@@ -2,5 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /cabinet/
 Disallow: /api/
+Allow: /api/lot-photos/
+Allow: /api/lot-image?
 
 Sitemap: https://mg-group.by/sitemap.xml

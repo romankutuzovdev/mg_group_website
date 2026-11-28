@@ -11,6 +11,9 @@ node_modules/
 # Next.js
 .next/
 out/
+# Vercel serves the sitemap generated from its own completed Next build.
+/public/sitemap.xml
+/public/sitemap-pages.xml
 .vercel/
 *.tsbuildinfo
 

@@ -43,7 +43,8 @@ export default function OtzyvyPage({ dictionary }: Props) {
           {REVIEWS.map((review) => (
             <li
               key={review.id}
-              className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6"
+              id={`otzyv-${review.id}`}
+              className="scroll-mt-24 rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6"
             >
               <p className="text-sm leading-relaxed text-zinc-700 sm:text-[15px]">
                 «{review.text}»

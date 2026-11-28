@@ -1,7 +1,6 @@
 import { GetStaticPaths, GetStaticProps } from "next";
 import Link from "next/link";
 import { CatalogBreadcrumbs, cityMakeCrumbs } from "@/components/catalog/breadcrumbs";
-import { ModelCard } from "@/components/catalog/cards";
 import {
   CatalogSEO,
   breadcrumbJsonLd,
@@ -26,6 +25,7 @@ import {
   cityMakeTitle,
 } from "@/lib/seo/copy";
 import { getDictionary } from "@/lib/dictionary";
+import { consultationMessage } from "@/lib/company";
 
 type Props = {
   city: SeoCity;
@@ -65,24 +65,27 @@ export default function GorodMakePage({ city, region, make }: Props) {
       <PageShell title={h1} description={description}>
         <CatalogBreadcrumbs items={cityMakeCrumbs(city, region, make)} />
         <p className="text-sm leading-relaxed text-text-secondary">
-          Ищете {make.name} из {region.nameGenitive} {city.inLocative}? MG.GROUP подберёт лот,
-          посчитает под ключ и организует доставку. {city.deliveryNote}
+          {city.deliveryNote}
         </p>
-
-        <h2 className="mt-10 font-display text-xl font-semibold">Модели {make.name}</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {make.models.map((model) => (
-            <ModelCard
-              key={model.slug}
-              regionSlug={region.slug}
-              makeSlug={make.slug}
-              makeName={make.name}
-              model={model}
-            />
-          ))}
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <Link href={`${cityPath(city.slug)}#vydacha`} className="text-primary hover:underline">
+            Выдача и доставка {city.inLocative}
+          </Link>
+          <a
+            href={consultationMessage(`Прошу посчитать ${make.name} из ${region.nameGenitive} с доставкой в ${city.name}. Ссылка на лот: `)}
+            className="text-primary hover:underline"
+          >
+            Запросить расчёт {make.name} до места выдачи
+          </a>
         </div>
 
-        <ul className="mt-8 space-y-2 text-sm text-text-secondary">
+        <h2 className="mt-10 font-display text-xl font-semibold">Выбор {make.name} для заказа</h2>
+        <ul className="mt-3 space-y-2 text-sm text-text-secondary">
+          <li>
+            <Link href={`${catalogPath(region.slug, make.slug)}#models`} className="text-primary hover:underline">
+              Выбрать модель {make.name} →
+            </Link>
+          </li>
           <li>
             <Link
               href={catalogPath(region.slug, make.slug)}

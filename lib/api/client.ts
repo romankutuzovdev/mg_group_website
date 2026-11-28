@@ -1,4 +1,5 @@
 import type { AuctionLot } from "@/lib/auctions/types";
+import type { ShowcasePick } from "@/lib/api/cabinet";
 import { apiUrl, isApiEnabled } from "@/lib/api/config";
 
 export class ApiError extends Error {
@@ -183,6 +184,20 @@ export async function fetchLotBySlug(slug: string): Promise<AuctionLot | null> {
   }
 }
 
+export type PublicLotPage = {
+  lot: AuctionLot;
+  preview: Record<"title" | "name" | "description" | "canonical" | "priceLabel" | "price" | "number" | "status" | "robots", string>;
+};
+
+export async function fetchPublicLotPage(slug: string): Promise<PublicLotPage | null> {
+  try {
+    return await apiFetch<PublicLotPage>(`/api/v1/lots/${encodeURIComponent(slug)}/page`);
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 404 || err.status === 410)) return null;
+    throw err;
+  }
+}
+
 /** All photos of a China lot; the API reads them from Autohome on first request. */
 export async function fetchLotGallery(slug: string, signal?: AbortSignal): Promise<string[]> {
   const data = await apiFetch<{ imageUrls?: string[] }>(
@@ -233,9 +248,9 @@ export type ApiCase = {
   region: string;
   source: string;
   budget: number;
-  market: number;
+  market: number | null;
   currency: "USD" | "GBP";
-  days: number;
+  days: number | null;
   story: string;
   href?: string;
 };
@@ -247,7 +262,7 @@ export async function fetchCases(limit = 12): Promise<ApiCase[]> {
 
 export type ApiPurchasedCar = {
   id: string;
-  year: number;
+  year: number | null;
   make: string;
   model: string;
   image: string;
@@ -255,12 +270,12 @@ export type ApiPurchasedCar = {
   region: string;
   damage: string;
   odometer: string;
-  auctionPrice: number;
-  delivery: number;
-  dismantle: number;
-  deliveryAndFees: number;
-  totalCost: number;
-  marketBy: number;
+  auctionPrice: number | null;
+  delivery: number | null;
+  dismantle: number | null;
+  deliveryAndFees: number | null;
+  totalCost: number | null;
+  marketBy: number | null;
   currency: "USD" | "GBP";
   href?: string;
 };
@@ -270,8 +285,43 @@ export async function fetchPurchased(limit = 12): Promise<ApiPurchasedCar[]> {
   return data.items;
 }
 
+/** Public manager-published purchases; use only the fields needed by the kits page. */
+export type PublishedKit = {
+  id: number;
+  title: string;
+  region: "usa" | "uk";
+  bid: number | null;
+  currency: "USD" | "GBP";
+  totalUsd: number | null;
+};
+
+export async function fetchPublishedKits(): Promise<PublishedKit[]> {
+  const response = await apiFetch<{ items: ShowcasePick[] }>(
+    "/api/v1/showcase?section=bought&kind=kit&limit=48",
+    { signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(5000) : undefined },
+  );
+  return response.items.flatMap((pick) => {
+    if (!pick.bought || pick.kind !== "kit" || (pick.region !== "usa" && pick.region !== "uk")) return [];
+    return [{
+      id: pick.id,
+      title: [pick.year, pick.make, pick.model].filter(Boolean).join(" ") || pick.title,
+      region: pick.region,
+      bid: pick.bid,
+      currency: pick.currency,
+      totalUsd: pick.total_usd,
+    }];
+  });
+}
+
 /** Manager-curated whole cars (not kits). */
 export type ApiPurchasedWholeCar = ApiPurchasedCar & {
+  year: number;
+  auctionPrice: number;
+  delivery: number;
+  dismantle: number;
+  deliveryAndFees: number;
+  totalCost: number;
+  marketBy: number;
   trim?: string;
   purchasedAt?: string;
   note?: string;

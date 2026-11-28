@@ -12,7 +12,7 @@ export function CountUp({
   suffix?: string;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const [n, setN] = useState(0);
+  const [n, setN] = useState(value);
 
   useEffect(() => {
     const el = ref.current;

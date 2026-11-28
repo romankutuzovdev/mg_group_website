@@ -1,96 +1,59 @@
-import { SOURCE_LABELS, type AuctionLot } from "@/lib/auctions/types";
-import { formatOdometerKm } from "@/lib/auctions/odometer";
-import { hashSeed, pickDiverseAuctionLots } from "@/lib/auctions/example-picks";
-import { estimateLotBreakdown } from "@/lib/auctions/lot-quote";
-import { marketPriceFromTurnkey } from "@/lib/pricing/market-savings";
+/** Снимки публичных лотов и ответов /api/v1/pricing/quote от 28.11.2026. */
+export type KitOrigin = "usa" | "uk";
+type Currency = "USD" | "GBP";
 
-export type CaseCurrency = "USD" | "GBP";
-
-export type ClientCase = {
-  id: string;
+type KitQuoteExample = {
   title: string;
-  subtitle: string;
-  image: string;
-  region: "США" | "Англия";
   source: string;
-  /** Бюджет / итог под ключ (калькулятор) */
-  budget: number;
-  market: number;
-  currency: CaseCurrency;
-  /** Срок от выкупа до Минска */
-  days: number;
-  story: string;
-  result: string;
-  href?: string;
+  lotNumber: string;
+  date: string;
+  assumptions: string;
+  lines: Array<[string, number, Currency]>;
+  totalUsd: number;
 };
 
-function lotToCase(lot: AuctionLot): ClientCase | null {
-  if (lot.region !== "usa" && lot.region !== "uk") return null;
+export const KIT_EXAMPLES: Record<KitOrigin, KitQuoteExample> = {
+  // Public catalog source: /api/v1/lots/bidcars-2022-toyota-camry-0-46224457
+  usa: {
+    title: "Toyota Camry 2022 из США",
+    source: "Bid.cars",
+    lotNumber: "0-46224457",
+    date: "28.11.2026",
+    assumptions: "В расчёте MG.GROUP для седана из Хьюстона приняли условную ставку 7 000 USD, стандартные сборы IAAI и 200 USD на перевозку до разборки. Платные дополнения к бланку не выбраны.",
+    lines: [
+      ["Условная ставка", 7000, "USD"],
+      ["Аукционные сборы", 1185, "USD"],
+      ["Перевозка по США", 200, "USD"],
+      ["Комиссия за перевод", 293.48, "USD"],
+      ["Выкуп и диспетчирование", 200, "USD"],
+      ["Разбор, таможня и доставка до Минска", 4100, "USD"],
+    ],
+    totalUsd: 12978.48,
+  },
+  // Public catalog source: /api/v1/lots/copart-uk-2019-ford-focus-76501756
+  uk: {
+    title: "Ford Focus 2019 из Англии",
+    source: "Copart UK",
+    lotNumber: "76501756",
+    date: "28.11.2026",
+    assumptions: "В расчёте MG.GROUP для легкового автомобиля категории N в Бристоле приняли условную ставку 1 500 GBP и курс 1 GBP = 1,30 USD. НДС в этом примере начислен только на сборы.",
+    lines: [
+      ["Условная ставка", 1500, "GBP"],
+      ["Аукционные сборы с НДС", 436.8, "GBP"],
+      ["Перевозка по Англии", 300, "GBP"],
+      ["Комиссия за перевод", 78.29, "GBP"],
+      ["Разбор, таможня и доставка до Минска", 2250, "USD"],
+    ],
+    totalUsd: 5259.62,
+  },
+};
 
-  const quote = estimateLotBreakdown(lot);
-  if (!quote || quote.amount <= 0) return null;
-
-  const seed = hashSeed(lot.id);
-  const days = lot.region === "uk" ? 32 + (seed % 12) : 44 + (seed % 14);
-  const damage =
-    lot.primaryDamage && lot.primaryDamage !== "Unknown" ? lot.primaryDamage : "salvage";
-  const bidLabel = new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency: lot.currency,
-    maximumFractionDigits: 0,
-  }).format(lot.currentBid);
-
-  return {
-    id: `auction-${lot.id}`,
-    title: `${lot.make} ${lot.model} ${lot.year}`,
-    subtitle: `Лот #${lot.lotNumber} · ставка ${bidLabel}`,
-    image: lot.imageUrl,
-    region: lot.region === "uk" ? "Англия" : "США",
-    source: SOURCE_LABELS[lot.source],
-    budget: quote.amount,
-    market: marketPriceFromTurnkey(quote.amount, seed),
-    currency: quote.currency,
-    days,
-    story: `${damage}. Пробег ${formatOdometerKm(lot.odometer, lot.odometerUnit)}. Расчёт под ключ из калькулятора: аукцион + доставка + разбор.`,
-    result: quote.label,
-    href: `/auctions/${lot.slug}/`,
-  };
-}
-
-export function getAuctionExampleCases(limit = 6): ClientCase[] {
-  return pickDiverseAuctionLots(limit)
-    .map(lotToCase)
-    .filter((c): c is ClientCase => c != null);
-}
-
-/** Только лоты США / Англии из каталога. */
-export function getCasesFeedItems(limit?: number): ClientCase[] {
-  const items = getAuctionExampleCases(limit ?? 12);
-  return limit ? items.slice(0, limit) : items;
-}
-
-export function caseSavingsPercent(item: ClientCase) {
-  if (item.market <= 0) return 0;
-  return Math.round(((item.market - item.budget) / item.market) * 100);
-}
-
-export function caseSavedAmount(item: ClientCase) {
-  return item.market - item.budget;
-}
-
-export function formatCaseMoney(amount: number, currency: CaseCurrency) {
+export function formatCaseMoney(amount: number, currency: Currency) {
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
     currency,
-    maximumFractionDigits: 0,
+    currencyDisplay: "code",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(amount);
-}
-
-export function casesSummary(items: ClientCase[] = getCasesFeedItems()) {
-  if (!items.length) return { count: 0, avgDays: 0, avgSavings: 0 };
-  const avgDays = Math.round(items.reduce((s, c) => s + c.days, 0) / items.length);
-  const avgSavings = Math.round(
-    items.reduce((s, c) => s + caseSavingsPercent(c), 0) / items.length,
-  );
-  return { count: items.length, avgDays, avgSavings };
 }

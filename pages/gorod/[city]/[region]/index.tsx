@@ -65,6 +65,9 @@ export default function GorodRegionPage({ city, region, makes }: Props) {
       <PageShell title={h1} description={description}>
         <CatalogBreadcrumbs items={cityRegionCrumbs(city, region)} />
         <p className="text-sm leading-relaxed text-text-secondary">{city.deliveryNote}</p>
+        <Link href={`${cityPath(city.slug)}#vydacha`} className="text-sm text-primary hover:underline">
+          Условия выдачи и расчёт доставки {city.inLocative}
+        </Link>
 
         <h2 className="mt-10 font-display text-xl font-semibold">Марки из {region.nameGenitive}</h2>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">

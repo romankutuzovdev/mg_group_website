@@ -535,6 +535,44 @@ class LotStore:
         )
         return _unpack(rows[0][0]) if rows else None
 
+    def get_public_lot(self, slug_or_id: str) -> AuctionLot | None:
+        """Resolve only lots visible in the public catalog, preferring canonical slugs."""
+        where, params = self._public_lot_sql()
+        rows = self._fetch(
+            f"SELECT data FROM lots WHERE (slug = ? OR id = ?) AND {' AND '.join(where)} "
+            "ORDER BY (slug = ?) DESC, seq DESC LIMIT 1",
+            (slug_or_id, slug_or_id, *params, slug_or_id),
+        )
+        return _unpack(rows[0][0]) if rows else None
+
+    def _public_lot_sql(self) -> tuple[list[str], list]:
+        where, params = self._live_sql()
+        settings = get_settings()
+        if not settings.scraper_prune_ended:
+            # Archived rows can be retained for internal use after the auction ends.
+            where.append("(end_ts IS NULL OR end_ts >= ?)")
+            params.append(time.time() - max(0, settings.scraper_auction_grace_hours) * 3600)
+        return where, params
+
+    def sitemap_candidates(self, after: int, through: int) -> Iterator[tuple[int, AuctionLot]]:
+        """Walk a stable rowid range in small batches without loading the catalog."""
+        predicates, args = self._public_lot_sql()
+        where = " AND ".join(predicates)
+        # Duplicate slugs must resolve to the same newest public row as get_public_lot.
+        # NOT INDEXED keeps the outer query on the primary rowid range.
+        sql = (
+            "SELECT rowid, data FROM lots AS entry NOT INDEXED WHERE rowid > ? AND rowid <= ? "
+            f"AND {where} AND id NOT GLOB 'demo-*' AND seq = ("
+            f"SELECT seq FROM lots WHERE slug = entry.slug AND {where} ORDER BY seq DESC LIMIT 1"
+            ") ORDER BY rowid LIMIT 64"
+        )
+        while after < through:
+            rows = self._fetch(sql, (after, through, *args, *args))
+            if not rows:
+                return
+            for after, blob in rows:
+                yield after, _unpack(blob)
+
     def __contains__(self, lot_id: str) -> bool:
         return bool(self._fetch("SELECT 1 FROM lots WHERE id = ?", (lot_id,)))
 

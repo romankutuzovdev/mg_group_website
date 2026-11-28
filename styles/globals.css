@@ -1184,6 +1184,95 @@
   }
 }
 
+/* Card colors follow the car's current route stage. */
+.deal-status-card {
+  --deal-card-accent: #a1a1aa;
+  background-color: #fff;
+  border-color: #e4e4e7;
+  box-shadow: inset 3px 0 0 var(--deal-card-accent);
+}
+
+.deal-status-card[data-location="selection"] {
+  --deal-card-accent: #64748b;
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.deal-status-card[data-location="auction"] {
+  --deal-card-accent: #3b82f6;
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.deal-status-card[data-location="purchased"] {
+  --deal-card-accent: #0ea5e9;
+  background-color: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.deal-status-card[data-location="yard"] {
+  --deal-card-accent: #f97316;
+  background-color: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.deal-status-card[data-location="dismantle"] {
+  --deal-card-accent: #f59e0b;
+  background-color: #fffbeb;
+  border-color: #fde68a;
+}
+
+.deal-status-card[data-location="port"] {
+  --deal-card-accent: #a855f7;
+  background-color: #faf5ff;
+  border-color: #e9d5ff;
+}
+
+.deal-status-card[data-location="ocean"] {
+  --deal-card-accent: #06b6d4;
+  background-color: #ecfeff;
+  border-color: #a5f3fc;
+}
+
+.deal-status-card[data-location="transit"] {
+  --deal-card-accent: #6366f1;
+  background-color: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.deal-status-card[data-location="customs"] {
+  --deal-card-accent: #f43f5e;
+  background-color: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.deal-status-card[data-location="belarus"] {
+  --deal-card-accent: #84cc16;
+  background-color: #f7fee7;
+  border-color: #d9f99d;
+}
+
+.deal-status-card[data-location="delivery"] {
+  --deal-card-accent: #14b8a6;
+  background-color: #f0fdfa;
+  border-color: #99f6e4;
+}
+
+.deal-status-card[data-location="delivered"] {
+  --deal-card-accent: #10b981;
+  background-color: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.deal-status-card[data-search-match="true"] {
+  outline: 2px solid #10b981;
+  outline-offset: -2px;
+}
+
+.deal-status-card-open:hover {
+  background-color: rgb(0 0 0 / 0.025);
+}
+
 /* Lot photo placeholder: a soft sweep while the photo is on its way. */
 .lot-photo-placeholder::after {
   content: "";

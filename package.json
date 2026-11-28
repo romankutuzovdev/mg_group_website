@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "seo:sitemap": "node scripts/generate-sitemap.mjs",
-    "build": "next build",
-    "build:seo": "npm run catalog:sync && npm run seo:sitemap && next build",
+    "build": "next build && npm run seo:sitemap",
+    "build:seo": "npm run catalog:sync && npm run build",
     "start": "next start",
     "lint": "next lint",
     "import:copart": "node scripts/import-copart-catalog.mjs",

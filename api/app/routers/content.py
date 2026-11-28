@@ -10,6 +10,7 @@ from app.data import static_content as sc
 from app.data.store import leads_inbox, lot_store
 from app.models.lots import AuctionLot
 from app.models.leads import LeadCreate, LeadResponse
+from app.services import showcase_picks
 from app.services.pricing import quote_copart_uk, quote_iaai_usa
 from app.config import get_settings
 
@@ -137,7 +138,7 @@ def pick_case_lots(lots: Iterable[AuctionLot], limit: int) -> list[AuctionLot]:
 
 @router.get("/cases")
 def cases(limit: int = Query(12, ge=1, le=50)) -> dict:
-    """Example client cases derived from catalog lots + turnkey quote."""
+    """Illustrative kit estimates for public catalog lots."""
     settings = get_settings()
     items = []
     # Only the makes and years pick_case_lots can use: never decode the whole catalog.
@@ -176,7 +177,6 @@ def cases(limit: int = Query(12, ge=1, le=50)) -> dict:
             currency = "USD"
         if not budget:
             continue
-        market = round(budget * 1.28)
         items.append(
             {
                 "id": f"auction-{lot.id}",
@@ -186,9 +186,10 @@ def cases(limit: int = Query(12, ge=1, le=50)) -> dict:
                 "region": "Англия" if lot.region == "uk" else "США",
                 "source": lot.source,
                 "budget": round(budget),
-                "market": market,
+                "kind": "catalog_estimate",
+                "market": None,
                 "currency": currency,
-                "days": 40 if lot.region == "uk" else 50,
+                "days": None,
                 "story": f"{lot.primaryDamage}. Пробег {lot.odometer} {lot.odometerUnit}.",
                 "href": f"/auctions/{lot.slug}/",
             }
@@ -200,68 +201,33 @@ def cases(limit: int = Query(12, ge=1, le=50)) -> dict:
 
 @router.get("/purchased")
 def purchased(limit: int = Query(12, ge=1, le=50)) -> dict:
-    """Purchased kits feed — same idea as site: lots with turnkey breakdown."""
-    settings = get_settings()
+    """Legacy public feed, backed by the same published purchases as the kits page."""
     cars = []
-    for lot in lot_store.iter_all():
-        title = f"{lot.year} {lot.make} {lot.model}"
-        if lot.region == "uk":
-            bid = lot.currentBid if lot.currency == "GBP" else lot.currentBid * 0.79
-            q = quote_copart_uk(
-                bid=bid,
-                location=lot.location,
-                category=lot.category,
-                title=title,
-                body_style=lot.bodyStyle or lot.model,
-                vat_on_sale=lot.vatOnSale,
-                dismantle_kg=lot.weightKg,
-                fx_rate=settings.default_fx_gbp_usd,
-            )
-            amount = q.get("grandUsd") or 0
-            dismantle = q.get("dismantleUsd") or 0
-            delivery = (q.get("delivery") or {}).get("amount") or 0
-            auction_total = (q.get("copart") or {}).get("copartTotal") or 0
-            if q.get("englandUsd") and q.get("totalUk"):
-                auction_total = round((auction_total / q["totalUk"]) * q["englandUsd"])
-                delivery = round((delivery / q["totalUk"]) * q["englandUsd"])
-        else:
-            q = quote_iaai_usa(
-                bid=lot.currentBid,
-                title=title,
-                body_style=lot.bodyStyle or lot.model,
-                location=lot.location,
-                inland_miles=lot.inlandMiles or 450,
-                dismantle_kg=lot.weightKg,
-            )
-            amount = q.get("grandUsd") or 0
-            dismantle = q.get("dismantleUsd") or 0
-            delivery = (q.get("deliveryUsa") or {}).get("inlandUsd") or 0
-            auction_total = (q.get("iaai") or {}).get("iaaiTotal") or 0
-        if not amount:
-            continue
-        cars.append(
-            {
-                "id": f"auction-{lot.id}",
-                "year": lot.year,
-                "make": lot.make,
-                "model": lot.model,
-                "image": lot.imageUrl,
-                "source": lot.source,
-                "region": "Англия" if lot.region == "uk" else "США",
-                "damage": lot.primaryDamage or "Salvage",
-                "odometer": f"{lot.odometer} {lot.odometerUnit}",
-                "auctionPrice": round(auction_total),
-                "delivery": round(delivery),
-                "dismantle": round(dismantle),
-                "deliveryAndFees": max(0, round(amount - auction_total)),
-                "totalCost": round(amount),
-                "marketBy": round(amount * 1.28),
-                "currency": "USD",
-                "href": f"/auctions/{lot.slug}/",
-            }
-        )
-        if len(cars) >= limit:
-            break
+    for pick in showcase_picks.list_public(section="bought", kind="kit", limit=limit):
+        breakdown = {line["label"]: line["amount"] for line in pick["breakdown"]}
+        auction = breakdown.get("Лот и сборы аукциона", breakdown.get("Лот и сборы Copart UK"))
+        delivery = breakdown.get("Доставка по США", breakdown.get("Доставка по Англии"))
+        total = pick["total_usd"]
+        cars.append({
+            "id": str(pick["id"]),
+            "year": pick["year"],
+            "make": pick["make"],
+            "model": pick["model"],
+            "image": pick["image_url"],
+            "source": pick["source"],
+            "region": {"uk": "Англия", "usa": "США"}.get(pick["region"], pick["region"]),
+            "damage": pick["damage"],
+            "odometer": pick["odometer"],
+            "auctionPrice": auction,
+            "delivery": delivery,
+            "dismantle": breakdown.get("Разбор и отправка"),
+            "deliveryAndFees": round(total - auction, 2) if total is not None and auction is not None else None,
+            "totalCost": total,
+            "marketBy": None,
+            "currency": "USD",
+            "kind": "published_purchase",
+            "href": f"/podborka/?id={pick['id']}",
+        })
     return {"items": cars, "count": len(cars)}
 
 

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import sqlite3
 import threading
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -154,6 +156,8 @@ class CabinetStore:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(deals)").fetchall()}
         if "car_status" not in cols:
             conn.execute("ALTER TABLE deals ADD COLUMN car_status TEXT NOT NULL DEFAULT ''")
+        if "purchase_date" not in cols:
+            conn.execute("ALTER TABLE deals ADD COLUMN purchase_date TEXT")
         media_cols = {r[1] for r in conn.execute("PRAGMA table_info(deal_media)").fetchall()}
         if "claim_id" not in media_cols:
             conn.execute("ALTER TABLE deal_media ADD COLUMN claim_id INTEGER")
@@ -605,6 +609,96 @@ class CabinetStore:
                 conn.commit()
                 return self._user_from_row(updated)
 
+    def rename_client(self, user_id: int, *, first_name: str, last_name: str, actor: UserOut) -> UserOut:
+        first_name, last_name = first_name.strip(), last_name.strip()
+        if not first_name or len(first_name) > 80 or len(last_name) > 80:
+            raise ValueError("Укажите имя и фамилию длиной до 80 символов")
+        with self._lock:
+            with self._conn() as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+                if not row:
+                    raise KeyError(user_id)
+                client = self._user_from_row(row)
+                if client.is_admin or client.is_manager or client.is_logist:
+                    raise ValueError("Переименовать можно только клиента")
+                if not actor.is_admin and (not actor.is_manager or actor.id <= 0 or client.manager_user_id != actor.id):
+                    raise PermissionError("Можно переименовать только своего клиента")
+                conn.execute("UPDATE users SET first_name = ?, last_name = ? WHERE id = ?", (first_name, last_name, user_id))
+                updated = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+                conn.commit()
+                return self._user_from_row(updated)
+
+    def _require_deal_write(self, conn: sqlite3.Connection, deal_id: int, actor: UserOut) -> None:
+        row = conn.execute(
+            "SELECT d.created_by_user_id, u.manager_user_id FROM deals d "
+            "LEFT JOIN users u ON u.id = d.user_id WHERE d.id = ?", (deal_id,),
+        ).fetchone()
+        if not row:
+            raise KeyError(deal_id)
+        if not actor.is_admin and (
+            not actor.is_manager or actor.id <= 0 or
+            actor.id not in (row["created_by_user_id"], row["manager_user_id"])
+        ):
+            raise PermissionError("Можно изменять только автомобили своих клиентов")
+
+    @contextmanager
+    def _remove_media_files(self, paths: list[str]):
+        """Stage files beside their originals; restore them if the DB write fails."""
+        staged: list[tuple[Path, Path]] = []
+        uploads = self._uploads().resolve()
+        try:
+            for relative in paths:
+                if not relative:
+                    continue
+                original = uploads / relative
+                if not original.resolve().is_relative_to(uploads):
+                    raise ValueError("Недопустимый путь фотографии")
+                if original.is_file():
+                    hidden = original.with_name(f".deleted-{uuid.uuid4().hex}-{original.name}")
+                    original.replace(hidden)
+                    staged.append((original, hidden))
+            yield
+        except BaseException:
+            for original, hidden in reversed(staged):
+                hidden.replace(original)
+            raise
+        else:
+            for _, hidden in staged:
+                try:
+                    hidden.unlink(missing_ok=True)
+                except OSError:
+                    logging.getLogger(__name__).warning("Could not clean up deleted media %s", hidden, exc_info=True)
+
+    def delete_deal_photo(self, deal_id: int, media_id: int, *, actor: UserOut) -> None:
+        with self._lock:
+            with self._conn() as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                self._require_deal_write(conn, deal_id, actor)
+                media = conn.execute(
+                    "SELECT path FROM deal_media WHERE id = ? AND deal_id = ? AND kind = 'photo' AND claim_id IS NULL",
+                    (media_id, deal_id),
+                ).fetchone()
+                if not media:
+                    raise KeyError(media_id)
+                with self._remove_media_files([str(media["path"] or "")]):
+                    conn.execute("DELETE FROM deal_media WHERE id = ?", (media_id,))
+                    conn.execute("UPDATE deals SET updated_at = ? WHERE id = ?", (_now(), deal_id))
+                    conn.commit()
+
+    def delete_deal(self, deal_id: int, *, actor: UserOut) -> None:
+        with self._lock:
+            with self._conn() as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                self._require_deal_write(conn, deal_id, actor)
+                paths = [str(row["path"] or "") for row in conn.execute("SELECT path FROM deal_media WHERE deal_id = ?", (deal_id,))]
+                with self._remove_media_files(paths):
+                    conn.execute("DELETE FROM deal_claims WHERE deal_id = ?", (deal_id,))
+                    # FK cascades remove stages, gallery, dismantle map and this
+                    # car's container assignment; the container itself stays.
+                    conn.execute("DELETE FROM deals WHERE id = ?", (deal_id,))
+                    conn.commit()
+
     def delete_user(self, user_id: int) -> None:
         """Удалить аккаунт без сделок вместе с избранным, поисками и просчётами.
 
@@ -950,7 +1044,7 @@ class CabinetStore:
         client_name = ""
         client_username = ""
         user_row = conn.execute(
-            "SELECT telegram_id, username, first_name, last_name FROM users WHERE id = ?",
+            "SELECT telegram_id, username, first_name, last_name, manager_user_id FROM users WHERE id = ?",
             (int(row["user_id"]),),
         ).fetchone()
         if user_row:
@@ -1026,6 +1120,8 @@ class CabinetStore:
             client_telegram_id=client_tg,
             client_name=client_name,
             client_username=client_username,
+            client_manager_user_id=int(user_row["manager_user_id"] or 0) if user_row else 0,
+            purchase_date=row["purchase_date"] or None,
             manager_user_id=manager_user_id,
             manager_telegram_id=manager_tg,
             manager_name=manager_name,
@@ -1299,9 +1395,9 @@ class CabinetStore:
                       dismantle_photos_url, status, note,
                       price, currency, kind, origin_region, origin_point, dismantle_yard,
                       specs_json, created_by_user_id, payment_stage1_due, payment_stage2_due,
-                      created_at, updated_at
+                      created_at, updated_at, purchase_date
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         user_id,
@@ -1325,6 +1421,7 @@ class CabinetStore:
                         due2,
                         now,
                         now,
+                        data.purchase_date.isoformat() if data.purchase_date else None,
                     ),
                 )
                 deal_id = int(cur.lastrowid)
@@ -1366,6 +1463,8 @@ class CabinetStore:
                 if not row:
                     return None
                 fields: dict[str, Any] = {}
+                if "purchase_date" in data.model_fields_set:
+                    fields["purchase_date"] = data.purchase_date.isoformat() if data.purchase_date else None
                 if data.title is not None:
                     fields["title"] = data.title.strip()
                 if data.vin is not None:

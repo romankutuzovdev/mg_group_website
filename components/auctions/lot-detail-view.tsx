@@ -20,7 +20,6 @@ import {
   isClosedAuction,
   REGION_LABELS,
 } from "@/lib/auctions/types";
-import { isAuctionEnded } from "@/lib/auctions/filter-lots";
 import { formatOdometerKm, isOdometerKnown } from "@/lib/auctions/odometer";
 import { AiCarChat } from "@/components/ai/ai-car-chat";
 import {
@@ -30,7 +29,7 @@ import {
 } from "@/lib/auctions/lot-specs";
 import { collectLotPhotoUrls, toLotHeroUrl, toLotThumbUrl } from "@/lib/auctions/lot-image-url";
 import { presentLot } from "@/lib/auctions/listing-blob";
-import { fetchLotGallery } from "@/lib/api/client";
+import { fetchLotGallery, type PublicLotPage } from "@/lib/api/client";
 import { CONSULTATION_TG, consultationMessage } from "@/lib/company";
 
 function formatMoney(amount: number, currency: "USD" | "GBP" | "KRW") {
@@ -43,6 +42,7 @@ function formatMoney(amount: number, currency: "USD" | "GBP" | "KRW") {
 }
 
 function formatDate(iso: string) {
+  if (!Number.isFinite(Date.parse(iso))) return "Дата уточняется";
   return new Intl.DateTimeFormat("ru-RU", {
     timeZone: "Europe/Minsk",
     weekday: "long",
@@ -64,16 +64,11 @@ function SpecRow({ label, value }: { label: string; value: string | boolean }) {
   );
 }
 
-function lotVehicleJsonLd(lot: AuctionLot, path: string) {
-  const url = absoluteUrl(path);
+function lotVehicleJsonLd(lot: AuctionLot, url: string) {
   const photos = collectLotPhotoUrls(lot);
   const image = toLotHeroUrl(photos[0] || "");
   const imageAbs =
     image.startsWith("http") ? image : absoluteUrl(image || "/logo.png");
-  const ended = isAuctionEnded(lot);
-  const availability = ended
-    ? "https://schema.org/SoldOut"
-    : "https://schema.org/InStock";
 
   return {
     "@context": "https://schema.org",
@@ -93,16 +88,16 @@ function lotVehicleJsonLd(lot: AuctionLot, path: string) {
       : undefined,
     image: imageAbs,
     url,
-    offers: {
+    offers: lot.currentBid > 0 || (lot.buyNowPrice ?? 0) > 0 ? {
       "@type": "Offer",
       url,
       priceCurrency: lot.currency,
-      price: lot.currentBid,
-      availability,
+      price: lot.currentBid > 0 ? lot.currentBid : lot.buyNowPrice,
+      availability: "https://schema.org/InStock",
       ...(lot.auctionDate
         ? { priceValidUntil: lot.auctionDate.slice(0, 10) }
         : {}),
-    },
+    } : undefined,
   };
 }
 
@@ -132,9 +127,11 @@ function regionCrumbLabel(region: AuctionLot["region"]) {
 export function LotDetailView({
   dictionary,
   lot: rawLot,
+  preview,
 }: {
   dictionary: Dictionary;
   lot: AuctionLot;
+  preview: PublicLotPage["preview"];
 }) {
   // China search gives one photo per car; the full gallery is read on first view.
   const [gallery, setGallery] = useState<{ slug: string; urls: string[] } | null>(null);
@@ -155,7 +152,7 @@ export function LotDetailView({
     return presentLot(urls ? { ...rawLot, imageUrl: urls[0], imageUrls: urls } : rawLot);
   }, [rawLot, gallery]);
   const router = useRouter();
-  const lotPath = `/auctions/${lot.slug}/`;
+  const lotPath = new URL(preview.canonical).pathname;
   const backHref = catalogHref(lot.region);
   const photos = useMemo(() => collectLotPhotoUrls(lot), [lot]);
 
@@ -166,9 +163,6 @@ export function LotDetailView({
 
   const safeActive = photos.length ? Math.min(active, photos.length - 1) : 0;
   const mainSrc = toLotHeroUrl(photos[safeActive] || photos[0] || "");
-  const ended = isAuctionEnded(lot);
-  const isDemo = Boolean(lot._demo);
-  const shouldNoindex = ended || isDemo;
   const regionPath = catalogPathOnly(lot.region);
   const crumbName = `${lot.year} ${lot.make} ${lot.model}`;
 
@@ -184,18 +178,13 @@ export function LotDetailView({
   return (
     <>
       <SEO
-        dictionary={{
-          ...dictionary,
-          metadata: {
-            ...dictionary.metadata,
-            title: `${lot.year} ${lot.make} ${lot.model} | MG.GROUP`,
-            description: `Лот #${lot.lotNumber}. ${lot.primaryDamage}. Ставка от ${formatMoney(lot.currentBid, lot.currency)}.`,
-          },
-        }}
+        dictionary={dictionary}
+        title={preview.title}
+        description={preview.description}
         lang="ru"
         path={lotPath}
         image={lot.imageUrl || undefined}
-        noindex={shouldNoindex}
+        noindex={preview.robots.startsWith("noindex")}
         jsonLd={[
           breadcrumbJsonLd([
             { name: "Главная", path: "/" },
@@ -206,7 +195,7 @@ export function LotDetailView({
             { name: regionCrumbLabel(lot.region), path: regionPath },
             { name: crumbName, path: lotPath },
           ]),
-          lotVehicleJsonLd(lot, lotPath),
+          lotVehicleJsonLd(lot, preview.canonical),
         ]}
       />
       <div className="pt-16">
@@ -238,6 +227,7 @@ export function LotDetailView({
                   <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-text-secondary">
                     #{lot.lotNumber}
                   </span>
+                  <span className="text-xs text-text-secondary">Статус лота — {preview.status}</span>
                   {isClosedAuction(lot) ? (
                     <span className="rounded-md bg-zinc-900 px-2 py-0.5 text-xs font-semibold text-white">
                       {CLOSED_AUCTION_LABEL}
@@ -307,13 +297,14 @@ export function LotDetailView({
             <aside className="space-y-4 lg:col-start-2 lg:row-span-2 lg:self-start lg:sticky lg:top-24">
               <div className="card-premium rounded-xl p-5 sm:p-6">
                 <p className="text-sm text-text-muted">
-                  {lot.region === "china" ? "Цена в Китае" : "Ставка на аукционе"}
+                  {preview.priceLabel}
                 </p>
                 <p className="font-display text-3xl font-bold text-accent-dark">
-                  {lot.region === "china"
-                    ? formatCny(lot.currentBid)
-                    : formatMoney(lot.currentBid, lot.currency)}
+                  {preview.price}
                 </p>
+                {lot.region === "china" && lot.currency === "USD" && lot.currentBid > 0 ? (
+                  <p className="text-sm text-text-muted">{formatCny(lot.currentBid)}</p>
+                ) : null}
                 {lot.estimatedCostMin || lot.estimatedCostMax ? (
                   <div className="mt-3 rounded-xl bg-gradient-to-r from-[#22c55e]/15 to-[#22c55e]/5 p-3 ring-1 ring-inset ring-[#22c55e]/30">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D3F10]">

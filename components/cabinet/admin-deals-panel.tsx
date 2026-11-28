@@ -16,6 +16,7 @@ import {
   adminBackfillDealSpecs,
   adminCreateClientAccount,
   adminCreateDeal,
+  adminDeleteDeal,
   adminFillDealSpecsFromLot,
   adminResetClientPassword,
   adminUpdateDeal,
@@ -29,6 +30,15 @@ import {
 } from "@/lib/api/cabinet";
 import { fetchLotFromUrl } from "@/lib/api/client";
 import { DeleteAccountButton } from "@/components/cabinet/delete-account-button";
+import { ConfirmDeleteButton } from "@/components/cabinet/confirm-delete-button";
+import { EditClientNameButton } from "@/components/cabinet/edit-client-name-button";
+import { SearchHighlight } from "@/components/cabinet/search-highlight";
+import { dealMatchesSearch } from "@/lib/cabinet/client-search";
+import { DealListControls } from "@/components/cabinet/deal-list-controls";
+import { DealPaymentStages } from "@/components/cabinet/deal-payment-stages";
+import { DealPurchaseDate } from "@/components/cabinet/deal-purchase-date";
+import { DealLocationBadge } from "@/components/cabinet/deal-location-badge";
+import { dealLocation, formatPurchaseDate, prepareDealGroups, type DealSort, type DealStatusFilter } from "@/lib/cabinet/deal-list";
 import { formatOdometerKm } from "@/lib/auctions/odometer";
 import { apiUrl, isApiEnabled } from "@/lib/api/config";
 import { lotHost } from "@/lib/pricing/lot-url";
@@ -192,6 +202,8 @@ export function AdminDealsPanel({
   const [ok, setOk] = useState<string | null>(null);
   const [compose, setCompose] = useState<"none" | "client" | "deal">(formOnly ?? "none");
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<DealStatusFilter>("all");
+  const [sort, setSort] = useState<DealSort>("default");
   const [selectedClientKey, setSelectedClientKey] = useState<string | null>(null);
   /** Mobile: список клиентов или карточка клиента с авто */
   const [mobilePane, setMobilePane] = useState<"clients" | "workspace">("clients");
@@ -226,6 +238,7 @@ export function AdminDealsPanel({
   const [title, setTitle] = useState("");
   const [vin, setVin] = useState("");
   const [lotNumber, setLotNumber] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState("");
   const [note, setNote] = useState("");
   const [specs, setSpecs] = useState<DealSpecs>({});
   const [price, setPrice] = useState("");
@@ -479,6 +492,7 @@ export function AdminDealsPanel({
         title: title.trim(),
         vin: vin.trim(),
         lot_number: lotNumber.trim(),
+        purchase_date: purchaseDate || null,
         lot_url: lotUrl.trim(),
         tracking_url: kind === "car" ? trackingUrl.trim() : "",
         dismantle_photos_url: kind === "kit" ? dismantlePhotosUrl.trim() : "",
@@ -512,6 +526,7 @@ export function AdminDealsPanel({
       setTitle("");
       setVin("");
       setLotNumber("");
+      setPurchaseDate("");
       setNote("");
       setSpecs({});
       setPrice("");
@@ -873,25 +888,20 @@ export function AdminDealsPanel({
 
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return crmClients;
-    return crmClients.filter((c) => {
+    const searched = !q ? crmClients : crmClients.flatMap((c) => {
       if (
         c.label.toLowerCase().includes(q) ||
         c.phone.toLowerCase().includes(q) ||
         c.username.toLowerCase().includes(q) ||
         c.managerLabel.toLowerCase().includes(q)
       ) {
-        return true;
+        return [c];
       }
-      return c.deals.some((d) => {
-        const hay = [d.title, d.vin, d.lot_number, DEAL_KIND_LABELS[dealKind(d)]]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return hay.includes(q);
-      });
+      const matchingDeals = c.deals.filter((d) => dealMatchesSearch(d, query) || DEAL_KIND_LABELS[dealKind(d)].toLowerCase().includes(q));
+      return matchingDeals.length ? [{ ...c, deals: matchingDeals }] : [];
     });
-  }, [crmClients, query]);
+    return prepareDealGroups(searched, statusFilter, sort);
+  }, [crmClients, query, statusFilter, sort]);
 
   useEffect(() => {
     if (!filteredClients.length) {
@@ -1475,6 +1485,10 @@ export function AdminDealsPanel({
             </div>
           </label>
           <label className="block text-xs">
+            <span className={labelMuted}>Дата покупки</span>
+            <input type="date" className={field} value={purchaseDate} onChange={(event) => setPurchaseDate(event.target.value)} />
+          </label>
+          <label className="block text-xs">
             <span className={labelMuted}>
               {kind === "kit" ? "Страна (карта разбора)" : "Страна маршрута"}
             </span>
@@ -1594,6 +1608,9 @@ export function AdminDealsPanel({
       {/* CRM board: clients | cars */}
       {formOnly ? null : (
       <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+        <div className="border-b border-zinc-100 p-3">
+          <DealListControls status={statusFilter} sort={sort} onStatusChange={setStatusFilter} onSortChange={setSort} />
+        </div>
         {/* Mobile tabs */}
         <div className="flex border-b border-zinc-100 lg:hidden">
           <button
@@ -1655,8 +1672,8 @@ export function AdminDealsPanel({
             <ul className="max-h-[50vh] flex-1 overflow-y-auto lg:max-h-[min(68vh,720px)]">
               {filteredClients.length === 0 ? (
                 <li className="px-4 py-10 text-center text-xs text-zinc-500">
-                  {query.trim() ? "Никого не найдено" : "Пока нет клиентов"}
-                  {!query.trim() ? (
+                  {query.trim() || statusFilter !== "all" ? "Нет автомобилей с выбранным статусом или запросом" : "Пока нет клиентов"}
+                  {!query.trim() && statusFilter === "all" ? (
                     <button
                       type="button"
                       onClick={() => setCompose("client")}
@@ -1755,6 +1772,13 @@ export function AdminDealsPanel({
                       </p>
                     </div>
                     <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
+                      {users.filter((client) => client.id === clientUserId(selectedClient) && !client.is_admin && !client.is_manager && !client.is_logist && (currentUser?.is_admin || client.manager_user_id === currentUser?.id)).map((client) => (
+                        <EditClientNameButton key={client.id} client={client} onUpdated={(updated) => {
+                          setUsers((current) => current.map((item) => item.id === updated.id ? updated : item));
+                          const name = [updated.first_name, updated.last_name].filter(Boolean).join(" ");
+                          setDeals((current) => current.map((item) => item.client_telegram_id === updated.telegram_id ? { ...item, client_name: name } : item));
+                        }} />
+                      ))}
                       {canResetPasswordFor(selectedClient) ? (
                         <button
                           type="button"
@@ -1890,15 +1914,18 @@ export function AdminDealsPanel({
                       const pct = Math.round(
                         (p.done / Math.max(p.total, 1)) * 100,
                       );
+                      const found = dealMatchesSearch(deal, query);
                       return (
                         <article
                           key={deal.id}
-                          className="overflow-hidden rounded-md border border-zinc-200 bg-white"
+                          className="deal-status-card overflow-hidden rounded-md border"
+                          data-location={dealLocation(deal).key}
+                          data-search-match={found || undefined}
                         >
                           <button
                             type="button"
                             onClick={() => onOpenDeal?.(deal.id)}
-                            className="flex w-full gap-3 p-3 text-left transition hover:bg-emerald-50/40 sm:p-3.5"
+                            className="deal-status-card-open flex w-full gap-3 p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/40 sm:p-3.5"
                           >
                             <div className="h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-200/80 sm:h-[4.5rem] sm:w-28">
                               <CoverThumb
@@ -1914,19 +1941,32 @@ export function AdminDealsPanel({
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <span className="text-sm font-semibold text-zinc-900">
-                                  {deal.title}
+                                  <SearchHighlight text={deal.title} query={query} />
                                 </span>
-                                <span
-                                  className={[
-                                    "rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                                    deal.status === "completed"
-                                      ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100"
-                                      : deal.status === "cancelled"
-                                        ? "bg-rose-50 text-rose-800 ring-1 ring-rose-100"
-                                        : "bg-amber-50 text-amber-900 ring-1 ring-amber-100",
-                                  ].join(" ")}
-                                >
-                                  {statusLabel(deal.status)}
+                                <span className="inline-flex flex-wrap items-center gap-1.5">
+                                  {found ? <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-inset ring-emerald-300">Найдено</span> : null}
+                                  <span
+                                    className={[
+                                      "rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                      deal.status === "completed"
+                                        ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100"
+                                        : deal.status === "cancelled"
+                                          ? "bg-rose-50 text-rose-800 ring-1 ring-rose-100"
+                                          : "bg-blue-50 text-blue-800 ring-1 ring-blue-200",
+                                    ].join(" ")}
+                                  >
+                                    {statusLabel(deal.status)}
+                                  </span>
+                                </span>
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                                <span className="min-w-0 [overflow-wrap:anywhere]">
+                                  <span className="text-zinc-500">VIN: </span>
+                                  <span className="font-mono text-zinc-700">{deal.vin ? <SearchHighlight text={deal.vin} query={query} identifier /> : "не указан"}</span>
+                                </span>
+                                <span className="min-w-0 [overflow-wrap:anywhere]">
+                                  <span className="text-zinc-500">Лот: </span>
+                                  <span className="font-mono text-zinc-700">{deal.lot_number ? <SearchHighlight text={`#${deal.lot_number}`} query={query} identifier /> : "не указан"}</span>
                                 </span>
                               </div>
                               <p className="mt-0.5 text-[11px] text-zinc-500">
@@ -1935,13 +1975,15 @@ export function AdminDealsPanel({
                                   regionLabel(deal.origin_region),
                                   deal.dismantle_yard && DISMANTLE_YARD_LABELS[deal.dismantle_yard],
                                   paymentProgressLabel(deal),
-                                  deal.lot_number && `#${deal.lot_number}`,
                                   photoCount ? `${photoCount} фото` : null,
                                   specsSummary(deal.specs),
                                 ]
                                   .filter(Boolean)
                                   .join(" · ")}
                               </p>
+                              <p className="mt-1 text-xs text-zinc-500">Дата покупки: <span className="text-zinc-700">{formatPurchaseDate(deal.purchase_date)}</span></p>
+                              <DealLocationBadge deal={deal} />
+                              <DealPaymentStages deal={deal} />
                               <div className="mt-2">
                                 <div className="flex items-center justify-between text-[10px] text-zinc-400">
                                   <span>
@@ -1961,6 +2003,22 @@ export function AdminDealsPanel({
                               </div>
                             </div>
                           </button>
+                          {currentUser?.is_admin || (currentUser?.is_manager && (deal.manager_user_id === currentUser.id || users.some((client) => client.telegram_id === deal.client_telegram_id && client.manager_user_id === currentUser.id))) ? (
+                            <div className="flex justify-end border-t border-zinc-100 px-3 py-1.5">
+                              <ConfirmDeleteButton
+                                label={`Удалить автомобиль ${deal.title}`}
+                                title={`Удалить «${deal.title}»?`}
+                                description={`Клиент: ${selectedClient.label}. ${[deal.vin && `VIN: ${deal.vin}`, deal.lot_number && `Лот: #${deal.lot_number}`].filter(Boolean).join(". ")}. Карточка автомобиля, её фото и данные сделки будут удалены. Отменить удаление нельзя.`}
+                                onDelete={async () => {
+                                  await adminDeleteDeal(deal.id);
+                                  setDeals((current) => current.filter((item) => item.id !== deal.id));
+                                  setOk(`Автомобиль «${deal.title}» удалён.`);
+                                }}
+                              >
+                                Удалить авто
+                              </ConfirmDeleteButton>
+                            </div>
+                          ) : null}
                           <div
                             className={[
                               "grid gap-2 border-t border-zinc-100 bg-zinc-50/50 px-3 py-2.5",
@@ -1968,6 +2026,11 @@ export function AdminDealsPanel({
                             ].join(" ")}
                             onClick={(e) => e.stopPropagation()}
                           >
+                            <DealPurchaseDate
+                              deal={deal}
+                              canEdit={Boolean(currentUser?.is_admin || (currentUser?.is_manager && (deal.manager_user_id === currentUser.id || deal.client_manager_user_id === currentUser.id)))}
+                              onUpdated={(next) => setDeals((current) => current.map((item) => item.id === next.id ? next : item))}
+                            />
                             {canAssignRoles ? (
                               <label className="block text-[11px] font-medium text-zinc-500">
                                 Менеджер

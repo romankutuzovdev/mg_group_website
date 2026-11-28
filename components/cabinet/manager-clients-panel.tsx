@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BriefcaseBusiness,
+  CarFront,
   ChevronRight,
   Route,
   Search,
@@ -10,6 +11,15 @@ import {
 } from "lucide-react";
 import { AdminDealsPanel } from "@/components/cabinet/admin-deals-panel";
 import { DeleteAccountButton } from "@/components/cabinet/delete-account-button";
+import { ConfirmDeleteButton } from "@/components/cabinet/confirm-delete-button";
+import { EditClientNameButton } from "@/components/cabinet/edit-client-name-button";
+import { CoverThumb, dealCoverPhotoUrl } from "@/components/cabinet/deal-photos";
+import { dealMatchesSearch, filterClientGroups } from "@/lib/cabinet/client-search";
+import { SearchHighlight } from "@/components/cabinet/search-highlight";
+import { DealListControls } from "@/components/cabinet/deal-list-controls";
+import { DealPaymentStages } from "@/components/cabinet/deal-payment-stages";
+import { DealLocationBadge } from "@/components/cabinet/deal-location-badge";
+import { dealLocation, formatPurchaseDate, prepareDealGroups, type DealSort, type DealStatusFilter } from "@/lib/cabinet/deal-list";
 import { ApiError } from "@/lib/api/client";
 import {
   Avatar,
@@ -35,6 +45,7 @@ import {
   dealKind,
   dealProgress,
   assignClientManager,
+  adminDeleteDeal,
   fetchAdminDeals,
   fetchAdminUsers,
   regionLabel,
@@ -137,6 +148,8 @@ export function ManagerClientsPanel({
   const [assignmentBlocked, setAssignmentBlocked] = useState(false);
   const assignmentDisabled = assigning !== null || assignmentBlocked;
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<DealStatusFilter>("all");
+  const [sort, setSort] = useState<DealSort>("default");
   const [compose, setCompose] = useState<"deal" | "client" | null>(null);
   const [scope, setScope] = useState<Scope>("all");
   /** Клиент, для которого открыта форма «Создать сделку». */
@@ -238,21 +251,8 @@ export function ManagerClientsPanel({
   );
   const groups = scope === "mine" ? mineGroups : allGroups;
   const scopeDeals = useMemo(() => groups.flatMap((g) => g.deals), [groups]);
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return groups;
-    return groups.filter((g) =>
-      [
-        g.name,
-        g.sub,
-        g.managerName,
-        ...g.deals.flatMap((d) => [d.title, d.lot_number, d.vin]),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(q),
-    );
-  }, [groups, query]);
+  const visible = useMemo(() => prepareDealGroups(filterClientGroups(groups, query), statusFilter, sort), [groups, query, statusFilter, sort]);
+  const hasFilters = Boolean(query.trim() || statusFilter !== "all");
 
   return (
     <div className="space-y-5">
@@ -335,12 +335,18 @@ export function ManagerClientsPanel({
       <label className="relative block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
         <input
+          type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Клиент, машина, лот или VIN"
+          aria-label="Поиск клиентов и автомобилей по имени, VIN или номеру лота"
+          autoCapitalize="none"
+          spellCheck={false}
           className={`${inputClass} pl-9`}
         />
       </label>
+
+      <DealListControls status={statusFilter} sort={sort} onStatusChange={setStatusFilter} onSortChange={setSort} />
 
       {error ? (
         <Notice tone="danger" action={<Button size="sm" variant="ghost" onClick={() => void load()}>Обновить список</Button>}>
@@ -356,10 +362,10 @@ export function ManagerClientsPanel({
       ) : visible.length === 0 ? (
         <EmptyState
           icon={<Users className="h-5 w-5" />}
-          title={query ? "Ничего не найдено" : "Клиентов пока нет"}
+          title={hasFilters ? "Автомобили не найдены" : "Клиентов пока нет"}
           description={
-            query
-              ? "Измените запрос."
+            hasFilters
+              ? "Измените поисковый запрос или выбранный статус."
               : scope === "mine"
                 ? "Создайте клиента кнопкой «+ Клиент» или откройте «Все клиенты» и нажмите «Забрать себе»."
                 : "Клиенты появятся, когда зарегистрируются или их создаст менеджер."
@@ -382,6 +388,15 @@ export function ManagerClientsPanel({
                   ) : null}
                 </div>
                 <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end">
+                  {group.userId && (manager.is_admin || users.some((client) => client.id === group.userId && client.manager_user_id === manager.id)) ? (
+                    <EditClientNameButton
+                      client={users.find((client) => client.id === group.userId)!}
+                      onUpdated={(updated) => {
+                        setUsers((current) => current.map((client) => client.id === updated.id ? updated : client));
+                        setDeals((current) => current.map((deal) => deal.client_telegram_id === updated.telegram_id ? { ...deal, client_name: userName(updated) } : deal));
+                      }}
+                    />
+                  ) : null}
                   {group.managerId === manager.id ? (
                     <Badge tone="success">Мой</Badge>
                   ) : group.managerName ? (
@@ -485,28 +500,67 @@ export function ManagerClientsPanel({
                 <ul className="divide-y divide-zinc-100">
                   {group.deals.map((deal) => {
                     const p = dealProgress(deal);
+                    const cover = dealCoverPhotoUrl(deal);
+                    const found = dealMatchesSearch(deal, query);
                     return (
-                      <li key={deal.id}>
+                      <li key={deal.id} className="deal-status-card relative" data-location={dealLocation(deal).key} data-search-match={found || undefined}>
                         <button
                           type="button"
                           onClick={() => onOpenDeal(deal.id)}
-                          className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-zinc-50"
+                          className="deal-status-card-open flex w-full items-start gap-3 py-3 pl-4 pr-12 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/40"
                         >
+                          <span className="block h-14 w-[4.5rem] shrink-0 overflow-hidden rounded-md bg-zinc-100 ring-1 ring-zinc-200 sm:h-16 sm:w-24">
+                            <CoverThumb
+                              key={cover}
+                              src={cover}
+                              alt={deal.title}
+                              fallback={
+                                <span className="flex h-full flex-col items-center justify-center gap-1 text-xs text-zinc-500">
+                                  <CarFront className="h-5 w-5" aria-hidden="true" />
+                                  Нет фото
+                                </span>
+                              }
+                            />
+                          </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[13px] font-medium text-zinc-900">
-                              {deal.title}
+                            <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                              <span className="min-w-0 text-sm font-medium text-zinc-900 [overflow-wrap:anywhere]">
+                                <SearchHighlight text={deal.title} query={query} />
+                              </span>
+                              <span className="inline-flex flex-wrap items-center gap-1.5">
+                                {found ? <Badge tone="success">Найдено</Badge> : null}
+                                <Badge tone={dealStatusTone(deal.status)} dot>
+                                  {dealStatusLabel(deal.status)}
+                                </Badge>
+                              </span>
                             </span>
-                            <span className="mt-0.5 block truncate text-xs text-zinc-500">
+                            <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                              <span className="min-w-0 [overflow-wrap:anywhere]">
+                                <span className="text-zinc-500">VIN: </span>
+                                <span className="font-mono text-zinc-700">
+                                  {deal.vin ? <SearchHighlight text={deal.vin} query={query} identifier /> : "не указан"}
+                                </span>
+                              </span>
+                              <span className="min-w-0 [overflow-wrap:anywhere]">
+                                <span className="text-zinc-500">Лот: </span>
+                                <span className="font-mono text-zinc-700">
+                                  {deal.lot_number ? <SearchHighlight text={`#${deal.lot_number}`} query={query} identifier /> : "не указан"}
+                                </span>
+                              </span>
+                            </span>
+                            <span className="mt-1 block text-xs text-zinc-500 [overflow-wrap:anywhere]">
                               {[
                                 DEAL_KIND_LABELS[dealKind(deal)],
                                 regionLabel(deal.origin_region),
                                 deal.dismantle_yard &&
                                   DISMANTLE_YARD_LABELS[deal.dismantle_yard],
-                                deal.lot_number && `#${deal.lot_number}`,
                               ]
                                 .filter(Boolean)
                                 .join(" · ")}
                             </span>
+                            <span className="mt-1 block text-xs text-zinc-500">Дата покупки: <span className="text-zinc-700">{formatPurchaseDate(deal.purchase_date)}</span></span>
+                            <DealLocationBadge deal={deal} />
+                            <DealPaymentStages deal={deal} />
                             <span className="mt-2 flex items-center gap-2">
                               <Progress
                                 value={(p.done / p.total) * 100}
@@ -517,11 +571,21 @@ export function ManagerClientsPanel({
                               </span>
                             </span>
                           </span>
-                          <Badge tone={dealStatusTone(deal.status)} dot>
-                            {dealStatusLabel(deal.status)}
-                          </Badge>
-                          <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
+                          <ChevronRight className="h-4 w-4 shrink-0 self-center text-zinc-300" aria-hidden="true" />
                         </button>
+                        {manager.is_admin || group.managerId === manager.id || deal.manager_user_id === manager.id ? (
+                          <ConfirmDeleteButton
+                            label={`Удалить автомобиль ${deal.title}`}
+                            title={`Удалить «${deal.title}»?`}
+                            description={`Клиент: ${group.name}. ${[deal.vin && `VIN: ${deal.vin}`, deal.lot_number && `Лот: #${deal.lot_number}`].filter(Boolean).join(". ")}. Карточка автомобиля, её фото и данные сделки будут удалены. Отменить удаление нельзя.`}
+                            className="absolute right-2 top-2 h-8 w-8 px-0"
+                            onDelete={async () => {
+                              await adminDeleteDeal(deal.id);
+                              setDeals((current) => current.filter((item) => item.id !== deal.id));
+                              setSuccess(`Автомобиль «${deal.title}» удалён.`);
+                            }}
+                          />
+                        ) : null}
                       </li>
                     );
                   })}

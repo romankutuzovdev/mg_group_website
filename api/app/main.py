@@ -38,6 +38,7 @@ from app.routers import (
     pricing,
     purchased_cars,
     scraper,
+    sitemaps,
 )
 from app.scraper.worker import scraper_worker, start_scraper_in_background
 from app.services.cabinet_store import cabinet_store
@@ -222,6 +223,11 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def redirect_domain_to_public_site(request: Request, call_next):
         host = (request.headers.get("host") or "").split(":")[0].strip().lower()
+        if _role(settings) == "public" and host == "www.mg-group.by":
+            path = request.scope["raw_path"].decode("ascii")
+            query = request.scope["query_string"].decode("ascii")
+            target = f"https://mg-group.by{path}"
+            return RedirectResponse(url=f"{target}?{query}" if query else target, status_code=308)
         if _do_apex_redirect and host in _redirect_hosts:
             path = request.url.path or "/"
             target = f"{_canonical}{path}"
@@ -258,6 +264,8 @@ def create_app() -> FastAPI:
     # Dynamic lot HTML + image proxy (before StaticFiles)
     app.include_router(auction_pages.router)
     app.include_router(lot_image.router)
+    app.include_router(sitemaps.router)
+    app.include_router(sitemaps.inventory_router, prefix=prefix)
 
     @app.api_route(
         f"{prefix}/{{full_path:path}}/",

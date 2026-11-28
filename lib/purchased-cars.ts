@@ -1,9 +1,3 @@
-import { SOURCE_LABELS, type AuctionLot } from "@/lib/auctions/types";
-import { formatOdometerKm } from "@/lib/auctions/odometer";
-import { hashSeed, pickDiverseAuctionLots } from "@/lib/auctions/example-picks";
-import { estimateLotBreakdown } from "@/lib/auctions/lot-quote";
-import { marketPriceFromTurnkey } from "@/lib/pricing/market-savings";
-
 export type PurchasedCarCurrency = "USD" | "GBP";
 
 export type PurchasedCar = {
@@ -32,60 +26,6 @@ export type PurchasedCar = {
   href?: string;
 };
 
-const MONTHS_RU = [
-  "январь",
-  "февраль",
-  "март",
-  "апрель",
-  "май",
-  "июнь",
-  "июль",
-  "август",
-  "сентябрь",
-  "октябрь",
-  "ноябрь",
-  "декабрь",
-];
-
-function lotToPurchased(lot: AuctionLot): PurchasedCar | null {
-  if (lot.region !== "usa" && lot.region !== "uk") return null;
-
-  const quote = estimateLotBreakdown(lot);
-  if (!quote || quote.amount <= 0) return null;
-
-  const seed = hashSeed(lot.id);
-  const month = MONTHS_RU[seed % 12];
-
-  return {
-    id: `auction-${lot.id}`,
-    year: lot.year,
-    make: lot.make,
-    model: lot.model,
-    image: lot.imageUrl,
-    source: SOURCE_LABELS[lot.source],
-    region: lot.region === "uk" ? "Англия" : "США",
-    purchasedAt: `${month} 2026`,
-    damage: lot.primaryDamage || "Salvage",
-    odometer: formatOdometerKm(lot.odometer, lot.odometerUnit),
-    auctionPrice: quote.auctionTotal,
-    delivery: quote.delivery,
-    dismantle: quote.dismantle,
-    deliveryAndFees: quote.deliveryAndFees,
-    totalCost: quote.amount,
-    marketBy: marketPriceFromTurnkey(quote.amount, seed),
-    currency: quote.currency,
-    href: `/auctions/${lot.slug}/`,
-  };
-}
-
-/** Только лоты США / Англии из аукционного каталога с расчётом под ключ. */
-export function getPurchasedCarsFeed(limit?: number): PurchasedCar[] {
-  const fromAuctions = pickDiverseAuctionLots(12)
-    .map(lotToPurchased)
-    .filter((c): c is PurchasedCar => c != null);
-  return limit ? fromAuctions.slice(0, limit) : fromAuctions;
-}
-
 export function formatMoney(amount: number, currency: PurchasedCarCurrency) {
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
@@ -99,9 +39,8 @@ export function savingsPercent(car: PurchasedCar) {
   return Math.round(((car.marketBy - car.totalCost) / car.marketBy) * 100);
 }
 
-export function purchasedCarsSummary(cars?: PurchasedCar[]) {
-  const pool = cars?.length ? cars : getPurchasedCarsFeed();
-  const normalized = pool.map((car) =>
+export function purchasedCarsSummary(cars: PurchasedCar[]) {
+  const normalized = cars.map((car) =>
     car.currency === "GBP"
       ? {
           ...car,
@@ -123,7 +62,7 @@ export function purchasedCarsSummary(cars?: PurchasedCar[]) {
       : Math.round(normalized.reduce((sum, car) => sum + savingsPercent(car), 0) / normalized.length);
 
   return {
-    count: pool.length,
+    count: cars.length,
     totalUsd,
     savedUsd,
     avgSavings,

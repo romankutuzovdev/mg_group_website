@@ -27,9 +27,10 @@ export default function UkKitCalculatorPage({ dictionary }: Props) {
         path="/calculator/angliya/"
       />
       <PageShell
-        title="Англия"
-        description="Машинокомплект только с Copart UK. Ставка в фунтах, сборы, доставка с площадки и разбор."
+        title="Калькулятор машинокомплекта из Англии"
+        description="Подготовьте ссылку Copart UK и ставку в фунтах. В расчёте учитываются сборы аукциона, перевозка с площадки и выбранная схема разборки."
       >
+        <p className="mb-6 text-sm"><Link href="/mashinokomplekt/uk/" className="text-accent-dark underline">Что входит в поставку из Англии и как складывается цена</Link></p>
         <CalculatorGate calc="kit-uk" />
         <p className="mt-8 text-sm text-text-muted">
           <Link href="/calculator/usa/" className="font-medium text-accent-dark underline underline-offset-2">

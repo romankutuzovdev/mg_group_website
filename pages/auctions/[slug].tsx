@@ -1,121 +1,43 @@
-"use client";
-
-import { GetStaticPaths, GetStaticProps } from "next";
-import { useRouter } from "next/router";
+import type { GetStaticPaths, GetStaticProps } from "next";
+import Head from "next/head";
 import { useEffect, useState } from "react";
 import { LotDetailView } from "@/components/auctions/lot-detail-view";
-import { fetchLotBySlug } from "@/lib/api/client";
-import { loadLotBySlug } from "@/lib/auctions/repository";
+import { fetchPublicLotPage, type PublicLotPage } from "@/lib/api/client";
 import { buildSeoInventory, getAuctionSsgLimit } from "@/lib/auctions/seo-inventory";
-import { getDictionary } from "@/lib/dictionary";
-import type { Dictionary } from "@/lib/dictionary";
-import type { AuctionLot } from "@/lib/auctions/types";
+import { getDictionary, type Dictionary } from "@/lib/dictionary";
 
-interface Props {
-  dictionary: Dictionary;
-  /** Preloaded on SSG / ISR when available */
-  lot: AuctionLot | null;
-  slug: string;
-}
+type Props = { dictionary: Dictionary; auctionPage: PublicLotPage };
 
-/**
- * Lot pages must be served by Next.js (Header/Footer), never rewritten to the
- * Windows FastAPI fallback HTML ("Rebuild website").
- */
-export default function LotDetailPage({ dictionary, lot: initialLot, slug: propSlug }: Props) {
-  const router = useRouter();
-  const routeSlug =
-    typeof router.query.slug === "string"
-      ? decodeURIComponent(router.query.slug)
-      : Array.isArray(router.query.slug)
-        ? decodeURIComponent(router.query.slug[0] || "")
-        : "";
-  const slug = (routeSlug || propSlug || "").trim();
-
-  const [lot, setLot] = useState<AuctionLot | null>(initialLot);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(!initialLot);
-
+export default function LotDetailPage({ dictionary, auctionPage }: Props) {
+  const [refresh, setRefresh] = useState<{ initial: PublicLotPage; page: PublicLotPage | null }>();
   useEffect(() => {
-    setLot(initialLot);
-  }, [initialLot]);
-
-  useEffect(() => {
-    if (!router.isReady) return;
-    if (!slug || slug === "__live__") {
-      setError("Не указан лот");
-      setLoading(false);
-      return;
-    }
-    // SSG HTML is baked with the cover only (`imageUrl`). The live API keeps
-    // the rest of the gallery in `imageUrls`, so always refresh after paint.
-    const hasInitial = Boolean(initialLot && initialLot.slug === slug);
-    if (!hasInitial) setLoading(true);
-
-    let cancelled = false;
-    fetchLotBySlug(slug)
-      .then((data) => {
-        if (cancelled) return;
-        if (!data) {
-          if (!hasInitial) {
-            setError("Лот не найден или торги завершены");
-            setLot(null);
-          }
-          return;
-        }
-        setLot(data);
-        setError(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        if (!hasInitial) {
-          setError(err instanceof Error ? err.message : "Ошибка загрузки лота");
-          setLot(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [router.isReady, slug, initialLot]);
-
-  if (!router.isReady || loading) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-24 text-center text-sm text-text-secondary">
-        Загрузка лота…
-      </div>
-    );
-  }
-
-  if (error || !lot) {
+    let active = true;
+    // An ISR snapshot may predate a gallery update. Keep the server-rendered
+    // details on a transient API failure, and honor a confirmed withdrawal.
+    fetchPublicLotPage(auctionPage.lot.slug)
+      .then(page => { if (active) setRefresh({ initial: auctionPage, page }); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [auctionPage]);
+  const page = refresh?.initial === auctionPage ? refresh.page : auctionPage;
+  if (!page) {
     return (
       <div className="mx-auto max-w-lg px-4 py-24 text-center">
-        <h1 className="text-xl font-semibold">Лот не найден</h1>
-        <p className="mt-2 text-sm text-text-secondary">{error || "Страница недоступна"}</p>
-        <a href="/avto/" className="mt-6 inline-flex text-sm font-medium text-accent-dark underline">
-          ← К каталогу авто
-        </a>
+        <Head><title>Лот не найден | MG.GROUP</title><meta name="robots" content="noindex" /></Head>
+        <h1>Лот не найден</h1>
+        <a className="text-accent-dark" href="/avto/">К каталогу авто</a>
       </div>
     );
   }
-
-  return <LotDetailView dictionary={dictionary} lot={lot} />;
+  return <LotDetailView dictionary={dictionary} lot={page.lot} preview={page.preview} />;
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  // Vercel / next dev: generate on demand (full _app shell).
   if (process.env.VERCEL === "1" || process.env.NODE_ENV === "development") {
     return { paths: [], fallback: "blocking" };
   }
-
-  // Static export (Windows): only prebuilt slugs; otherwise FastAPI __live__ / CF Function.
   const limit = getAuctionSsgLimit();
-  if (limit <= 0) {
-    return { paths: [], fallback: false };
-  }
+  if (limit <= 0) return { paths: [], fallback: false };
   const { auctionSlugs } = await buildSeoInventory();
   return {
     paths: auctionSlugs.slice(0, limit).map((slug) => ({ params: { slug } })),
@@ -124,29 +46,13 @@ export const getStaticPaths: GetStaticPaths = async () => {
 };
 
 export const getStaticProps: GetStaticProps<Props> = async (ctx) => {
-  const slug = String(ctx.params?.slug ?? "").trim();
-  const dictionary = getDictionary();
-  const dynamic =
-    process.env.VERCEL === "1" || process.env.NODE_ENV === "development";
-
-  if (dynamic) {
-    let lot: AuctionLot | null = null;
-    try {
-      lot = await fetchLotBySlug(slug);
-    } catch {
-      lot = null;
-    }
-    return {
-      props: { dictionary, lot, slug },
-      ...(process.env.VERCEL === "1" ? { revalidate: 60 } : {}),
-    };
+  const slug = String(ctx.params?.slug ?? "");
+  // A failed API request must propagate to Next's 5xx / ISR retry path.
+  const page = await fetchPublicLotPage(slug);
+  const cache = process.env.VERCEL === "1" ? { revalidate: 60 } : {};
+  if (!page) return { notFound: true, ...cache };
+  if (page.lot.slug !== slug) {
+    return { redirect: { destination: `/auctions/${encodeURIComponent(page.lot.slug)}/`, permanent: true }, ...cache };
   }
-
-  const lot = await loadLotBySlug(slug);
-  if (!lot) {
-    return { notFound: true };
-  }
-  return {
-    props: { dictionary, lot, slug },
-  };
+  return { props: { dictionary: getDictionary(), auctionPage: page }, ...cache };
 };

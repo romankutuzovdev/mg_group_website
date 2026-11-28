@@ -1,5 +1,6 @@
 import { GetStaticProps } from "next";
 import SEO from "@/components/SEO";
+import { organizationJsonLd } from "@/components/catalog/seo";
 import { OfficeMap } from "@/components/contacts/office-map";
 import { LeadForm } from "@/components/leads/lead-form";
 import { PageShell } from "@/components/layout/page-shell";
@@ -7,7 +8,7 @@ import { AnchorButton } from "@/components/site/button";
 import { MessengerLinks } from "@/components/site/messengers";
 import { getDictionary } from "@/lib/dictionary";
 import type { Dictionary } from "@/lib/dictionary";
-import { COMPANY, CONSULTATION_TG, OFFICE_LOCATION, PHONES } from "@/lib/company";
+import { COMPANY, CONSULTATION_TG, OFFICE_MAPS, PHONES } from "@/lib/company";
 
 interface Props {
   dictionary: Dictionary;
@@ -21,15 +22,16 @@ export default function ContactsPage({ dictionary }: Props) {
           ...dictionary,
           metadata: {
             ...dictionary.metadata,
-            title: "Контакты | MG.GROUP",
-            description: `Контакты MG.GROUP: ${PHONES.map((p) => p.display).join(", ")}. ${COMPANY.address}.`,
+            title: "Контакты MG.GROUP в Гродно — адрес офиса и часы работы",
+            description: `Офис MG.GROUP по адресу ${COMPANY.address}. ${COMPANY.hoursWeekdays}. Телефон для консультации ${PHONES[0].display}. Схема проезда и контакты менеджеров.`,
           },
         }}
         lang="ru"
         path="/contacts/"
+        jsonLd={organizationJsonLd()}
       />
       <PageShell
-        title="Контакты"
+        title="Контакты MG.GROUP в Гродно"
         description="Свяжитесь с нами в Viber, Telegram или WhatsApp — подберём авто, машинокомплект или спецтехнику."
       >
         <div className="grid gap-8 lg:grid-cols-2">
@@ -64,7 +66,10 @@ export default function ContactsPage({ dictionary }: Props) {
             <p className="mt-4 text-sm text-text-secondary">{COMPANY.hoursWeekdays}</p>
             <p className="text-sm text-text-secondary">{COMPANY.hoursWeekend}</p>
             <OfficeMap className="mt-6 h-72 w-full sm:h-80" />
-            <p className="mt-3 text-center text-xs text-text-muted">{OFFICE_LOCATION.name}</p>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-accent-dark underline">
+              <a href={OFFICE_MAPS.google}>Открыть в Google Картах</a>
+              <a href={OFFICE_MAPS.yandex}>Открыть в Яндекс Картах</a>
+            </div>
           </div>
         </div>
 

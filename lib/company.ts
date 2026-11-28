@@ -1,22 +1,29 @@
 export const CONSULTATION_TG = "https://t.me/Yury_MG_Global";
 export const INSTAGRAM_URL = "https://www.instagram.com/mg.group_by/";
 
+export const OFFICE_LOCATION = {
+  city: "Гродно",
+  name: "ул. Медовая, 1",
+  lat: 53.68574,
+  lng: 23.82836,
+  zoom: 17,
+  opens: "09:00",
+  closes: "18:00",
+} as const;
+
+export const OFFICE_MAPS = {
+  google: `https://www.google.com/maps/search/?api=1&query=${OFFICE_LOCATION.lat},${OFFICE_LOCATION.lng}`,
+  yandex: "https://yandex.by/maps/10274/grodno/house/ZkoYfgVoSkcCQFtpfXp5dHplbA%3D%3D/",
+} as const;
+
 export const COMPANY = {
   name: "MG.GROUP",
   description:
     "Подбор и доставка авто под заказ из США, Китая и Кореи. Машинокомплекты из США и Англии",
-  address: "г. Гродно, ул. Медовая 1",
-  hoursWeekdays: "Будни — 9:00–18:00",
+  address: `г. ${OFFICE_LOCATION.city}, ${OFFICE_LOCATION.name}`,
+  hoursWeekdays: `Пн–Пт ${OFFICE_LOCATION.opens}–${OFFICE_LOCATION.closes}`,
   hoursWeekend: "Суббота, воскресенье — выходной",
   partners: "Copart, IAAI, Manheim, Mobile.de, Autoplius.lt, Encar, Che168, Guazi",
-} as const;
-
-/** Координаты офиса, ул. Медовая 1, Гродно */
-export const OFFICE_LOCATION = {
-  lat: 53.68574,
-  lng: 23.82836,
-  zoom: 17,
-  name: "ул. Медовая 1",
 } as const;
 
 export function officeMapEmbedUrl() {

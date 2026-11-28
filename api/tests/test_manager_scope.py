@@ -78,6 +78,36 @@ class ManagerScopeTest(unittest.TestCase):
         ids = {u["id"] for u in self.client.get("/api/v1/admin/users", headers=h).json()}
         self.assertEqual(ids, {1, 2, 3, 4, 5, 6})
 
+    def test_manager_can_view_car_photos_of_any_client(self):
+        photo = self.store.add_media(
+            deal_id=self.other.id, kind="photo", content=b"car photo", filename="car.jpg"
+        )
+        listed = self.client.get("/api/v1/admin/deals", headers=self.auth(2)).json()
+        other = next(deal for deal in listed if deal["id"] == self.other.id)
+        self.assertEqual(other["media"][0]["id"], photo.id)
+        res = self.client.get(photo.url, headers=self.auth(2))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.content, b"car photo")
+        token = self.auth(2)["Authorization"].removeprefix("Bearer ")
+        thumbnail = self.client.get(photo.url, params={"access_token": token})
+        self.assertEqual(thumbnail.status_code, 200)
+        self.assertEqual(thumbnail.content, b"car photo")
+
+    def test_client_cannot_view_another_clients_car_photo(self):
+        photo = self.store.add_media(
+            deal_id=self.other.id, kind="photo", content=b"car photo", filename="car.jpg"
+        )
+        self.assertEqual(self.client.get(photo.url).status_code, 401)
+        self.assertEqual(self.client.get(photo.url, headers=self.auth(4)).status_code, 403)
+        self.assertEqual(self.client.get(photo.url, headers=self.auth(5)).status_code, 200)
+
+    def test_foreign_deal_documents_stay_restricted_to_its_manager(self):
+        document = self.store.add_media(
+            deal_id=self.other.id, kind="document", content=b"contract", filename="contract.pdf"
+        )
+        self.assertEqual(self.client.get(document.url, headers=self.auth(2)).status_code, 403)
+        self.assertEqual(self.client.get(document.url, headers=self.auth(3)).status_code, 200)
+
     def test_client_deals_are_ordered_by_purchase_date(self):
         older = self.store.create_deal(
             DealCreate(telegram_id=104, title="куплена первой", dismantle_yard="texas")

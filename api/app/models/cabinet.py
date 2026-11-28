@@ -4,7 +4,7 @@ from datetime import date
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 StageKey = Literal[
     "selection",
@@ -167,6 +167,19 @@ class ResetClientPasswordPayload(BaseModel):
     send_sms: bool = True
 
 
+class ClientNameUpdate(BaseModel):
+    first_name: str = Field(..., min_length=1, max_length=80)
+    last_name: str = Field("", max_length=80)
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def trim_name(cls, value: str, info) -> str:
+        value = value.strip()
+        if info.field_name == "first_name" and not value:
+            raise ValueError("Укажите имя клиента")
+        return value
+
+
 class UserCredentialsUpdate(BaseModel):
     """Админ меняет логин (телефон) и/или пароль любому пользователю."""
 
@@ -308,6 +321,7 @@ class DealOut(BaseModel):
     # Dropbox (or other) gallery of dismantle / разбор photos — kits.
     dismantle_photos_url: str = ""
     status: DealStatus
+    purchase_date: date | None = None
     car_status: CarStatus = ""
     note: str = ""
     price: float = 0
@@ -320,6 +334,7 @@ class DealOut(BaseModel):
     client_telegram_id: int = 0
     client_name: str = ""
     client_username: str = ""
+    client_manager_user_id: int = 0
     manager_user_id: int = 0
     manager_telegram_id: int = 0
     manager_name: str = ""
@@ -349,6 +364,7 @@ class DealCreate(BaseModel):
     price: float = 0
     currency: Literal["USD", "GBP"] = "USD"
     status: DealStatus = "active"
+    purchase_date: date | None = None
     kind: DealKind = "kit"
     origin_region: OriginRegion = "usa"
     # Ignored if kind is set — derived from kind on create.
@@ -361,6 +377,7 @@ class DealCreate(BaseModel):
 
 
 class DealUpdate(BaseModel):
+    purchase_date: date | None = None
     title: str | None = None
     vin: str | None = None
     lot_number: str | None = None

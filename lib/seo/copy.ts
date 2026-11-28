@@ -1,5 +1,6 @@
 import type { CatalogMake, CatalogModel, CatalogRegion } from "@/lib/catalog";
 import type { SeoCity } from "@/lib/seo/cities";
+import { COMPANY } from "@/lib/company";
 
 export function cityHubTitle(city: SeoCity) {
   return `Купить авто и машинокомплект ${city.inLocative} | MG.GROUP`;
@@ -49,6 +50,13 @@ export function kitCityH1(city: SeoCity) {
   return `Машинокомплект ${city.inLocative}`;
 }
 
+export function kitCityDeliveryPrice(city: SeoCity) {
+  if (city.slug === "minsk") {
+    return "Для машинокомплекта тариф разбора включает доставку и таможенное оформление до Минска. Адрес и время самовывоза согласуйте с менеджером.";
+  }
+  return `Для машинокомплекта тариф разбора включает доставку и таможенное оформление до Минска. Возможен самовывоз. Стоимость довоза в ${city.name} менеджер рассчитает по адресу выдачи.`;
+}
+
 export function kitOriginTitle(origin: "usa" | "uk") {
   return origin === "usa"
     ? "Машинокомплекты из США в Беларусь | MG.GROUP"
@@ -62,7 +70,7 @@ export function kitOriginDescription(origin: "usa" | "uk") {
 }
 
 export function kitOriginH1(origin: "usa" | "uk") {
-  return origin === "usa" ? "Машинокомплекты из США" : "Машинокомплекты из Англии";
+  return origin === "usa" ? "Машинокомплекты из США в Беларусь" : "Машинокомплекты из Англии в Беларусь";
 }
 
 export type FaqItem = { q: string; a: string };
@@ -105,7 +113,7 @@ export function cityMakeFaq(
   return [
     {
       q: `Можно ли купить ${make.name} из ${region.nameGenitive} ${city.inLocative}?`,
-      a: `Да. MG.GROUP подбирает ${make.name} на ${regionSourcesLabel(region)}, считает стоимость под ключ и организует доставку ${city.inLocative}. Офис — в Гродно.`,
+      a: `MG.GROUP подбирает ${make.name} на площадках региона и рассчитывает стоимость с доставкой в ${city.name}. Офис находится в Гродно.`,
     },
     {
       q: "Что входит в цену под ключ?",
@@ -134,7 +142,7 @@ export function cityRegionFaq(city: SeoCity, region: CatalogRegion): FaqItem[] {
     },
     {
       q: "Где ваш офис?",
-      a: "г. Гродно, ул. Медовая 1. Доставку по РБ организуем после оформления.",
+      a: `${COMPANY.address}. Доставку по Беларуси организуем после оформления.`,
     },
   ];
 }
@@ -143,7 +151,7 @@ export function kitCityFaq(city: SeoCity): FaqItem[] {
   return [
     {
       q: `Заказать машинокомплект ${city.inLocative}?`,
-      a: `Да. Выкупаем донор на Copart / IAAI / Copart UK, разбираем и везём комплект ${city.inLocative}.`,
+      a: `Выкупаем донора на Copart, IAAI или Copart UK, разбираем по бланку и доставляем комплект в ${city.name}.`,
     },
     {
       q: "Чем комплект отличается от авто под ключ?",
@@ -151,7 +159,7 @@ export function kitCityFaq(city: SeoCity): FaqItem[] {
     },
     {
       q: "Можно ли посчитать заранее?",
-      a: "Да — по лоту или бланку считаем ставку, разбор, логистику и доставку до вашего города.",
+      a: `По ссылке на лот и бланку разборки менеджер подготовит смету. ${kitCityDeliveryPrice(city)}`,
     },
   ];
 }
@@ -185,7 +193,7 @@ export function catalogRegionFaq(region: CatalogRegion): FaqItem[] {
     },
     {
       q: "Где ваш офис?",
-      a: "г. Гродно, ул. Медовая 1. Доставку по РБ организуем после оформления.",
+      a: `${COMPANY.address}. Доставку по Беларуси организуем после оформления.`,
     },
   ];
 }

@@ -27,9 +27,10 @@ export default function UsaKitCalculatorPage({ dictionary }: Props) {
         path="/calculator/usa/"
       />
       <PageShell
-        title="США"
-        description="Машинокомплект: IAAI, Bid.cars и Copart.com. Ставка в долларах, сборы, мили до порта и разбор."
+        title="Калькулятор машинокомплекта из США"
+        description="Для расчёта понадобятся ссылка на лот, ставка в долларах США, площадка и схема разборки. Итог зависит в том числе от аукционных сборов и расстояния до порта."
       >
+        <p className="mb-6 text-sm"><Link href="/mashinokomplekt/usa/" className="text-accent-dark underline">Что входит в поставку из США и как складывается цена</Link></p>
         <CalculatorGate calc="kit-usa" />
         <p className="mt-8 text-sm text-text-muted">
           <Link href="/calculator/angliya/" className="font-medium text-accent-dark underline underline-offset-2">

@@ -17,6 +17,7 @@ from app.models.lots import (
     LotMetaResponse,
 )
 from app.services.filter_lots import LotFilters, unique_sorted
+from app.services.lot_seo import is_public_lot_slug, lot_preview
 
 logger = logging.getLogger("mg.lots")
 
@@ -264,11 +265,20 @@ def lots_meta(make: str | None = None, region: str | None = None) -> LotMetaResp
 
 @router.get("/{slug}", response_model=AuctionLot)
 def get_lot(slug: str) -> AuctionLot:
-    """Lot detail — include ended lots so /auctions/{{slug}} can show closed state."""
+    """Catalog record, including archived lots used by existing clients."""
     lot = lot_store.get_by_slug(slug) or lot_store.get_by_id(slug)
     if not lot:
         raise HTTPException(status_code=404, detail="Lot not found")
     return lot.model_copy(update={"similarSold": lot_store.similar_sold(lot)})
+
+
+@router.get("/{slug}/page")
+def public_lot_page_data(slug: str) -> dict:
+    """Current data shared by all public HTML renderers."""
+    lot = lot_store.get_public_lot(slug) if is_public_lot_slug(slug) else None
+    if lot is None or not is_public_lot_slug(lot.slug):
+        raise HTTPException(status_code=404, detail="Лот не найден")
+    return {"lot": lot, "preview": lot_preview(lot)}
 
 
 @router.post("/{slug}/gallery")

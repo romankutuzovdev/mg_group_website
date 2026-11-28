@@ -2,6 +2,14 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "npm run build",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.mg-group.by" }],
+      "destination": "https://mg-group.by/:path*",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",

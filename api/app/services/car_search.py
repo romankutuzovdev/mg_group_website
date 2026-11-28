@@ -13,6 +13,7 @@ from typing import Any
 from app.config import get_settings
 from app.data.store import lot_store
 from app.models.lots import AuctionLot
+from app.services.lot_seo import SITE_ORIGIN, lot_path
 from app.services.telegram_notify import _escape, send_telegram_message
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,6 @@ logger = logging.getLogger(__name__)
 def _path() -> Path:
     return Path(get_settings().cabinet_db_path)
 
-_SITE = "https://www.mg-group.by"
 _NOTIFY_NOW = 3
 _NOTIFY_PER_CYCLE = 5
 
@@ -237,7 +237,7 @@ def _lot_text(search: dict[str, Any], lot: AuctionLot, *, headline: str) -> str:
         if part
     )
     price = f"${int(round(float(lot.currentBid or 0))):,}".replace(",", " ")
-    url = f"{_SITE}/auctions/{lot.slug}/"
+    url = SITE_ORIGIN + lot_path(lot.slug)
     lines = [
         f"<b>{_escape(headline)}</b>",
         _escape(f"{lot.year} {lot.make} {lot.model}".strip()),

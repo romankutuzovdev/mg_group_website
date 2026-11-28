@@ -54,6 +54,24 @@ class PickCaseLotsTests(unittest.TestCase):
         self.assertEqual(out["items"][1]["title"], "Honda Civic 2019")
         self.assertEqual(out["items"][0]["region"], "США")
         self.assertGreater(out["items"][0]["budget"], 5000)
+        self.assertEqual(out["items"][0]["kind"], "catalog_estimate")
+        self.assertIsNone(out["items"][0]["days"])
+        self.assertIsNone(out["items"][0]["market"])
+
+    def test_purchased_feed_uses_only_published_kit_purchases(self):
+        pick = {
+            "id": 17, "year": 2019, "make": "Ford", "model": "Focus", "image_url": "",
+            "region": "uk", "source": "Copart UK", "damage": "", "odometer": "",
+            "total_usd": 6000, "breakdown": [{"label": "Лот и сборы Copart UK", "amount": 2600}],
+        }
+        with patch.object(content.showcase_picks, "list_public", return_value=[pick]) as published:
+            item = content.purchased(limit=2)["items"][0]
+        published.assert_called_once_with(section="bought", kind="kit", limit=2)
+        self.assertEqual(item["href"], "/podborka/?id=17")
+        self.assertEqual(item["deliveryAndFees"], 3400)
+        self.assertIsNone(item["delivery"])
+        self.assertIsNone(item["marketBy"])
+
 
     def test_repeated_make_is_removed_from_model(self):
         self.assertEqual(_clean_model(_lot("a", "Nissan", model="Nissan Gt-r")), "Gt-r")

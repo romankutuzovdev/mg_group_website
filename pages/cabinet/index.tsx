@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Head from "next/head";
 import Link from "next/link";
+import { absoluteUrl } from "@/lib/catalog";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -28,7 +29,6 @@ import {
   CardBody,
   CardHeader,
   EmptyState,
-  KeyValue,
   LinkButton,
   Notice,
   PageHeader,
@@ -57,7 +57,7 @@ import { LogisticsPanel } from "@/components/cabinet/logistics-panel";
 import { QuoteHistoryPanel } from "@/components/cabinet/quote-history-panel";
 import { ShowcasePicksPanel } from "@/components/cabinet/showcase-picks-panel";
 import type { CalculatorMode } from "@/components/pricing/site-calculator";
-import { DealCarStatus, DealCarStatusBadge } from "@/components/cabinet/deal-car-status";
+import { DealCarStatusBadge } from "@/components/cabinet/deal-car-status";
 import { DealClaims } from "@/components/cabinet/deal-claims";
 import { FavoriteButton } from "@/components/auctions/favorite-button";
 import { ConsentCheck } from "@/components/site/consent-check";
@@ -86,6 +86,7 @@ import {
   dealProgress,
 } from "@/lib/api/cabinet";
 import { ManagerClientsPanel } from "@/components/cabinet/manager-clients-panel";
+import { DealPurchaseDate } from "@/components/cabinet/deal-purchase-date";
 import { hydrateFavorites, resetFavoritesCache, subscribeFavorites } from "@/lib/favorites-cache";
 import {
   acceptCabinetPolicyConsent,
@@ -884,7 +885,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
               <DealPhotos
                 deal={selected}
-                isAdmin={isStaff}
+                isAdmin={Boolean(user.is_admin || (user.is_manager && (selected.manager_user_id === user.id || selected.client_manager_user_id === user.id)))}
                 onUpdated={(next) => {
                   setSelected(next);
                   setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
@@ -947,54 +948,14 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
 
             <aside className="min-w-0 space-y-5 lg:sticky lg:top-20 lg:self-start">
               <Card>
-                <CardHeader title="Сводка" />
-                <CardBody className="py-2">
-                  <KeyValue
-                    rows={[
-                      {
-                        label: "Статус",
-                        value: (
-                          <Badge tone={dealStatusTone(selected.status)} dot>
-                            {dealStatusLabel(selected.status)}
-                          </Badge>
-                        ),
-                      },
-                      {
-                        label: "Где машина",
-                        value: (
-                          <DealCarStatus
-                            deal={selected}
-                            isManager={isStaff}
-                            onUpdated={(next) => {
-                              setSelected(next);
-                              setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
-                            }}
-                          />
-                        ),
-                      },
-                      { label: "Тип", value: DEAL_KIND_LABELS[dealKind(selected)] },
-                      { label: "Откуда", value: regionLabel(selected.origin_region || "usa") },
-                      ...(selected.lot_number
-                        ? [{ label: "Лот", value: `#${selected.lot_number}` }]
-                        : []),
-                      ...(selected.vin
-                        ? [{ label: "VIN", value: <span className="font-mono text-xs">{selected.vin}</span> }]
-                        : []),
-                      ...(selected.price
-                        ? [{ label: "Цена", value: formatMoney(selected.price, selected.currency || "USD") }]
-                        : []),
-                      { label: "Оплата", value: paymentProgressLabel(selected) || "ожидает оплаты" },
-                      ...(selected.manager_name || selected.manager_username
-                        ? [
-                            {
-                              label: "Менеджер",
-                              value:
-                                selected.manager_name ||
-                                (selected.manager_username ? `@${selected.manager_username}` : ""),
-                            },
-                          ]
-                        : []),
-                    ]}
+                <CardBody className="py-4">
+                  <DealPurchaseDate
+                    deal={selected}
+                    canEdit={Boolean(user.is_admin || (user.is_manager && (selected.manager_user_id === user.id || selected.client_manager_user_id === user.id)))}
+                    onUpdated={(next) => {
+                      setSelected(next);
+                      setDeals((current) => current.map((item) => item.id === next.id ? next : item));
+                    }}
                   />
                 </CardBody>
               </Card>
@@ -1223,7 +1184,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
               {favorites.map((fav) => (
                 <li key={fav.lot_id}>
                   <Card className="relative overflow-hidden">
-                    <Link href={`/auctions/${fav.slug}/`} className="block">
+                    <a href={`/auctions/${encodeURIComponent(fav.slug)}/`} className="block">
                       <div className="aspect-[16/10] w-full bg-zinc-100">
                         {fav.image_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -1247,7 +1208,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                             : ""}
                         </p>
                       </div>
-                    </Link>
+                    </a>
                     <div className="absolute right-3 top-3">
                       <FavoriteButton
                         lotId={fav.lot_id}
@@ -1261,7 +1222,7 @@ function CabinetApp({ dictionary }: { dictionary: Dictionary }) {
                             "Здравствуйте! Нужен Carfax / история авто по избранному лоту.",
                             fav.title,
                             fav.source ? `Площадка: ${fav.source}` : null,
-                            `Ссылка: https://www.multiglobalgroup.com/auctions/${fav.slug}/`,
+                            `Ссылка: ${absoluteUrl(`/auctions/${encodeURIComponent(fav.slug)}/`)}`,
                             "Оформите, пожалуйста, через менеджера.",
                           ]
                             .filter(Boolean)

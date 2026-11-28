@@ -1,6 +1,6 @@
 import type { Dictionary } from '@/lib/dictionary';
 import { Phone, MapPin, Clock, ExternalLink, Instagram } from 'lucide-react';
-import { INSTAGRAM_URL } from '@/lib/company';
+import { COMPANY, INSTAGRAM_URL, OFFICE_MAPS } from '@/lib/company';
 import Image from 'next/image';
 import WhatsUpIcon from '../public/whatsapp.svg';
 
@@ -207,18 +207,18 @@ const Footer = ({ dictionary }: FooterProps) => {
             <h3 className="text-lg font-semibold mb-4">Адрес</h3>
             <div className="space-y-3">
               <a 
-                href="https://maps.google.com/?q=Гродно+Медовая+1"
+                href={OFFICE_MAPS.google}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-start gap-2 text-white/55 hover:text-white group transition-colors"
               >
                 <MapPin className="h-4 w-4 mt-1 flex-shrink-0" />
-                <span>Г. Гродно, Ул. Медовая 1</span>
+                <span>{COMPANY.address}</span>
                 <ExternalLink className="h-4 w-4 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
               </a>
               <div className="flex items-center gap-2 text-white/55">
                 <Clock className="h-4 w-4 flex-shrink-0" />
-                <span className="whitespace-pre-line">{dictionary.contact.hours}</span>
+                <span>{COMPANY.hoursWeekdays}<br />{COMPANY.hoursWeekend}</span>
               </div>
               <a
                 href={INSTAGRAM_URL}

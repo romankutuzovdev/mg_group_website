@@ -29,7 +29,7 @@ export default function Home({ dictionary }: HomeProps) {
       <BoughtCarsSection />
       <Process />
       <Benefits dictionary={dictionary} />
-      <CasesFeed limit={3} hideWhenEmpty />
+      <CasesFeed />
       <ReviewsSection limit={3} />
       <CarFinder dictionary={dictionary} />
     </>

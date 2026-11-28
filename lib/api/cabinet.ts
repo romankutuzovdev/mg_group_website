@@ -87,6 +87,7 @@ export type DealSpecs = {
 };
 
 export type Deal = {
+  purchase_date?: string | null;
   id: number;
   title: string;
   vin: string;
@@ -109,6 +110,7 @@ export type Deal = {
   client_telegram_id?: number;
   client_name?: string;
   client_username?: string;
+  client_manager_user_id?: number;
   manager_user_id?: number;
   manager_telegram_id?: number;
   manager_name?: string;
@@ -622,6 +624,24 @@ export async function adminDeleteUser(userId: number): Promise<void> {
   await cabinetFetch(`/api/v1/admin/users/${userId}`, { method: "DELETE" });
 }
 
+export async function adminRenameClient(
+  userId: number,
+  name: { first_name: string; last_name: string },
+): Promise<CabinetUser> {
+  return cabinetFetch(`/api/v1/admin/clients/${userId}/name`, {
+    method: "PATCH",
+    body: JSON.stringify(name),
+  });
+}
+
+export async function adminDeleteDeal(dealId: number): Promise<void> {
+  await cabinetFetch(`/api/v1/admin/deals/${dealId}`, { method: "DELETE" });
+}
+
+export async function adminDeleteDealPhoto(dealId: number, mediaId: number): Promise<void> {
+  await cabinetFetch(`/api/v1/admin/deals/${dealId}/media/${mediaId}`, { method: "DELETE" });
+}
+
 /** Generate a short readable password for a new client account. */
 export function generateClientPassword(length = 8): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -849,6 +869,7 @@ export async function fetchAdminDeals(): Promise<Deal[]> {
 }
 
 export async function adminCreateDeal(body: {
+  purchase_date?: string | null;
   telegram_id: number;
   title: string;
   vin?: string;
@@ -878,6 +899,7 @@ export async function adminCreateDeal(body: {
 export async function adminUpdateDeal(
   dealId: number,
   body: Partial<{
+    purchase_date: string | null;
     car_status: CarStatus;
     title: string;
     vin: string;

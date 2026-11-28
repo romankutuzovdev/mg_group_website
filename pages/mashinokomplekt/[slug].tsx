@@ -8,6 +8,9 @@ import {
   faqJsonLd,
   serviceJsonLd,
 } from "@/components/catalog/seo";
+import { KitExampleCard } from "@/components/pages/cases-feed";
+import { LinkButton } from "@/components/site/button";
+import { COMMERCIAL_UPDATED, KIT_DELIVERY_WINDOW, WEIGHT_FORMULA } from "@/lib/pricing/commercial";
 import { PageShell } from "@/components/layout/page-shell";
 import { CityNavLinks, SeoCta, SeoFaq } from "@/components/seo/seo-blocks";
 import { loadLotsPageLite } from "@/lib/auctions/ssg-lite";
@@ -117,21 +120,28 @@ export default function MashinokomplektSeoPage(props: Props) {
   const description = kitOriginDescription(origin);
   const h1 = kitOriginH1(origin);
   const originName = origin === "usa" ? "США" : "Англии";
+  const calculatorPath = origin === "usa" ? "/calculator/usa/" : "/calculator/angliya/";
+  const introduction = origin === "usa"
+    ? "MG.GROUP выкупает автомобили-доноры на Copart и IAAI, разбирает их в США и отправляет детали в Беларусь. До ставки согласуем с вами список узлов, которые нужно снять и упаковать."
+    : "MG.GROUP выкупает автомобили-доноры на британских аукционах, в том числе Copart UK. На площадке под Лондоном донор разбирают по вашему списку, а детали отправляют в Беларусь.";
+  const priceDetails = origin === "usa"
+    ? "К ставке в долларах прибавляют сборы аукциона, перевозку до разборки, комиссию за перевод и услуги по выкупу и диспетчированию."
+    : "Ставку, аукционные сборы, перевозку по Англии и комиссию за перевод считают в фунтах. На стоимость покупки может начисляться НДС. Для итога британские расходы переводят в доллары по курсу расчёта.";
+  const route = origin === "usa"
+    ? "Донора разбирают в Нью-Джерси или Техасе. Контейнер идёт морем через Турцию в Новороссийск, затем груз везут автотранспортом через Гродно в Минск."
+    : "После разборки под Лондоном груз везут через Францию и Гродно в Минск.";
   const faq = [
     {
-      q: `Машинокомплект из ${originName}?`,
-      a:
-        origin === "usa"
-          ? "Да. Выкупаем донор на Copart / IAAI, разбираем в США и везём морем через Турцию и Новороссийск в Беларусь."
-          : "Да. Выкупаем лот на Copart UK, разбираем в Англии и везём сушей через Францию в Беларусь.",
+      q: "Что входит в машинокомплект?",
+      a: "Бланк разборки определяет состав поставки. Обычно в него включают двигатель с навесным оборудованием, коробку передач, подвеску, кузовные детали и катализаторы. Сиденья можно заказать отдельно. Аккумулятор и бензобак в стандартный комплект не входят.",
     },
     {
-      q: "В какие города доставляете?",
-      a: "Минск, Гродно, Брест, Витебск, Гомель, Могилёв и другие города РБ.",
+      q: `Сколько стоит машинокомплект из ${originName}?`,
+      a: `${priceDetails} Отдельная строка — тариф разбора по типу кузова или весу. Он включает доставку и таможенное оформление до Минска. При расчёте по весу действует формула ${WEIGHT_FORMULA[origin].base.toLocaleString("ru-RU")} USD + ${WEIGHT_FORMULA[origin].perKg.toLocaleString("ru-RU")} USD за килограмм.`,
     },
     {
-      q: "Как посчитать стоимость?",
-      a: "На общей странице машинокомплектов есть калькулятор: ставка, сборы, доставка и разбор. Или напишите в Telegram — посчитаем под бланк.",
+      q: "Как доставляют комплект и сколько ждать?",
+      a: `${route} Общий ориентир MG.GROUP по коммерческим условиям от ${COMMERCIAL_UPDATED} — ${KIT_DELIVERY_WINDOW}. Дату выдачи уточняют по лоту и рейсу. Довоз из Минска в другой город Беларуси рассчитывают отдельно.`,
     },
   ];
 
@@ -152,8 +162,38 @@ export default function MashinokomplektSeoPage(props: Props) {
         ]}
       />
 
-      <section id="lots" className="scroll-mt-24 bg-bg-base pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-12 sm:pb-16">
-        <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 sm:pt-8 lg:px-8">
+      <PageShell title={h1} description={introduction}>
+        <CatalogBreadcrumbs items={[
+          { href: "/mashinokomplekt/", label: "Машинокомплекты" },
+          { label: origin === "usa" ? "США" : "Англия" },
+        ]} />
+        <div className="mt-4 flex flex-wrap gap-3">
+          <LinkButton href="#lots">Перейти к лотам</LinkButton>
+          <LinkButton href={calculatorPath} variant="secondary">Калькулятор комплекта</LinkButton>
+        </div>
+        <div className="my-8 grid items-start gap-8 lg:grid-cols-2">
+          <div className="space-y-5">
+            {faq.map(({ q, a }) => (
+              <section key={q}>
+                <h2 className="font-display text-xl font-semibold">{q}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-text-secondary sm:text-base">{a}</p>
+              </section>
+            ))}
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-accent-dark underline underline-offset-2">
+              <Link href="/mashinokomplekt/chto-takoe/">Состав и схемы разборки</Link>
+              <Link href="/mashinokomplekt/#commercial-pricing">Коммерческий прайс MG.GROUP</Link>
+            </div>
+          </div>
+          <section>
+            <h2 className="mb-3 font-display text-xl font-semibold">Пример расчёта до Минска</h2>
+            <KitExampleCard origin={origin} />
+          </section>
+        </div>
+      </PageShell>
+
+      <section id="lots" className="scroll-mt-24 border-t border-border bg-bg-base py-10 sm:py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 className="mb-5 font-display text-2xl font-semibold">Лоты из {originName} под разборку</h2>
           <AuctionsCatalog
             lots={lots}
             region={origin}
@@ -166,8 +206,7 @@ export default function MashinokomplektSeoPage(props: Props) {
       <section className="border-t border-border bg-bg-elevated py-12 sm:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <CityNavLinks cities={CITIES} hrefFor={(s) => kitCityPath(s)} />
-          <SeoFaq items={faq} />
-          <SeoCta primaryLabel="Заказать машинокомплект" />
+          <SeoCta primaryLabel="Заказать машинокомплект" secondaryHref="/kuplennye-mashinokomplekty/" secondaryLabel="Купленные комплекты" />
         </div>
       </section>
     </>

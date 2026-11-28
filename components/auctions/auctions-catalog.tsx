@@ -994,23 +994,18 @@ export function AuctionsCatalog({
                     onClick={() => patch({ regionFilter: active ? "" : item })}
                     className={`min-h-9 cursor-pointer rounded-full border px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${active ? "border-accent-dark bg-accent-dark text-white" : "border-stone-200 bg-white text-stone-600 hover:border-stone-400 hover:text-stone-950"}`}
                   >
-                    {REGION_LABELS[item]} <span className="ml-1 tabular-nums opacity-65">{counts[item]}</span>
+                    {REGION_LABELS[item]}
+                    {(!apiOn || meta?.counts_by_region || initialRegionCounts?.[item] != null) && (
+                      <span className="ml-1 tabular-nums opacity-65">{counts[item]}</span>
+                    )}
                   </button>
                 );
               })
             ) : null}
             <span className="ml-auto rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-600">
-              Всего: {allCount.toLocaleString("ru-RU")}
-              {activeCount > 0 ? (
-                <>
-                  {" "}
-                  · найдено: {foundCount.toLocaleString("ru-RU")}
-                </>
-              ) : null}
-              {apiLoading ? (
-                <span className="ml-2 text-xs font-normal text-text-muted">загрузка…</span>
-              ) : null}
-              {visibleLots.length > 0 && visibleLots.length < foundCount
+              {apiLoading ? "Обновляем список лотов…" : loadFailed ? "Список не обновлён" : `Всего: ${allCount.toLocaleString("ru-RU")}`}
+              {!apiLoading && !loadFailed && activeCount > 0 && ` · найдено: ${foundCount.toLocaleString("ru-RU")}`}
+              {!apiLoading && !loadFailed && visibleLots.length > 0 && visibleLots.length < foundCount
                 ? ` · на экране ${visibleLots.length}`
                 : null}
             </span>
@@ -1117,7 +1112,7 @@ export function AuctionsCatalog({
               onClick={() => setSheetOpen(false)}
               className="w-full cursor-pointer rounded-xl bg-accent-dark py-3.5 text-sm font-semibold text-white transition hover:bg-accent-hover"
             >
-              Показать {foundCount.toLocaleString("ru-RU")} {lotsWord(foundCount)}
+              {apiLoading || loadFailed ? "Показать результаты" : `Показать ${foundCount.toLocaleString("ru-RU")} ${lotsWord(foundCount)}`}
             </button>
           </SheetFooter>
         </SheetContent>

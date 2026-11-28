@@ -3,10 +3,12 @@
 import { useRef, useState, type ReactNode } from "react";
 import type { Deal, DealMedia } from "@/lib/api/cabinet";
 import {
+  adminDeleteDealPhoto,
   adminUploadDealMedia,
   fetchMyDeal,
   mediaAbsoluteUrl,
 } from "@/lib/api/cabinet";
+import { ConfirmDeleteButton } from "@/components/cabinet/confirm-delete-button";
 
 type Props = {
   deal: Deal;
@@ -21,6 +23,17 @@ export function DealPhotos({ deal, isAdmin = false, onUpdated }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const photos = (deal.media || []).filter((m) => m.kind === "photo");
+
+  const removePhoto = async (photo: DealMedia) => {
+    setBusy(true);
+    try {
+      await adminDeleteDealPhoto(deal.id, photo.id);
+      onUpdated?.({ ...deal, media: (deal.media || []).filter((item) => item.id !== photo.id) });
+      if (lightbox?.id === photo.id) setLightbox(null);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const upload = (files: FileList | null) => {
     if (!files?.length) return;
@@ -91,7 +104,7 @@ export function DealPhotos({ deal, isAdmin = false, onUpdated }: Props) {
           {photos.map((photo) => {
             const src = mediaAbsoluteUrl(photo.url);
             return (
-              <li key={photo.id}>
+              <li key={photo.id} className="relative">
                 <button
                   type="button"
                   onClick={() => setLightbox(photo)}
@@ -105,6 +118,17 @@ export function DealPhotos({ deal, isAdmin = false, onUpdated }: Props) {
                     loading="lazy"
                   />
                 </button>
+                {isAdmin ? (
+                  <ConfirmDeleteButton
+                    label={`Удалить фото ${photo.caption || photo.filename || photo.id}`}
+                    title="Удалить фото автомобиля?"
+                    description={`Автомобиль: ${deal.title}. Фото «${photo.caption || photo.filename || photo.id}» будет удалено из галереи. Отменить удаление нельзя.`}
+                    previewSrc={src}
+                    disabled={busy}
+                    className="absolute right-1 top-1 h-8 w-8 bg-white/95 px-0 shadow-sm"
+                    onDelete={() => removePhoto(photo)}
+                  />
+                ) : null}
               </li>
             );
           })}

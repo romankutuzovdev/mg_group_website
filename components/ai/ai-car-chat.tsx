@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
-import Link from "next/link";
 import {
   ArrowUp,
   ArrowUpRight,
@@ -209,9 +208,8 @@ function LotResult({ lot }: { lot: Card }) {
   ].filter(Boolean);
 
   return (
-    <Link
+    <a
       href={`/auctions/${encodeURIComponent(lot.slug)}/`}
-      prefetch={false}
       className="group flex h-full flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] transition duration-200 hover:-translate-y-0.5 hover:border-emerald-400/50 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 motion-reduce:transform-none"
     >
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-white/5">
@@ -243,7 +241,7 @@ function LotResult({ lot }: { lot: Card }) {
           />
         </span>
       </div>
-    </Link>
+    </a>
   );
 }
 

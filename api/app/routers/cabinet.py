@@ -19,6 +19,7 @@ from app.models.cabinet import (
     STAGE_KEYS,
     ClientAccountCreatedOut,
     ClientManagerUpdate,
+    ClientNameUpdate,
     CreateClientAccountPayload,
     DealCreate,
     DealMediaFromUrl,
@@ -82,6 +83,7 @@ def _require_managed_deal(deal_id: int, actor: UserOut) -> None:
 
 # Всё остальное в сделке меняет только администратор.
 _MANAGER_DEAL_FIELDS = {
+    "purchase_date",
     "car_status",
     "tracking_url",
     "dismantle_photos_url",
@@ -515,6 +517,22 @@ def admin_assign_client_manager(
     return user
 
 
+@router.patch("/admin/clients/{user_id}/name", response_model=UserOut)
+def admin_rename_client(
+    user_id: int,
+    body: ClientNameUpdate,
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
+) -> UserOut:
+    try:
+        return cabinet_store.rename_client(user_id, first_name=body.first_name, last_name=body.last_name, actor=actor)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Клиент не найден") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.delete("/admin/users/{user_id}")
 def admin_delete_user(
     user_id: int,
@@ -633,6 +651,24 @@ def admin_list_deals(
 ) -> list[DealOut]:
     # Сделки видны всем менеджерам; менять — только свои (_require_managed_deal).
     return cabinet_store.list_all_deals()
+
+
+@router.delete("/admin/deals/{deal_id}", status_code=204)
+def admin_delete_deal(
+    deal_id: int,
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
+) -> Response:
+    try:
+        cabinet_store.delete_deal(deal_id, actor=actor)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Автомобиль не найден") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=409, detail="Не удалось удалить файлы автомобиля. Попробуйте снова.") from exc
+    return Response(status_code=204)
 
 
 @router.post("/admin/deals", response_model=DealOut)
@@ -814,6 +850,25 @@ def admin_update_stage(
     return deal
 
 
+@router.delete("/admin/deals/{deal_id}/media/{media_id}", status_code=204)
+def admin_delete_deal_photo(
+    deal_id: int,
+    media_id: int,
+    actor: Annotated[UserOut, Depends(require_admin_or_key)],
+) -> Response:
+    try:
+        cabinet_store.delete_deal_photo(deal_id, media_id, actor=actor)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Автомобиль или фото не найдены") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=409, detail="Не удалось удалить файл фотографии. Попробуйте снова.") from exc
+    return Response(status_code=204)
+
+
 @router.post("/admin/deals/{deal_id}/media", response_model=DealMediaOut)
 async def admin_upload_media(
     deal_id: int,
@@ -930,6 +985,7 @@ def get_media(
     info = cabinet_store.get_media_file(media_id)
     if not info:
         raise HTTPException(status_code=404, detail="Media not found")
+    path, filename, kind = info
     if not viewer.is_admin and not cabinet_store.media_belongs_to_user(media_id, viewer.id):
         deal_id = cabinet_store.media_deal_id(media_id)
         # Логист видит фото машин на доске логистики.
@@ -937,11 +993,11 @@ def get_media(
         manager_ok = (
             viewer.is_manager
             and deal_id is not None
-            and cabinet_store.manager_owns_deal(manager_id=viewer.id, deal_id=deal_id)
+            # Все менеджеры видят фото в общем списке клиентов, как и сами сделки.
+            and (kind == "photo" or cabinet_store.manager_owns_deal(manager_id=viewer.id, deal_id=deal_id))
         )
         if not (logist_ok or manager_ok):
             raise HTTPException(status_code=403, detail="Forbidden")
-    path, filename, kind = info
     media_type = mimetypes.guess_type(filename)[0] or (
         "image/jpeg" if kind == "photo" else "application/octet-stream"
     )

@@ -42,7 +42,7 @@ Health: http://localhost:8000/health
 | GET | `/api/v1/kits/schemes` | Схемы комплектов (МШК/П/К/…) |
 | GET | `/api/v1/kits/yards` | Разборки NJ/TX/UK |
 | GET | `/api/v1/cases` | Кейсы из лотов + quote |
-| GET | `/api/v1/purchased` | Купленные комплекты (feed из лотов) |
+| GET | `/api/v1/purchased` | Опубликованные менеджерами выкупы комплектов |
 | GET | `/api/v1/purchased-cars` | Купленные целые авто (добавляет менеджер) |
 | POST | `/api/v1/admin/purchased-cars` | Добавить целое авто на витрину |
 | PATCH | `/api/v1/admin/purchased-cars/{id}` | Обновить |
